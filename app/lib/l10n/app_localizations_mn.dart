@@ -6557,4 +6557,185 @@ class WordsMn extends Words {
   String planPlanExtraTo(String name) {
     return 'Илүү төлбөр эхлээд $name руу орно.';
   }
+
+  @override
+  String get goalsTitle => 'Зорилго';
+
+  @override
+  String get goalsSubtitle =>
+      'Огноотой зүйлс: хурим, сургууль, машин, орон сууц.';
+
+  @override
+  String goalsDebtNote(String amount) {
+    return 'Карт, зээлд $amount өртэй хэвээр байна. Энд одоо хуримтлуулах мөнгө тэдгээрийг төлөх хугацааг уртасгана.';
+  }
+
+  @override
+  String get goalsNetNote =>
+      'Аюулгүйн нөөц тань дүүрээгүй байна. Энд хийх мөнгийг эхлээд тийш хийж болно.';
+
+  @override
+  String goalBy(String date) {
+    return 'эцсийн өдөр: $date';
+  }
+
+  @override
+  String get goalOnTrack => 'хэвийн явж байна';
+
+  @override
+  String goalBehind(String amount) {
+    return '$amount хоцорсон';
+  }
+
+  @override
+  String goalAsks(String amount) {
+    return 'Төсөвт сард $amount';
+  }
+
+  @override
+  String goalAsksThisMonth(String amount) {
+    return 'Төсөвт энэ сард $amount';
+  }
+
+  @override
+  String goalCatchUp(String date, String amount) {
+    return '$date гэхэд бэлэн болгохын тулд одооноос сард $amount хийх хэрэгтэй.';
+  }
+
+  @override
+  String goalAtUsual(String amount, String month) {
+    return 'Сард $amount хийвэл $month бэлэн болно.';
+  }
+
+  @override
+  String goalMoveDate(String month) {
+    return 'Огноог $month болгох';
+  }
+
+  @override
+  String goalMovedUndo(String name, String month) {
+    return '$name: огноо $month боллоо';
+  }
+
+  @override
+  String goalLate(String date, String amount) {
+    return '$date өнгөрсөн, дахиад $amount хэрэгтэй.';
+  }
+
+  @override
+  String get goalAskRest => 'Үлдсэнийг энэ сард төсөвлөх';
+
+  @override
+  String goalKeepUsual(String amount) {
+    return 'Сард $amount хэвээр';
+  }
+
+  @override
+  String goalAskRestUndo(String name) {
+    return '$name: үлдсэнийг энэ сард төсөвлөх';
+  }
+
+  @override
+  String goalKeepUsualUndo(String name) {
+    return '$name: сар бүрийн дүнгээ хэвээр';
+  }
+
+  @override
+  String goalReady(String amount) {
+    return 'Бэлэн: $amount';
+  }
+
+  @override
+  String get goalAdd => 'Зорилго нэмэх';
+
+  @override
+  String get goalNew => 'Шинэ зорилго';
+
+  @override
+  String get goalWhatFor => 'Юуны төлөө вэ?';
+
+  @override
+  String get goalExWedding => 'Хурим';
+
+  @override
+  String get goalExMission => 'Номлол';
+
+  @override
+  String get goalExUniversity => 'Их сургууль';
+
+  @override
+  String get goalExHome => 'Орон сууцны урьдчилгаа';
+
+  @override
+  String get goalExCar => 'Машин';
+
+  @override
+  String get goalHowMuch => 'Хэд вэ?';
+
+  @override
+  String get goalByWhen => 'Хэзээ гэхэд?';
+
+  @override
+  String goalWillAsk(String amount, String date) {
+    return '$date хүртэл сард $amount.';
+  }
+
+  @override
+  String goalWillAskNow(String amount) {
+    return 'Энэ сард $amount.';
+  }
+
+  @override
+  String goalGoesOnBudget(String name) {
+    return 'Төсөвт «$name» нэртэй мөр болж орох ба нэг сарын зардалд тооцогдохгүй.';
+  }
+
+  @override
+  String get goalAddButton => 'Нэмэх';
+
+  @override
+  String goalsFromExtraOne(String amount, String name) {
+    return 'Одоо сард $amount «$name» руу орж байна. Хэрэв илүү төлбөрөөс гарвал эдгээр огноо хойшилно.';
+  }
+
+  @override
+  String goalsFromExtraMany(String amount) {
+    return 'Одоо сард $amount зорилгууд руу орж байна. Хэрэв илүү төлбөрөөс гарвал эдгээр огноо хойшилно.';
+  }
+
+  @override
+  String get planGoalQ => 'Хуримтлал хуудсанд зорилго болгон харуулах уу?';
+
+  @override
+  String get planGoalYesMeans => 'Хуримтлал хуудас хэр явсныг харуулна.';
+
+  @override
+  String get planGoalNoMeans => 'Зөвхөн энд, жишээ нь төрсөн өдрийн бэлэг.';
+
+  @override
+  String get goalEnterDate => 'Хэзээ гэхэд хэрэгтэйг оруулна уу';
+
+  @override
+  String get goalDone => 'Дууссан';
+
+  @override
+  String goalDoneUndo(String name) {
+    return '$name: дууссан';
+  }
+
+  @override
+  String get goalDoneStatus => 'Дууссан';
+
+  @override
+  String goalDoneLeft(String amount, String name) {
+    return 'Төсвийн «$name» мөрөнд $amount үлдсэн байна.';
+  }
+
+  @override
+  String get goalDoneNote => 'Төсөв үүнд өөр мөнгө хүсэхгүй.';
+
+  @override
+  String goalsTotal(String amount) {
+    return 'Энэ сард зорилгууддаа $amount';
+  }
 }

@@ -392,6 +392,7 @@ class PlanAnswers {
     required int categoryId,
     int? paidFrom,
     CategoryPlan? old,
+    bool keepOnceStart = false,
   }) {
     final k = kind;
     if (k == null || missing != null) return null;
@@ -458,7 +459,16 @@ class PlanAnswers {
                   old.payScheduleId == eachPayId &&
                   (!carry || old.amount == amount)
             : old.amount == amount && old.sameRepeat(fresh));
-    return same ? make(old.start) : fresh;
+    // An amount by one date that stays one ([keepOnceStart], a goal)
+    // keeps its day through a new amount or date.
+    final once =
+        keepOnceStart &&
+        old != null &&
+        old.kind == PlanKind.byDate &&
+        !old.repeats &&
+        k == PlanKind.byDate &&
+        !fresh.repeats;
+    return same || once ? make(old.start) : fresh;
   }
 
   /// The set amount's single periods: those [old] had, while its periods
@@ -667,7 +677,7 @@ PlanNote planNote(
         t.planEnded(money(p.plan.amount), date(due))
       else if (!once)
         t.planDue(money(p.plan.amount), date(due))
-      else if (p.done && due.isBefore(period.start))
+      else if ((p.done || p.late) && due.isBefore(period.start))
         t.planWasDue(money(p.plan.amount), date(due))
       else
         t.planBy(money(p.plan.amount), date(due)),
@@ -681,9 +691,11 @@ PlanNote planNote(
     // This period's bill was paid: the one thing a person asks of a bill's
     // row (#274). Short still comes first: it's about the next one.
     state = t.planPaidOn(date(paid));
+  } else if (p.finished) {
+    state = null;
   } else if (once && p.done) {
     state = t.planSetAsideState;
-  } else if (p.plan.kind == PlanKind.each || p.waiting || p.done) {
+  } else if (p.plan.kind == PlanKind.each || p.waiting || p.done || p.late) {
     state = null;
   } else if (line.toAssign == 0) {
     state = t.planOnTrack;

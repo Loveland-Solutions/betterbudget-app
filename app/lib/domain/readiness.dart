@@ -7,6 +7,7 @@ library;
 import 'dart:math' show max;
 
 import 'budget.dart';
+import 'goals.dart';
 import 'ledger.dart';
 import 'money.dart';
 import 'payoff.dart';
@@ -79,6 +80,26 @@ abstract final class ReadyKeys {
   /// `rate`: highest rate first; unset is smallest first (owner,
   /// 2026-10-27).
   static const method = 'ready.method';
+
+  /// 'yes': the category's once-only "On a date" line is a goal, shown on
+  /// Savings (#101). Kept by category id.
+  static String goal(int categoryId) => 'ready.goal.$categoryId';
+
+  /// 'all': a goal whose date has passed short asks for the rest at once,
+  /// as a missed bill does; 'done': it happened, and nothing more is asked
+  /// (owner, 2026-10-27). Unset keeps asking its usual part until the
+  /// person picks (owner: "a way for the user to choose").
+  static String goalLate(int categoryId) => 'ready.goalLate.$categoryId';
+}
+
+/// Whether category [id] is a goal ([ReadyKeys.goal]): marked so, with a
+/// plan that is an amount by one date.
+bool isGoal(LedgerData data, int id) {
+  final p = data.plans[id];
+  return data.prefs[ReadyKeys.goal(id)] == 'yes' &&
+      p != null &&
+      p.kind == PlanKind.byDate &&
+      !p.repeats;
 }
 
 /// Whether category [id] counts in a month of expenses ([ReadyKeys.leftOut]).
@@ -430,6 +451,7 @@ class Readiness {
     required this.paidOff,
     required this.today,
     required this.chargedLately,
+    required this.goals,
   });
 
   factory Readiness.of(LedgerData data, DateTime today) {
@@ -597,6 +619,7 @@ class Readiness {
           for (final s in ReadyStep.values)
             if (s.name == n) s,
       },
+      goals: goalsOf(data, budget, today),
     );
   }
 
@@ -743,6 +766,9 @@ class Readiness {
 
   /// What can go to debts each month on top of their payments.
   final int extra;
+
+  /// The goals with a date (#101), soonest first.
+  final List<Goal> goals;
 
   /// What was spent on each card or loan since the start of the month
   /// three months back: the payoff counts none of it, so it's said.

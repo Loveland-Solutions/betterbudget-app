@@ -15,6 +15,8 @@ typedef _CategoryEdit = ({
   CategoryPlan? plan,
   // Counts in Savings' month of expenses ([inMonthOfExpenses]).
   bool inMonth,
+  // Shown on Savings as a goal ([isGoal]): an amount by one date only.
+  bool goal,
   // Its group on the Budget page and its note (#100): null for none.
   String? group,
   String? note,
@@ -4137,6 +4139,18 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       _d.inMonth ??
       (widget.isNew || inMonthOfExpenses(widget.data, widget.category.id));
   set _inMonth(bool on) => _d.inMonth = on;
+  bool get _goal =>
+      _d.goal ??
+      (!widget.isNew &&
+          widget.data.prefs[ReadyKeys.goal(widget.category.id)] == 'yes');
+  set _goal(bool on) => _d.goal = on;
+
+  /// Only an amount by one date can be a goal (#101): not a bill that
+  /// comes again, and not the Safety net.
+  bool get _asksGoal =>
+      _p.hasDate &&
+      _p.repeat == PlanRepeat.once &&
+      !isSafetyNet(widget.category);
 
   /// Savings' month of expenses can leave it out: not the Safety net,
   /// which is never in it.
@@ -4334,6 +4348,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     categoryId: widget.category.id,
     paidFrom: _paidFromNow,
     old: _plan,
+    // A goal counts from where it began (#101): a new amount or date
+    // keeps the deposit already paid from it saved toward it.
+    keepOnceStart: _asksGoal && _goal,
   );
 
   Future<void> _save({bool another = false}) async {
@@ -4364,6 +4381,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       off: _off,
       plan: draft,
       inMonth: _inMonth,
+      goal: _asksGoal && _goal,
       group: _groupNow,
       note: _d.note.text.trim().isEmpty ? null : _d.note.text.trim(),
     );
@@ -5249,6 +5267,17 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     ),
   );
 
+  Widget _goalRow(Words t) => _formRow(
+    t.planGoalQ,
+    _Segmented(
+      items: [
+        ('plan-goal-no', t.planNo, !_goal, () => setState(() => _goal = false)),
+        ('plan-goal-yes', t.planYes, _goal, () => setState(() => _goal = true)),
+      ],
+    ),
+    aside: _goal ? t.planGoalYesMeans : t.planGoalNoMeans,
+  );
+
   Widget _inMonthRow(Words t) => _formRow(
     t.planInMonthQ,
     _Segmented(
@@ -5678,6 +5707,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                               ),
                             const SizedBox(height: 22),
                             ..._planFields(t, line: line, draft: draft),
+                            if (_asksGoal) _goalRow(t),
                             if (_asksInMonth) _inMonthRow(t),
                             // A bill sits under Bills and the Safety net
                             // under Saved, whatever group they'd have.
@@ -5984,6 +6014,9 @@ class _EditDraft {
 
   /// In a month of expenses, as answered; null until it is.
   bool? inMonth;
+
+  /// Shown on Savings as a goal, as answered; null until it is.
+  bool? goal;
 
   /// The answers were filled from the saved plan.
   bool filled = false;

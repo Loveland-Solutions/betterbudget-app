@@ -1,7 +1,7 @@
 import 'ledger.dart';
 import 'money.dart';
 import 'pay.dart';
-import 'readiness.dart' show mainCurrency;
+import 'readiness.dart' show ReadyKeys, isGoal, mainCurrency;
 
 /// The budget's envelopes (ADR 0004 rule 26). Each spending category keeps
 /// its own balance from period to period, below zero too: every amount
@@ -182,9 +182,36 @@ class PlanLine {
     this.wentBackOn,
     this.once = false,
     this.onceFrom,
+    this.usual = 0,
+    this.late = false,
+    this.toward = 0,
+    this.pastDate = false,
+    this.finished = false,
   });
 
   final CategoryPlan plan;
+
+  /// A once-only amount by a date: the part each period asks while it's
+  /// kept up with, from the plan's first period to its date.
+  final int usual;
+
+  /// A goal whose date has passed short, still asking its [usual] part
+  /// rather than all of the rest at once ([ReadyKeys.goalLate]).
+  final bool late;
+
+  /// A once-only amount by a date: what counts toward it through this
+  /// period, as the parts are worked out: what the category held when the
+  /// plan began, and every amount assigned since. Spending on the thing
+  /// itself doesn't take it down.
+  final int toward;
+
+  /// A once-only amount whose date is before this period: a bill would be
+  /// overdue now.
+  final bool pastDate;
+
+  /// A goal past its date that the person said is done: it asks for
+  /// nothing more, short or not.
+  final bool finished;
 
   /// A set amount seen by its own period, which was given an amount of its
   /// own ([CategoryPlan.once]): [each] is that one, not the plan's.
@@ -652,6 +679,9 @@ class Budget {
                 wentBackOn: wentBackOn,
                 skipped: skippedBills(data, plan),
                 pays: data.paySchedules,
+                lateWay: isGoal(data, id)
+                    ? data.prefs[ReadyKeys.goalLate(id)] ?? 'keep'
+                    : 'all',
               ),
       );
       // Only what a category with money holds is out of the money not
@@ -1149,6 +1179,7 @@ class Budget {
     DateTime? wentBackOn,
     Set<DateTime> skipped = const {},
     List<PaySchedule> pays = const [],
+    String lateWay = 'all',
   }) {
     // The day a bill is counted in: the last payday on or before it is
     // due, since that pay is what has to cover it (owner, 2026-10-24).
@@ -1314,9 +1345,42 @@ class Budget {
       }
     }
     final firstNeed = atLeast0(bill - base);
-    // Once, its date gone: whatever is still missing is wanted now.
+    // Once: the part it asks when kept up with, from its first period.
+    final usual = repeats
+        ? 0
+        : ceilDiv(firstNeed, _periodsThrough(begins, asked(first), by));
+    // Once, its date gone: whatever is still missing is wanted now. A goal
+    // can keep asking its usual part instead, the person's choice.
     if (!repeats && asked(first).isBefore(p.start)) {
-      final missing = atLeast0(firstNeed - assignedIn(begins.start, p.start));
+      final put = assignedIn(begins.start, p.start);
+      final missing = atLeast0(firstNeed - put);
+      final toward = base + put + assigned;
+      if (lateWay == 'done') {
+        return PlanLine(
+          plan: plan,
+          each: 0,
+          planned: 0,
+          due: first,
+          done: true,
+          usual: usual,
+          toward: toward,
+          pastDate: true,
+          finished: true,
+        );
+      }
+      if (lateWay == 'keep' && missing > 0) {
+        final part = usual < missing ? usual : missing;
+        return PlanLine(
+          plan: plan,
+          each: part,
+          planned: part,
+          due: first,
+          usual: usual,
+          late: true,
+          toward: toward,
+          pastDate: true,
+        );
+      }
       return PlanLine(
         plan: plan,
         each: 0,
@@ -1324,6 +1388,9 @@ class Budget {
         overdue: missing,
         due: first,
         done: true,
+        usual: usual,
+        toward: toward,
+        pastDate: true,
       );
     }
     // The bill this period saves for: the first due on or after it
@@ -1434,6 +1501,8 @@ class Budget {
       // completes it. A bill that comes again is never done.
       done: !repeats && missing - assigned <= 0,
       lastPeriod: lastPeriod,
+      usual: usual,
+      toward: repeats ? 0 : base + before + assigned,
     );
   }
 }

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-27** · version 0.57.1 · schema v22 · 903 tests pass
+**Last updated: 2026-10-27** · version 0.59.0 · schema v22 · 931 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -20,9 +20,18 @@ The upload key may now release to production too; a release there is still the o
 say each time.
 
 **Next: the owner's pick from the board's Next column, Beta milestone.** The four
-combs are done (#161: Ledger, Budget, Savings, Payees). What's left for beta there:
-the native speaker's check of the
-Mongolian (#90), and the Savings goals (#101, #102).
+combs are done (#161: Ledger, Budget, Savings, Payees), and so are the Savings goals.
+What's left for beta there: the native speaker's check of the Mongolian (#90).
+
+**Goals on Savings** (0.59.0, #101 and #102; ADR 0004 "Goals on Savings"): a Goals
+section under the four steps. A goal is a once-only "On a date" line marked a goal
+(`ready.goal.<id>`; Edit asks "Show on Savings as a goal?"), added on Savings with
+what it's for, how much and by when, and what Budget will ask said before Add. Each
+card: saved of the amount, on track or behind (Budget's short), what it asks a
+month; behind, the catch-up and Move the date; late, the person's choice of keeping
+the usual part (the default), asking for the rest, or It's done
+(`ready.goalLate.<id>`: `all`, `done`); ready, a green bar. With two or more goals,
+their total this month under the heading (`domain/goals.dart`, `ui/savings_goals.dart`).
 
 **Paying off debt, two ways** (0.58.0, #103 and #174; ADR 0004 "Paying off debt: two
 ways, side by side"): step 2 counts debts paid off ("1 of 5 debts paid off · ₮X to
