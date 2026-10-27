@@ -93,7 +93,10 @@ class EntryRowController {
   /// Set by the screen: "+ New category" opens the New category window
   /// with the name typed and the row's currency (owner, 2026-10-22, #237).
   /// The category it made or picked, or null when it closed without one.
-  Future<AccountInfo?> Function(String name, Currency currency)? newCategory;
+  /// [account]: the one picked under All accounts (null in an account's
+  /// own register), the new category's Paid from to begin with.
+  Future<AccountInfo?> Function(String name, Currency currency, int? account)?
+  newCategory;
   List<String> payeeNames = const [];
   final payeeFocus = FocusNode(debugLabel: 'entry-payee');
 
@@ -521,6 +524,10 @@ class _EntryRowState extends State<EntryRow> {
     return other != null && other.currency != _hereCurrency ? other : null;
   }
 
+  /// The account picked for the row under All accounts; null in an
+  /// account's own register, which the screen knows.
+  int? get _hereId => _picking ? widget.controller.account?.id : null;
+
   /// The account the row is in, for the transfer sentence.
   String? get _here =>
       _picking ? widget.controller.account?.name : widget.accountName;
@@ -656,7 +663,7 @@ class _EntryRowState extends State<EntryRow> {
   /// typed, and saving the row still makes it, bare, as before.
   Future<void> _pickNew(String name) async {
     final open = widget.controller.newCategory;
-    final made = open == null ? null : await open(name, _hereCurrency);
+    final made = open == null ? null : await open(name, _hereCurrency, _hereId);
     if (!mounted) return;
     if (open == null) {
       // Picked on purpose: no doubt left.
@@ -678,7 +685,11 @@ class _EntryRowState extends State<EntryRow> {
   /// "+ New category" on a split's line: the same window, and the
   /// category it made on the line.
   Future<void> _pickNewOnLine(_SplitLine l, String name) async {
-    final made = await widget.controller.newCategory!(name, _hereCurrency);
+    final made = await widget.controller.newCategory!(
+      name,
+      _hereCurrency,
+      _hereId,
+    );
     if (!mounted) return;
     setState(() {
       if (made == null) {

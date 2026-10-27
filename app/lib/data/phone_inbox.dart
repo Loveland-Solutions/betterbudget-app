@@ -64,6 +64,12 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
         'CREATE TABLE category_off (category_id TEXT NOT NULL, '
         'account_id TEXT NOT NULL)',
       );
+      // The account it's paid from (0.62.0, #180), in place of the
+      // accounts it isn't. A computer from before reads the plan's.
+      db.execute(
+        'CREATE TABLE category_paid_from (category_id TEXT PRIMARY KEY, '
+        'account_id TEXT NOT NULL)',
+      );
       db.execute('BEGIN');
       db.execute('INSERT INTO phone VALUES (?)', [inbox.device]);
       for (final c in inbox.categories) {
@@ -80,6 +86,9 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
         }
         for (final a in c.off) {
           db.execute('INSERT INTO category_off VALUES (?, ?)', [c.id, a]);
+        }
+        if (c.paidFromId case final a?) {
+          db.execute('INSERT INTO category_paid_from VALUES (?, ?)', [c.id, a]);
         }
       }
       for (final e in inbox.entries) {
@@ -119,6 +128,7 @@ String phoneInboxSaying(PhoneInbox inbox) => jsonEncode([
       c.currency.code,
       c.plan == null ? null : planToJson(c.plan!),
       c.off.toList()..sort(),
+      c.paidFromId,
     ],
   for (final e in inbox.entries)
     [
@@ -167,6 +177,12 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
               .add(r['account_id'] as String);
         }
       }
+      final paidFrom = <String, String>{};
+      if (has('category_paid_from')) {
+        for (final r in db.select('SELECT * FROM category_paid_from')) {
+          paidFrom[r['category_id'] as String] = r['account_id'] as String;
+        }
+      }
       if (hasLines) {
         for (final r in db.select('SELECT * FROM entry_lines ORDER BY rowid')) {
           lines.putIfAbsent(r['entry_id'] as String, () => []).add((
@@ -192,6 +208,7 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
                   ? plans[r['id']]?.due
                   : null,
               off: off[r['id']] ?? const {},
+              paidFromId: paidFrom[r['id']],
             ),
         ],
         entries: [

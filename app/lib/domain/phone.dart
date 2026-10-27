@@ -576,9 +576,8 @@ PhoneSnapshot snapshotOf(
             name: c.name,
             leftMinor: budget.lines[c.id]!.left,
             currency: budget.lines[c.id]!.currency,
-            // Its own Paid from when it has one, else where its last row was paid.
-            paidFromId: (data.plans[c.id]?.paidFrom ?? paidFrom[c.id])
-                ?.toString(),
+            // Its own Paid from (#180), else where its last row was paid.
+            paidFromId: (data.paidFrom[c.id] ?? paidFrom[c.id])?.toString(),
             recentPayees: payees[c.id] ?? const [],
             due: dueOf(c.id),
             hadMinor: hadOf(c.id),

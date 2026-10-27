@@ -209,8 +209,8 @@ void main() {
     expect(r.fund, 0);
   });
 
-  test('where it sits: the accounts its category is paid from', () {
-    // Paid from every account: nothing to say.
+  test('where it sits: the account its category is paid from', () {
+    // Paid from none said: nothing to say.
     var r = Readiness.of(ledger(inSavings: 6000000), today);
     expect(r.keptIn, isEmpty);
     // Paid from Savings only, which holds 60,000.00 of it... all of it.
@@ -225,9 +225,7 @@ void main() {
         ],
         prefs: data.prefs,
         budgetAmounts: data.budgetAmounts,
-        accountsOff: {
-          net: {checking},
-        },
+        paidFrom: {net: savings},
       );
     }
 

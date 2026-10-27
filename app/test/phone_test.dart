@@ -103,7 +103,19 @@ Future<void> _newCategory(WidgetTester tester, String name) async {
   await tester.tap(find.byKey(const ValueKey('new-category')));
   await tester.pumpAndSettle();
   await tester.enterText(find.byKey(const ValueKey('new-category-name')), name);
+  await _paidFrom(tester);
   await tester.tap(find.text('Add'));
+  await tester.pumpAndSettle();
+}
+
+/// Picks the [n]th account under New category's Paid from (#180): TDB
+/// Checking first.
+Future<void> _paidFrom(WidgetTester tester, [int n = 0]) async {
+  await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('money-accounts')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey('money-account-$n')));
   await tester.pumpAndSettle();
 }
 
@@ -764,6 +776,7 @@ void main() {
       find.byKey(const ValueKey('new-category-name')),
       'Vet',
     );
+    await _paidFrom(tester);
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     expect(store.made.single.name, 'Vet');
@@ -807,6 +820,7 @@ void main() {
       find.byType(PhoneApp),
       matchesGoldenFile('goldens/phone_new_category.png'),
     );
+    await _paidFrom(tester);
     await tester.tap(find.byKey(const ValueKey('new-category-add')));
     await tester.pumpAndSettle();
     final made = store.made.single;
@@ -829,6 +843,7 @@ void main() {
       find.byKey(const ValueKey('new-category-name')),
       'Taxi',
     );
+    await _paidFrom(tester);
     await tester.tap(find.byKey(const ValueKey('new-category-another')));
     await tester.pumpAndSettle();
     expect(find.text('Added: Taxi'), findsOneWidget);
@@ -1815,6 +1830,8 @@ void main() {
     // Its own name isn't "taken".
     expect(find.byKey(const ValueKey('new-category-note')), findsNothing);
     await tester.enterText(find.byKey(const ValueKey('plan-amount')), '45000');
+    // Made on a phone before 0.62.0, it has no Paid from yet.
+    await _paidFrom(tester);
     await tester.tap(find.byKey(const ValueKey('new-category-add')));
     await tester.pumpAndSettle();
     expect(find.text('Edit Mobicom'), findsNothing);
@@ -2557,6 +2574,47 @@ void main() {
       expect(old.off, isEmpty);
     });
 
+    test('a phone\'s bill for a category the computer has keeps the '
+        'computer\'s Paid from, the bill with it (#180)', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      var data = await db.loadLedger();
+      int id(String name) =>
+          data.accounts.values.singleWhere((a) => a.name == name).id;
+      final checking = id('TDB Checking'), cash = id('Cash wallet');
+      final utilities = id('Utilities');
+      expect(data.paidFrom[utilities], checking);
+      expect(data.plans[utilities], isNull);
+      await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          categories: [
+            PhoneCategory(
+              id: 'new-1',
+              name: 'Utilities',
+              leftMinor: 0,
+              madeHere: true,
+              paidFromId: '$cash',
+              plan: CategoryPlan(
+                categoryId: 0,
+                kind: PlanKind.byDate,
+                amount: 9000000,
+                start: today,
+                due: DateTime(2026, 10, 20),
+                everyMonths: 1,
+                paidFrom: cash,
+              ),
+            ),
+          ],
+        ),
+      ], today: today);
+      data = await db.loadLedger();
+      expect(data.plans[utilities]!.kind, PlanKind.byDate);
+      expect(data.paidFrom[utilities], checking);
+      expect(data.plans[utilities]!.paidFrom, checking);
+    });
+
     test('the computer gives a phone\'s category its plan and Paid from, '
         'and undo takes the category and its bill', () async {
       final db = AppDatabase(NativeDatabase.memory());
@@ -2639,7 +2697,8 @@ void main() {
       expect(plan.amount, 4500000);
       expect(plan.everyMonths, 1);
       expect(plan.paidFrom, checking);
-      expect(data.accountsOff[mobicom], {savings});
+      // The one account it left checked is its Paid from.
+      expect(data.paidFrom[mobicom], checking);
       // Its bill is scheduled in TDB Checking, as the computer's would be.
       bool billed(LedgerData d) => d.txns.any(
         (t) => t.scheduled && t.entries.any((e) => e.accountId == mobicom),
@@ -3669,6 +3728,7 @@ void main() {
         find.byKey(const ValueKey('plan-amount')),
         '500000',
       );
+      await _paidFrom(tester);
       await tester.tap(find.byKey(const ValueKey('new-category-add')));
       await tester.pumpAndSettle();
       final name = folder.written.keys.single;

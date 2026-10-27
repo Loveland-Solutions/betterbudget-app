@@ -1215,15 +1215,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String planPaidFromSeveral(int count) {
-    return '$count accounts are checked, so this bill isn’t in any forecast. Leave one checked to see it there.';
-  }
-
-  @override
-  String get planPaidFromNoneChecked =>
-      'No account is checked, so this bill isn’t in any forecast.';
-
-  @override
   String planRunsOutZero(String date) {
     return 'Runs out on $date';
   }
@@ -4627,16 +4618,6 @@ class WordsEn extends Words {
   String get planMoneyCurrency => 'Currency';
 
   @override
-  String planOnlyFromOne(String account) {
-    return 'only from $account';
-  }
-
-  @override
-  String planOnlyFromSome(int count, int total) {
-    return 'only from $count of $total accounts';
-  }
-
-  @override
   String planMoneyUndo(String category) {
     return 'Accounts for $category';
   }
@@ -4666,16 +4647,8 @@ class WordsEn extends Words {
     String category,
     String rest,
   ) {
-    return '$held of what’s in $account is for $category. The other $rest there can still be assigned to any category.';
+    return '$held of what’s in $account is for $category. $rest there is in no category yet and can be assigned.';
   }
-
-  @override
-  String planMoneyRestSome(String held, String category, String rest) {
-    return '$held of what’s in these accounts is for $category. The other $rest there can still be assigned to any category.';
-  }
-
-  @override
-  String get planFromNone => 'no account checked';
 
   @override
   String planOtherRows(int count, String amount, String symbol, String other) {
@@ -4691,28 +4664,18 @@ class WordsEn extends Words {
   }
 
   @override
-  String planOffAccount(String amount, String account) {
-    return '$amount paid from $account, which this category doesn’t use';
-  }
-
-  @override
-  String planOffAccounts(String amount, int count) {
-    return '$amount paid from $count accounts this category doesn’t use';
-  }
-
-  @override
   String planBackingOne(String held, String account, String have) {
     return '$held left here, but $account holds $have';
   }
 
   @override
-  String planBackingSome(String held, String have) {
-    return '$held left here, but its accounts hold $have';
-  }
-
-  @override
-  String planBackingShared(String held, int count, String have) {
-    return '$held left in $count categories kept in the same accounts, which hold $have';
+  String planBackingShared(
+    String held,
+    int count,
+    String account,
+    String have,
+  ) {
+    return '$held left in $count categories kept in $account, which holds $have';
   }
 
   @override
@@ -5001,6 +4964,28 @@ class WordsEn extends Words {
   String get planRowWillRead => 'The row will read';
 
   @override
+  String get planPaidFromChoose => 'Choose an account';
+
+  @override
+  String get planPaidFromWanted =>
+      'Choose the account it’s paid from. Any account in its currency can still pay it.';
+
+  @override
+  String planPaidFromSpendHint(String account) {
+    return 'What’s left of it comes out of $account’s forecast a day at a time.';
+  }
+
+  @override
+  String planSpendingFromBudget(String amount) {
+    return '$amount of spending from the budget';
+  }
+
+  @override
+  String planPaidFromGone(String account) {
+    return 'Paid from $account, which is archived: pick another to see it in a forecast';
+  }
+
+  @override
   String get planLabelPaidFrom => 'Paid from';
 
   @override
@@ -5016,17 +5001,6 @@ class WordsEn extends Words {
   @override
   String planEditedUndo(String category) {
     return 'Changes to $category';
-  }
-
-  @override
-  String get planAccountsAll => 'All accounts';
-
-  @override
-  String get planAccountsNone => 'No accounts';
-
-  @override
-  String planAccountsSome(int count, int total) {
-    return '$count of $total accounts';
   }
 
   @override

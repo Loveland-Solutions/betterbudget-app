@@ -1704,18 +1704,6 @@ abstract class Words {
   /// **'{count} of them expected'**
   String planOfThemExpected(int count);
 
-  /// Budget page, Edit under a category's row (Yes): note beside Paid from while two or more accounts are checked (the bill is scheduled only in a single account)
-  ///
-  /// In en, this message translates to:
-  /// **'{count} accounts are checked, so this bill isn’t in any forecast. Leave one checked to see it there.'**
-  String planPaidFromSeveral(int count);
-
-  /// Budget page, Edit under a category's row (Yes): note beside Paid from while no account is checked
-  ///
-  /// In en, this message translates to:
-  /// **'No account is checked, so this bill isn’t in any forecast.'**
-  String get planPaidFromNoneChecked;
-
   /// Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip
   ///
   /// In en, this message translates to:
@@ -6533,18 +6521,6 @@ abstract class Words {
   /// **'Currency'**
   String get planMoneyCurrency;
 
-  /// Budget page: note under a category's name when it uses one account only
-  ///
-  /// In en, this message translates to:
-  /// **'only from {account}'**
-  String planOnlyFromOne(String account);
-
-  /// Budget page: note under a category's name when some of its currency's accounts are unchecked
-  ///
-  /// In en, this message translates to:
-  /// **'only from {count} of {total} accounts'**
-  String planOnlyFromSome(int count, int total);
-
   /// Undo history label for changing which accounts a category uses (shown in Undone/Redone toasts)
   ///
   /// In en, this message translates to:
@@ -6575,10 +6551,10 @@ abstract class Words {
   /// **'Changing the currency removes its plan'**
   String get planMoneyChangePlan;
 
-  /// Budget page, a category's currency and accounts: line under the checklist when one account is left checked; says with real amounts what unchecking does and doesn't reserve
+  /// Category Edit, under Paid from, for a category that keeps money (a bill, savings, one that carries over) paid from a cash or bank account: what of the account is this category's, and what's left in it once every category paid from it has its share (#183). Shown only when that's above zero.
   ///
   /// In en, this message translates to:
-  /// **'{held} of what’s in {account} is for {category}. The other {rest} there can still be assigned to any category.'**
+  /// **'{held} of what’s in {account} is for {category}. {rest} there is in no category yet and can be assigned.'**
   String planMoneyRestOne(
     String held,
     String account,
@@ -6586,35 +6562,11 @@ abstract class Words {
     String rest,
   );
 
-  /// The same line, when several accounts are left checked and some are unchecked
-  ///
-  /// In en, this message translates to:
-  /// **'{held} of what’s in these accounts is for {category}. The other {rest} there can still be assigned to any category.'**
-  String planMoneyRestSome(String held, String category, String rest);
-
-  /// Budget page: note under a category's name when every account is unchecked
-  ///
-  /// In en, this message translates to:
-  /// **'no account checked'**
-  String get planFromNone;
-
   /// Budget page: gold note under a category's name; rows in the other currency are filed under it. It stays until they're fixed; clicking shows them
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{{amount} in 1 row isn’t counted here (this category is in {symbol}); it came out of {other} not assigned} other{{amount} in {count} rows isn’t counted here (this category is in {symbol}); it came out of {other} not assigned}}'**
   String planOtherRows(int count, String amount, String symbol, String other);
-
-  /// Budget page: gold note under a category's name; this period it was paid from an account unchecked for it and the money wasn't moved there (the spending still counts)
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} paid from {account}, which this category doesn’t use'**
-  String planOffAccount(String amount, String account);
-
-  /// The same note, when more than one such account paid
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} paid from {count} accounts this category doesn’t use'**
-  String planOffAccounts(String amount, int count);
 
   /// Budget page: coral note under a category's name; it keeps its money in one account and that account holds less than the category has left
   ///
@@ -6622,17 +6574,11 @@ abstract class Words {
   /// **'{held} left here, but {account} holds {have}'**
   String planBackingOne(String held, String account, String have);
 
-  /// The same note, when it keeps its money in several accounts
+  /// The same note, when several categories paid from the same account and keeping money in it together have more left than it holds. {account} is the account, like “Khan Savings”.
   ///
   /// In en, this message translates to:
-  /// **'{held} left here, but its accounts hold {have}'**
-  String planBackingSome(String held, String have);
-
-  /// The same note, when several categories limited to the same accounts together have more left than those accounts hold
-  ///
-  /// In en, this message translates to:
-  /// **'{held} left in {count} categories kept in the same accounts, which hold {have}'**
-  String planBackingShared(String held, int count, String have);
+  /// **'{held} left in {count} categories kept in {account}, which holds {have}'**
+  String planBackingShared(String held, int count, String account, String have);
 
   /// Budget page, a category's menu (⋯ or right-click): opens everything about the category under its row; a double-click on the row does the same
   ///
@@ -7102,6 +7048,36 @@ abstract class Words {
   /// **'The row will read'**
   String get planRowWillRead;
 
+  /// Category Edit and New category, Paid from: the button before an account is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an account'**
+  String get planPaidFromChoose;
+
+  /// Category Edit and New category, beside Paid from in coral, when Save was clicked before an account was chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the account it’s paid from. Any account in its currency can still pay it.'**
+  String get planPaidFromWanted;
+
+  /// Category Edit, beside Paid from, for a set amount that goes back when the period ends (spent down, like groceries): the forecast takes what's left out of that account day by day. {account} is like “TDB Checking”.
+  ///
+  /// In en, this message translates to:
+  /// **'What’s left of it comes out of {account}’s forecast a day at a time.'**
+  String planPaidFromSpendHint(String account);
+
+  /// Forecast, after the bills it counts: what the budget expects spent from this account before the forecast's end, taken out a day at a time (groceries, transport and the rest). Follows ' · '. Lowercase start in English.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} of spending from the budget'**
+  String planSpendingFromBudget(String amount);
+
+  /// Budget page, under a category's name: the account it's paid from was archived or deleted, so its bills and spending are in no forecast. Clicking it opens Edit. {account} is like “Golomt Visa”.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid from {account}, which is archived: pick another to see it in a forecast'**
+  String planPaidFromGone(String account);
+
   /// Budget page, Edit under a category's row, both answers: label of the dropdown of checkboxes over the accounts in the category's currency (cash, bank and cards), all checked to begin with; a dated plan's bill is scheduled in the one account left checked
   ///
   /// In en, this message translates to:
@@ -7125,24 +7101,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Changes to {category}'**
   String planEditedUndo(String category);
-
-  /// Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account in the category's currency is checked
-  ///
-  /// In en, this message translates to:
-  /// **'All accounts'**
-  String get planAccountsAll;
-
-  /// Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account is unchecked
-  ///
-  /// In en, this message translates to:
-  /// **'No accounts'**
-  String get planAccountsNone;
-
-  /// Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when only some accounts are checked (two or more; with one it shows that account's name)
-  ///
-  /// In en, this message translates to:
-  /// **'{count} of {total} accounts'**
-  String planAccountsSome(int count, int total);
 
   /// Add account, the Currency dropdown: hint in the search field at the top of the list of every currency
   ///

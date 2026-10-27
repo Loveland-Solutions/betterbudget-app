@@ -543,19 +543,22 @@ class ForecastPanel extends StatelessWidget {
     final payday = f.payday;
     String money(int v) => roundedIn(context, v.abs());
     final String headline;
-    final String detail;
+    String detail;
     if (f.owed) {
       // A card: what will be owed once scheduled charges and payments land.
-      final payments = f.steps.where((s) => s.row.amount > 0).length;
+      final payments = f.rowSteps.where((s) => s.row.amount > 0).length;
       final bal = f.endBalance;
+      // The budget's spending on the card counts too (#179).
       headline = f.steps.isEmpty
           ? t.planNothingScheduled
           : bal < 0
           ? t.planCreditAfter(money(bal), sayDate(t, f.steps.last.date))
           : t.planOwedAfterDate(money(bal), sayDate(t, f.steps.last.date));
       final end = sayDate(t, f.end);
-      detail = f.steps.isEmpty
+      detail = f.rowSteps.isEmpty && f.spendingTotal == 0
           ? t.planCardNothing
+          : f.rowSteps.isEmpty
+          ? t.planNoBillsBefore(end)
           : f.billCount > 0 && payments > 0
           ? t.planCardChargesPayments(
               f.billCount,
@@ -590,12 +593,13 @@ class ForecastPanel extends StatelessWidget {
             ? t.planRunsOutZero(on)
             : t.planRunsOut(on, money(f.low));
       } else if (f.steps.isEmpty) {
+        // The budget's spending lowers the line too (#179).
         headline = t.planNothingScheduled;
       } else if (f.low >= f.startBalance) {
         headline = t.planLowestToday(money(f.startBalance));
       } else if (f.paydayCounted &&
           f.lowDate.isAfter(
-            f.steps.firstWhere((s) => identical(s.row, payday)).date,
+            f.rowSteps.firstWhere((s) => identical(s.row, payday)).date,
           )) {
         // That low leans on the paycheck coming on time, in full.
         headline = t.planLowestAfterPay(money(f.low), sayDate(t, f.lowDate));
@@ -605,7 +609,7 @@ class ForecastPanel extends StatelessWidget {
       // No payee names here: they can be any length. The count opens the list.
       // Money moved in from another account, refunds: they lift the line.
       final end = sayDate(t, f.end);
-      detail = f.steps.isEmpty
+      detail = f.rowSteps.isEmpty
           ? payday == null
                 ? t.planNoBillsOrIncome
                 : t.planNoBillsBefore(end)
@@ -623,6 +627,10 @@ class ForecastPanel extends StatelessWidget {
             )
           : t.planBillsBefore(f.billCount, money(f.billTotal), end);
     }
+    // What it takes out for the budget's spending, a day at a time (#179).
+    if (f.spendingTotal > 0) {
+      detail = '$detail · ${t.planSpendingFromBudget(money(f.spendingTotal))}';
+    }
 
     // Late money in, named so a warning without it makes sense.
     final late = f.late;
@@ -633,6 +641,7 @@ class ForecastPanel extends StatelessWidget {
         !f.owed &&
         payday != null &&
         f.billCount == 0 &&
+        f.spendingTotal == 0 &&
         !f.shortNow &&
         (f.paydayCounted || !f.fixedEnd);
     // How far it looks, as the title says it.
@@ -758,7 +767,7 @@ class ForecastPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          if (f.steps.isEmpty)
+          if (f.rowSteps.isEmpty)
             Text(detail, style: onest(13, color: Mid.ink3, tabular: true))
           else
             _BillsLink(
@@ -964,7 +973,7 @@ class _KnownList extends StatelessWidget {
             ],
           ),
         ),
-        for (final s in f.steps)
+        for (final s in f.rowSteps)
           line(
             shortDate(s.date),
             // A payday from the pay plan, scheduled or projected.
@@ -1173,7 +1182,7 @@ class _BillsCard extends StatelessWidget {
                   ],
                 ),
               ),
-              for (final s in f.steps)
+              for (final s in f.rowSteps)
                 _BillLine(
                   row: s.row,
                   date: s.date,
@@ -1341,7 +1350,7 @@ class _ChartGeometry {
 /// Bills that land on the same day share one dot.
 List<List<ForecastStep>> _days(Forecast f) {
   final byDay = <DateTime, List<ForecastStep>>{};
-  for (final s in f.steps) {
+  for (final s in f.rowSteps) {
     byDay.putIfAbsent(s.date, () => []).add(s);
   }
   return byDay.values.toList();
@@ -1611,13 +1620,13 @@ class _ForecastPainter extends CustomPainter {
     final x = g.x, y = g.y;
     final values = [f.startBalance, ...f.steps.map((s) => s.balance)];
 
-    // Balance only changes on the day a bill lands, so draw steps, not curves.
+    // Balance changes on the day a bill lands, so draw steps; the budget's
+    // spending goes a day at a time, so it slopes.
     final path = Path()..moveTo(0, y(f.startBalance));
     var prev = f.startBalance;
     for (final s in f.steps) {
-      path
-        ..lineTo(x(s.date), y(prev))
-        ..lineTo(x(s.date), y(s.balance));
+      if (!s.spending) path.lineTo(x(s.date), y(prev));
+      path.lineTo(x(s.date), y(s.balance));
       prev = s.balance;
     }
     path.lineTo(w, y(values.last));
@@ -1664,7 +1673,7 @@ class _ForecastPainter extends CustomPainter {
     canvas.drawPath(path, stroke..color = f.owed ? Mid.blue : Mid.coral);
     canvas.restore();
 
-    for (final s in f.steps) {
+    for (final s in f.rowSteps) {
       canvas.drawCircle(
         Offset(x(s.date), y(s.balance)),
         2.5,
@@ -1734,7 +1743,7 @@ class _ForecastPainter extends CustomPainter {
       );
     }
     if (payLabel != null) {
-      final s = f.steps.firstWhere((s) => identical(s.row, f.payday));
+      final s = f.rowSteps.firstWhere((s) => identical(s.row, f.payday));
       tag(payLabel!, Offset(x(s.date), y(s.balance)), Mid.green, [
         (true, true),
         (false, true),
@@ -1750,7 +1759,7 @@ class _ForecastPainter extends CustomPainter {
     // comes (hover its dot for the amount). Too close to an end, it's left
     // off rather than drawn over that end's date.
     if (f.paydayCounted) {
-      final pd = f.steps.firstWhere((s) => identical(s.row, f.payday)).date;
+      final pd = f.rowSteps.firstWhere((s) => identical(s.row, f.payday)).date;
       final px = x(pd);
       canvas.drawLine(Offset(px, 2), Offset(px, h), paydayLine);
       if (px > 56 && px < w - 56) {
