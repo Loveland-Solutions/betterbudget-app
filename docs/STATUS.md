@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-27** · version 0.57.0 · schema v22 · 902 tests pass
+**Last updated: 2026-10-27** · version 0.57.1 · schema v22 · 903 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -11,7 +11,7 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**Last Play build: 0.57.0 (512), on Internal testing 2026-10-27**, with everything
+**Last Play build: 0.57.1 (516), on Internal testing 2026-10-27**, with the demo key for Play's review (#303) and everything
 above for the phone.
 
 **Next: the owner's pick from the board's Next column, Beta milestone.** The four
