@@ -26,7 +26,8 @@ class _Typed {
 
 /// The Savings fields open and what's typed in them, held by the screen
 /// so leaving the page or ⌘N doesn't lose it (as Budget keeps its Edit,
-/// #272). Each is `month`, or `rate-<account id>`.
+/// #272). Each is `month`, `extra`, `rate-<account id>` or
+/// `pay-<account id>`.
 class _SavingsKeep extends ChangeNotifier {
   final _open = <String, _Typed>{};
 
@@ -68,6 +69,7 @@ class _SavingsActions {
     required this.keep,
     required this.setRole,
     required this.setPref,
+    required this.setPrefs,
     required this.setAside,
     required this.assign,
   });
@@ -90,6 +92,9 @@ class _SavingsActions {
   /// changes; answers are quick clicks, quiet like clearing a row.
   final void Function(String key, String? value, String label, {bool toast})
   setPref;
+
+  /// Several `ready.*` preferences from one click, undone together.
+  final void Function(Map<String, String?> values, String label) setPrefs;
 }
 
 /// An amount in Savings' one currency (the page's [CurrencyScope]).
@@ -413,14 +418,44 @@ class _StepRow extends StatelessWidget {
           fact(
             r.consumerDebts.isEmpty
                 ? t.planNoCardsOwing
-                : t.planAmountOwed(_here(context, r.consumerOwed)),
+                : r.paidOff.isEmpty
+                ? t.planAmountOwed(_here(context, r.consumerOwed))
+                : t.planDebtsPaidOff(
+                    r.paidOff.length,
+                    r.paidOff.length + r.consumerDebts.length,
+                    _here(context, r.consumerOwed),
+                  ),
             key: const ValueKey('step-consumerDebt-owed'),
             color: r.consumerDebts.isEmpty ? Mid.ink2 : Mid.ink,
           ),
           if (current && r.consumerDebts.isNotEmpty) guide(t.planPayExtraGuide),
-          // Keyed by account: the lines reorder as rates change, and an
-          // open rate field stays with its own debt.
-          for (final d in r.debtsByCost)
+          // What's done stays in sight while the rest is paid off.
+          if (r.consumerDebts.isNotEmpty)
+            for (final a in r.paidOff)
+              Padding(
+                key: ValueKey('debt-paid-${a.id}'),
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: _debtName,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: Text(
+                          a.name,
+                          style: onest(13, color: Mid.ink2),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    Text(t.planPaidOff, style: onest(13, color: Mid.green)),
+                  ],
+                ),
+              ),
+          // Keyed by account: the lines reorder as the method changes, and
+          // an open field stays with its own debt.
+          for (final d in r.debtsInOrder)
             _DebtLine(
               key: ValueKey('debt-line-${d.account.id}'),
               debt: d,
@@ -437,6 +472,8 @@ class _StepRow extends StatelessWidget {
                 r: r,
                 actions: actions,
               ),
+          if (r.consumerDebts.isNotEmpty)
+            _Payoff(key: const ValueKey('payoff'), r: r, actions: actions),
         ];
       case ReadyStep.future:
         Widget part(String text) => Padding(
@@ -664,17 +701,19 @@ class _Progress extends StatelessWidget {
     required this.value,
     required this.done,
     required this.muted,
+    this.width = 360,
   });
   final double value;
   final bool done;
   final bool muted;
+  final double width;
 
   @override
   Widget build(BuildContext context) => ClipRRect(
     borderRadius: BorderRadius.circular(3),
     child: SizedBox(
       height: 6,
-      width: 360,
+      width: width,
       child: Stack(
         children: [
           Container(color: Mid.ground.withValues(alpha: 0.7)),
@@ -1102,7 +1141,6 @@ class _DebtLineState extends State<_DebtLine> {
     final target = consumer && r.target?.account.id == a.id;
     final carried = r.carriedSince[a.id];
     final rate = r.rates[a.id];
-    final interest = consumer ? r.interestOf(debt) : null;
     final line = Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
@@ -1266,34 +1304,46 @@ class _DebtLineState extends State<_DebtLine> {
     );
     final typed = _typed;
     final editing = typed != null;
-    if (carried == null &&
-        interest == null &&
-        !editing &&
-        !r.looksPaidInFull.contains(a.id)) {
-      return line;
-    }
-    // Said only when what's shown differs: two that read "about ₮48,000"
-    // aren't one costing more.
-    final rated = r.ratedByCost;
-    final most =
-        r.costliest?.account.id == a.id &&
-        _interest(context, r.interestOf(rated[0])!) !=
-            _interest(context, r.interestOf(rated[1])!);
+    // The bar on the one being paid extra on, and on the house loan.
+    final most = r.mostOwed[a.id] ?? 0;
+    final bar =
+        most > 0 && (target || r.longLoans.any((d) => d.account.id == a.id));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         line,
-        if (interest != null)
+        if (bar)
           Padding(
-            // Under what's owed, which it is worked out from.
-            padding: const EdgeInsets.only(left: _debtName, top: 2),
-            child: Text(
-              most
-                  ? t.planInterestCostsMost(_interest(context, interest))
-                  : t.planInterestAMonth(_interest(context, interest)),
-              key: ValueKey('debt-${a.id}-interest'),
-              style: onest(12.5, color: most ? Mid.ink : Mid.ink3),
+            padding: const EdgeInsets.only(left: _debtName, top: 4),
+            child: Row(
+              children: [
+                _Progress(
+                  value: r.paidOffOf(debt) / most,
+                  done: false,
+                  muted: false,
+                  width: 200,
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    t.planPaidOffOf(
+                      _here(context, r.paidOffOf(debt)),
+                      _here(context, most),
+                    ),
+                    key: ValueKey('debt-${a.id}-progress'),
+                    style: onest(12.5, color: Mid.ink2, tabular: true),
+                  ),
+                ),
+              ],
             ),
+          ),
+        // What goes in each month, then what the rate takes of it.
+        if (consumer)
+          _DebtPayment(
+            key: ValueKey('debt-${a.id}-payment'),
+            debt: debt,
+            r: r,
+            actions: actions,
           ),
         if (editing)
           Padding(

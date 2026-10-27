@@ -22,7 +22,15 @@ say each time.
 **Next: the owner's pick from the board's Next column, Beta milestone.** The four
 combs are done (#161: Ledger, Budget, Savings, Payees). What's left for beta there:
 the native speaker's check of the
-Mongolian (#90), and the Savings features (#101–#103).
+Mongolian (#90), and the Savings goals (#101, #102).
+
+**Paying off debt, two ways** (0.58.0, #103 and #174; ADR 0004 "Paying off debt: two
+ways, side by side"): step 2 counts debts paid off ("1 of 5 debts paid off · ₮X to
+go"), with a bar on the one getting the extra and on step 4's house loan; each debt's
+monthly payment (typed, or its payment category's monthly plan); "Extra each month";
+and **Smallest first** and **Highest rate first** side by side, each with when it's
+all paid off, the interest and the first debt paid off, the person's pick marked
+(`domain/payoff.dart`, `ui/savings_payoff.dart`). Leftovers: #306.
 
 **More controls on a budget line** (0.57.0, #100; ADR 0004 "More controls on a budget
 line"; schema v22): a category's **Group** (a heading on Budget, A to Z, after the
@@ -252,8 +260,8 @@ interest rate on step 2"). The owner's answers on 2026-10-14: a rate typed on ea
 debt's line or on Add account, a month's or a year's as the person picks (tugrik
 starts at a month), with an ⓘ; no monthly payment; Save for the future stays as it
 is, goals with dates go on the roadmap (ROADMAP D); the course's line under the steps
-is gone. Both reviews are in and their fixes made. Whether "Pay extra here" should
-follow the costliest debt waits for the owner's look at Savings in depth (#174). Two computers, step 4 (#111): see the top of this section.
+is gone. Both reviews are in and their fixes made. Since 0.58.0 a monthly payment is
+asked too, and the order is the person's pick of two ways (#103). Two computers, step 4 (#111): see the top of this section.
 
 **Version 0.34.4 (fix):** Android's build number is the repo's commit count, as the
 Mac's is (ADR 0006), so each upload to Play is higher than the last; it was 1 on
@@ -510,7 +518,7 @@ work itself is on the [board](https://github.com/orgs/Loveland-Solutions/project
 | Budget: Saved | The built-in Safety net category is listed last, under the heading "Saved". It can be renamed and edited, not deleted or archived. Made the first time a ledger past setup is opened without one |
 | Categories | Add category, Edit, Delete…, Archive. Edit asks "Is there a due date?" and holds How often (with Every payday, Every pay period and Custom…), Stop at, Paid from and Currency. One built-in Income. "+ New category" from the entry row and on the phone, each opening the same questions |
 | Pay | A pay has a name, an account and Monthly, Twice a month (a second amount allowed) or every N weeks, with a weekend rule (before, after, Keep the day). "No regular pay". Stopping a pay moves the categories that ran by it |
-| Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month; each takes an interest rate, a month's or a year's, there or on Add account, and shows about what it costs a month in interest, listed most first once two have one), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or skipped for now. The page fills the window. Counts one currency ("another currency, not counted yet") |
+| Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month; each takes an interest rate, a month's or a year's, there or on Add account, and shows about what it costs a month in interest; each takes what's paid a month; listed smallest first or highest rate first, the person's pick, with when each way pays it all off; how many are paid off, and a bar on the one getting the extra), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or skipped for now. The page fills the window. Counts one currency ("another currency, not counted yet") |
 | Payees | Every payee the app remembers a category for, a line each that reads as a sentence ("starts with «Unitel»", "has «Номин» anywhere"), its accounts (column only with more than one), its category, Delete. A click, or Add a payee (⌘N), opens its Edit in place: the words, Where (at the start, or anywhere in the payee or the bank's description), Accounts (checkboxes), Category (pays lead), the count of rows it fits in real numbers, one row drawn as it will read, Cancel and Save (Enter; Esc and a click away close). Save offers to file the rows still in Not categorized; rows already in a category are never moved. Delete keeps the payee as deleted so an import doesn't put it back where it went last. On import the longest words win, then the later-made |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Each row is New, Matches, Already in or left out. A Start from date. One undo for the whole import |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |

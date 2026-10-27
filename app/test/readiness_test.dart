@@ -498,36 +498,270 @@ void main() {
     expect(ratePerYearFor(Currency.usd), isTrue);
   });
 
-  test('step 2 lists the debt costing the most interest first', () {
+  test('step 2 goes smallest first, or highest rate first when picked', () {
     // Visa owes 900.00, the home loan (unmarked) 200,000.00: smallest first.
     var r = Readiness.of(ledger(mortgageRole: null), today);
-    expect(r.debtsByCost.map((d) => d.account.name), ['Visa', 'Home loan']);
-    expect(r.costliest, isNull);
-    // One rate has nothing to rank against: smallest first still, and
-    // nothing costs "the most".
+    expect(r.method, PayoffMethod.smallest);
+    expect(r.debtsInOrder.map((d) => d.account.name), ['Visa', 'Home loan']);
+    // Rates don't move smallest first (owner, 2026-10-27: the snowball
+    // leaves them out), but they show what each costs.
+    final rates = {
+      ReadyKeys.rate(mortgage): '2 month',
+      ReadyKeys.rate(visa): '12 year',
+    };
+    r = Readiness.of(ledger(mortgageRole: null, prefs: rates), today);
+    expect(r.debtsInOrder.map((d) => d.account.name), ['Visa', 'Home loan']);
+    expect(r.interestOf(r.debtsInOrder.last), 400000);
+    expect(r.target!.account.name, 'Visa');
+    // Highest rate first: 2% a month before 12% a year.
     r = Readiness.of(
-      ledger(mortgageRole: null, prefs: {ReadyKeys.rate(mortgage): '1 month'}),
+      ledger(mortgageRole: null, prefs: {...rates, ReadyKeys.method: 'rate'}),
       today,
     );
-    expect(r.debtsByCost.map((d) => d.account.name), ['Visa', 'Home loan']);
-    expect(r.interestOf(r.debtsByCost.last), 200000);
-    expect(r.interestOf(r.debtsByCost.first), isNull);
-    expect(r.costliest, isNull);
-    // Both rated: the costliest a month is named, though its rate is lower.
+    expect(r.method, PayoffMethod.highestRate);
+    expect(r.debtsInOrder.map((d) => d.account.name), ['Home loan', 'Visa']);
+    expect(r.target!.account.name, 'Home loan');
+    expect(r.picked, isNull);
+    // One picked by hand heads the list; the two ways still compare
+    // without it.
     r = Readiness.of(
       ledger(
         mortgageRole: null,
-        prefs: {
-          ReadyKeys.rate(mortgage): '12 year',
-          ReadyKeys.rate(visa): '3 month',
-        },
+        prefs: {...rates, ReadyKeys.method: 'rate', ReadyKeys.target: '$visa'},
       ),
       today,
     );
-    expect(r.debtsByCost.map((d) => d.account.name), ['Home loan', 'Visa']);
-    expect(r.costliest!.account.name, 'Home loan');
-    // The debt to pay extra on is still the smallest until one is picked.
-    expect(r.target!.account.name, 'Visa');
+    expect(r.picked!.account.name, 'Visa');
+    expect(r.debtsInOrder.map((d) => d.account.name), ['Visa', 'Home loan']);
+    expect(r.orderOf(PayoffMethod.highestRate), [mortgage, visa]);
+    // A debt without a rate goes last when it's highest rate first.
+    r = Readiness.of(
+      ledger(
+        mortgageRole: null,
+        prefs: {ReadyKeys.rate(visa): '1 month', ReadyKeys.method: 'rate'},
+      ),
+      today,
+    );
+    expect(r.debtsInOrder.map((d) => d.account.name), ['Visa', 'Home loan']);
+    expect(r.methodsDiffer, isFalse);
+  });
+
+  test('a debt\'s monthly payment: typed, else its category\'s plan', () {
+    const payment = 9;
+    final data = ledger(mortgageRole: null);
+    LedgerData withPlan(Map<String, String> prefs) => LedgerData(
+      accounts: [
+        ...data.accounts.values,
+        acct(payment, 'Loan payment', AccountType.expense),
+      ],
+      txns: data.txns,
+      prefs: {'budget.loan.$mortgage': '$payment', ...prefs},
+      budgetAmounts: data.budgetAmounts,
+      plans: [
+        CategoryPlan(
+          categoryId: payment,
+          kind: PlanKind.byDate,
+          amount: 25000000,
+          start: DateTime(2026, 9, 1),
+          due: DateTime(2026, 9, 20),
+          everyMonths: 1,
+        ),
+      ],
+    );
+    var r = Readiness.of(withPlan({}), today);
+    expect(r.payments[mortgage]!.amount, 25000000);
+    expect(r.payments[mortgage]!.from!.name, 'Loan payment');
+    expect(r.payments[visa], isNull);
+    expect(r.missingPayments.map((d) => d.account.name), ['Visa']);
+    expect(r.payoff(PayoffMethod.smallest), isNull);
+    // Typed wins over the plan.
+    r = Readiness.of(
+      withPlan({
+        ReadyKeys.pay(mortgage): '30000000',
+        ReadyKeys.pay(visa): '10000',
+      }),
+      today,
+    );
+    expect(r.payments[mortgage], (amount: 30000000, from: null));
+    expect(r.missingPayments, isEmpty);
+    final plan = r.payoff(PayoffMethod.smallest)!;
+    // 200,900.00 at 300,100.00 a month: paid off next month.
+    expect(plan.months, 1);
+    expect(plan.interest, 0);
+  });
+
+  test('what was paid in lately is offered, never filled in', () {
+    final data = ledger(owedOnVisa: 900000);
+    final r = Readiness.of(
+      LedgerData(
+        accounts: data.accounts.values.toList(),
+        txns: [
+          ...data.txns,
+          // June, July and August: 300.00, 300.00, 150.00 paid in. The
+          // Visa's first row is in June, so June isn't a whole month of it.
+          move(DateTime(2026, 6, 10), checking, visa, 30000),
+          move(DateTime(2026, 7, 10), checking, visa, 30000),
+          move(DateTime(2026, 8, 10), checking, visa, 15000),
+          // This month's isn't whole yet.
+          move(DateTime(2026, 9, 10), checking, visa, 99900),
+        ],
+        prefs: data.prefs,
+        budgetAmounts: data.budgetAmounts,
+      ),
+      today,
+    );
+    expect(r.paidLately[visa], 22500);
+    expect(r.payments[visa], isNull);
+  });
+
+  test('a debt picked by hand heads the list; the ways compare without it', () {
+    final rates = {
+      ReadyKeys.rate(mortgage): '2 month',
+      ReadyKeys.rate(visa): '1 month',
+      ReadyKeys.pay(mortgage): '30000000',
+      ReadyKeys.pay(visa): '10000',
+    };
+    // Smallest first, the home loan picked: it heads the list, and the
+    // two ways still differ, so both cards show.
+    final r = Readiness.of(
+      ledger(
+        mortgageRole: null,
+        prefs: {...rates, ReadyKeys.target: '$mortgage'},
+      ),
+      today,
+    );
+    expect(r.picked!.account.name, 'Home loan');
+    expect(r.debtsInOrder.map((d) => d.account.name), ['Home loan', 'Visa']);
+    expect(r.orderOf(PayoffMethod.smallest), [visa, mortgage]);
+    expect(r.orderOf(PayoffMethod.highestRate), [mortgage, visa]);
+    expect(r.methodsDiffer, isTrue);
+  });
+
+  test('a plan by pay period is not a monthly payment; every 3 months is', () {
+    const payment = 9;
+    final data = ledger(mortgageRole: null);
+    Readiness withPlan(CategoryPlan plan) => Readiness.of(
+      LedgerData(
+        accounts: [
+          ...data.accounts.values,
+          acct(payment, 'Loan payment', AccountType.expense),
+        ],
+        txns: data.txns,
+        prefs: {'budget.loan.$mortgage': '$payment'},
+        budgetAmounts: data.budgetAmounts,
+        plans: [plan],
+      ),
+      today,
+    );
+    expect(
+      withPlan(
+        CategoryPlan(
+          categoryId: payment,
+          kind: PlanKind.each,
+          amount: 12500000,
+          start: DateTime(2026, 9, 1),
+        ),
+      ).payments[mortgage],
+      isNull,
+    );
+    expect(
+      withPlan(
+        CategoryPlan(
+          categoryId: payment,
+          kind: PlanKind.byDate,
+          amount: 30000000,
+          start: DateTime(2026, 9, 1),
+          due: DateTime(2026, 9, 20),
+          everyMonths: 3,
+        ),
+      ).payments[mortgage]!.amount,
+      10000000,
+    );
+  });
+
+  test('progress: the most each owed, and the debts paid off', () {
+    const car = 10, card = 11;
+    final data = ledger(owedOnVisa: 0, mortgageRole: AccountRole.mortgage);
+    final d = DateTime(2026, 5, 1);
+    LedgerData withRows(List<TxnData> more) => LedgerData(
+      accounts: [
+        ...data.accounts.values,
+        acct(car, 'Car loan', AccountType.liability),
+        acct(card, 'Golomt card', AccountType.liability),
+      ],
+      txns: [...data.txns, ...more],
+      prefs: data.prefs,
+      budgetAmounts: data.budgetAmounts,
+    );
+    final r = Readiness.of(
+      withRows([
+        move(d, car, opening, 6000000),
+        move(d, card, food, 90000),
+        move(d.add(const Duration(days: 20)), card, food, 30000),
+        // The card is paid off; the car loan paid down to 4,000.00.
+        move(DateTime(2026, 8, 1), checking, card, 120000),
+        move(DateTime(2026, 8, 1), checking, car, 2000000),
+      ]),
+      today,
+    );
+    expect(r.mostOwed[car], 6000000);
+    expect(r.mostOwed[card], isNull);
+    expect(r.paidOff.map((a) => a.name), ['Golomt card']);
+    final loan = r.consumerDebts.single;
+    expect(loan.account.name, 'Car loan');
+    expect(r.paidOffOf(loan), 2000000);
+    // The house loan counts from the most it owed too.
+    expect(r.mostOwed[mortgage], 20000000);
+    // A card owed and paid off before the car loan began isn't counted:
+    // there was a day nothing was owed.
+    final before = Readiness.of(
+      withRows([
+        move(DateTime(2026, 3, 1), card, food, 90000),
+        move(DateTime(2026, 4, 1), checking, card, 90000),
+        move(d, car, opening, 6000000),
+      ]),
+      today,
+    );
+    expect(before.paidOff, isEmpty);
+    // Spent on again lately: in use, not paid off; and said under the
+    // payoff with what went on it.
+    final used = Readiness.of(
+      withRows([
+        move(d, car, opening, 6000000),
+        move(d, card, food, 90000),
+        move(DateTime(2026, 8, 1), checking, card, 90000),
+        move(DateTime(2026, 9, 1), card, food, 5000),
+        move(DateTime(2026, 9, 2), checking, card, 5000),
+      ]),
+      today,
+    );
+    expect(used.paidOff, isEmpty);
+    expect(used.chargedLately[card], 5000);
+    // Archived once paid off, it still counts.
+    final archived = Readiness.of(
+      LedgerData(
+        accounts: [
+          ...data.accounts.values,
+          acct(car, 'Car loan', AccountType.liability),
+          AccountInfo(
+            id: card,
+            name: 'Golomt card',
+            type: AccountType.liability,
+            archived: true,
+          ),
+        ],
+        txns: [
+          ...data.txns,
+          move(d, car, opening, 6000000),
+          move(d, card, food, 90000),
+          move(DateTime(2026, 8, 1), checking, card, 90000),
+        ],
+        prefs: data.prefs,
+        budgetAmounts: data.budgetAmounts,
+      ),
+      today,
+    );
+    expect(archived.paidOff.map((a) => a.name), ['Golomt card']);
   });
 
   test('a card marked paid monthly that carries a balance is flagged', () {

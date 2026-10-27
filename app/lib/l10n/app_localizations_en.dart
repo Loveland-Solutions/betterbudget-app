@@ -1776,7 +1776,7 @@ class WordsEn extends Words {
 
   @override
   String get planPayExtraGuide =>
-      'Pay extra on one at a time, smallest balance or highest interest first; both get you there. When one is paid off, put its payment toward the next.';
+      'Pay the minimum on each, and everything extra on the first one in the list. When it’s paid off, put its payment toward the next.';
 
   @override
   String get planLongNone => 'You have none';
@@ -1915,7 +1915,7 @@ class WordsEn extends Words {
 
   @override
   String get planRateTip =>
-      'Step 2 uses this rate to show about how much interest each debt costs you a month.';
+      'Step 2 uses this rate for the interest each debt costs a month, and for when it’s all paid off.';
 
   @override
   String get planRatePerMonth => 'a month';
@@ -1926,11 +1926,6 @@ class WordsEn extends Words {
   @override
   String planInterestAMonth(String amount) {
     return 'about $amount a month in interest';
-  }
-
-  @override
-  String planInterestCostsMost(String amount) {
-    return 'about $amount a month in interest, the most of your debts';
   }
 
   @override
@@ -1961,7 +1956,7 @@ class WordsEn extends Words {
 
   @override
   String get setupRateHint =>
-      'Step 2 of Savings uses it to show about how much interest this debt costs you a month.';
+      'Step 2 of Savings uses it for the interest this debt costs a month, and for when it’s paid off.';
 
   @override
   String planCarried(String date) {
@@ -6587,4 +6582,232 @@ class WordsEn extends Words {
   @override
   String get phoneDemoNote =>
       'Made-up figures for a look around. Nothing here is saved.';
+
+  @override
+  String planDebtsPaidOff(int paid, int all, String left) {
+    return '$paid of $all debts paid off · $left to go';
+  }
+
+  @override
+  String planPaidOffOf(String paid, String most) {
+    return '$paid of $most paid off';
+  }
+
+  @override
+  String get planPayAdd => 'Add what you pay a month';
+
+  @override
+  String planPays(String amount) {
+    return 'Pays $amount a month';
+  }
+
+  @override
+  String planPaysFrom(String amount, String category) {
+    return 'Pays $amount a month, from $category';
+  }
+
+  @override
+  String planPayLately(String amount) {
+    return 'Lately about $amount a month went into it.';
+  }
+
+  @override
+  String planPayUse(String amount) {
+    return 'Use $amount';
+  }
+
+  @override
+  String get planPayEmptyToRemove => 'Leave it empty to remove it.';
+
+  @override
+  String get planPayWrong => 'Type an amount, like 150,000.';
+
+  @override
+  String planPaySet(String name, String amount) {
+    return '$name pays $amount a month';
+  }
+
+  @override
+  String planPayRemoved(String name) {
+    return 'Monthly payment taken off $name';
+  }
+
+  @override
+  String planPayOnlyInterest(String amount) {
+    return '$amount a month only covers its interest.';
+  }
+
+  @override
+  String get planExtraLabel => 'Extra each month, on top of the payments';
+
+  @override
+  String get planExtraNone => 'None';
+
+  @override
+  String get planExtraEmptyToRemove => 'Leave it empty for none.';
+
+  @override
+  String planExtraSet(String amount) {
+    return 'Extra each month: $amount';
+  }
+
+  @override
+  String get planExtraRemoved => 'No extra each month';
+
+  @override
+  String planPlanNeedsPay(String names) {
+    return 'To see when it’s all paid off, add what you pay a month on $names.';
+  }
+
+  @override
+  String get planMethodSmallest => 'Smallest first';
+
+  @override
+  String get planMethodRate => 'Highest rate first';
+
+  @override
+  String get planMethodSmallestUndo => 'Paying off smallest first';
+
+  @override
+  String get planMethodRateUndo => 'Paying off highest rate first';
+
+  @override
+  String planPlanDone(String month) {
+    return 'Everything paid off in $month';
+  }
+
+  @override
+  String planPlanInterest(String amount) {
+    return 'About $amount in interest';
+  }
+
+  @override
+  String planPlanFirst(String name, String month) {
+    return 'First paid off: $name, $month';
+  }
+
+  @override
+  String get planPlanNever => 'Not paid off within 30 years at these payments';
+
+  @override
+  String planPlanOne(String month, String amount) {
+    return 'Everything paid off in $month, with about $amount in interest.';
+  }
+
+  @override
+  String planPlanOneNoInterest(String month) {
+    return 'Everything paid off in $month.';
+  }
+
+  @override
+  String get planPlanNeedRates =>
+      'Add each debt’s rate to compare paying the highest rate first.';
+
+  @override
+  String planPlanPicked(String name) {
+    return 'You picked $name to pay extra on first, so neither way is marked. Click one to follow it instead.';
+  }
+
+  @override
+  String planPlanNoRate(String names) {
+    return 'No rate on $names, so the dates may come too early.';
+  }
+
+  @override
+  String get planPlanAssume =>
+      'If you keep paying these amounts and add nothing new to the cards.';
+
+  @override
+  String planRateSaves(String amount) {
+    return 'Highest rate first saves about $amount in interest.';
+  }
+
+  @override
+  String planSmallestSaves(String amount) {
+    return 'Smallest first saves about $amount in interest.';
+  }
+
+  @override
+  String get planBothEndSame => 'Both end the same month.';
+
+  @override
+  String planRateEndsSooner(int months) {
+    String _temp0 = intl.Intl.pluralLogic(
+      months,
+      locale: localeName,
+      other: '$months months',
+      one: 'a month',
+    );
+    return 'Highest rate first ends $_temp0 sooner.';
+  }
+
+  @override
+  String planSmallestEndsSooner(int months) {
+    String _temp0 = intl.Intl.pluralLogic(
+      months,
+      locale: localeName,
+      other: '$months months',
+      one: 'a month',
+    );
+    return 'Smallest first ends $_temp0 sooner.';
+  }
+
+  @override
+  String planSmallestFirstSooner(int months) {
+    String _temp0 = intl.Intl.pluralLogic(
+      months,
+      locale: localeName,
+      other: '$months months',
+      one: 'a month',
+    );
+    return 'Smallest first clears your first debt $_temp0 sooner.';
+  }
+
+  @override
+  String planRateFirstSooner(int months) {
+    String _temp0 = intl.Intl.pluralLogic(
+      months,
+      locale: localeName,
+      other: '$months months',
+      one: 'a month',
+    );
+    return 'Highest rate first clears your first debt $_temp0 sooner.';
+  }
+
+  @override
+  String planPayOnlyInterestNext(String amount) {
+    return '$amount a month only covers its interest. It goes down once another debt’s payment moves to it.';
+  }
+
+  @override
+  String planPayBelowInterest(String amount) {
+    return '$amount a month is less than its interest, so what it owes grows.';
+  }
+
+  @override
+  String planPayBelowInterestNext(String amount) {
+    return '$amount a month is less than its interest, so what it owes grows until another debt’s payment moves to it.';
+  }
+
+  @override
+  String get planOnlyRateEnds =>
+      'Only highest rate first pays it all off within 30 years.';
+
+  @override
+  String get planOnlySmallestEnds =>
+      'Only smallest first pays it all off within 30 years.';
+
+  @override
+  String planPlanCharged(String amount, String name) {
+    return '$amount went on $name in the last three months. These dates count none of it.';
+  }
+
+  @override
+  String get planPlanNetFirst =>
+      'Your safety net comes first. Until it’s full, the extra waits, so these dates come later than shown.';
+
+  @override
+  String planPlanExtraTo(String name) {
+    return 'The extra goes to $name first.';
+  }
 }

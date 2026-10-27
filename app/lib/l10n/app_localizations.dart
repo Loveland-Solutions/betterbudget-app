@@ -2438,7 +2438,7 @@ abstract class Words {
   /// Savings page, consumer debt step: guidance
   ///
   /// In en, this message translates to:
-  /// **'Pay extra on one at a time, smallest balance or highest interest first; both get you there. When one is paid off, put its payment toward the next.'**
+  /// **'Pay the minimum on each, and everything extra on the first one in the list. When it’s paid off, put its payment toward the next.'**
   String get planPayExtraGuide;
 
   /// Savings page, mortgage step: the user said there are none
@@ -2666,7 +2666,7 @@ abstract class Words {
   /// Tooltip on the ⓘ beside a debt's interest rate on Savings, step 2
   ///
   /// In en, this message translates to:
-  /// **'Step 2 uses this rate to show about how much interest each debt costs you a month.'**
+  /// **'Step 2 uses this rate for the interest each debt costs a month, and for when it’s all paid off.'**
   String get planRateTip;
 
   /// Interest rate field: the switch that reads the rate as a month's (сарын хүү)
@@ -2686,12 +2686,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'about {amount} a month in interest'**
   String planInterestAMonth(String amount);
-
-  /// Savings page, step 2: under the debt whose rate costs the most a month, when two or more have a rate
-  ///
-  /// In en, this message translates to:
-  /// **'about {amount} a month in interest, the most of your debts'**
-  String planInterestCostsMost(String amount);
 
   /// Popup and undo label after an interest rate is saved; rate is e.g. “2% a month”
   ///
@@ -2732,7 +2726,7 @@ abstract class Words {
   /// Add account form: under the interest rate line
   ///
   /// In en, this message translates to:
-  /// **'Step 2 of Savings uses it to show about how much interest this debt costs you a month.'**
+  /// **'Step 2 of Savings uses it for the interest this debt costs a month, and for when it’s paid off.'**
   String get setupRateHint;
 
   /// Savings page: warning under a card marked paid in full every month; date like 2026.09.16
@@ -9162,6 +9156,288 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Made-up figures for a look around. Nothing here is saved.'**
   String get phoneDemoNote;
+
+  /// Savings page, step 2: how many cards and loans are paid off, and what is still owed
+  ///
+  /// In en, this message translates to:
+  /// **'{paid} of {all} debts paid off · {left} to go'**
+  String planDebtsPaidOff(int paid, int all, String left);
+
+  /// Savings page: under the debt being paid extra on (and the house loan), what is paid off of the most it owed
+  ///
+  /// In en, this message translates to:
+  /// **'{paid} of {most} paid off'**
+  String planPaidOffOf(String paid, String most);
+
+  /// Savings page, step 2: link under a debt with no monthly payment; opens a field
+  ///
+  /// In en, this message translates to:
+  /// **'Add what you pay a month'**
+  String get planPayAdd;
+
+  /// Savings page, step 2: under a debt, the monthly payment the person typed
+  ///
+  /// In en, this message translates to:
+  /// **'Pays {amount} a month'**
+  String planPays(String amount);
+
+  /// Savings page, step 2: under a debt, the monthly payment planned on Budget for the category its payments come out of
+  ///
+  /// In en, this message translates to:
+  /// **'Pays {amount} a month, from {category}'**
+  String planPaysFrom(String amount, String category);
+
+  /// Savings page, step 2: beside the monthly payment field, the average paid in over the last three months
+  ///
+  /// In en, this message translates to:
+  /// **'Lately about {amount} a month went into it.'**
+  String planPayLately(String amount);
+
+  /// Savings page, step 2: button that saves the recent average as the monthly payment
+  ///
+  /// In en, this message translates to:
+  /// **'Use {amount}'**
+  String planPayUse(String amount);
+
+  /// Savings page: beside an amount field that holds a saved amount
+  ///
+  /// In en, this message translates to:
+  /// **'Leave it empty to remove it.'**
+  String get planPayEmptyToRemove;
+
+  /// Savings page: under an amount field when what is typed is not an amount above zero
+  ///
+  /// In en, this message translates to:
+  /// **'Type an amount, like 150,000.'**
+  String get planPayWrong;
+
+  /// Popup and undo label after a debt's monthly payment is saved
+  ///
+  /// In en, this message translates to:
+  /// **'{name} pays {amount} a month'**
+  String planPaySet(String name, String amount);
+
+  /// Undo label after a debt's typed monthly payment is removed
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly payment taken off {name}'**
+  String planPayRemoved(String name);
+
+  /// Savings page, step 2: a debt first in the list (or the only one) whose monthly payment equals its interest
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} a month only covers its interest.'**
+  String planPayOnlyInterest(String amount);
+
+  /// Savings page, step 2: label before the extra amount that goes to debts each month
+  ///
+  /// In en, this message translates to:
+  /// **'Extra each month, on top of the payments'**
+  String get planExtraLabel;
+
+  /// Savings page, step 2: the extra amount button when there is none; opens a field
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get planExtraNone;
+
+  /// Savings page, step 2: beside the extra field when it holds an amount
+  ///
+  /// In en, this message translates to:
+  /// **'Leave it empty for none.'**
+  String get planExtraEmptyToRemove;
+
+  /// Popup and undo label after the extra each month is saved
+  ///
+  /// In en, this message translates to:
+  /// **'Extra each month: {amount}'**
+  String planExtraSet(String amount);
+
+  /// Popup and undo label after the extra each month is removed
+  ///
+  /// In en, this message translates to:
+  /// **'No extra each month'**
+  String get planExtraRemoved;
+
+  /// Savings page, step 2: while a debt has no monthly payment; names is a list
+  ///
+  /// In en, this message translates to:
+  /// **'To see when it’s all paid off, add what you pay a month on {names}.'**
+  String planPlanNeedsPay(String names);
+
+  /// Savings page, step 2: the snowball, paying the smallest balance off first
+  ///
+  /// In en, this message translates to:
+  /// **'Smallest first'**
+  String get planMethodSmallest;
+
+  /// Savings page, step 2: the avalanche, paying the highest interest rate off first
+  ///
+  /// In en, this message translates to:
+  /// **'Highest rate first'**
+  String get planMethodRate;
+
+  /// Undo label after smallest first is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Paying off smallest first'**
+  String get planMethodSmallestUndo;
+
+  /// Undo label after highest rate first is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Paying off highest rate first'**
+  String get planMethodRateUndo;
+
+  /// Savings page, step 2: on a method's card, when every debt is paid off; month is e.g. June 2028
+  ///
+  /// In en, this message translates to:
+  /// **'Everything paid off in {month}'**
+  String planPlanDone(String month);
+
+  /// Savings page, step 2: on a method's card, the interest paid on the way
+  ///
+  /// In en, this message translates to:
+  /// **'About {amount} in interest'**
+  String planPlanInterest(String amount);
+
+  /// Savings page, step 2: on a method's card, the debt paid off first and when
+  ///
+  /// In en, this message translates to:
+  /// **'First paid off: {name}, {month}'**
+  String planPlanFirst(String name, String month);
+
+  /// Savings page, step 2: when the payments never get ahead of the interest
+  ///
+  /// In en, this message translates to:
+  /// **'Not paid off within 30 years at these payments'**
+  String get planPlanNever;
+
+  /// Savings page, step 2: when both ways come out the same
+  ///
+  /// In en, this message translates to:
+  /// **'Everything paid off in {month}, with about {amount} in interest.'**
+  String planPlanOne(String month, String amount);
+
+  /// Savings page, step 2: when both ways come out the same and no debt has a rate
+  ///
+  /// In en, this message translates to:
+  /// **'Everything paid off in {month}.'**
+  String planPlanOneNoInterest(String month);
+
+  /// Savings page, step 2: fewer than two debts have a rate, so there is nothing to compare
+  ///
+  /// In en, this message translates to:
+  /// **'Add each debt’s rate to compare paying the highest rate first.'**
+  String get planPlanNeedRates;
+
+  /// Savings page, step 2: under the two ways, when a debt was picked by hand with Pay extra on this one
+  ///
+  /// In en, this message translates to:
+  /// **'You picked {name} to pay extra on first, so neither way is marked. Click one to follow it instead.'**
+  String planPlanPicked(String name);
+
+  /// Savings page, step 2: some debts have no rate and are counted as costing nothing
+  ///
+  /// In en, this message translates to:
+  /// **'No rate on {names}, so the dates may come too early.'**
+  String planPlanNoRate(String names);
+
+  /// Savings page, step 2: under the payoff, what it assumes
+  ///
+  /// In en, this message translates to:
+  /// **'If you keep paying these amounts and add nothing new to the cards.'**
+  String get planPlanAssume;
+
+  /// Savings page, step 2: the difference between the two ways
+  ///
+  /// In en, this message translates to:
+  /// **'Highest rate first saves about {amount} in interest.'**
+  String planRateSaves(String amount);
+
+  /// Savings page, step 2: the difference between the two ways
+  ///
+  /// In en, this message translates to:
+  /// **'Smallest first saves about {amount} in interest.'**
+  String planSmallestSaves(String amount);
+
+  /// Savings page, step 2: the difference between the two ways
+  ///
+  /// In en, this message translates to:
+  /// **'Both end the same month.'**
+  String get planBothEndSame;
+
+  /// Savings page, step 2: the difference between the two ways
+  ///
+  /// In en, this message translates to:
+  /// **'Highest rate first ends {months, plural, =1{a month} other{{months} months}} sooner.'**
+  String planRateEndsSooner(int months);
+
+  /// Savings page, step 2: the difference between the two ways
+  ///
+  /// In en, this message translates to:
+  /// **'Smallest first ends {months, plural, =1{a month} other{{months} months}} sooner.'**
+  String planSmallestEndsSooner(int months);
+
+  /// Savings page, step 2: the difference between the two ways
+  ///
+  /// In en, this message translates to:
+  /// **'Smallest first clears your first debt {months, plural, =1{a month} other{{months} months}} sooner.'**
+  String planSmallestFirstSooner(int months);
+
+  /// Savings page, step 2: the difference between the two ways
+  ///
+  /// In en, this message translates to:
+  /// **'Highest rate first clears your first debt {months, plural, =1{a month} other{{months} months}} sooner.'**
+  String planRateFirstSooner(int months);
+
+  /// Savings page, step 2: a debt behind another in the list whose monthly payment equals its interest
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} a month only covers its interest. It goes down once another debt’s payment moves to it.'**
+  String planPayOnlyInterestNext(String amount);
+
+  /// Savings page, step 2: a debt whose monthly payment is less than its interest
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} a month is less than its interest, so what it owes grows.'**
+  String planPayBelowInterest(String amount);
+
+  /// Savings page, step 2: a debt behind another in the list whose monthly payment is less than its interest
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} a month is less than its interest, so what it owes grows until another debt’s payment moves to it.'**
+  String planPayBelowInterestNext(String amount);
+
+  /// Savings page, step 2: the difference, when only one way finishes
+  ///
+  /// In en, this message translates to:
+  /// **'Only highest rate first pays it all off within 30 years.'**
+  String get planOnlyRateEnds;
+
+  /// Savings page, step 2: the difference, when only one way finishes
+  ///
+  /// In en, this message translates to:
+  /// **'Only smallest first pays it all off within 30 years.'**
+  String get planOnlySmallestEnds;
+
+  /// Savings page, step 2: a card spent on lately; the payoff dates assume nothing new
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} went on {name} in the last three months. These dates count none of it.'**
+  String planPlanCharged(String amount, String name);
+
+  /// Savings page, step 2: extra is set while step 1, the safety net, isn't full
+  ///
+  /// In en, this message translates to:
+  /// **'Your safety net comes first. Until it’s full, the extra waits, so these dates come later than shown.'**
+  String get planPlanNetFirst;
+
+  /// Savings page, step 2: on a method's card, when the first debt paid off isn't the one getting the extra
+  ///
+  /// In en, this message translates to:
+  /// **'The extra goes to {name} first.'**
+  String planPlanExtraTo(String name);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

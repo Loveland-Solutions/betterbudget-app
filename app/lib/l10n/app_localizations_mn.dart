@@ -1695,7 +1695,7 @@ class WordsMn extends Words {
 
   @override
   String get planPayExtraGuide =>
-      'Нэг удаад зөвхөн нэг өрөнд илүү төлөөрэй: хамгийн бага үлдэгдэлтэй эсвэл хамгийн өндөр хүүтэйгээс нь эхэлж болно, аль аль нь зорилгод хүргэнэ. Нэгийг төлж дуусмагц түүний төлбөрийг дараагийнхад нэмээрэй.';
+      'Өр бүрийн доод төлбөрийг төлж, илүү мөнгөө жагсаалтын эхнийх рүү бүгдийг нь төлөөрэй. Түүнийг төлж дуусмагц төлбөрийг нь дараагийнх руу шилжүүлээрэй.';
 
   @override
   String get planLongNone => 'Танд байхгүй';
@@ -1836,7 +1836,7 @@ class WordsMn extends Words {
 
   @override
   String get planRateTip =>
-      'Энэ алхам хүүг ашиглан өр бүр сард ойролцоогоор хэр хэмжээний хүү төлүүлж байгааг харуулна.';
+      'Энэ алхам хүүг ашиглан өр бүрийн сарын хүү болон бүгдийг хэзээ төлж дуусахыг тооцно.';
 
   @override
   String get planRatePerMonth => 'сарын';
@@ -1847,11 +1847,6 @@ class WordsMn extends Words {
   @override
   String planInterestAMonth(String amount) {
     return 'сард ойролцоогоор $amount хүү';
-  }
-
-  @override
-  String planInterestCostsMost(String amount) {
-    return 'сард ойролцоогоор $amount хүү, таны өрүүдээс хамгийн их';
   }
 
   @override
@@ -1882,7 +1877,7 @@ class WordsMn extends Words {
 
   @override
   String get setupRateHint =>
-      'Хуримтлалын 2-р алхам үүгээр энэ өр сард ойролцоогоор хэр хэмжээний хүү төлүүлж байгааг харуулна.';
+      'Хуримтлалын 2-р алхам үүгээр энэ өрийн сарын хүү болон хэзээ төлж дуусахыг тооцно.';
 
   @override
   String planCarried(String date) {
@@ -6358,4 +6353,208 @@ class WordsMn extends Words {
 
   @override
   String get phoneDemoNote => 'Жишээ тоонууд. Энд юу ч хадгалагдахгүй.';
+
+  @override
+  String planDebtsPaidOff(int paid, int all, String left) {
+    return '$all өрөөс $paid-ийг нь төлж дуусгасан · $left үлдсэн';
+  }
+
+  @override
+  String planPaidOffOf(String paid, String most) {
+    return '$most-өөс $paid төлөгдсөн';
+  }
+
+  @override
+  String get planPayAdd => 'Сард төлдөг дүнгээ нэмэх';
+
+  @override
+  String planPays(String amount) {
+    return 'Сард $amount төлдөг';
+  }
+
+  @override
+  String planPaysFrom(String amount, String category) {
+    return '$category-аас сард $amount төлдөг';
+  }
+
+  @override
+  String planPayLately(String amount) {
+    return 'Сүүлийн үед сард ойролцоогоор $amount төлсөн байна.';
+  }
+
+  @override
+  String planPayUse(String amount) {
+    return '$amount-г ашиглах';
+  }
+
+  @override
+  String get planPayEmptyToRemove => 'Хоосон үлдээвэл устгана.';
+
+  @override
+  String get planPayWrong => '150,000 гэх мэт дүн бичнэ үү.';
+
+  @override
+  String planPaySet(String name, String amount) {
+    return '$name: сард $amount төлнө';
+  }
+
+  @override
+  String planPayRemoved(String name) {
+    return '$name-ийн сарын төлбөрийг хассан';
+  }
+
+  @override
+  String planPayOnlyInterest(String amount) {
+    return 'Сард $amount нь зөвхөн хүүг нь дарна.';
+  }
+
+  @override
+  String get planExtraLabel => 'Төлбөрүүдээс гадна сар бүр илүү';
+
+  @override
+  String get planExtraNone => 'Байхгүй';
+
+  @override
+  String get planExtraEmptyToRemove => 'Хоосон үлдээвэл байхгүй болно.';
+
+  @override
+  String planExtraSet(String amount) {
+    return 'Сар бүр илүү: $amount';
+  }
+
+  @override
+  String get planExtraRemoved => 'Сар бүр илүү төлөхгүй';
+
+  @override
+  String planPlanNeedsPay(String names) {
+    return 'Хэзээ бүгдийг төлж дуусахыг харахын тулд $names-д сард төлдөг дүнгээ нэмнэ үү.';
+  }
+
+  @override
+  String get planMethodSmallest => 'Хамгийн багаас нь эхлэх';
+
+  @override
+  String get planMethodRate => 'Хамгийн өндөр хүүтэйгээс эхлэх';
+
+  @override
+  String get planMethodSmallestUndo => 'Хамгийн багаас нь эхэлж төлнө';
+
+  @override
+  String get planMethodRateUndo => 'Хамгийн өндөр хүүтэйгээс эхэлж төлнө';
+
+  @override
+  String planPlanDone(String month) {
+    return '$month-д бүгд төлөгдөж дуусна';
+  }
+
+  @override
+  String planPlanInterest(String amount) {
+    return 'Ойролцоогоор $amount хүү';
+  }
+
+  @override
+  String planPlanFirst(String name, String month) {
+    return 'Эхэлж төлөгдөх: $name, $month';
+  }
+
+  @override
+  String get planPlanNever => 'Эдгээр төлбөрөөр 30 жилд төлөгдөж дуусахгүй';
+
+  @override
+  String planPlanOne(String month, String amount) {
+    return '$month-д бүгд төлөгдөж дуусна, ойролцоогоор $amount хүүтэй.';
+  }
+
+  @override
+  String planPlanOneNoInterest(String month) {
+    return '$month-д бүгд төлөгдөж дуусна.';
+  }
+
+  @override
+  String get planPlanNeedRates =>
+      'Хамгийн өндөр хүүтэйгээс эхлэхтэй харьцуулахын тулд өр бүрийн хүүг нэмнэ үү.';
+
+  @override
+  String planPlanPicked(String name) {
+    return 'Та эхлээд $name-д илүү төлөхөөр сонгосон тул аль нь ч тэмдэглэгдээгүй. Аль нэгийг дарж түүнийг дагана уу.';
+  }
+
+  @override
+  String planPlanNoRate(String names) {
+    return '$names-д хүү оруулаагүй тул огноо хэт эрт гарч магадгүй.';
+  }
+
+  @override
+  String get planPlanAssume =>
+      'Эдгээр дүнг үргэлжлүүлэн төлж, карт дээрээ шинэ өр нэмэхгүй бол.';
+
+  @override
+  String planRateSaves(String amount) {
+    return 'Хамгийн өндөр хүүтэйгээс эхэлбэл ойролцоогоор $amount хүү хэмнэнэ.';
+  }
+
+  @override
+  String planSmallestSaves(String amount) {
+    return 'Хамгийн багаас нь эхэлбэл ойролцоогоор $amount хүү хэмнэнэ.';
+  }
+
+  @override
+  String get planBothEndSame => 'Хоёулаа нэг сард дуусна.';
+
+  @override
+  String planRateEndsSooner(int months) {
+    return 'Хамгийн өндөр хүүтэйгээс эхэлбэл $months сараар эрт дуусна.';
+  }
+
+  @override
+  String planSmallestEndsSooner(int months) {
+    return 'Хамгийн багаас нь эхэлбэл $months сараар эрт дуусна.';
+  }
+
+  @override
+  String planSmallestFirstSooner(int months) {
+    return 'Хамгийн багаас нь эхэлбэл эхний өр $months сараар эрт дуусна.';
+  }
+
+  @override
+  String planRateFirstSooner(int months) {
+    return 'Хамгийн өндөр хүүтэйгээс эхэлбэл эхний өр $months сараар эрт дуусна.';
+  }
+
+  @override
+  String planPayOnlyInterestNext(String amount) {
+    return 'Сард $amount нь зөвхөн хүүг нь дарна. Өөр өрийн төлбөр үүн рүү шилжмэгц буурч эхэлнэ.';
+  }
+
+  @override
+  String planPayBelowInterest(String amount) {
+    return 'Сард $amount нь хүүгээсээ бага тул өр нь өсөж байна.';
+  }
+
+  @override
+  String planPayBelowInterestNext(String amount) {
+    return 'Сард $amount нь хүүгээсээ бага тул өөр өрийн төлбөр үүн рүү шилжих хүртэл өр нь өснө.';
+  }
+
+  @override
+  String get planOnlyRateEnds =>
+      'Зөвхөн хамгийн өндөр хүүтэйгээс эхэлбэл 30 жилийн дотор бүгдийг төлж дуусна.';
+
+  @override
+  String get planOnlySmallestEnds =>
+      'Зөвхөн хамгийн багаас нь эхэлбэл 30 жилийн дотор бүгдийг төлж дуусна.';
+
+  @override
+  String planPlanCharged(String amount, String name) {
+    return 'Сүүлийн гурван сард $name дээр $amount зарцуулсан. Эдгээр огноо үүнийг тооцоогүй.';
+  }
+
+  @override
+  String get planPlanNetFirst =>
+      'Эхлээд аюулгүйн сан. Дүүртэл илүү төлбөр хүлээх тул эдгээр огноо харагдаж байгаагаас хойш болно.';
+
+  @override
+  String planPlanExtraTo(String name) {
+    return 'Илүү төлбөр эхлээд $name руу орно.';
+  }
 }
