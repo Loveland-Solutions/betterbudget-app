@@ -2983,6 +2983,84 @@ There should be a tooltip or something that tells the interest rate is used in s
   - "Add interest rate", not "Add rate" (the app has exchange rates too). A rate is
     digits with one decimal point or comma, and an optional %.
 
+### Paying off debt: two ways, side by side (owner, 2026-10-27, #103)
+
+How far along each Savings step is (#103). Steps 1 and 3 already said "₮600,000 of
+₮1,800,000 · ₮1,200,000 to go" with a bar; step 2 said only "₮2,800,000 owed".
+Asked what step 2 should count from, the owner: "The debt payoff should follow the
+snowball method", then "you should also take into account the interest rates", then,
+having read up: "I was wrong … Let's give them both the avalanche and snowball
+methods. They should have a preview showing when they'll have things paid off with
+either method." Of three sketches (A, cards side by side; B, a switch above the list;
+C, a timeline for each way), the owner picked **A**.
+
+- **Progress on step 2** counts whole debts: "1 of 5 debts paid off · ₮9,800,000 to
+  go". Until one is paid off it stays "₮9,800,000 owed". A paid-off debt keeps a line,
+  "Paid off" in green. Paid off means it owed something since the last day none of
+  the step's cards and loans did, and owes nothing now.
+- **A bar only on the debt being paid extra on**: "₮300,000 of ₮900,000 paid off",
+  counted from the most it owed at the end of a day since it last owed nothing. New
+  borrowing raises that mark; that's honest. **Step 4's house loan** has the same bar
+  (owner: "Yes, the same way").
+- **Two ways, the person's pick:** **Smallest first** (the snowball, rates left out)
+  and **Highest rate first** (the avalanche; debts without a rate last). Smallest
+  first until picked (`ready.method`). The list follows the pick, and so does "Pay
+  extra here" unless a debt was picked by hand, which goes first under either way and
+  is said. The two cards compare the ways themselves; with a hand pick neither is
+  marked, a line says so, and a click on either follows that way and clears the pick
+  (one undo). This settles #174: the list is no longer sorted by what each costs a
+  month, and "the most of your debts" is gone; each line still says its interest a
+  month. The guide names one way: "Pay the minimum on each, and everything extra on
+  the first one in the list. When it's paid off, put its payment toward the next."
+- **The preview:** under the list, "Extra each month, on top of the payments" (a
+  button with the amount, "None" to start, `ready.extra`), then two cards side by side,
+  each with when everything is paid off, about how much interest, and which debt goes
+  first and when. A click on a card picks it, with undo. One paragraph under them says
+  the difference: what one way saves in interest, whether one ends sooner, which
+  clears its first debt sooner. Last, quietly: "If you keep paying these amounts and
+  add nothing new to the cards."
+- **How it's worked out** (`domain/payoff.dart`, the `budget-expert` agent's way):
+  month by month, interest on each balance (a year's rate over twelve), each debt's
+  own payment, then the extra and every freed payment to the first debt in the order
+  still owing. Over 30 years is said as not paid off. A debt without a rate counts as
+  no interest, and the step says the dates may come too early. Fewer than two rates,
+  or the same order both ways: one sentence, no cards.
+- **Each debt's monthly payment:** "Add what you pay a month" under its line opens a
+  field (Cancel, Save, Enter, Esc, empty takes it off), kept as `ready.pay.<id>`.
+  Without one typed, the plan of the category its payments come out of is used,
+  said as "Pays ₮250,000 a month, from Car loan payment". What was paid in over the
+  last three whole months is offered beside the field, "Use ₮150,000", never filled
+  in (no autofill). Until every debt has one there are no dates, and the step says
+  which debts need one: a date that leaves one out would be wrong about "everything".
+  A payment no bigger than the interest is said: "₮32,000 a month only covers its
+  interest. It goes down once another debt's payment moves to it."
+- **Kept as Savings answers**, like the rate: no schema change.
+- *Rejected:* B, the switch (one way at a time: comparing means clicking back and
+  forth); C, the timelines (the most room for what the cards say in three lines).
+  Counting progress from the most owed by all debts together (one bar for the step),
+  and from the day step 2 began (the app would have to remember a figure).
+- **From the reviews** (decided along the lines above):
+  - Interest on the two cards is said to the place their difference needs
+    (₮2,653,000 and ₮2,600,000, not ₮2,700,000 and ₮2,600,000 beside "saves about
+    ₮53,000"), so the cards and the sentence agree.
+  - "First paid off: Golomt Visa, November 2027", and when that isn't the debt
+    getting the extra, "The extra goes to Khan loan first."
+  - A card spent on in the last three months is said in normal ink under the cards,
+    with the figure: "₮420,000 went on Golomt Visa in the last three months. These
+    dates count none of it." One spent on in the last five weeks isn't counted as
+    paid off: a card cleared by each statement isn't a win every month.
+  - While the safety net isn't full and there is extra: "Your safety net comes
+    first. Until it's full, the extra waits, so these dates come later than shown."
+    Warned, not blocked.
+  - A payment below its interest says what's owed grows; "it goes down once
+    another debt's payment moves to it" only of a debt behind another in the list.
+  - A paid-off loan archived afterwards still counts in "1 of 5 debts paid off".
+  - The payment from Budget is taken only from a plan due every so many months, its
+    amount spread over them; a plan by pay period isn't a month's figure, so that
+    one is typed. "Use ₮X" divides by the whole months the debt has had (up to
+    three), so a young loan isn't offered a third of its payment.
+  - The two settings a card click changes are written together.
+
 ### Two computers: what is said when the ledger comes from another one (2026-10-09)
 
 Built with step 1 of "More than one computer on one ledger"

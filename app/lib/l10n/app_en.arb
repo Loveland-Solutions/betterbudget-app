@@ -2647,7 +2647,7 @@
       }
     }
   },
-  "planPayExtraGuide": "Pay extra on one at a time, smallest balance or highest interest first; both get you there. When one is paid off, put its payment toward the next.",
+  "planPayExtraGuide": "Pay the minimum on each, and everything extra on the first one in the list. When it’s paid off, put its payment toward the next.",
   "@planPayExtraGuide": {
     "description": "Savings page, consumer debt step: guidance"
   },
@@ -2857,7 +2857,7 @@
       }
     }
   },
-  "planRateTip": "Step 2 uses this rate to show about how much interest each debt costs you a month.",
+  "planRateTip": "Step 2 uses this rate for the interest each debt costs a month, and for when it’s all paid off.",
   "@planRateTip": {
     "description": "Tooltip on the ⓘ beside a debt's interest rate on Savings, step 2"
   },
@@ -2872,15 +2872,6 @@
   "planInterestAMonth": "about {amount} a month in interest",
   "@planInterestAMonth": {
     "description": "Savings page, step 2: under a debt, what its rate costs a month",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planInterestCostsMost": "about {amount} a month in interest, the most of your debts",
-  "@planInterestCostsMost": {
-    "description": "Savings page, step 2: under the debt whose rate costs the most a month, when two or more have a rate",
     "placeholders": {
       "amount": {
         "type": "String"
@@ -2940,7 +2931,7 @@
   "@setupRate": {
     "description": "Add account form: label of the interest rate line, shown for a credit card or loan"
   },
-  "setupRateHint": "Step 2 of Savings uses it to show about how much interest this debt costs you a month.",
+  "setupRateHint": "Step 2 of Savings uses it for the interest this debt costs a month, and for when it’s paid off.",
   "@setupRateHint": {
     "description": "Add account form: under the interest rate line"
   },
@@ -9829,5 +9820,362 @@
   "phoneDemoNote": "Made-up figures for a look around. Nothing here is saved.",
   "@phoneDemoNote": {
     "description": "Phone, across the top after the demo key: the figures are invented and nothing typed is kept."
+  },
+  "planDebtsPaidOff": "{paid} of {all} debts paid off · {left} to go",
+  "@planDebtsPaidOff": {
+    "description": "Savings page, step 2: how many cards and loans are paid off, and what is still owed",
+    "placeholders": {
+      "paid": {
+        "type": "int"
+      },
+      "all": {
+        "type": "int"
+      },
+      "left": {
+        "type": "String"
+      }
+    }
+  },
+  "planPaidOffOf": "{paid} of {most} paid off",
+  "@planPaidOffOf": {
+    "description": "Savings page: under the debt being paid extra on (and the house loan), what is paid off of the most it owed",
+    "placeholders": {
+      "paid": {
+        "type": "String"
+      },
+      "most": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayAdd": "Add what you pay a month",
+  "@planPayAdd": {
+    "description": "Savings page, step 2: link under a debt with no monthly payment; opens a field"
+  },
+  "planPays": "Pays {amount} a month",
+  "@planPays": {
+    "description": "Savings page, step 2: under a debt, the monthly payment the person typed",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPaysFrom": "Pays {amount} a month, from {category}",
+  "@planPaysFrom": {
+    "description": "Savings page, step 2: under a debt, the monthly payment planned on Budget for the category its payments come out of",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayLately": "Lately about {amount} a month went into it.",
+  "@planPayLately": {
+    "description": "Savings page, step 2: beside the monthly payment field, the average paid in over the last three months",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayUse": "Use {amount}",
+  "@planPayUse": {
+    "description": "Savings page, step 2: button that saves the recent average as the monthly payment",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayEmptyToRemove": "Leave it empty to remove it.",
+  "@planPayEmptyToRemove": {
+    "description": "Savings page: beside an amount field that holds a saved amount"
+  },
+  "planPayWrong": "Type an amount, like 150,000.",
+  "@planPayWrong": {
+    "description": "Savings page: under an amount field when what is typed is not an amount above zero"
+  },
+  "planPaySet": "{name} pays {amount} a month",
+  "@planPaySet": {
+    "description": "Popup and undo label after a debt's monthly payment is saved",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayRemoved": "Monthly payment taken off {name}",
+  "@planPayRemoved": {
+    "description": "Undo label after a debt's typed monthly payment is removed",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayOnlyInterest": "{amount} a month only covers its interest.",
+  "@planPayOnlyInterest": {
+    "description": "Savings page, step 2: a debt first in the list (or the only one) whose monthly payment equals its interest",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planExtraLabel": "Extra each month, on top of the payments",
+  "@planExtraLabel": {
+    "description": "Savings page, step 2: label before the extra amount that goes to debts each month"
+  },
+  "planExtraNone": "None",
+  "@planExtraNone": {
+    "description": "Savings page, step 2: the extra amount button when there is none; opens a field"
+  },
+  "planExtraEmptyToRemove": "Leave it empty for none.",
+  "@planExtraEmptyToRemove": {
+    "description": "Savings page, step 2: beside the extra field when it holds an amount"
+  },
+  "planExtraSet": "Extra each month: {amount}",
+  "@planExtraSet": {
+    "description": "Popup and undo label after the extra each month is saved",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planExtraRemoved": "No extra each month",
+  "@planExtraRemoved": {
+    "description": "Popup and undo label after the extra each month is removed"
+  },
+  "planPlanNeedsPay": "To see when it’s all paid off, add what you pay a month on {names}.",
+  "@planPlanNeedsPay": {
+    "description": "Savings page, step 2: while a debt has no monthly payment; names is a list",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "planMethodSmallest": "Smallest first",
+  "@planMethodSmallest": {
+    "description": "Savings page, step 2: the snowball, paying the smallest balance off first"
+  },
+  "planMethodRate": "Highest rate first",
+  "@planMethodRate": {
+    "description": "Savings page, step 2: the avalanche, paying the highest interest rate off first"
+  },
+  "planMethodSmallestUndo": "Paying off smallest first",
+  "@planMethodSmallestUndo": {
+    "description": "Undo label after smallest first is picked"
+  },
+  "planMethodRateUndo": "Paying off highest rate first",
+  "@planMethodRateUndo": {
+    "description": "Undo label after highest rate first is picked"
+  },
+  "planPlanDone": "Everything paid off in {month}",
+  "@planPlanDone": {
+    "description": "Savings page, step 2: on a method's card, when every debt is paid off; month is e.g. June 2028",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planPlanInterest": "About {amount} in interest",
+  "@planPlanInterest": {
+    "description": "Savings page, step 2: on a method's card, the interest paid on the way",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPlanFirst": "First paid off: {name}, {month}",
+  "@planPlanFirst": {
+    "description": "Savings page, step 2: on a method's card, the debt paid off first and when",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planPlanNever": "Not paid off within 30 years at these payments",
+  "@planPlanNever": {
+    "description": "Savings page, step 2: when the payments never get ahead of the interest"
+  },
+  "planPlanOne": "Everything paid off in {month}, with about {amount} in interest.",
+  "@planPlanOne": {
+    "description": "Savings page, step 2: when both ways come out the same",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPlanOneNoInterest": "Everything paid off in {month}.",
+  "@planPlanOneNoInterest": {
+    "description": "Savings page, step 2: when both ways come out the same and no debt has a rate",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planPlanNeedRates": "Add each debt’s rate to compare paying the highest rate first.",
+  "@planPlanNeedRates": {
+    "description": "Savings page, step 2: fewer than two debts have a rate, so there is nothing to compare"
+  },
+  "planPlanPicked": "You picked {name} to pay extra on first, so neither way is marked. Click one to follow it instead.",
+  "@planPlanPicked": {
+    "description": "Savings page, step 2: under the two ways, when a debt was picked by hand with Pay extra on this one",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planPlanNoRate": "No rate on {names}, so the dates may come too early.",
+  "@planPlanNoRate": {
+    "description": "Savings page, step 2: some debts have no rate and are counted as costing nothing",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "planPlanAssume": "If you keep paying these amounts and add nothing new to the cards.",
+  "@planPlanAssume": {
+    "description": "Savings page, step 2: under the payoff, what it assumes"
+  },
+  "planRateSaves": "Highest rate first saves about {amount} in interest.",
+  "@planRateSaves": {
+    "description": "Savings page, step 2: the difference between the two ways",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planSmallestSaves": "Smallest first saves about {amount} in interest.",
+  "@planSmallestSaves": {
+    "description": "Savings page, step 2: the difference between the two ways",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planBothEndSame": "Both end the same month.",
+  "@planBothEndSame": {
+    "description": "Savings page, step 2: the difference between the two ways"
+  },
+  "planRateEndsSooner": "Highest rate first ends {months, plural, =1{a month} other{{months} months}} sooner.",
+  "@planRateEndsSooner": {
+    "description": "Savings page, step 2: the difference between the two ways",
+    "placeholders": {
+      "months": {
+        "type": "int"
+      }
+    }
+  },
+  "planSmallestEndsSooner": "Smallest first ends {months, plural, =1{a month} other{{months} months}} sooner.",
+  "@planSmallestEndsSooner": {
+    "description": "Savings page, step 2: the difference between the two ways",
+    "placeholders": {
+      "months": {
+        "type": "int"
+      }
+    }
+  },
+  "planSmallestFirstSooner": "Smallest first clears your first debt {months, plural, =1{a month} other{{months} months}} sooner.",
+  "@planSmallestFirstSooner": {
+    "description": "Savings page, step 2: the difference between the two ways",
+    "placeholders": {
+      "months": {
+        "type": "int"
+      }
+    }
+  },
+  "planRateFirstSooner": "Highest rate first clears your first debt {months, plural, =1{a month} other{{months} months}} sooner.",
+  "@planRateFirstSooner": {
+    "description": "Savings page, step 2: the difference between the two ways",
+    "placeholders": {
+      "months": {
+        "type": "int"
+      }
+    }
+  },
+  "planPayOnlyInterestNext": "{amount} a month only covers its interest. It goes down once another debt’s payment moves to it.",
+  "@planPayOnlyInterestNext": {
+    "description": "Savings page, step 2: a debt behind another in the list whose monthly payment equals its interest",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayBelowInterest": "{amount} a month is less than its interest, so what it owes grows.",
+  "@planPayBelowInterest": {
+    "description": "Savings page, step 2: a debt whose monthly payment is less than its interest",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPayBelowInterestNext": "{amount} a month is less than its interest, so what it owes grows until another debt’s payment moves to it.",
+  "@planPayBelowInterestNext": {
+    "description": "Savings page, step 2: a debt behind another in the list whose monthly payment is less than its interest",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planOnlyRateEnds": "Only highest rate first pays it all off within 30 years.",
+  "@planOnlyRateEnds": {
+    "description": "Savings page, step 2: the difference, when only one way finishes"
+  },
+  "planOnlySmallestEnds": "Only smallest first pays it all off within 30 years.",
+  "@planOnlySmallestEnds": {
+    "description": "Savings page, step 2: the difference, when only one way finishes"
+  },
+  "planPlanCharged": "{amount} went on {name} in the last three months. These dates count none of it.",
+  "@planPlanCharged": {
+    "description": "Savings page, step 2: a card spent on lately; the payoff dates assume nothing new",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "planPlanNetFirst": "Your safety net comes first. Until it’s full, the extra waits, so these dates come later than shown.",
+  "@planPlanNetFirst": {
+    "description": "Savings page, step 2: extra is set while step 1, the safety net, isn't full"
+  },
+  "planPlanExtraTo": "The extra goes to {name} first.",
+  "@planPlanExtraTo": {
+    "description": "Savings page, step 2: on a method's card, when the first debt paid off isn't the one getting the extra",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

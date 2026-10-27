@@ -426,7 +426,8 @@ void main() {
         date: DateTime(2026, 9, 1),
         balance: -500000000,
       );
-      // Visa first: it costs more until the loan's rate is raised.
+      // Highest rate first: Visa leads until the loan's rate is raised.
+      await db.setPreference(ReadyKeys.method, 'rate');
       await db.setPreference(ReadyKeys.rate(visa), '5 month');
       await db.setPreference(ReadyKeys.rate(loan), '0.1 month');
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -437,13 +438,13 @@ void main() {
         tester.getTopLeft(find.byKey(ValueKey('debt-line-$id'))).dy;
     expect(top(visa), lessThan(top(loan)));
 
-    // Visa's field is open with 9 typed when the loan's 3% moves it up.
+    // Visa's field is open with 9 typed when the loan's 6% moves it up.
     await tester.tap(find.byKey(ValueKey('debt-$visa-rate')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(ValueKey('debt-$visa-rate-field')), '9');
     await tester.tap(find.byKey(ValueKey('debt-$loan-rate')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(ValueKey('debt-$loan-rate-field')), '3');
+    await tester.enterText(find.byKey(ValueKey('debt-$loan-rate-field')), '6');
     await tester.tap(find.byKey(ValueKey('debt-$loan-rate-save')));
     await settle(tester);
     expect(top(loan), lessThan(top(visa)));
@@ -457,7 +458,127 @@ void main() {
     await settle(tester);
     final prefs = (await tester.runAsync(db.loadLedger))!.prefs;
     expect(prefs[ReadyKeys.rate(visa)], '9 month');
-    expect(prefs[ReadyKeys.rate(loan)], '3 month');
+    expect(prefs[ReadyKeys.rate(loan)], '6 month');
+    await tidy(tester, db);
+  });
+
+  testWidgets('savings: two ways to pay off debt, side by side', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    late int visa, loan;
+    await tester.runAsync(() async {
+      visa = (await db.loadLedger()).accounts.values
+          .firstWhere((a) => a.name == 'Golomt Visa')
+          .id;
+      loan = await db.createAccount(
+        name: 'Khan loan',
+        type: AccountType.liability,
+      );
+      await db.postOpeningBalance(
+        accountId: loan,
+        date: DateTime(2026, 9, 1),
+        balance: -500000000,
+      );
+      // Smallest first is Visa; highest rate first is the loan.
+      await db.setPreference(ReadyKeys.rate(visa), '3 month');
+      await db.setPreference(ReadyKeys.rate(loan), '4 month');
+      await db.setPreference(ReadyKeys.pay(loan), '25000000');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.tap(find.text('Savings'));
+    await settle(tester);
+    Future<Map<String, String>> prefs() async =>
+        (await tester.runAsync(db.loadLedger))!.prefs;
+    double top(int id) =>
+        tester.getTopLeft(find.byKey(ValueKey('debt-line-$id'))).dy;
+
+    // No dates while a debt's payment isn't known; it says which.
+    expect(
+      find.text(
+        'To see when it’s all paid off, add what you pay a month on '
+        'Golomt Visa.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('method-smallest')), findsNothing);
+    await tester.tap(find.byKey(ValueKey('debt-$visa-pay')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(ValueKey('pay-$visa-field')), '60000');
+    await tester.tap(find.byKey(ValueKey('pay-$visa-save')));
+    await settle(tester);
+    expect((await prefs())[ReadyKeys.pay(visa)], '6000000');
+    expect(find.text('Pays ₮60,000 a month'), findsOneWidget);
+
+    // Extra on top, then both ways side by side, smallest first marked.
+    await tester.tap(find.byKey(const ValueKey('extra-edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('extra-field')), '100000');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    expect((await prefs())[ReadyKeys.extra], 'MNT:10000000');
+    expect(find.byKey(const ValueKey('method-smallest')), findsOneWidget);
+    expect(find.byKey(const ValueKey('method-highestRate')), findsOneWidget);
+    expect(find.byKey(const ValueKey('payoff-difference')), findsOneWidget);
+    expect(top(visa), lessThan(top(loan)));
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/savings_payoff.png'),
+    );
+
+    // A click picks highest rate first: the list follows; ⌘Z takes it back.
+    await tester.tap(find.byKey(const ValueKey('method-highestRate')));
+    await settle(tester);
+    expect((await prefs())[ReadyKeys.method], 'rate');
+    expect(top(loan), lessThan(top(visa)));
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect((await prefs())[ReadyKeys.method], isNull);
+
+    // A debt picked by hand: the cards stay, neither marked; a click on one
+    // follows it and clears the pick, and one ⌘Z brings both back.
+    await tester.runAsync(() async {
+      await db.setPreference(ReadyKeys.target, '$loan');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(top(loan), lessThan(top(visa)));
+    expect(find.byKey(const ValueKey('method-smallest')), findsOneWidget);
+    expect(find.byKey(const ValueKey('payoff-picked')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('method-smallest')));
+    await settle(tester);
+    expect((await prefs())[ReadyKeys.target], isNull);
+    expect(top(visa), lessThan(top(loan)));
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect((await prefs())[ReadyKeys.target], '$loan');
+
+    // Esc closes a payment field without saving.
+    await tester.tap(find.byKey(ValueKey('debt-$visa-pay')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(ValueKey('pay-$visa-field')), '1');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('pay-$visa-field')), findsNothing);
+    expect((await prefs())[ReadyKeys.pay(visa)], '6000000');
+
+    // Emptied, a typed payment is taken off.
+    await tester.tap(find.byKey(ValueKey('debt-$visa-pay')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(ValueKey('pay-$visa-field')), '');
+    await tester.tap(find.byKey(ValueKey('pay-$visa-save')));
+    await settle(tester);
+    expect((await prefs())[ReadyKeys.pay(visa)], isNull);
     await tidy(tester, db);
   });
 
@@ -7307,7 +7428,9 @@ void main() {
           '120',
         );
         // Edit is taller than the window now: its heading row is above.
-        await tester.ensureVisible(find.byKey(const ValueKey('money-currency')));
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('money-currency')),
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('money-currency')));
         await tester.pumpAndSettle();

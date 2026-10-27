@@ -9,6 +9,9 @@ import 'dart:math' show max;
 import 'budget.dart';
 import 'ledger.dart';
 import 'money.dart';
+import 'payoff.dart';
+
+export 'payoff.dart' show PayoffMethod, PayoffPlan;
 
 /// The names are what a ledger keeps a set-aside step under, so the three
 /// that came from the six steps before keep theirs.
@@ -63,6 +66,19 @@ abstract final class ReadyKeys {
   /// towards the 1 month expense total"). Unset counts, so a ledger from
   /// before keeps its month. Kept by category id.
   static String leftOut(int categoryId) => 'ready.out.$categoryId';
+
+  /// What the person pays into a card or loan each month, in minor units,
+  /// typed on its line; over its payment category's plan. Kept by account
+  /// id.
+  static String pay(int accountId) => 'ready.pay.$accountId';
+
+  /// What can go to debts each month on top of their payments, stored as
+  /// [typedMonth] reads it (`MNT:10000000`). Unset is nothing.
+  static const extra = 'ready.extra';
+
+  /// `rate`: highest rate first; unset is smallest first (owner,
+  /// 2026-10-27).
+  static const method = 'ready.method';
 }
 
 /// Whether category [id] counts in a month of expenses ([ReadyKeys.leftOut]).
@@ -79,8 +95,11 @@ extension DebtRateValue on DebtRate {
   String get value => '${ratePercent(percent)} ${perYear ? 'year' : 'month'}';
 
   /// What it costs a month on [owed]: a year's rate is spread over twelve.
-  int interestOn(int owed) =>
-      (owed * percent / 100 / (perYear ? 12 : 1)).round();
+  int interestOn(int owed) => (owed * perMonth).round();
+
+  /// A month's rate as a fraction: a year's is spread over twelve, as
+  /// banks bill it.
+  double get perMonth => percent / 100 / (perYear ? 12 : 1);
 }
 
 /// Reads [ReadyKeys.rate]'s value; null for none or one that doesn't read.
@@ -137,6 +156,10 @@ int roundAbout(int units) {
 bool ratePerYearFor(Currency c) => c != Currency.mnt;
 
 typedef Debt = ({AccountInfo account, int owed});
+
+/// What goes into a card or loan each month: typed on its line, or the plan
+/// of the category its payments come out of ([from]).
+typedef DebtPayment = ({int amount, AccountInfo? from});
 
 /// What a month of living costs: the figure typed, else what the budget
 /// holds for this month, else the average of what was spent (owner,
@@ -399,6 +422,14 @@ class Readiness {
     required this.looksPaidInFull,
     required this.target,
     required this.rates,
+    required this.method,
+    required this.payments,
+    required this.paidLately,
+    required this.extra,
+    required this.mostOwed,
+    required this.paidOff,
+    required this.today,
+    required this.chargedLately,
   });
 
   factory Readiness.of(LedgerData data, DateTime today) {
@@ -424,6 +455,37 @@ class Readiness {
     );
     final targetId = int.tryParse(data.prefs[ReadyKeys.target] ?? '');
     final budget = monthBudget(data, today);
+    final day = dateOnly(today);
+    final method = data.prefs[ReadyKeys.method] == 'rate'
+        ? PayoffMethod.highestRate
+        : PayoffMethod.smallest;
+    final rates = {
+      for (final a in open)
+        if (a.isOwed) a.id: ?parseDebtRate(data.prefs[ReadyKeys.rate(a.id)]),
+    };
+    // Cards and loans step 2 is about, owing or not: what was paid off
+    // counts as far along, archived after or not (budget review: closing a
+    // paid loan mustn't take the win away).
+    final payingOff = [
+      for (final a in data.accounts.values)
+        if (a.isOwed &&
+            !a.deleted &&
+            a.currency == main &&
+            !long.contains(a.role) &&
+            a.role != AccountRole.paidMonthly)
+          a,
+    ];
+    final days = _endOfDay(data, {
+      for (final a in open)
+        if (a.isOwed) a.id,
+      for (final a in payingOff) a.id,
+    });
+    final charged = {
+      for (final a in payingOff)
+        if (_chargedSince(data, a.id, DateTime(day.year, day.month - 3))
+            case final v when v > 0)
+          a.id: v,
+    };
     // Not assigned in the currency Savings counts in, whichever the
     // Budget page began with.
     final free = budget.pools
@@ -470,13 +532,39 @@ class Readiness {
           if (_paying(data, d.account.id, dateOnly(today))?.paid ?? false)
             d.account.id,
       },
-      rates: {
-        for (final a in open)
-          if (a.isOwed) a.id: ?parseDebtRate(data.prefs[ReadyKeys.rate(a.id)]),
-      },
+      rates: rates,
       target:
           consumer.where((d) => d.account.id == targetId).firstOrNull ??
-          consumer.firstOrNull,
+          _inOrder(consumer, method, rates).firstOrNull,
+      method: method,
+      payments: {
+        for (final a in open)
+          if (a.isOwed) a.id: ?_payment(data, a),
+      },
+      paidLately: {
+        for (final a in open)
+          if (a.isOwed)
+            if (_paidLately(data, a.id, day) case final v when v > 0) a.id: v,
+      },
+      chargedLately: charged,
+      extra: typedMonth(data.prefs[ReadyKeys.extra], main) ?? 0,
+      mostOwed: {
+        for (final MapEntry(key: id, value: rows) in days.entries)
+          if (_mostOwed(rows) case final v when v > 0) id: v,
+      },
+      // One spent on again lately is in use, not paid off: a card cleared
+      // by each statement doesn't count as a win every month.
+      paidOff: [
+        for (final a in _paidOff(payingOff, days))
+          if (_chargedSince(
+                data,
+                a.id,
+                day.subtract(const Duration(days: 35)),
+              ) ==
+              0)
+            a,
+      ],
+      today: day,
       month: MonthOfSpending.of(data, today, budget: budget),
       fundCategories: fundCategories,
       keptIn: limited ? keptIn : const [],
@@ -638,44 +726,275 @@ class Readiness {
   /// Each card's and loan's rate the person gave, by account id.
   final Map<int, DebtRate> rates;
 
-  /// What [d] costs a month in interest; null without a rate.
-  int? interestOf(Debt d) => rates[d.account.id]?.interestOn(d.owed);
+  /// The day it was worked out for: payoff months count from its month.
+  final DateTime today;
 
-  /// The debts to pay off in the order step 2 lists them: once two or more
-  /// have a rate, the one costing the most interest a month first, those
-  /// without a rate last; otherwise smallest first, as before.
-  List<Debt> get debtsByCost {
-    // One rate has nothing to rank against: smallest first, as before.
-    if (consumerDebts.where((d) => interestOf(d) != null).length < 2) {
-      return consumerDebts;
+  /// The order extra money goes in: the person's pick, smallest first
+  /// until then.
+  final PayoffMethod method;
+
+  /// What goes into each card and loan a month, by account id; missing
+  /// while it isn't known.
+  final Map<int, DebtPayment> payments;
+
+  /// What was paid into each card and loan a month, on average, over the
+  /// last three whole months: offered on its line, never filled in.
+  final Map<int, int> paidLately;
+
+  /// What can go to debts each month on top of their payments.
+  final int extra;
+
+  /// What was spent on each card or loan since the start of the month
+  /// three months back: the payoff counts none of it, so it's said.
+  final Map<int, int> chargedLately;
+
+  /// The most each card and loan has owed since it last owed nothing (or
+  /// since its first row), at the end of a day: where its progress counts
+  /// from.
+  final Map<int, int> mostOwed;
+
+  /// Cards and loans step 2 is about that owed something since the last
+  /// day none of them did, and owe nothing now.
+  final List<AccountInfo> paidOff;
+
+  /// What [d] has paid off of the most it owed; 0 when nothing yet.
+  int paidOffOf(Debt d) {
+    final most = mostOwed[d.account.id] ?? 0;
+    return most > d.owed ? most - d.owed : 0;
+  }
+
+  /// The debts to pay off in the order the method takes them, one
+  /// picked by hand first: the list "Pay extra here" heads.
+  List<Debt> get debtsInOrder {
+    final order = _inOrder(consumerDebts, method, rates);
+    final p = picked;
+    return p == null ? order : [p, ...order.where((d) => d != p)];
+  }
+
+  /// Debts with no monthly payment: the payoff waits for them.
+  List<Debt> get missingPayments => [
+    for (final d in debtsInOrder)
+      if (payments[d.account.id] == null) d,
+  ];
+
+  /// Debts with no rate: counted as costing nothing, so dates come early.
+  List<Debt> get missingRates => [
+    for (final d in debtsInOrder)
+      if (rates[d.account.id] == null) d,
+  ];
+
+  /// The debt picked by hand to pay extra on, when it isn't the method's
+  /// first. Picking a way clears it.
+  Debt? get picked {
+    final first = _inOrder(consumerDebts, method, rates).firstOrNull;
+    return target != null && first != null && target != first ? target : null;
+  }
+
+  /// The order [m] pays debts off in, as the way itself says: the two
+  /// cards compare the ways, not a hand pick.
+  List<int> orderOf(PayoffMethod m) => [
+    for (final d in _inOrder(consumerDebts, m, rates)) d.account.id,
+  ];
+
+  /// When [m] pays everything off; null while a debt has no payment, or
+  /// with nothing owed.
+  PayoffPlan? payoff(PayoffMethod m) {
+    if (consumerDebts.isEmpty || missingPayments.isNotEmpty) return null;
+    return projectPayoff(
+      [
+        for (final d in consumerDebts)
+          (
+            id: d.account.id,
+            owed: d.owed,
+            monthlyRate: rates[d.account.id]?.perMonth ?? 0,
+            payment: payments[d.account.id]!.amount,
+          ),
+      ],
+      orderOf(m),
+      extra,
+    );
+  }
+
+  /// The two ways take the debts in a different order, so there is a
+  /// choice to show.
+  bool get methodsDiffer {
+    final a = orderOf(PayoffMethod.smallest);
+    final b = orderOf(PayoffMethod.highestRate);
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return true;
     }
-    final order = {for (final (i, d) in consumerDebts.indexed) d.account.id: i};
+    return false;
+  }
+
+  /// [debts] (smallest first) in [m]'s order: the highest rate a month
+  /// first, those without one last, equal ones smallest first.
+  static List<Debt> _inOrder(
+    List<Debt> debts,
+    PayoffMethod m,
+    Map<int, DebtRate> rates,
+  ) {
+    if (m == PayoffMethod.smallest) return debts;
+    final order = {for (final (i, d) in debts.indexed) d.account.id: i};
     int compare(Debt a, Debt b) {
-      final x = interestOf(a), y = interestOf(b);
-      final byCost = x == null || y == null
+      final x = rates[a.account.id]?.perMonth;
+      final y = rates[b.account.id]?.perMonth;
+      final byRate = x == null || y == null
           ? (x == null ? 1 : 0) - (y == null ? 1 : 0)
           : y.compareTo(x);
-      // Equal ones keep smallest first.
-      return byCost != 0
-          ? byCost
+      return byRate != 0
+          ? byRate
           : order[a.account.id]!.compareTo(order[b.account.id]!);
     }
 
-    return [...consumerDebts]..sort(compare);
+    return [...debts]..sort(compare);
   }
 
-  /// The debts with a rate that costs something, most first.
-  List<Debt> get ratedByCost => [
-    for (final d in debtsByCost)
-      if ((interestOf(d) ?? 0) > 0) d,
-  ];
-
-  /// The debt costing the most interest a month, when two or more have a
-  /// rate to compare; otherwise there is nothing to say.
-  Debt? get costliest {
-    final rated = ratedByCost;
-    return rated.length >= 2 ? rated.first : null;
+  /// What goes into [a] each month: typed on its line, else the plan of
+  /// the category its payments come out of, when it's due every so many
+  /// months (a payment is a bill): its amount spread over them. A plan by
+  /// pay period isn't a month's figure (code review), so it is typed.
+  static DebtPayment? _payment(LedgerData data, AccountInfo a) {
+    final typed = int.tryParse(data.prefs[ReadyKeys.pay(a.id)] ?? '');
+    if (typed != null && typed > 0) return (amount: typed, from: null);
+    final c = Budget.loanCategory(data, a.id);
+    final category = c == null ? null : data.accounts[c];
+    final plan = c == null ? null : data.plans[c];
+    if (category == null || category.deleted || plan == null) return null;
+    final every = plan.everyMonths;
+    if (plan.kind != PlanKind.byDate || every == null || every < 1) {
+      return null;
+    }
+    final amount = (plan.amount / every).round();
+    return amount > 0 ? (amount: amount, from: category) : null;
   }
+
+  /// Spent on [id] since [from]: rows that add to what it owes from a
+  /// spending category.
+  static int _chargedSince(LedgerData data, int id, DateTime from) {
+    var charged = 0;
+    for (final t in data.txns) {
+      if (t.scheduled || t.date.isBefore(from)) continue;
+      for (final e in t.entries) {
+        if (e.accountId != id || e.amount >= 0) continue;
+        if (t.entries.any(
+          (o) => data.accounts[o.accountId]!.type == AccountType.expense,
+        )) {
+          charged -= e.amount;
+        }
+      }
+    }
+    return charged;
+  }
+
+  /// Paid into [id] from a bank, cash or another card over the last three
+  /// whole months (fewer for a younger debt: its first row's month isn't
+  /// whole), a month's share in whole units; 0 for none.
+  static int _paidLately(LedgerData data, int id, DateTime today) {
+    DateTime? first;
+    for (final t in data.txns) {
+      if (t.scheduled || !t.entries.any((e) => e.accountId == id)) continue;
+      if (first == null || t.date.isBefore(first)) first = t.date;
+    }
+    if (first == null) return 0;
+    var start = DateTime(today.year, today.month - 3);
+    final after = DateTime(first.year, first.month + 1);
+    if (after.isAfter(start)) start = after;
+    final end = DateTime(today.year, today.month, 0);
+    final months = (end.year - start.year) * 12 + end.month - start.month + 1;
+    if (months < 1) return 0;
+    final scale = data.accounts[id]!.currency.scale;
+    var paid = 0;
+    for (final t in data.txns) {
+      if (t.scheduled || t.date.isBefore(start) || t.date.isAfter(end)) {
+        continue;
+      }
+      for (final e in t.entries) {
+        if (e.accountId != id || e.amount <= 0) continue;
+        if (t.entries.any(
+          (o) => o.id != e.id && data.accounts[o.accountId]!.isBalanceSheet,
+        )) {
+          paid += e.amount;
+        }
+      }
+    }
+    return (paid / months / scale).round() * scale;
+  }
+
+  /// Each account's balance at the end of each day it has posted rows,
+  /// oldest first: the rows its balance is worked out from.
+  static Map<int, List<(DateTime, int)>> _endOfDay(
+    LedgerData data,
+    Set<int> ids,
+  ) {
+    final rows = <int, List<(DateTime, int)>>{for (final id in ids) id: []};
+    for (final t in data.txns) {
+      if (t.scheduled) continue;
+      for (final e in t.entries) {
+        rows[e.accountId]?.add((dateOnly(t.date), e.amount));
+      }
+    }
+    return {
+      for (final MapEntry(key: id, value: list) in rows.entries)
+        id: () {
+          list.sort((a, b) => a.$1.compareTo(b.$1));
+          final out = <(DateTime, int)>[];
+          var balance = 0;
+          for (final (d, amount) in list) {
+            balance += amount;
+            if (out.isNotEmpty && out.last.$1 == d) {
+              out[out.length - 1] = (d, balance);
+            } else {
+              out.add((d, balance));
+            }
+          }
+          return out;
+        }(),
+    };
+  }
+
+  /// The most owed at the end of a day since the last one it owed nothing.
+  static int _mostOwed(List<(DateTime, int)> days) {
+    var most = 0;
+    for (final (_, balance) in days) {
+      most = balance >= 0 ? 0 : (-balance > most ? -balance : most);
+    }
+    return most;
+  }
+
+  /// Of [accounts], those that owed something since the last day none of
+  /// them did and owe nothing now.
+  static List<AccountInfo> _paidOff(
+    List<AccountInfo> accounts,
+    Map<int, List<(DateTime, int)>> days,
+  ) {
+    // Every day any of them changed, in order, with each one's balance.
+    final changes = <DateTime, Map<int, int>>{};
+    for (final a in accounts) {
+      for (final (d, b) in days[a.id] ?? const <(DateTime, int)>[]) {
+        (changes[d] ??= {})[a.id] = b;
+      }
+    }
+    final balance = <int, int>{};
+    var owedSince = <int>{};
+    for (final d in changes.keys.toList()..sort()) {
+      balance.addAll(changes[d]!);
+      if (balance.values.every((b) => b >= 0)) {
+        owedSince = {};
+      } else {
+        owedSince.addAll([
+          for (final MapEntry(key: id, value: b) in balance.entries)
+            if (b < 0) id,
+        ]);
+      }
+    }
+    return [
+      for (final a in accounts)
+        if (owedSince.contains(a.id) && (balance[a.id] ?? 0) >= 0) a,
+    ];
+  }
+
+  /// What [d] costs a month in interest; null without a rate.
+  int? interestOf(Debt d) => rates[d.account.id]?.interestOn(d.owed);
 
   int get consumerOwed => consumerDebts.fold(0, (s, d) => s + d.owed);
   int get longOwed => longLoans.fold(0, (s, d) => s + d.owed);

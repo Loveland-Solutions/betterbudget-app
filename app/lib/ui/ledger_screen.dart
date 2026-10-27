@@ -60,6 +60,7 @@ part 'payees.dart';
 part 'register_settings.dart';
 part 'rows_dialog.dart';
 part 'savings.dart';
+part 'savings_payoff.dart';
 part 'setup.dart';
 
 bool get _isMac =>
@@ -5894,6 +5895,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // Focus stays on what was pressed (code review, 2026-10-26).
   }
 
+  /// Several Savings settings changed by one click, undone together.
+  Future<void> _setPrefs(Map<String, String?> values, String label) async {
+    final t = context.t;
+    // In one go, so the page changes once.
+    Future<void> write(Map<String, String?> v) => db.transaction(() async {
+      for (final e in v.entries) {
+        await db.setPreference(e.key, e.value);
+      }
+    });
+    final old = <String, String?>{};
+    try {
+      for (final key in values.keys) {
+        old[key] = await db.preference(key);
+      }
+      if (values.entries.every((e) => old[e.key] == e.value)) return;
+      await write(values);
+    } catch (e) {
+      _showFailure(t.ledgerCouldntSave, error: e);
+      return;
+    }
+    _did(label, undo: () => write(old), redo: () => write(values));
+  }
+
   Future<void> _rename(AccountInfo account, String name) async {
     final t = context.t;
     final old = account.name;
@@ -6817,6 +6841,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                               label,
                                               toast: toast,
                                             ),
+                                    setPrefs: _setPrefs,
                                     assign: (category, total, label) {
                                       final day = dateOnly(widget.clock());
                                       _setBudgetAmount(label: label, category, (
