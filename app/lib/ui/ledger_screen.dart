@@ -33,6 +33,7 @@ import '../domain/phone.dart'
         computerNamePrefix,
         phoneNamePrefix,
         showSourceKey;
+import '../domain/goals.dart';
 import '../domain/readiness.dart';
 import '../domain/setup.dart';
 import '../domain/sync.dart' show MadeHow, SyncKeys;
@@ -60,6 +61,7 @@ part 'payees.dart';
 part 'register_settings.dart';
 part 'rows_dialog.dart';
 part 'savings.dart';
+part 'savings_goals.dart';
 part 'savings_payoff.dart';
 part 'setup.dart';
 
@@ -709,6 +711,33 @@ class _LedgerScreenState extends State<LedgerScreen> {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _budgetKey.currentState?.openEdit(id),
     );
+  }
+
+  /// A goal's date moved from Savings: its plan, and a late choice
+  /// cleared so it can't come back on its own when the new date passes;
+  /// one undo.
+  Future<void> _moveGoal(AccountInfo c, CategoryPlan plan, String label) async {
+    final mark = _history.length;
+    await _setCategoryPlan(c, plan, label: label);
+    if (_data?.prefs[ReadyKeys.goalLate(c.id)] != null) {
+      await _setPref(ReadyKeys.goalLate(c.id), null, label);
+    }
+    _joinHistory(mark, label);
+  }
+
+  /// A goal added on Savings (#101): its category and plan, as Add in
+  /// the New category window makes them. True when it was made.
+  /// A name another category has opens that one's Edit on Budget, where
+  /// it can be made a goal.
+  Future<bool> _addGoal(_CategoryEdit e) async {
+    final data = _data;
+    if (data == null) return false;
+    final existing = _categoryNamed(data, e.name);
+    if (existing != null && !existing.archived && !existing.isIncome) {
+      _editCategory(existing.id);
+      return true;
+    }
+    return await _addCategory(e) == _Added.made;
   }
 
   /// Adds the phones' entries to the ledger as uncleared rows (ADR 0005):
@@ -5056,7 +5085,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Saves [c]'s plan, or removes it with null. Saving is quiet (the plan
   /// shows under the name); removing says so, with Undo, and so does a
   /// change that moves money.
-  Future<void> _setCategoryPlan(AccountInfo c, CategoryPlan? plan) async {
+  Future<void> _setCategoryPlan(
+    AccountInfo c,
+    CategoryPlan? plan, {
+    String? label,
+  }) async {
     final t = context.t;
     // What earlier periods sent back returns to a category that carries
     // over again: the toast says how much.
@@ -5069,9 +5102,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
             ?.notAssigned ??
         0;
     final back = free(data) - free(data.withPlan(c.id, plan));
-    final label = plan == null
-        ? t.planRemoveUndo(c.name)
-        : t.planSetUndo(c.name);
+    final named = label != null;
+    label ??= plan == null ? t.planRemoveUndo(c.name) : t.planSetUndo(c.name);
     // A dated plan paid from an account keeps its next bill scheduled
     // there from the moment it's saved; undo brings back the very bill
     // the change took away.
@@ -5084,7 +5116,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     _did(
       label,
-      toast: plan == null || back > 0,
+      toast: named || plan == null || back > 0,
       message: back > 0
           ? '$label · ${t.planReturns(formatMoney(back, currency: c.currency), c.name)}'
           : null,
@@ -5168,11 +5200,25 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final monthKey = ReadyKeys.leftOut(c.id);
     final monthWas = data.prefs[monthKey];
     final month = e.inMonth != inMonthOfExpenses(data, c.id);
+    final goalKey = ReadyKeys.goal(c.id);
+    final goalWas = data.prefs[goalKey];
+    final goal = e.goal != (goalWas == 'yes');
+    // A late goal's choice goes with the mark, so it can't come back on
+    // its own.
+    final lateKey = ReadyKeys.goalLate(c.id);
+    final lateWas = data.prefs[lateKey];
     // Its group and note (#100).
     final details = e.group != c.budgetGroup || e.note != c.note;
-    final changes = [renamed, money, plan, month, details].where((x) => x);
+    final changes = [
+      renamed,
+      money,
+      plan,
+      month,
+      goal,
+      details,
+    ].where((x) => x);
     if (changes.isEmpty) return;
-    if (changes.length == 1 && !month && !details) {
+    if (changes.length == 1 && !month && !goal && !details) {
       if (renamed) return _renameCategory(data, c, e.name);
       if (money) return _setCategoryMoney(c, e.currency, e.off);
       return _setCategoryPlan(c, e.plan);
@@ -5220,6 +5266,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }
       if (plan) planChange = await db.changeCategoryPlan(c.id, e.plan, today);
       if (month) await db.setPreference(monthKey, e.inMonth ? null : 'yes');
+      if (goal) {
+        await db.setPreference(goalKey, e.goal ? 'yes' : null);
+        await db.setPreference(lateKey, null);
+      }
       if (details) {
         await db.setCategoryDetails(c.id, group: e.group, note: e.note);
       }
@@ -5239,6 +5289,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
           await db.setCategoryDetails(c.id, group: c.budgetGroup, note: c.note);
         }
         if (month) await db.setPreference(monthKey, monthWas);
+        if (goal) {
+          await db.setPreference(goalKey, goalWas);
+          await db.setPreference(lateKey, lateWas);
+        }
         if (plan) await db.undoPlanChange(c.id, planChange!);
         if (money) {
           await db.restoreCategoryMoney(c.id, moneyBefore);
@@ -5375,6 +5429,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           off: e.off,
           plan: e.plan,
           inMonth: e.inMonth,
+          goal: e.goal,
           // What it had stays unless the window gave it something new.
           group: e.group ?? existing.budgetGroup,
           note: e.note ?? existing.note,
@@ -5392,6 +5447,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }
       // Said either way: a deleted category's id may come round again.
       await db.setPreference(ReadyKeys.leftOut(id), e.inMonth ? null : 'yes');
+      await db.setPreference(ReadyKeys.goal(id), e.goal ? 'yes' : null);
+      await db.setPreference(ReadyKeys.goalLate(id), null);
       if (e.group != null || e.note != null) {
         await db.setCategoryDetails(id, group: e.group, note: e.note);
       }
@@ -5416,6 +5473,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           await db.undoPlanChange(id, change);
         }
         await db.setPreference(ReadyKeys.leftOut(id), null);
+        await db.setPreference(ReadyKeys.goal(id), null);
         _expect(await db.deleteEmptyAccount(id));
       }),
       redo: () => db.transaction(() async {
@@ -6854,6 +6912,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                         label: '',
                                       ), total);
                                     },
+                                    editCategory: _editCategory,
+                                    addGoal: _addGoal,
+                                    setPlan: _moveGoal,
                                     setAside: (step, aside, label) => _setPref(
                                       ReadyKeys.setAside,
                                       null,

@@ -10177,5 +10177,274 @@
         "type": "String"
       }
     }
+  },
+  "goalsTitle": "Goals",
+  "@goalsTitle": {
+    "description": "Savings page: heading of the goals section, under the four steps"
+  },
+  "goalsSubtitle": "Things with a date: a wedding, school, a car, a home.",
+  "@goalsSubtitle": {
+    "description": "Savings page: beside the Goals heading; examples of what a goal is"
+  },
+  "goalsDebtNote": "You still owe {amount} on cards and loans. Money saved here now means those take longer to pay off.",
+  "@goalsDebtNote": {
+    "description": "Savings page, Goals: under the heading while step 2 has debts; a warning, nothing is stopped",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsNetNote": "Your safety net isn't full yet. Money put here could go there first.",
+  "@goalsNetNote": {
+    "description": "Savings page, Goals: under the heading while step 1 isn't done (and there are no debts)"
+  },
+  "goalBy": "by {date}",
+  "@goalBy": {
+    "description": "Savings page, a goal's card: beside its name, the date it's wanted by",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "goalOnTrack": "on track",
+  "@goalOnTrack": {
+    "description": "Savings page, a goal's card: after '₮12,000,000 of ₮30,000,000 ·'"
+  },
+  "goalBehind": "{amount} behind",
+  "@goalBehind": {
+    "description": "Savings page, a goal's card: after '₮13,000,000 of ₮25,000,000 ·', how far short of what should be in by now",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalAsks": "{amount} a month on Budget",
+  "@goalAsks": {
+    "description": "Savings page, a goal's card: what its Budget line asks each month",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalAsksThisMonth": "{amount} this month on Budget",
+  "@goalAsksThisMonth": {
+    "description": "Savings page, a goal's card: its date is this month, so this is the rest",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalCatchUp": "To be ready by {date}, put in {amount} a month from now.",
+  "@goalCatchUp": {
+    "description": "Savings page, a goal that's behind: what it now takes a month",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalAtUsual": "At {amount} a month it's ready in {month}.",
+  "@goalAtUsual": {
+    "description": "Savings page, a goal that's behind or late: when it's ready at its usual part; month is like 'April 2027'",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "goalMoveDate": "Move the date to {month}",
+  "@goalMoveDate": {
+    "description": "Savings page, a goal behind or late: button that moves its date; month is like 'April 2027'",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "goalMovedUndo": "{name}'s date moved to {month}",
+  "@goalMovedUndo": {
+    "description": "Undo/redo label and toast: a goal's date was moved from Savings",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "goalLate": "{date} has passed with {amount} still to go.",
+  "@goalLate": {
+    "description": "Savings page, a goal whose date passed short",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalAskRest": "Ask for the rest this month",
+  "@goalAskRest": {
+    "description": "Savings page, a late goal: one of two choices; Budget asks for all that's still to go at once"
+  },
+  "goalKeepUsual": "Keep {amount} a month",
+  "@goalKeepUsual": {
+    "description": "Savings page, a late goal: the other choice (the default); Budget keeps asking its usual part",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalAskRestUndo": "{name}: ask for the rest this month",
+  "@goalAskRestUndo": {
+    "description": "Undo/redo label: a late goal's choice",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "goalKeepUsualUndo": "{name}: keep the usual amount a month",
+  "@goalKeepUsualUndo": {
+    "description": "Undo/redo label: a late goal's choice",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "goalReady": "Ready: {amount}",
+  "@goalReady": {
+    "description": "Savings page, a goal's card once everything is put in",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalAdd": "Add a goal",
+  "@goalAdd": {
+    "description": "Savings page: button under the goals that opens the New goal panel"
+  },
+  "goalNew": "New goal",
+  "@goalNew": {
+    "description": "Savings page: heading of the panel that adds a goal"
+  },
+  "goalWhatFor": "What is it for?",
+  "@goalWhatFor": {
+    "description": "New goal panel: label above the example buttons and the name field"
+  },
+  "goalExWedding": "Wedding",
+  "@goalExWedding": {
+    "description": "New goal panel: an example button; fills the name only"
+  },
+  "goalExMission": "Mission",
+  "@goalExMission": {
+    "description": "New goal panel: an example button (a church mission); fills the name only"
+  },
+  "goalExUniversity": "University",
+  "@goalExUniversity": {
+    "description": "New goal panel: an example button; fills the name only"
+  },
+  "goalExHome": "Down payment on a home",
+  "@goalExHome": {
+    "description": "New goal panel: an example button; fills the name only"
+  },
+  "goalExCar": "Car",
+  "@goalExCar": {
+    "description": "New goal panel: an example button; fills the name only"
+  },
+  "goalHowMuch": "How much?",
+  "@goalHowMuch": {
+    "description": "New goal panel: label of the amount field"
+  },
+  "goalByWhen": "By when?",
+  "@goalByWhen": {
+    "description": "New goal panel: label of the date field"
+  },
+  "goalWillAsk": "That's {amount} a month until {date}.",
+  "@goalWillAsk": {
+    "description": "New goal panel: what Budget will ask, said before Add",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "goalWillAskNow": "That's {amount} this month.",
+  "@goalWillAskNow": {
+    "description": "New goal panel: the date is this month, so all of it is asked now",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalGoesOnBudget": "It goes on Budget as a line called {name}, and isn't counted in a month of expenses.",
+  "@goalGoesOnBudget": {
+    "description": "New goal panel: under the amount it will ask",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "goalAddButton": "Add goal",
+  "@goalAddButton": {
+    "description": "New goal panel: the button that makes it"
+  },
+  "goalsFromExtraOne": "{amount} a month now goes to {name}. If it comes out of the extra, these dates come later.",
+  "@goalsFromExtraOne": {
+    "description": "Savings page, step 2: under the payoff while a goal asks money each month",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsFromExtraMany": "{amount} a month now goes to your goals. If it comes out of the extra, these dates come later.",
+  "@goalsFromExtraMany": {
+    "description": "Savings page, step 2: same, with two or more goals asking money",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planGoalQ": "Show on Savings as a goal?",
+  "@planGoalQ": {
+    "description": "Budget page, Edit: for an amount by one date; No and Yes beside it"
+  },
+  "planGoalYesMeans": "Savings shows how far along it is.",
+  "@planGoalYesMeans": {
+    "description": "Budget page, Edit: note beside Show on Savings as a goal? while Yes is picked"
+  },
+  "planGoalNoMeans": "Only here, like a birthday present.",
+  "@planGoalNoMeans": {
+    "description": "Budget page, Edit: note beside Show on Savings as a goal? while No is picked"
+  },
+  "goalEnterDate": "Enter the date it's wanted by",
+  "@goalEnterDate": {
+    "description": "New goal panel: under By when? when Add is pressed with no date that reads"
   }
 }

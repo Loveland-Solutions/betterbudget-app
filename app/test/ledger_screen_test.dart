@@ -683,6 +683,143 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('savings: a goal added, opened in Edit and undone', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.tap(find.text('Savings'));
+    await settle(tester);
+    Future<LedgerData> load() async => (await tester.runAsync(db.loadLedger))!;
+    final panel = find.byKey(const ValueKey('goal-panel'));
+    final add = find.byKey(const ValueKey('goal-add'));
+    await tester.scrollUntilVisible(
+      add,
+      300,
+      scrollable: find
+          .ancestor(
+            of: find.byKey(const ValueKey('step-oneMonth')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    Future<void> press(Finder f) async {
+      await tester.ensureVisible(f);
+      await tester.pumpAndSettle();
+      await tester.tap(f);
+      await tester.pumpAndSettle();
+    }
+
+    // Esc closes it, focus back on Add a goal; Cancel does too.
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    expect(panel, findsOneWidget);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'goal-name');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(panel, findsNothing);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'goal-add');
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    await press(find.byKey(const ValueKey('goal-cancel')));
+    expect(panel, findsNothing);
+
+    // What's missing is said under its field, in order.
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    await press(find.byKey(const ValueKey('goal-save')));
+    expect(find.text('Enter a name'), findsOneWidget);
+    // An example fills the name only.
+    await press(find.byKey(const ValueKey('goal-example-0')));
+    expect(find.byKey(const ValueKey('goal-wrong-name')), findsNothing);
+    final amount = find.byKey(const ValueKey('goal-amount'));
+    expect(tester.widget<TextField>(amount).controller!.text, isEmpty);
+    await tester.enterText(amount, '3000000');
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('goal-date')),
+        matching: find.byType(TextField),
+      ),
+      '2026.12.31',
+    );
+    await tester.pumpAndSettle();
+    // September to December: four months of ₮750,000, as Budget asks.
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('goal-will-ask'))).data,
+      contains('₮750,000 a month'),
+    );
+    await press(find.byKey(const ValueKey('goal-save')));
+    await settle(tester);
+    expect(panel, findsNothing);
+    var data = await load();
+    final wedding = data.accounts.values.firstWhere((a) => a.name == 'Wedding');
+    expect(data.prefs[ReadyKeys.goal(wedding.id)], 'yes');
+    expect(data.prefs[ReadyKeys.leftOut(wedding.id)], 'yes');
+    expect(data.plans[wedding.id]!.due, DateTime(2026, 12, 31));
+    final card = find.byKey(ValueKey('goal-${wedding.id}'));
+    expect(card, findsOneWidget);
+    expect(find.byKey(ValueKey('goal-asks-${wedding.id}')), findsOneWidget);
+
+    // Edit opens its Edit on Budget, where it's asked as a goal.
+    await press(find.byKey(ValueKey('goal-edit-${wedding.id}')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('plan-goal-yes')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // ⌘Z takes the goal away, its mark too.
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    data = await load();
+    expect(data.accounts[wedding.id]?.deleted ?? true, isTrue);
+    expect(data.prefs[ReadyKeys.goal(wedding.id)], isNull);
+
+    // A name another category has opens that one's Edit on Budget.
+    await tester.tap(find.text('Savings'));
+    await settle(tester);
+    await tester.scrollUntilVisible(
+      add,
+      300,
+      scrollable: find
+          .ancestor(
+            of: find.byKey(const ValueKey('step-oneMonth')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('goal-name')),
+      'Groceries',
+    );
+    await tester.enterText(amount, '3000000');
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('goal-date')),
+        matching: find.byType(TextField),
+      ),
+      '2026.12.31',
+    );
+    await tester.pumpAndSettle();
+    await press(find.byKey(const ValueKey('goal-save')));
+    await settle(tester);
+    // Its Edit is open; with no date yet, it isn't asked as a goal.
+    expect(find.byKey(const ValueKey('category-note')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plan-goal-yes')), findsNothing);
+    expect(
+      (await load()).accounts.values.where((a) => a.name == 'Groceries'),
+      hasLength(1),
+    );
+    await tidy(tester, db);
+  });
+
   testWidgets('savings: a month of expenses comes from the budget', (
     tester,
   ) async {
@@ -6884,6 +7021,10 @@ void main() {
       }
 
       Future<void> pick(String key) async {
+        // The panel can reach past the window's edge (the goal question
+        // makes it taller).
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(ValueKey(key)));
         await tester.pump(const Duration(milliseconds: 300));
         await tester.pumpAndSettle();

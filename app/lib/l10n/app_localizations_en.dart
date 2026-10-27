@@ -6810,4 +6810,161 @@ class WordsEn extends Words {
   String planPlanExtraTo(String name) {
     return 'The extra goes to $name first.';
   }
+
+  @override
+  String get goalsTitle => 'Goals';
+
+  @override
+  String get goalsSubtitle =>
+      'Things with a date: a wedding, school, a car, a home.';
+
+  @override
+  String goalsDebtNote(String amount) {
+    return 'You still owe $amount on cards and loans. Money saved here now means those take longer to pay off.';
+  }
+
+  @override
+  String get goalsNetNote =>
+      'Your safety net isn\'t full yet. Money put here could go there first.';
+
+  @override
+  String goalBy(String date) {
+    return 'by $date';
+  }
+
+  @override
+  String get goalOnTrack => 'on track';
+
+  @override
+  String goalBehind(String amount) {
+    return '$amount behind';
+  }
+
+  @override
+  String goalAsks(String amount) {
+    return '$amount a month on Budget';
+  }
+
+  @override
+  String goalAsksThisMonth(String amount) {
+    return '$amount this month on Budget';
+  }
+
+  @override
+  String goalCatchUp(String date, String amount) {
+    return 'To be ready by $date, put in $amount a month from now.';
+  }
+
+  @override
+  String goalAtUsual(String amount, String month) {
+    return 'At $amount a month it\'s ready in $month.';
+  }
+
+  @override
+  String goalMoveDate(String month) {
+    return 'Move the date to $month';
+  }
+
+  @override
+  String goalMovedUndo(String name, String month) {
+    return '$name\'s date moved to $month';
+  }
+
+  @override
+  String goalLate(String date, String amount) {
+    return '$date has passed with $amount still to go.';
+  }
+
+  @override
+  String get goalAskRest => 'Ask for the rest this month';
+
+  @override
+  String goalKeepUsual(String amount) {
+    return 'Keep $amount a month';
+  }
+
+  @override
+  String goalAskRestUndo(String name) {
+    return '$name: ask for the rest this month';
+  }
+
+  @override
+  String goalKeepUsualUndo(String name) {
+    return '$name: keep the usual amount a month';
+  }
+
+  @override
+  String goalReady(String amount) {
+    return 'Ready: $amount';
+  }
+
+  @override
+  String get goalAdd => 'Add a goal';
+
+  @override
+  String get goalNew => 'New goal';
+
+  @override
+  String get goalWhatFor => 'What is it for?';
+
+  @override
+  String get goalExWedding => 'Wedding';
+
+  @override
+  String get goalExMission => 'Mission';
+
+  @override
+  String get goalExUniversity => 'University';
+
+  @override
+  String get goalExHome => 'Down payment on a home';
+
+  @override
+  String get goalExCar => 'Car';
+
+  @override
+  String get goalHowMuch => 'How much?';
+
+  @override
+  String get goalByWhen => 'By when?';
+
+  @override
+  String goalWillAsk(String amount, String date) {
+    return 'That\'s $amount a month until $date.';
+  }
+
+  @override
+  String goalWillAskNow(String amount) {
+    return 'That\'s $amount this month.';
+  }
+
+  @override
+  String goalGoesOnBudget(String name) {
+    return 'It goes on Budget as a line called $name, and isn\'t counted in a month of expenses.';
+  }
+
+  @override
+  String get goalAddButton => 'Add goal';
+
+  @override
+  String goalsFromExtraOne(String amount, String name) {
+    return '$amount a month now goes to $name. If it comes out of the extra, these dates come later.';
+  }
+
+  @override
+  String goalsFromExtraMany(String amount) {
+    return '$amount a month now goes to your goals. If it comes out of the extra, these dates come later.';
+  }
+
+  @override
+  String get planGoalQ => 'Show on Savings as a goal?';
+
+  @override
+  String get planGoalYesMeans => 'Savings shows how far along it is.';
+
+  @override
+  String get planGoalNoMeans => 'Only here, like a birthday present.';
+
+  @override
+  String get goalEnterDate => 'Enter the date it\'s wanted by';
 }

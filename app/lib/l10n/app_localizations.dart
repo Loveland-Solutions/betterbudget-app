@@ -9438,6 +9438,240 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'The extra goes to {name} first.'**
   String planPlanExtraTo(String name);
+
+  /// Savings page: heading of the goals section, under the four steps
+  ///
+  /// In en, this message translates to:
+  /// **'Goals'**
+  String get goalsTitle;
+
+  /// Savings page: beside the Goals heading; examples of what a goal is
+  ///
+  /// In en, this message translates to:
+  /// **'Things with a date: a wedding, school, a car, a home.'**
+  String get goalsSubtitle;
+
+  /// Savings page, Goals: under the heading while step 2 has debts; a warning, nothing is stopped
+  ///
+  /// In en, this message translates to:
+  /// **'You still owe {amount} on cards and loans. Money saved here now means those take longer to pay off.'**
+  String goalsDebtNote(String amount);
+
+  /// Savings page, Goals: under the heading while step 1 isn't done (and there are no debts)
+  ///
+  /// In en, this message translates to:
+  /// **'Your safety net isn\'t full yet. Money put here could go there first.'**
+  String get goalsNetNote;
+
+  /// Savings page, a goal's card: beside its name, the date it's wanted by
+  ///
+  /// In en, this message translates to:
+  /// **'by {date}'**
+  String goalBy(String date);
+
+  /// Savings page, a goal's card: after '₮12,000,000 of ₮30,000,000 ·'
+  ///
+  /// In en, this message translates to:
+  /// **'on track'**
+  String get goalOnTrack;
+
+  /// Savings page, a goal's card: after '₮13,000,000 of ₮25,000,000 ·', how far short of what should be in by now
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} behind'**
+  String goalBehind(String amount);
+
+  /// Savings page, a goal's card: what its Budget line asks each month
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} a month on Budget'**
+  String goalAsks(String amount);
+
+  /// Savings page, a goal's card: its date is this month, so this is the rest
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} this month on Budget'**
+  String goalAsksThisMonth(String amount);
+
+  /// Savings page, a goal that's behind: what it now takes a month
+  ///
+  /// In en, this message translates to:
+  /// **'To be ready by {date}, put in {amount} a month from now.'**
+  String goalCatchUp(String date, String amount);
+
+  /// Savings page, a goal that's behind or late: when it's ready at its usual part; month is like 'April 2027'
+  ///
+  /// In en, this message translates to:
+  /// **'At {amount} a month it\'s ready in {month}.'**
+  String goalAtUsual(String amount, String month);
+
+  /// Savings page, a goal behind or late: button that moves its date; month is like 'April 2027'
+  ///
+  /// In en, this message translates to:
+  /// **'Move the date to {month}'**
+  String goalMoveDate(String month);
+
+  /// Undo/redo label and toast: a goal's date was moved from Savings
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s date moved to {month}'**
+  String goalMovedUndo(String name, String month);
+
+  /// Savings page, a goal whose date passed short
+  ///
+  /// In en, this message translates to:
+  /// **'{date} has passed with {amount} still to go.'**
+  String goalLate(String date, String amount);
+
+  /// Savings page, a late goal: one of two choices; Budget asks for all that's still to go at once
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for the rest this month'**
+  String get goalAskRest;
+
+  /// Savings page, a late goal: the other choice (the default); Budget keeps asking its usual part
+  ///
+  /// In en, this message translates to:
+  /// **'Keep {amount} a month'**
+  String goalKeepUsual(String amount);
+
+  /// Undo/redo label: a late goal's choice
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: ask for the rest this month'**
+  String goalAskRestUndo(String name);
+
+  /// Undo/redo label: a late goal's choice
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: keep the usual amount a month'**
+  String goalKeepUsualUndo(String name);
+
+  /// Savings page, a goal's card once everything is put in
+  ///
+  /// In en, this message translates to:
+  /// **'Ready: {amount}'**
+  String goalReady(String amount);
+
+  /// Savings page: button under the goals that opens the New goal panel
+  ///
+  /// In en, this message translates to:
+  /// **'Add a goal'**
+  String get goalAdd;
+
+  /// Savings page: heading of the panel that adds a goal
+  ///
+  /// In en, this message translates to:
+  /// **'New goal'**
+  String get goalNew;
+
+  /// New goal panel: label above the example buttons and the name field
+  ///
+  /// In en, this message translates to:
+  /// **'What is it for?'**
+  String get goalWhatFor;
+
+  /// New goal panel: an example button; fills the name only
+  ///
+  /// In en, this message translates to:
+  /// **'Wedding'**
+  String get goalExWedding;
+
+  /// New goal panel: an example button (a church mission); fills the name only
+  ///
+  /// In en, this message translates to:
+  /// **'Mission'**
+  String get goalExMission;
+
+  /// New goal panel: an example button; fills the name only
+  ///
+  /// In en, this message translates to:
+  /// **'University'**
+  String get goalExUniversity;
+
+  /// New goal panel: an example button; fills the name only
+  ///
+  /// In en, this message translates to:
+  /// **'Down payment on a home'**
+  String get goalExHome;
+
+  /// New goal panel: an example button; fills the name only
+  ///
+  /// In en, this message translates to:
+  /// **'Car'**
+  String get goalExCar;
+
+  /// New goal panel: label of the amount field
+  ///
+  /// In en, this message translates to:
+  /// **'How much?'**
+  String get goalHowMuch;
+
+  /// New goal panel: label of the date field
+  ///
+  /// In en, this message translates to:
+  /// **'By when?'**
+  String get goalByWhen;
+
+  /// New goal panel: what Budget will ask, said before Add
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s {amount} a month until {date}.'**
+  String goalWillAsk(String amount, String date);
+
+  /// New goal panel: the date is this month, so all of it is asked now
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s {amount} this month.'**
+  String goalWillAskNow(String amount);
+
+  /// New goal panel: under the amount it will ask
+  ///
+  /// In en, this message translates to:
+  /// **'It goes on Budget as a line called {name}, and isn\'t counted in a month of expenses.'**
+  String goalGoesOnBudget(String name);
+
+  /// New goal panel: the button that makes it
+  ///
+  /// In en, this message translates to:
+  /// **'Add goal'**
+  String get goalAddButton;
+
+  /// Savings page, step 2: under the payoff while a goal asks money each month
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} a month now goes to {name}. If it comes out of the extra, these dates come later.'**
+  String goalsFromExtraOne(String amount, String name);
+
+  /// Savings page, step 2: same, with two or more goals asking money
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} a month now goes to your goals. If it comes out of the extra, these dates come later.'**
+  String goalsFromExtraMany(String amount);
+
+  /// Budget page, Edit: for an amount by one date; No and Yes beside it
+  ///
+  /// In en, this message translates to:
+  /// **'Show on Savings as a goal?'**
+  String get planGoalQ;
+
+  /// Budget page, Edit: note beside Show on Savings as a goal? while Yes is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Savings shows how far along it is.'**
+  String get planGoalYesMeans;
+
+  /// Budget page, Edit: note beside Show on Savings as a goal? while No is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Only here, like a birthday present.'**
+  String get planGoalNoMeans;
+
+  /// New goal panel: under By when? when Add is pressed with no date that reads
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the date it\'s wanted by'**
+  String get goalEnterDate;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -3061,6 +3061,80 @@ C, a timeline for each way), the owner picked **A**.
     three), so a young loan isn't offered a third of its payment.
   - The two settings a card click changes are written together.
 
+### Goals on Savings (owner, 2026-10-27, #101 and #102)
+
+"Other budgets help you make it through the month. This budget helps you make it
+through life." Goals with a date (a wedding, a mission, school, a home, a car), each
+saying whether it's on track. Of three sketches (A, a Goals section on Savings under
+the four steps; B, a third part inside step 4; C, a Goals page of its own with a
+timeline), the owner picked **A**.
+
+- **A goal is a once-only "On a date" line on Budget, marked a goal**
+  (`ready.goal.<category id>`; no schema change). Budget already splits its amount
+  over the months left and spreads a missed part, so Budget and Savings say the same
+  figures. A once-only line that isn't marked (a birthday present) stays off Savings.
+  Each such line's Edit asks **Show on Savings as a goal? No / Yes**; a bill that
+  comes again, and the Safety net, aren't asked.
+- **Added on Savings:** Add a goal opens a panel: What is it for? (Wedding, Mission,
+  University, Down payment on a home, Car fill the name only; no amount is
+  guessed), How much?, By when?, then what Budget will ask, worked out by Budget on
+  the line as it would be made: "That's ₮1,250,000 a month until October 31, 2031."
+  Add goal and Cancel; Esc and a click away (when nothing was typed) close it; what's
+  typed is kept by the screen. It is made in Savings' currency, left out of a month
+  of expenses (a wedding would make the safety net look too small; its Edit can put
+  it back), and undone with one ⌘Z. A goal in dollars is changed in its Edit.
+- **Each goal's card:** its name, "by June 30, 2028", Edit (its Edit on Budget), a
+  bar and "₮12,000,000 of ₮30,000,000 · on track", then "₮1,250,000 a month on
+  Budget". **Saved** is everything assigned to it up to today: money spent on the
+  thing itself (the hall's deposit) is still saved toward it (owner: "This is like
+  saving for a birthday or Christmas"); money moved out to another category isn't.
+  **Behind** is Budget's "short", so it never reads behind on the 1st before payday:
+  "₮1,500,000 behind", "To be ready by March 31, put in ₮2,400,000 a month from now.
+  At ₮2,000,000 a month it's ready in April 2027." with **Move the date to April
+  2027** (one undo). **Ready** is a green bar and "Ready: ₮5,000,000"; Budget stops
+  asking.
+- **A date passed short is the person's choice** (owner: "There maybe should be a
+  way for the user to choose here. This isn't really something I want to answer for
+  them"): "March 31 has passed with ₮6,000,000 still to go." with **Keep ₮2,000,000 a
+  month** (the default, so Budget doesn't empty Not assigned into a car while rent
+  waits), **Ask for the rest this month** (as a missed bill does,
+  `ready.goalLate.<id>` = `all`), and Move the date. A line that isn't a goal asks for
+  the rest at once, as before.
+- **Goals and the four steps:** a goal can be added at any step, and doesn't change
+  whether step 4 is done. While step 2 has debts, under the Goals heading: "You
+  still owe ₮9,800,000 on cards and loans. Money saved here now means those take
+  longer to pay off."; else while step 1 is the current step, "Your safety net isn't
+  full yet. Money put here could go there first." Warned, not blocked.
+- **Step 2's extra stays as typed** (owner: "I'll follow your recommendation"). While
+  a goal asks money and there is extra: "₮500,000 a month now goes to Wedding. If it
+  comes out of the extra, these dates come later."
+- *Rejected:* B (hides goals until step 4, though a wedding's date can't wait for
+  the steps); C (takes goals off Savings, where "make it through life" belongs);
+  every once-only line counted as a goal (a birthday present is noise there);
+  "Saved toward it already" in the panel (the sketch had it: Budget counts money
+  assigned this month inside this month's part, so the panel's figure and Budget's
+  would differ; money already saved is assigned on Budget, as for any line); asking
+  for the rest at once after the date, for everyone; lowering step 2's extra by what
+  goals ask.
+- **From the reviews** (decided along the lines above):
+  - Saved is what Budget counts toward it (`PlanLine.toward`): what the category
+    held when the plan began, and what was assigned since. A category with a past
+    (two years of repairs) made a goal doesn't read Ready on money long spent.
+  - A goal's Edit keeps where it began through a new amount or date, as Move the
+    date does, so a deposit already paid stays saved toward it; a line that isn't a
+    goal starts over, as before.
+  - Late is from the month Budget would call a bill overdue (with pays, the last
+    payday before the date), so a goal due the 10th isn't late on the 20th while
+    Budget still asks the rest that month.
+  - A late choice goes with the goal's mark and with Move the date, so "ask for the
+    rest" can't come back on its own.
+  - A name another category has opens that one's Edit on Budget, where it can be
+    made a goal.
+  - A goal ready, past its date and spent is left off Savings.
+  - Step 2's line says what goals ask a month while kept up with, not a one-off rest.
+  - Known: Savings counts by the calendar month; seen by pay, Budget asks the same
+    money a pay at a time.
+
 ### Two computers: what is said when the ledger comes from another one (2026-10-09)
 
 Built with step 1 of "More than one computer on one ledger"

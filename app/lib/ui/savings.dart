@@ -32,7 +32,29 @@ class _SavingsKeep extends ChangeNotifier {
   final _open = <String, _Typed>{};
 
   _Typed? operator [](String what) => _open[what];
-  bool get isEmpty => _open.isEmpty;
+  bool get isEmpty => _open.isEmpty && goal == null;
+
+  /// The New goal panel, while it's open.
+  _GoalDraft? goal;
+
+  /// Add a goal: focus goes back to it when the panel closes.
+  final goalOpener = FocusNode(debugLabel: 'goal-add');
+
+  void beginGoal() {
+    goal ??= _GoalDraft();
+    notifyListeners();
+  }
+
+  void closeGoal() {
+    final gone = goal;
+    if (gone == null) return;
+    goal = null;
+    notifyListeners();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      gone.dispose();
+      goalOpener.requestFocus();
+    });
+  }
 
   _Typed begin(String what, String start, {bool perYear = false}) {
     final typed = _open[what] = _Typed(start, perYear);
@@ -50,7 +72,11 @@ class _SavingsKeep extends ChangeNotifier {
 
   /// Esc where the last click left focus: the field opened last.
   void closeLast() {
-    if (_open.isNotEmpty) close(_open.keys.last);
+    if (_open.isNotEmpty) {
+      close(_open.keys.last);
+    } else {
+      closeGoal();
+    }
   }
 
   void changed() => notifyListeners();
@@ -60,6 +86,8 @@ class _SavingsKeep extends ChangeNotifier {
     for (final t in _open.values) {
       t.text.dispose();
     }
+    goal?.dispose();
+    goalOpener.dispose();
     super.dispose();
   }
 }
@@ -72,7 +100,20 @@ class _SavingsActions {
     required this.setPrefs,
     required this.setAside,
     required this.assign,
+    required this.editCategory,
+    required this.addGoal,
+    required this.setPlan,
   });
+
+  /// Opens category [id]'s Edit on the Budget page.
+  final void Function(int id) editCategory;
+
+  /// Makes a goal's category and plan; true when it was made.
+  final Future<bool> Function(_CategoryEdit goal) addGoal;
+
+  /// Saves [category]'s plan; [label] names it for undo and the toast.
+  final void Function(AccountInfo category, CategoryPlan plan, String label)
+  setPlan;
 
   final _SavingsKeep keep;
 
@@ -180,6 +221,12 @@ class _SavingsPage extends StatelessWidget {
                             data: data,
                             actions: actions,
                           ),
+                        _Goals(
+                          r: r,
+                          data: data,
+                          today: today,
+                          actions: actions,
+                        ),
                         if (others.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),

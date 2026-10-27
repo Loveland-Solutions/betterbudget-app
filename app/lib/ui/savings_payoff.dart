@@ -565,6 +565,17 @@ class _Payoff extends StatelessWidget {
               key: const ValueKey('payoff-net-first'),
               color: Mid.ink,
             ),
+          // Goals ask money each month too: the dates assume the extra as
+          // typed (owner, 2026-10-27), so say what may come out of it.
+          if (r.extra > 0)
+            if (_goalsAsk(context, r) case (final asks, final name)?)
+              note(
+                name == null
+                    ? t.goalsFromExtraMany(_here(context, asks))
+                    : t.goalsFromExtraOne(_here(context, asks), name),
+                key: const ValueKey('payoff-goals'),
+                color: Mid.ink,
+              ),
           if (missing.isEmpty && r.missingRates.isNotEmpty && rated > 0)
             note(
               t.planPlanNoRate(
@@ -617,6 +628,20 @@ class _Payoff extends StatelessWidget {
     }
     return out.join(' ');
   }
+}
+
+/// What the goals in Savings' currency ask a month while kept up with
+/// (not a one-off rest), and the goal's name when there's one; null when
+/// none asks anything.
+(int, String?)? _goalsAsk(BuildContext context, Readiness r) {
+  final currency = CurrencyScope.of(context);
+  final asking = [
+    for (final g in r.goals)
+      if (!g.ready && g.usual > 0 && g.currency == currency) g,
+  ];
+  if (asking.isEmpty) return null;
+  final sum = asking.fold(0, (s, g) => s + g.usual);
+  return (sum, asking.length == 1 ? asking.single.category.name : null);
 }
 
 /// [months] after the month [r] was worked out in, as said: "June 2028".
