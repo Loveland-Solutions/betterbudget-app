@@ -28,6 +28,8 @@ PhoneSnapshot previewSnapshot(DateTime madeAt) => PhoneSnapshot(
     'Unitel',
     'Zaisan Residence',
   ],
+  // A pay into TDB, offered by name for money in (#187).
+  pays: [PhonePay(id: phonePayId(1), accountId: 'tdb', name: 'Salary')],
   accounts: const [
     PhoneAccount(id: 'tdb', name: 'TDB Checking', balanceMinor: 243180000),
     PhoneAccount(id: 'cash', name: 'Cash wallet', balanceMinor: 8600000),

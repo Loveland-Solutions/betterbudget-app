@@ -157,13 +157,15 @@ class PaySchedule {
   /// days late is still that payday, so the next is the one after it.
   ///
   /// Split pay with [paid] goes by amount first: an advance confirmed a week
-  /// late is still the advance, not the rest that's due sooner.
+  /// late is still the advance, not the rest that's due sooner. Pay on a
+  /// payday is that payday's, whatever it came to: a main pay short this
+  /// month isn't next month's advance (budget review, #187).
   DateTime plannedFor(DateTime posted, {int? paid}) {
     final p = dateOnly(posted);
     final before = lastOnOrBefore(p);
     final after = nextAfter(p);
     if (before == null) return after;
-    if (split && paid != null) {
+    if (split && paid != null && before != p) {
       final b = (amountOn(before) - paid).abs();
       final a = (amountOn(after) - paid).abs();
       if (a != b) return b < a ? before : after;

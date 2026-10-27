@@ -382,6 +382,9 @@ class _Draft extends ChangeNotifier {
             )) {
           accountId = null;
         }
+        // A pay comes into the one account it goes into: no choice to
+        // make, so it is shown filled.
+        if (category.payInto case final into?) accountId = into;
         fit(category.currency);
       });
 
@@ -400,12 +403,16 @@ class _Draft extends ChangeNotifier {
   /// isn't left chosen on money out.
   void flipSign() => change(() {
     moneyIn = !moneyIn;
-    if (!moneyIn && categoryId == phoneIncomeId) categoryId = null;
+    if (!moneyIn &&
+        (categoryId == phoneIncomeId || phonePayOf(categoryId ?? '') != null)) {
+      categoryId = null;
+    }
     // Income is only for money in, on a split's line too.
     if (!moneyIn) {
       lines = [
         for (final l in lines)
-          if (l.categoryId != phoneIncomeId) l,
+          if (l.categoryId != phoneIncomeId && phonePayOf(l.categoryId) == null)
+            l,
       ];
       if (lines.isEmpty && categoryId == phoneSplitId) categoryId = null;
     }
@@ -1159,9 +1166,12 @@ class _EntryState extends State<_EntryScreen> {
     transfer: true,
   );
 
-  /// A category or Income by its id, as the phone knows them.
+  /// A category, Income or a pay by its id, as the phone knows them.
   PhoneCategory? _categoryOf(String id) {
     if (id == phoneIncomeId) return _income;
+    for (final p in _payChoices(context.t, _store.snapshot)) {
+      if (p.id == id) return p;
+    }
     for (final c in _store.categories) {
       if (c.id == id) return c;
     }
@@ -1181,6 +1191,9 @@ class _EntryState extends State<_EntryScreen> {
       return all.where((c) => !c.isIncome).firstOrNull ?? all.firstOrNull;
     }
     if (_draft.categoryId == phoneIncomeId) return _income;
+    if (phonePayOf(_draft.categoryId ?? '') != null) {
+      return _categoryOf(_draft.categoryId!);
+    }
     if (_to case final to?) return _transferTo(to);
     for (final c in _store.categories) {
       if (c.id == _draft.categoryId) return c;
@@ -1208,6 +1221,13 @@ class _EntryState extends State<_EntryScreen> {
     final category = _category;
     // Moved from any other account in the same currency.
     if (_to case final to?) return _store.snapshot.transferTargets(to);
+    // A pay, into the account it goes into.
+    if (category?.payInto case final into?) {
+      return [
+        for (final a in _store.snapshot.accounts)
+          if (a.id == into) a,
+      ];
+    }
     return category == null || category.isIncome
         ? _store.snapshot.accounts
         : _store.snapshot.accountsFor(category);
@@ -1551,8 +1571,14 @@ class _EntryState extends State<_EntryScreen> {
     final start = _draft.isSplit
         ? _draft.lines
         : [
+            // A pay's share of a split is plain Income: only a whole
+            // paycheck stands in for its payday.
             if (_category case final c? when !c.transfer)
-              (categoryId: c.id, typed: '', back: false),
+              (
+                categoryId: c.payInto != null ? phoneIncomeId : c.id,
+                typed: '',
+                back: false,
+              ),
           ];
     final total = typedAmountMinor(_draft.typed, currency);
     final result = await Navigator.of(context).push(
@@ -1648,7 +1674,13 @@ class _EntryState extends State<_EntryScreen> {
         ..typed = typedOfMinor(e.amountMinor, currency)
         ..moneyIn = e.amountMinor > 0
         ..payee = e.payee.isEmpty ? null : e.payee
-        ..categoryId = e.categoryId
+        // A pay stopped on the computer since: Income, as the waiting
+        // list says and the computer would take it.
+        ..categoryId =
+            phonePayOf(e.categoryId) != null &&
+                _categoryOf(e.categoryId) == null
+            ? phoneIncomeId
+            : e.categoryId
         ..accountId = e.accountId
         ..date = _sameDay(e.date, today) ? null : e.date
         ..lines = [
@@ -2020,6 +2052,9 @@ class _EntryState extends State<_EntryScreen> {
                                 // Money in that isn't a refund is income;
                                 // money out never is.
                                 income: _draft.moneyIn ? _income : null,
+                                pays: _draft.moneyIn
+                                    ? _payChoices(t, _store.snapshot)
+                                    : const [],
                                 transfers: _transferChoices,
                                 onPicked: _picked,
                                 builder: (context, open) => _FieldRow(
@@ -2261,6 +2296,7 @@ class _CategoryMenu extends StatefulWidget {
     required this.onPicked,
     required this.builder,
     this.income,
+    this.pays = const [],
     this.transfers = const [],
     this.split = false,
     this.exclude = const {},
@@ -2274,6 +2310,10 @@ class _CategoryMenu extends StatefulWidget {
   final Currency currency;
   final bool onlyCurrency;
   final PhoneCategory? income;
+
+  /// Each pay the forecast expects, offered by name under Income (#187):
+  /// a paycheck saved under one stands in for its payday.
+  final List<PhoneCategory> pays;
   final List<PhoneAccount> transfers;
 
   /// Split is offered first: picking it answers with [phoneSplitId].
@@ -2439,6 +2479,8 @@ class _CategoryMenuState extends State<_CategoryMenu> {
           ),
         if (widget.split) Divider(height: 1, thickness: 1, color: Mid.rule),
         if (income != null) category(income),
+        if (income != null)
+          for (final p in widget.pays) category(p),
         for (final c in spend) category(c),
         if (bills.isNotEmpty) ...[
           _heading(t.phoneBills),
@@ -2480,6 +2522,28 @@ class _CategoryMenuState extends State<_CategoryMenu> {
       ),
     );
   }
+}
+
+/// The pays the forecast expects, as the Category list offers them for
+/// money in (#187): named as the computer's dropdown names them, each into
+/// its own account.
+List<PhoneCategory> _payChoices(Words t, PhoneSnapshot snapshot) {
+  final accounts = {for (final a in snapshot.accounts) a.id: a};
+  return [
+    for (final p in snapshot.pays)
+      if (accounts[p.accountId] case final a?)
+        PhoneCategory(
+          id: p.id,
+          name: switch (p.name) {
+            final n? => t.rowsIncomeFrom(n),
+            null when snapshot.pays.length < 2 => t.rowsIncomePaycheck,
+            null => t.rowsIncomeFrom(a.name),
+          },
+          leftMinor: 0,
+          currency: a.currency,
+          payInto: a.id,
+        ),
+  ];
 }
 
 /// Around every screen of the phone: told to [_TapHoldState.hold], it takes
@@ -3358,7 +3422,10 @@ class _WaitingScreen extends StatelessWidget {
     listenable: store,
     builder: (context, _) {
       final t = context.t;
-      final names = {for (final c in store.categories) c.id: c};
+      final names = {
+        for (final c in store.categories) c.id: c,
+        for (final p in _payChoices(t, store.snapshot)) p.id: p,
+      };
       final accounts = {for (final a in store.snapshot.accounts) a.id: a};
       final made = store.made;
       final entries = store.waiting.reversed.toList();
@@ -3415,6 +3482,10 @@ class _WaitingScreen extends StatelessWidget {
             final filed = e.isSplit
                 ? t.startSplitCategories(e.lines.length)
                 : e.categoryId == phoneIncomeId
+                ? t.ledgerIncome
+                // A pay stopped on the computer meanwhile: it comes in
+                // as Income.
+                : category == null && phonePayOf(e.categoryId) != null
                 ? t.ledgerIncome
                 : moved
                 ? t.startTransfer
