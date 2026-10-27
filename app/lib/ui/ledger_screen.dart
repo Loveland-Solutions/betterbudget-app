@@ -4094,11 +4094,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ].join(' · ');
   }
 
+  /// Which row a popup is about, since a bank repeats payees: "09.15 ·
+  /// −₮200 · IB-INTERBANK…".
+  String _rowLine(Words t, RegisterRow r) {
+    final date = sayDate(t, r.date);
+    final amount = formatShort(r.amount, currency: r.currency);
+    final payee = rowPayee(t, r);
+    return payee.isEmpty
+        ? t.ledgerRowLineNoPayee(date, amount)
+        : t.ledgerRowLine(date, amount, payee);
+  }
+
   /// A row's category from its inline menu, in whichever account it's in.
   Future<void> _setCategory(RegisterRow r, AccountInfo c) async {
     final t = context.t;
     final over = _loaded;
-    final payee = rowPayee(t, r);
+    final which = _rowLine(t, r);
     final previous = await db.setCategoryMany(
       transactionIds: [r.txnId],
       accountId: r.accountId,
@@ -4107,7 +4118,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (previous.isEmpty) return;
     _did(
       t.ledgerFiledUnder(c.name),
-      detail: payee,
+      detail: which,
       more: _alwaysOffer(r, c),
       undo: () async => _expect(
         (await db.restoreCategories(previous, r.accountId)).length ==
@@ -4172,7 +4183,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final label = _payLabel(t, data, pay);
     _did(
       t.ledgerFiledUnder(label),
-      detail: rowPayee(t, r),
+      detail: _rowLine(t, r),
       more: _alwaysOffer(r, income, pay: pay, label: label),
       undo: () => db.undoTakeAsPay(taken),
       redo: () => db.redoTakeAsPay(taken),

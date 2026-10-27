@@ -1694,7 +1694,7 @@ class _ScheduledRow extends StatelessWidget {
               ? t.rowsScheduledTransferTo(rowPayee(t, r))
               : t.rowsScheduledTransferFrom(rowPayee(t, r)))
         : rowPayee(t, r);
-    final overdue = overdueNoteIn(t, r, today);
+    final overdue = overdueNoteIn(t, r, today, working: true);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: Hoverable(

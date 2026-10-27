@@ -1948,6 +1948,16 @@ class WordsMn extends Words {
   String get rowsTabScheduled => 'Товлосон';
 
   @override
+  String ledgerRowLine(String date, String amount, String payee) {
+    return '$date · $amount · $payee';
+  }
+
+  @override
+  String ledgerRowLineNoPayee(String date, String amount) {
+    return '$date · $amount';
+  }
+
+  @override
   String ledgerFiledUnder(Object category) {
     return '$category гэж ангиллаа';
   }
@@ -3257,6 +3267,15 @@ class WordsMn extends Words {
   }
 
   @override
+  String get rowsDueYesterdayNotInWorking =>
+      'өчигдөр хугацаа нь болсон · үлдэгдэлд хараахан ороогүй';
+
+  @override
+  String rowsDueDaysAgoNotInWorking(int days) {
+    return 'хугацаа нь $days хоногийн өмнө болсон · үлдэгдэлд хараахан ороогүй';
+  }
+
+  @override
   String startDayOn(String ordinal, int day, String isTwo) {
     String _temp0 = intl.Intl.selectLogic(isTwo, {
       'yes': '$day-т',
@@ -3459,7 +3478,7 @@ class WordsMn extends Words {
 
   @override
   String importClearedDiffers(Object ours, Object bank, Object diff) {
-    return 'Үүний дараа баталгаажсан үлдэгдэл $ours, банкны файл $bank-аар дуусна: $diff зөрүүтэй. Энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
+    return 'Банкнаас $diff зөрүүтэй. Үүний дараа баталгаажсан үлдэгдэл $ours, банкны файл $bank-аар дуусна. Энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
   }
 
   @override
@@ -3474,7 +3493,7 @@ class WordsMn extends Words {
     Object date,
     Object diff,
   ) {
-    return 'Үүний дараа баталгаажсан үлдэгдэл $ours, банкны үлдэгдэл ($date) $bank байсан: $diff зөрүүтэй. Тэр өдрөөс хойших, энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
+    return 'Банкнаас $diff зөрүүтэй. Үүний дараа баталгаажсан үлдэгдэл $ours, банкны үлдэгдэл ($date) $bank байсан. Тэр өдрөөс хойших, энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
   }
 
   @override
@@ -4856,8 +4875,9 @@ class WordsMn extends Words {
   }
 
   @override
-  String get rowsNewCategoryRefundNote =>
-      'шинэ ангилал · орсон мөнгө буцаалтад тооцогдоно; цалин бол Орлого-г сонгоно';
+  String rowsNewCategoryRefundNote(String category) {
+    return 'Орсон мөнгө $category ангилалд буцаалт болж тооцогдоно. Цалин бол Орлого-г сонгоно.';
+  }
 
   @override
   String ledgerPayReplaced(int count) {
@@ -4968,13 +4988,13 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Таны $count гүйлгээ компьютерийг хүлээж байна',
+      other: '$count гүйлгээ таны дэвтэрт хараахан ороогүй байна',
     );
     return '$_temp0';
   }
 
   @override
-  String get phoneWaitingTitle => 'Компьютерийг хүлээж байна';
+  String get phoneWaitingTitle => 'Дэвтэрт хараахан ороогүй';
 
   @override
   String phoneOwed(String amount) {
@@ -5197,14 +5217,14 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count шинэ ангилал компьютерийг хүлээж байна',
+      other: '$count шинэ ангилал таны дэвтэрт хараахан ороогүй байна',
     );
     return '$_temp0';
   }
 
   @override
   String phoneWaitingBoth(int entries, int categories) {
-    return 'Таны $entries гүйлгээ, $categories шинэ ангилал компьютерийг хүлээж байна';
+    return '$entries гүйлгээ, $categories шинэ ангилал таны дэвтэрт хараахан ороогүй байна';
   }
 
   @override

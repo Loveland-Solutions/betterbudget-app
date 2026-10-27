@@ -595,10 +595,7 @@ void main() {
     );
     expect(find.text('−₮0'), findsOneWidget);
     expect(find.text('Groceries'), findsNothing);
-    expect(
-      find.text('1 of your entries is waiting for your computer'),
-      findsOneWidget,
-    );
+    expect(find.text('1 entry isn’t in your ledger yet'), findsOneWidget);
     // The toast goes by itself.
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
@@ -714,7 +711,7 @@ void main() {
       expect(find.text('Cof'), findsOneWidget);
       expect(find.text('Nothing assigned yet'), findsOneWidget);
       expect(
-        find.text('1 new category is waiting for your computer'),
+        find.text('1 new category isn’t in your ledger yet'),
         findsOneWidget,
       );
 
@@ -727,9 +724,7 @@ void main() {
       expect(store.waiting.single.categoryId, made.id);
       expect(find.text('Cof · nothing assigned yet'), findsOneWidget);
       expect(
-        find.text(
-          '1 of your entries and 1 new category are waiting for your computer',
-        ),
+        find.text('1 entry and 1 new category aren’t in your ledger yet'),
         findsOneWidget,
       );
 
@@ -1167,7 +1162,7 @@ void main() {
     );
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
-    expect(find.text('Waiting for your computer'), findsOneWidget);
+    expect(find.text('Not in your ledger yet'), findsOneWidget);
     await tester.tap(row);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open'));
@@ -1346,9 +1341,7 @@ void main() {
     expect(find.text('₮53,500.00'), findsOneWidget);
     await _toLedger(tester);
 
-    await tester.tap(
-      find.text('1 of your entries is waiting for your computer'),
-    );
+    await tester.tap(find.text('1 entry isn’t in your ledger yet'));
     await tester.pumpAndSettle();
     expect(find.text('UB Cab'), findsOneWidget);
     expect(find.text('−₮8,000.00'), findsOneWidget);
@@ -2107,9 +2100,7 @@ void main() {
     await tester.ensureVisible(find.byKey(const ValueKey('waiting-link')));
     await tester.pumpAndSettle();
     expect(
-      find.text(
-        '1 of your entries and 1 new category are waiting for your computer',
-      ),
+      find.text('1 entry and 1 new category aren’t in your ledger yet'),
       findsOneWidget,
     );
   });
@@ -3694,10 +3685,7 @@ void main() {
         dir: dir,
         taken: () => taken,
       );
-      expect(
-        find.text('1 of your entries is waiting for your computer'),
-        findsOneWidget,
-      );
+      expect(find.text('1 entry isn’t in your ledger yet'), findsOneWidget);
 
       // The computer's next ledger says it is in.
       taken = {
@@ -3828,10 +3816,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(s.read.length, 2);
       expect(s.folder.asked.toSet(), {ledgerFileName});
-      expect(
-        find.text('1 of your entries is waiting for your computer'),
-        findsOneWidget,
-      );
+      expect(find.text('1 entry isn’t in your ledger yet'), findsOneWidget);
       await _toBudget(tester);
       expect(find.text('₮53,500.00'), findsOneWidget);
     });

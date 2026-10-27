@@ -99,13 +99,22 @@ String? unclearedNoteIn(
   _ => null,
 };
 
-/// "due 7 days ago" on a scheduled row past its date; otherwise null.
-String? overdueNoteIn(Words t, RegisterRow r, DateTime today) =>
-    switch (overdueDays(r, today)) {
-      1 => t.startDueYesterday,
-      final days? => t.startDueDaysAgo(days),
-      null => null,
-    };
+/// "due 7 days ago" on a scheduled row past its date; otherwise null. On
+/// the register's row, [working] adds "· not in Working yet": Working leaves
+/// it out until it's confirmed (the forecast counts it as today, so its
+/// list doesn't).
+String? overdueNoteIn(
+  Words t,
+  RegisterRow r,
+  DateTime today, {
+  bool working = false,
+}) => switch ((overdueDays(r, today), working)) {
+  (1, false) => t.startDueYesterday,
+  (1, true) => t.rowsDueYesterdayNotInWorking,
+  (final days?, false) => t.startDueDaysAgo(days),
+  (final days?, true) => t.rowsDueDaysAgoNotInWorking(days),
+  (null, _) => null,
+};
 
 /// A day of the month pay comes on: "25th", `25-нд`.
 String payDay(Words t, int day) =>
