@@ -606,8 +606,13 @@ class PhoneTake {
     this.categoryNames = const [],
     this.plans = const {},
     this.leftOut = const [],
+    this.paychecks = const [],
   ]);
   final List<int> transactionIds;
+
+  /// The entries filed under a pay on the phone, made its paychecks (#187),
+  /// and the paydays that took away and scheduled.
+  final List<PayTaken> paychecks;
 
   /// A phone's plan that didn't come with its category, for the popup to
   /// say (#244), and why ([PhonePlanFate]).
@@ -5571,6 +5576,7 @@ class AppDatabase extends _$AppDatabase {
     };
     final plans = <int, ({CategoryPlan plan, PlanChange change})>{};
     final added = <int>[], made = <int>[], unarchived = <int>[];
+    final paychecks = <PayTaken>[];
     final madeNames = <String>[];
     final leftOut = <PhonePlanLeftOut>[];
     final nameOf = {for (final a in live) a.id: a.name};
@@ -5691,7 +5697,11 @@ class AppDatabase extends _$AppDatabase {
       // made (taken in now if need be), or Income by the word. Null when
       // it's gone from the ledger.
       Future<int?> lineCategory(String id, int amount) async {
-        if (id == phoneIncomeId) return amount > 0 ? incomeCategory() : null;
+        // A pay's share of a split (only from a phone that offered it) is
+        // plain Income: only a whole paycheck stands in for its payday.
+        if (id == phoneIncomeId || phonePayOf(id) != null) {
+          return amount > 0 ? incomeCategory() : null;
+        }
         var category = int.tryParse(categories[id] ?? id);
         if (!spending.contains(category) && theirs[id] != null) {
           category = await categoryFor(theirs[id]!);
@@ -5790,9 +5800,19 @@ class AppDatabase extends _$AppDatabase {
           category = await categoryFor(theirs[e.categoryId]!);
         }
         final account = int.tryParse(e.accountId);
+        // A paycheck of one pay (#187): that pay's, in the account it goes
+        // into. One stopped meanwhile, or moved to another account, comes
+        // in as Income: the money still came.
+        final payId = phonePayOf(e.categoryId);
+        final pay = payId == null || e.amountMinor <= 0
+            ? null
+            : await _livePaySchedule(payId);
+        final asPay = pay != null && pay.accountId == account;
         // Money in under Income, which the phone names by a word: this
         // ledger may not have made its Income yet.
-        final toIncome = e.categoryId == phoneIncomeId && e.amountMinor > 0;
+        final toIncome =
+            (e.categoryId == phoneIncomeId || payId != null) &&
+            e.amountMinor > 0;
         // Money moved between two of the ledger's own accounts: the
         // "category" names the one it went to. Between two currencies it
         // would need both amounts, which the phone doesn't ask.
@@ -5809,7 +5829,9 @@ class AppDatabase extends _$AppDatabase {
             !paidFrom.contains(account)) {
           continue;
         }
-        if (toIncome) category = await incomeCategory();
+        if (toIncome) {
+          category = asPay ? pay.categoryId : await incomeCategory();
+        }
         // The phone can't see an archived category: spending filed in one
         // would be out of sight on the Budget page, so it comes back.
         if (archived.remove(category)) {
@@ -5832,6 +5854,22 @@ class AppDatabase extends _$AppDatabase {
             on: inbox.device,
           ),
         );
+        if (asPay) {
+          // In the payday's place, as a pay picked from a row's dropdown.
+          final took = await _takePayday(added.last, account, pay, today);
+          paychecks.add(
+            PayTaken(
+              transactionId: added.last,
+              accountId: account,
+              scheduleId: pay.id,
+              payBefore: took.payBefore,
+              categoryId: pay.categoryId,
+              categoryBefore: const {},
+              removed: took.removed,
+              created: took.created,
+            ),
+          );
+        }
         entries.add(e.id);
       }
       taken[inbox.device] = PhoneTaken(
@@ -5844,7 +5882,15 @@ class AppDatabase extends _$AppDatabase {
     if (after != row?.value) await setPreference(phoneTakenKey, after);
     return added.isEmpty && made.isEmpty && plans.isEmpty && leftOut.isEmpty
         ? null
-        : PhoneTake(added, made, unarchived, madeNames, plans, leftOut);
+        : PhoneTake(
+            added,
+            made,
+            unarchived,
+            madeNames,
+            plans,
+            leftOut,
+            paychecks,
+          );
   });
 
   /// What a phone's New category page set for the category [id] just
@@ -5948,6 +5994,12 @@ class AppDatabase extends _$AppDatabase {
   /// Undo for [takePhoneEntries]: its rows go, and the categories it made.
   /// They stay marked as taken, so the next look doesn't bring them back.
   Future<void> undoPhoneTake(PhoneTake t) => transaction(() async {
+    // The paydays the paychecks took the place of are expected again,
+    // except one whose paycheck was reconciled meanwhile and stays.
+    final kept = await _reconciledAmong(t.transactionIds);
+    for (final p in t.paychecks.reversed) {
+      if (!kept.contains(p.transactionId)) await _untakePayday(p);
+    }
     await softDeleteMany(t.transactionIds);
     // Its bills first: a category with one scheduled isn't empty.
     for (final MapEntry(key: c, value: p) in t.plans.entries) {
@@ -5972,6 +6024,9 @@ class AppDatabase extends _$AppDatabase {
       await setArchived(c, false);
     }
     await restoreMany(t.transactionIds);
+    for (final p in t.paychecks) {
+      await _retakePayday(p);
+    }
   });
 
   // ---------- import (ADR 0002) ----------

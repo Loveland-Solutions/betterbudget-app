@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-27** · version 0.61.0 · schema v22 · 945 tests pass
+**Last updated: 2026-10-28** · version 0.66.0 · schema v23 · 960 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -19,12 +19,18 @@ details") is answered: Sign in details holds the demo key (`DEMO-DEMO-DEMO-DEMO-
 The upload key may now release to production too; a release there is still the owner's
 say each time.
 
-**Next: the phone build of 0.65.0 to Internal testing, then #187.** The ledger is v23
-since 0.62.0 (#314), and a phone on 0.61 can't open it from a fresh start (an open one
-keeps its figures and still sends entries), so the owner's wife needs it from Play.
-Then #187, decided 2026-10-27: a phone entry under Income takes the place of the next
-payday, the phone asking which pay when there's more than one. Every "Question:"
-issue on the board is answered. Still for beta: the native speaker's check of the
+**Next: the phone build of 0.66.0 to Internal testing.** The ledger is v23 since 0.62.0
+(#314), and a phone on 0.61 can't open it from a fresh start (an open one keeps its
+figures and still sends entries), so the owner's wife needs it from Play. Every
+"Question:" issue on the board is answered.
+
+**Pay saved on the phone** (0.66.0, #187; ADR 0004 "Pay saved on the phone takes a
+payday's place"): for money in, the phone's Category list has Income, then each pay by
+its name ("Income · Loveland Solutions"), even one (owner, 2026-10-28: "all sources of
+income should be named if they're being forecast"); a pay fills Paid into with its
+account. The computer takes it in as that pay's paycheck (`phonePayId`,
+`PhoneTake.paychecks`), so its payday stops being expected; a stopped pay comes in as
+Income. Pay on a payday is now that payday's, whatever it came to (`plannedFor`). Still for beta: the native speaker's check of the
 Mongolian (#90); Apple's listing (#98).
 
 **The open questions, answered** (0.61.1 to 0.65.0, 2026-10-27/28; ADR 0004 from "The

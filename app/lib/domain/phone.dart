@@ -16,6 +16,19 @@ import 'readiness.dart' show isSafetyNet;
 /// read yet.
 const phoneIncomeId = 'income';
 
+/// What a phone files money in under when it is one pay's paycheck (#187):
+/// this, then the pay's id. The computer makes the row that pay's, so the
+/// payday it stands for stops being expected. A computer too old to know
+/// of it leaves the entry with the phone rather than filing it wrong.
+const phonePayPrefix = 'pay:';
+
+String phonePayId(int payId) => '$phonePayPrefix$payId';
+
+/// The pay [id] names, or null when it isn't one.
+int? phonePayOf(String id) => id.startsWith(phonePayPrefix)
+    ? int.tryParse(id.substring(phonePayPrefix.length))
+    : null;
+
 /// What a phone entry shared over categories is filed under: its lines say
 /// where the money went. A word no category or account has, so a computer
 /// too old to know of splits leaves the entry with the phone rather than
@@ -45,7 +58,12 @@ class PhoneCategory {
     this.note,
     this.onceMinor,
     this.usualMinor,
+    this.payInto,
   });
+
+  /// A pay's paycheck, offered for money in as Income is (#187): the
+  /// account the pay goes into, the only one it can come into.
+  final String? payInto;
 
   /// Its group, a heading on Budget as on the computer (#100); none for
   /// a bill or the Safety net, which have their own places.
@@ -90,9 +108,9 @@ class PhoneCategory {
   final String id;
   final String name;
 
-  /// The app's Income, offered for money in: it holds no budget, so nothing
-  /// is left in it or overspent.
-  bool get isIncome => id == phoneIncomeId;
+  /// The app's Income, or one pay of it, offered for money in: it holds no
+  /// budget, so nothing is left in it or overspent.
+  bool get isIncome => id == phoneIncomeId || payInto != null;
 
   /// What was left when the snapshot was made; below zero when overspent.
   final int leftMinor;
@@ -127,11 +145,28 @@ class PhoneAccount {
   final bool owes;
 }
 
+/// A pay set up on the computer, which the forecast expects (#187): a
+/// phone offers it by name for money in.
+class PhonePay {
+  const PhonePay({required this.id, required this.accountId, this.name});
+
+  /// [phonePayId] of the ledger's id.
+  final String id;
+
+  /// The account it goes into.
+  final String accountId;
+
+  /// What the person called it (or, from before every pay had one, who
+  /// pays it); null when neither.
+  final String? name;
+}
+
 class PhoneSnapshot {
   const PhoneSnapshot({
     required this.madeAt,
     required this.categories,
     required this.accounts,
+    this.pays = const [],
     this.periodEnd,
     this.payees = const [],
     this.taken = const {},
@@ -180,6 +215,9 @@ class PhoneSnapshot {
   final DateTime madeAt;
   final List<PhoneCategory> categories;
   final List<PhoneAccount> accounts;
+
+  /// The pays the forecast expects, into an account the phone lists.
+  final List<PhonePay> pays;
 
   /// The category the household remembered for [payee] on [accountId], on
   /// the Payees page (owner, 2026-10-26: the phone fills it, as the
@@ -595,6 +633,19 @@ PhoneSnapshot snapshotOf(
               final p? when p.once => p.plan.amount,
               _ => null,
             },
+          ),
+    ],
+    pays: [
+      for (final p in data.paySchedules)
+        if (data.accounts[p.accountId] case final a?
+            when !a.deleted && !a.archived)
+          PhonePay(
+            id: phonePayId(p.id),
+            accountId: '${p.accountId}',
+            name: [p.name, p.payee]
+                .map((n) => n?.trim() ?? '')
+                .where((n) => n.isNotEmpty)
+                .firstOrNull,
           ),
     ],
     accounts: [

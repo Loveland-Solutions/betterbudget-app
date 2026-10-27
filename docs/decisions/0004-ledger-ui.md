@@ -4843,8 +4843,17 @@ is now. The owner's answers:
 - **The forecast takes out what's budgeted** (#179): "Yes." Groceries, transport and the
   rest come out of the forecast too, not only dated bills.
 - **Pay saved on the phone takes a payday's place** (#187): "Yes, but she would have to
-  specify which income it was for if it was for a paycheck, no?" With more than one pay
-  set up, the phone asks which pay it is.
+  specify which income it was for if it was for a paycheck, no?" ~~With more than one pay
+  set up, the phone asks which pay it is.~~ Corrected 2026-10-28: "No, I say all sources
+  of income should be named if they're being forecast." As built (0.66.0): for money in,
+  the phone's Category list has Income, then each pay the forecast expects by its name,
+  as the computer's dropdown names it ("Income · Loveland Solutions"), even when there is
+  only one. A pay fills Paid into with the account it goes into, the only one it can come
+  into. Plain Income stays for money in that isn't a pay (a gift). The computer takes
+  such an entry in as that pay's paycheck, as a pay picked from a row's dropdown is: the
+  payday it stands for stops being expected, and the popup's Undo brings it back. A pay
+  stopped or moved to another account meanwhile comes in as Income. *Rejected:* one
+  "Income" with the phone asking which pay only when there are two or more.
 
 ## One account a category is paid from; the forecast takes out the budget (owner, 2026-10-27, #180, #179)
 

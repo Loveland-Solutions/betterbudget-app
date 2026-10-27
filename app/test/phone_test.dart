@@ -15,6 +15,7 @@ import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/ledger.dart'
     show AccountType, CategoryPlan, LedgerData, PlanKind, RowKind;
 import 'package:betterbudget/domain/money.dart';
+import 'package:betterbudget/domain/pay.dart' show PayRule;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/sync.dart' show MadeHow;
 import 'package:betterbudget/l10n/app_localizations.dart';
@@ -1690,6 +1691,88 @@ void main() {
     expect(store.made, isEmpty);
   });
 
+  testWidgets('each pay is offered by name for money in, into its own '
+      'account (#187)', (tester) async {
+    final store = await _pump(
+      tester,
+      snapshot: PhoneSnapshot(
+        madeAt: DateTime(2026, 10, 7, 8, 10),
+        accounts: const [
+          PhoneAccount(id: 'khan', name: 'Khan', balanceMinor: 0),
+          PhoneAccount(id: 'golomt', name: 'Golomt', balanceMinor: 0),
+        ],
+        pays: [
+          PhonePay(
+            id: phonePayId(4),
+            accountId: 'khan',
+            name: 'Loveland Solutions',
+          ),
+        ],
+        categories: const [
+          PhoneCategory(id: 'g', name: 'Groceries', leftMinor: 14800000),
+        ],
+      ),
+    );
+    const named = 'Income · Loveland Solutions';
+    await _account(tester, 'Golomt');
+    // Money out: no pay.
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    expect(find.text(named), findsNothing);
+    await _closeMenu(tester);
+
+    // Money in: under Income, above the categories.
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(_inMenu('Income')).dy,
+      lessThan(tester.getTopLeft(_inMenu(named)).dy),
+    );
+    expect(
+      tester.getTopLeft(_inMenu(named)).dy,
+      lessThan(tester.getTopLeft(_inMenu('Groceries')).dy),
+    );
+    await tester.tap(_inMenu(named));
+    await tester.pumpAndSettle();
+    // The pay goes into Khan: the only account it can come into.
+    expect(find.text('Khan'), findsOneWidget);
+    expect(find.text('Golomt'), findsNothing);
+    await _type(tester, '2050000');
+    await _payee(tester, 'Loveland Solutions');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    final entry = store.waiting.single;
+    expect(entry.categoryId, phonePayId(4));
+    expect(entry.accountId, 'khan');
+    expect(entry.amountMinor, 205000000);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    expect(find.text('$named · 2026.10.07'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // Turned to money out, the pay goes, as Income does.
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await _category(tester, named);
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await tester.pump();
+    expect(find.text(named), findsNothing);
+
+    // Split from a pay: its share is plain Income, since only a whole
+    // paycheck stands in for its payday.
+    await tester.tap(find.byKey(const ValueKey('sign')));
+    await _category(tester, named);
+    await tester.tap(find.byKey(const ValueKey('category-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('split-option')));
+    await tester.pumpAndSettle();
+    expect(find.text('Income'), findsWidgets);
+    expect(find.text(named), findsNothing);
+  });
+
   testWidgets('an account a category rules out is let go, and Income takes '
       'the currency of the account it is paid into', (tester) async {
     final dollars = Currency.fromCode('USD');
@@ -2412,6 +2495,72 @@ void main() {
       db.execute('DROP TABLE entry_lines');
       db.close();
       expect(readPhoneInbox(file, null).entries.first.lines, isEmpty);
+    });
+
+    test('money in filed under a pay on the phone is that pay\'s paycheck: '
+        'its payday no longer expected; undo and redo (#187)', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      var data = await db.loadLedger();
+      final checking = data.accounts.values
+          .singleWhere((a) => a.name == 'TDB Checking')
+          .id;
+      await db.savePaySchedule(
+        accountId: checking,
+        amount: 210000000,
+        rule: PayRule.monthly,
+        day1: 25,
+        name: 'Loveland Solutions',
+        today: today,
+      );
+      data = await db.loadLedger();
+      final pay = data.paySchedules.single;
+      // The phone offers it by name, into the account it goes into.
+      final snapshot = snapshotOf(data, madeAt: today, today: today);
+      expect(snapshot.pays.single.id, phonePayId(pay.id));
+      expect(snapshot.pays.single.name, 'Loveland Solutions');
+      expect(snapshot.pays.single.accountId, '$checking');
+      Future<List<DateTime>> coming() async => [
+        for (final r in (await db.loadLedger()).registerFor(checking).scheduled)
+          if (r.payScheduleId == pay.id) r.date,
+      ];
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+
+      final take = (await db.takePhoneEntries([
+        PhoneInbox(
+          device: 'ab12',
+          entries: [
+            entry('p1', phonePayId(pay.id), '$checking', 205000000),
+            // A pay stopped on the computer meanwhile: it comes in as
+            // Income all the same.
+            entry('p2', phonePayId(999999), '$checking', 5000000),
+            // Money out can't be a paycheck: left with the phone.
+            entry('p3', phonePayId(pay.id), '$checking', -5000000),
+          ],
+        ),
+      ], today: today))!;
+      expect(take.transactionIds, hasLength(2));
+      expect(take.paychecks, hasLength(1));
+      data = await db.loadLedger();
+      row(int id) =>
+          data.registerFor(checking).posted.singleWhere((r) => r.txnId == id);
+      final paycheck = row(take.transactionIds.first);
+      expect(paycheck.categoryLabel, 'Income');
+      expect(paycheck.payScheduleId, pay.id);
+      expect(paycheck.madeHow, MadeHow.phone);
+      final other = row(take.transactionIds.last);
+      expect(other.categoryLabel, 'Income');
+      expect(other.payScheduleId, isNull);
+      // 09.25's pay came early; the next is 10.23 (10.25 is a Sunday).
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+
+      await db.undoPhoneTake(take);
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+      await db.redoPhoneTake(take);
+      data = await db.loadLedger();
+      expect(row(take.transactionIds.first).payScheduleId, pay.id);
+      expect(await coming(), [DateTime(2026, 10, 23)]);
     });
 
     test('a split on the phone is one split row on the computer', () async {

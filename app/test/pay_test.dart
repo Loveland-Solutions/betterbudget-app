@@ -95,6 +95,12 @@ void main() {
       pay.plannedFor(DateTime(2026, 9, 18), paid: 160000000),
       DateTime(2026, 9, 25),
     );
+    // The main pay short on its own day is still the 25th's, though its
+    // amount is nearer the next advance's.
+    expect(
+      pay.plannedFor(DateTime(2026, 9, 25), paid: 90000000),
+      DateTime(2026, 9, 25),
+    );
     String money(int v) => '₮${v ~/ 100}';
     expect(
       pay.describeAmounts(money),
