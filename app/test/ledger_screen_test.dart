@@ -8672,6 +8672,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('pay-varies')));
       await tester.pumpAndSettle();
       expect(find.text('Expect at least'), findsOneWidget);
+      await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
       await tester.enterText(
         find.byKey(const ValueKey('pay-amount')),
         '2100000',
@@ -8817,6 +8818,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('On the 10th'), findsOneWidget);
       expect(find.text('On the 25th'), findsOneWidget);
+      await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
       await tester.enterText(
         find.byKey(const ValueKey('pay-amount')),
         '500000',
@@ -8916,6 +8918,7 @@ void main() {
         });
         await tester.pumpAndSettle();
         expect(find.byKey(const ValueKey('pay-none')), findsNothing);
+        await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
         await tester.enterText(
           find.byKey(const ValueKey('pay-amount')),
           '2000000',

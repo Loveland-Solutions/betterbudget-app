@@ -653,7 +653,7 @@ setupYourPay,Pay setup dialog title when editing pay.,Your pay,Таны цали
 setupPaidInto,"Pay setup, label beside the account pay goes into. Also the phone app’s Ledger, in place of Paid from, when the entry is money in: the account a refund or income went into. Short.",Paid into,Орох данс,,
 setupFrom,"Pay setup, label beside the employer field. Short.",From,Хэнээс,,
 setupEmployerHint,"Pay setup, hint in the empty employer field.",Employer (optional),Ажил олгогч (заавал биш),,
-setupNameHint,"Pay setup, hint in the empty name field.","Jenny, or Jeff’s job (optional)","Жени, эсвэл Жеффийн ажил (заавал биш)",,
+setupNameHint,"Pay setup, hint in the empty name field.","Jenny, or Jeff’s job","Жени, эсвэл Жеффийн ажил",,draft changed
 setupPayIs,"Pay setup, label beside ""About the same each time"" / ""It varies"". Short.",Pay is,Цалин,,
 setupPaySame,"Pay setup, choice: the amount doesn't change.",About the same each time,Ихэвчлэн ижил,,
 setupPayVaries,"Pay setup, choice: the amount changes each time.",It varies,Өөрчлөгддөг,,
@@ -684,6 +684,9 @@ setupNextPayday,"Pay setup, summary by Save. date is a full date in a sentence."
 setupNextPaydayOrMore,"Pay setup, summary by Save when pay varies.",Next payday {date} · {amount} or more,Дараагийн цалин {date} · багадаа {amount},,
 setupNextPaydayMonthly,"Pay setup, summary by Save when pay comes more than once a month.",Next payday {date} · {amount} · about {perMonth} a month,Дараагийн цалин {date} · {amount} · сард ойролцоогоор {perMonth},,
 setupNextPaydayOrMoreMonthly,"Pay setup, summary by Save when pay varies and comes more than once a month.",Next payday {date} · {amount} or more · about {perMonth} a month,Дараагийн цалин {date} · багадаа {amount} · сард ойролцоогоор {perMonth},,
+setupNameMissing,"Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name.","Give this pay a name, like Jenny or Jeff’s job.","Энэ цалинд нэр өгнө үү, жишээ нь Жени эсвэл Жеффийн ажил.",,new
+setupNoSetDay,"Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”.",No set day,Тогтсон өдөргүй,,new
+setupNoSetDayMeans,"Pay setup, under the form when When is No set day: what saving it does.","With no set day, the forecast doesn’t expect it. When pay comes, file it under Income.",Тогтсон өдөргүй бол төсөөлөл үүнийг хүлээхгүй. Цалин орж ирэхэд Орлого-д ангилна уу.,,new
 setupNoRegularPay,"Pay setup, button: self-employed or between jobs; stops asking for pay.",I don’t have regular pay,Надад тогтмол цалин байхгүй,,
 setupStopPay,"Pay setup (editing), red button that removes the pay schedule.",Stop scheduling pay,Цалин товлохоо болих,,
 stopPayTitle,Dialog title when stopping a pay that categories are budgeted per. Coral.,Stop this pay?,Энэ цалинг зогсоох уу?,,

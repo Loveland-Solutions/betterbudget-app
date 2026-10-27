@@ -4936,3 +4936,15 @@ same offer in a list opened all the time.
   Income itself still counts only what's filed under it.
 - **Balances in the phone's Paid from list** (#184): "Yes." Each account shows what it
   holds now, entries still waiting on the phone counted; a card "Owed ₮640,200.00".
+
+### The pay form: no set day, and every pay named (owner, 2026-10-28, #175)
+
+- **No set day.** Asked whether someone paid irregularly should have "No set day" under
+  When, doing what "I don't have regular pay" does: "Sure." It sits after Every few
+  weeks on a new pay; picked, the day and weekend rows go, the line under the form says
+  "With no set day, the forecast doesn't expect it. When pay comes, file it under
+  Income.", and Save pay keeps no schedule, as "I don't have regular pay" does.
+- **Every pay has a name.** Asked whether Name should show only from "Add other pay" on:
+  "No, they should name every paycheck." Name stays first and is needed: with it empty
+  the line under the form says "Give this pay a name, like Jenny or Jeff's job." and Save
+  waits; "(optional)" is gone from its hint. *Rejected:* hiding it until a second pay.

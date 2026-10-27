@@ -4046,7 +4046,7 @@ abstract class Words {
   /// Pay setup, hint in the empty name field.
   ///
   /// In en, this message translates to:
-  /// **'Jenny, or Jeff’s job (optional)'**
+  /// **'Jenny, or Jeff’s job'**
   String get setupNameHint;
 
   /// Pay setup, label beside "About the same each time" / "It varies". Short.
@@ -4232,6 +4232,24 @@ abstract class Words {
     String amount,
     String perMonth,
   );
+
+  /// Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name.
+  ///
+  /// In en, this message translates to:
+  /// **'Give this pay a name, like Jenny or Jeff’s job.'**
+  String get setupNameMissing;
+
+  /// Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”.
+  ///
+  /// In en, this message translates to:
+  /// **'No set day'**
+  String get setupNoSetDay;
+
+  /// Pay setup, under the form when When is No set day: what saving it does.
+  ///
+  /// In en, this message translates to:
+  /// **'With no set day, the forecast doesn’t expect it. When pay comes, file it under Income.'**
+  String get setupNoSetDayMeans;
 
   /// Pay setup, button: self-employed or between jobs; stops asking for pay.
   ///
