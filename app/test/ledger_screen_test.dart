@@ -2310,7 +2310,7 @@ void main() {
       await tester.enterText(field('₮0.00'), '8000');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300)); // border fade-in
-      expect(find.text('needs 2 more'), findsOneWidget);
+      expect(find.text('2 more to fill in'), findsOneWidget);
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/entry_needs.png'),
@@ -2999,11 +2999,12 @@ void main() {
           matching: find.text('Groceries'),
         ),
       );
-      // The popup: what happened, then the row's payee on its own line.
+      // The popup: what happened, then which row on its own line, since a
+      // bank repeats payees.
       expect(find.text('Filed under Groceries'), findsOneWidget);
       String detail() =>
           tester.widget<Text>(find.byKey(const ValueKey('toast-detail'))).data!;
-      expect(detail(), 'Unitel');
+      expect(detail(), '09.16 · −₮30,000 · Unitel');
       // A card of one width in the page's corner, clear of the sidebar.
       final popup = tester.getRect(
         find.byWidgetPredicate((w) => '${w.runtimeType}' == '_Toast'),
@@ -3025,7 +3026,7 @@ void main() {
       await settle(tester);
       // An undo still says which row it changed.
       expect(find.text('Undone · Filed under Groceries'), findsOneWidget);
-      expect(detail(), 'Unitel');
+      expect(detail(), '09.16 · −₮30,000 · Unitel');
       expect(await category(), 'Phone & internet');
       await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
       await settle(tester);
@@ -3964,8 +3965,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('transfer-swap')));
     await tester.pump();
     expect(find.text('From Golomt Visa to TDB Checking'), findsOneWidget);
-    expect(find.text('needs payee'), findsNothing); // transfers need none
-    expect(find.text('needs amount'), findsOneWidget);
+    expect(find.text('Type a payee'), findsNothing); // transfers need none
+    expect(find.text('Type an amount'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -4442,7 +4443,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
     expect(find.text('Mobicom'), findsOneWidget); // now the next scheduled
     // The only late one: no count.
     expect(find.byKey(const ValueKey('overdue-count')), findsNothing);
@@ -4491,7 +4492,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await settle(tester);
-    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -4567,7 +4568,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
     expect(find.text('· 1 more overdue'), findsOneWidget);
 
     // Asked on the bill's row, without opening it, and under the forecast.
@@ -4586,16 +4587,16 @@ void main() {
     await tapAndWrite(tester, find.byKey(const ValueKey('looks-paid-yes')));
     expect(find.text('Mobicom bill paid.'), findsOneWidget);
     // Univision is the next, and the only late one left.
-    expect(find.text('· due 4 days ago'), findsOneWidget);
+    expect(find.text('· due 4 days ago · not in Working yet'), findsOneWidget);
     expect(find.byKey(const ValueKey('overdue-count')), findsNothing);
     expect(find.byKey(const ValueKey('looks-paid')), findsNothing);
     expect(find.byKey(const ValueKey('forecast-maybe-paid')), findsNothing);
 
     await tapAndWait(tester, find.text('Undo'));
-    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
     expect(find.text('· 1 more overdue'), findsOneWidget);
     await redo(tester);
-    expect(find.text('· due 4 days ago'), findsOneWidget);
+    expect(find.text('· due 4 days ago · not in Working yet'), findsOneWidget);
 
     // Nothing like it in the account: Confirm opens with no such line.
     await tapAndWait(tester, find.text('Confirm'));
@@ -4747,7 +4748,7 @@ void main() {
 
     // Late, so October's is scheduled too.
     await expectState([DateTime(2026, 9, 12), DateTime(2026, 10, 12)], null);
-    expect(find.text('· due 4 days ago'), findsOneWidget);
+    expect(find.text('· due 4 days ago · not in Working yet'), findsOneWidget);
 
     const line = 'Paid on 09.14? IB TRANSFER 0412, −₮270,000.00';
     int outlined() =>
@@ -4882,7 +4883,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('looks-paid')), findsNothing);
-    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
     await tapAndWait(tester, find.text('Undo'));
     expect(find.byKey(const ValueKey('looks-paid')), findsOneWidget);
     await tidy(tester, db);
@@ -7929,6 +7930,36 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('money in on a new category says, on its own line, it is a '
+        'refund', (tester) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'Nomin',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        'Returns',
+      );
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '6500');
+      await tester.pumpAndSettle();
+      // Beside Add, only the short note; no + yet, so no refund line.
+      expect(find.text('new category'), findsOneWidget);
+      expect(find.byKey(const ValueKey('refund-line')), findsNothing);
+
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '+6500');
+      await tester.pumpAndSettle();
+      expect(find.text('new category'), findsOneWidget);
+      expect(
+        find.text(
+          'Money in counts as a refund to Returns. For pay, pick Income.',
+        ),
+        findsOneWidget,
+      );
+      await tidy(tester, db);
+    });
+
     testWidgets('a new name in the entry row becomes a category', (
       tester,
     ) async {
@@ -10094,7 +10125,7 @@ void main() {
     expect(find.text('Filed under Bank fees'), findsOneWidget);
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('toast-detail'))).data,
-      'IB-INTERBANK TRANSFER CHARGE 1.2.3, 1.2.4',
+      '09.15 · −₮200 · IB-INTERBANK TRANSFER CHARGE 1.2.3, 1.2.4',
     );
     expect(
       find.text('Remember this for next time, and file 1 more row now'),
@@ -10392,7 +10423,7 @@ void main() {
       },
     );
 
-    testWidgets('a row with no payee has no line for one', (tester) async {
+    testWidgets('a row with no payee has no place for one', (tester) async {
       final db = await pumpLedger(tester);
       await tester.runAsync(() async {
         final data = await db.loadLedger();
@@ -10418,8 +10449,9 @@ void main() {
           matching: find.text('Groceries'),
         ),
       );
+      // Which row it was still says, without an empty place for the payee.
       expect(find.text('Filed under Groceries'), findsOneWidget);
-      expect(find.byKey(const ValueKey('toast-detail')), findsNothing);
+      expect(find.text('09.16 · −₮123.45'), findsOneWidget);
       await tidy(tester, db);
     });
   });
