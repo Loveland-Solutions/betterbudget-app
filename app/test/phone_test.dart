@@ -3185,6 +3185,33 @@ void main() {
       return (keys: k, folder: f, read: read);
     }
 
+    testWidgets('the demo key opens made-up figures, reads and keeps nothing '
+        '(Play review)', (tester) async {
+      final s = await start(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey('phone-key')),
+        'demo demo demo demo demo',
+      );
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Made-up figures for a look around. Nothing here is saved.'),
+        findsOneWidget,
+      );
+      expect(find.text('Where is your ledger?'), findsNothing);
+      // No key kept, no ledger read, no folder asked about.
+      expect(s.keys.kept, isNull);
+      expect(s.read, isEmpty);
+      expect(s.folder.asked, isEmpty);
+      await tester.tap(find.byKey(const ValueKey('to-budget')));
+      await tester.pumpAndSettle();
+      expect(find.text('Groceries'), findsOneWidget);
+      await expectLater(
+        find.byType(PhoneFrame),
+        matchesGoldenFile('goldens/phone_demo.png'),
+      );
+    });
+
     testWidgets('the key, then the folder, then Ledger', (tester) async {
       final key = RecoveryKey.generate();
       final s = await start(tester);

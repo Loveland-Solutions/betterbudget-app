@@ -19,6 +19,7 @@ import '../data_words.dart';
 import '../language.dart';
 import '../theme.dart';
 import 'phone_app.dart';
+import 'phone_demo.dart';
 
 /// Reads what the phone shows from the ledger's bytes; swapped in tests.
 typedef ReadPhoneLedger = Future<PhoneSnapshot> Function(
@@ -112,7 +113,9 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   /// Back at the front: the folder may hold a newer ledger by now.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _step == _Step.ready) _load();
+    if (state == AppLifecycleState.resumed && _step == _Step.ready && !_demo) {
+      _load();
+    }
   }
 
   void _go(_Step step) {
@@ -276,7 +279,20 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     });
   }
 
+  /// The demo key was typed: invented figures, nothing read or kept.
+  var _demo = false;
+
   void _useKey() {
+    if (isPhoneDemoKey(_keyText.text)) {
+      _keyText.clear();
+      setState(() {
+        _demo = true;
+        _keyError = null;
+        _store = PhoneStore(previewSnapshot(widget.now()));
+        _step = _Step.ready;
+      });
+      return;
+    }
     final problem = RecoveryKey.check(_keyText.text);
     final key = problem == null ? RecoveryKey.parse(_keyText.text) : null;
     if (key == null) {
@@ -321,8 +337,9 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       _Step.ready => PhoneHome(
         store: _store!,
         now: widget.now,
-        onRefresh: _load,
+        onRefresh: _demo ? null : _load,
         problems: _problems,
+        note: _demo ? t.phoneDemoNote : null,
       ),
       _Step.key => _Ask(
         title: t.phoneKeyTitle,

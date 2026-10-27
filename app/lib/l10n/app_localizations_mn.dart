@@ -6355,4 +6355,7 @@ class WordsMn extends Words {
   String planClearPayIn(String code) {
     return 'Энэ цалингийн үеийн $code хуваарилсныг цэвэрлэх';
   }
+
+  @override
+  String get phoneDemoNote => 'Жишээ тоонууд. Энд юу ч хадгалагдахгүй.';
 }

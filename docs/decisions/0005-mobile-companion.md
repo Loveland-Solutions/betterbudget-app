@@ -1287,3 +1287,20 @@ filled in until chosen holds for everything else.
   typed, as on the computer.
 - Nothing new travels: the rules are in the ledger the phone copies already. A
   phone on an older build simply doesn't fill.
+
+## A demo key for Play's review (2026-10-27)
+
+Google Play's review stopped at the phone's first screen, Enter your recovery key
+("Some or all of your app is restricted by login credentials…"), and asks for a way in.
+A key alone can't be one: it opens a ledger in a cloud folder on the phone, and the
+reviewer's phone has neither. Offered three ways (a demo key given only to Google, a
+"Try it with made-up figures" button for everyone, or only explaining it), the owner
+chose the demo key.
+
+`DEMO-DEMO-DEMO-DEMO-DEMO` (any case or spacing) on the recovery key screen opens
+Ledger and Budget on the preview's invented figures (`phoneDemoKey`, `previewSnapshot`
+in `ui/phone/phone_demo.dart`), with "Made-up figures for a look around. Nothing here
+is saved." across the top. Nothing is read from a folder, the key isn't kept, entries
+typed live only until the app closes, and the next launch asks for a key again. A real
+key never holds an O, so it can't be anyone's. The repo is public, so anyone can read
+the key; all it opens is the invented figures.

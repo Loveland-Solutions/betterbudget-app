@@ -464,9 +464,13 @@ class PhoneHome extends StatefulWidget {
     required this.now,
     this.onRefresh,
     this.problems,
+    this.note,
   });
   final PhoneStore store;
   final DateTime Function() now;
+
+  /// A line across the top: the demo says its figures are made up.
+  final String? note;
 
   /// Reads the ledger from the folder again, on a pull down; null when
   /// there is no folder to read (the preview).
@@ -516,6 +520,17 @@ class _PhoneHomeState extends State<PhoneHome> {
         body: SafeArea(
           child: Column(
             children: [
+              if (widget.note case final note?)
+                Container(
+                  key: const ValueKey('phone-note'),
+                  width: double.infinity,
+                  color: Mid.card,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
+                  child: Text(note, style: onest(13, color: Mid.ink2)),
+                ),
               Expanded(
                 child: IndexedStack(
                   index: _budget ? 1 : 0,
