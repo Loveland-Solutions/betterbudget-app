@@ -379,40 +379,26 @@ class _BudgetPageState extends State<_BudgetPage> {
     );
 
     // This period's pay, by currency: what the schedules expect in it,
-    // and what has come (the paydays confirmed in the period, on their
-    // account's side).
-    final moneyIds = {for (final a in data.balanceSheetAccounts) a.id};
-    final expectedPay = <Currency, int>{};
-    for (final p in data.paySchedules) {
-      final c = data.accounts[p.accountId]?.currency ?? Currency.mnt;
-      var d = p.nextAfter(
-        DateTime(period.start.year, period.start.month, period.start.day - 1),
-      );
-      for (var i = 0; i < 40 && !d.isAfter(period.end); i++) {
-        expectedPay[c] = (expectedPay[c] ?? 0) + p.amountOn(d);
-        d = p.nextAfter(d);
-      }
-    }
-    // Pay that came: any row filed under a pay's category, not only a
-    // payday the app scheduled, so pay typed or imported is "received"
-    // too, as the Income line beside it counts it (#163).
-    final payCategories = {for (final p in data.paySchedules) p.categoryId};
-    final fromPay = <Currency, int>{};
-    for (final x in data.txns) {
-      if (x.scheduled) continue;
-      if (x.payScheduleId == null &&
-          !x.entries.any((e) => payCategories.contains(e.accountId))) {
-        continue;
-      }
-      if (x.date.isBefore(period.start) || x.date.isAfter(period.end)) {
-        continue;
-      }
-      for (final e in x.entries) {
-        if (e.amount > 0 && moneyIds.contains(e.accountId)) {
-          fromPay[e.currency] = (fromPay[e.currency] ?? 0) + e.amount;
-        }
-      }
-    }
+    // and what has come.
+    final pay = periodPay(
+      data,
+      start: period.start,
+      end: period.end,
+      today: widget.today,
+    );
+    final expectedPay = pay.expected, fromPay = pay.came;
+    // The period against its income, not the balance (#234).
+    final fits = IncomeFit.of(
+      data,
+      budget,
+      // Archived categories too: what they spent this period still went.
+      [...spending, ...archived],
+      saved: saved,
+      start: period.start,
+      end: period.end,
+      today: widget.today,
+      pay: pay,
+    );
 
     void open(int? id, {bool atPlan = false}) {
       final was = _open;
@@ -1061,123 +1047,183 @@ class _BudgetPageState extends State<_BudgetPage> {
             ),
           ),
           const SizedBox(height: 14),
-          keyCard(),
-          const SizedBox(height: 12),
+          // The key and the income card, then the categories: these keep
+          // room for a few rows, and the cards scroll when the window is too
+          // short for all of them (#234).
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Mid.panel,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Mid.rule),
-              ),
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+            child: LayoutBuilder(
+              builder: (context, box) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  tabs(),
-                  if (_tab == _BudgetTab.income)
-                    _IncomeTab(
-                      data: data,
-                      cameIn: income == null
-                          ? const []
-                          : _cameIn(budget.cameIn[income.id], budget.currency),
-                      fromPay: fromPay,
-                      expectedPay: expectedPay,
-                      onShowRows: income == null
-                          ? null
-                          : () => widget.onShowRows(income, period),
-                      onPay: widget.onPay,
-                      onAskAgain: widget.onAskAgain,
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: (box.maxHeight - _categoriesRoom).clamp(
+                        0,
+                        box.maxHeight,
+                      ),
                     ),
-                  Offstage(
-                    offstage: _tab == _BudgetTab.income,
-                    // Hidden, but kept so what was typed in it stays:
-                    // Tab mustn't walk through it (#163).
-                    child: ExcludeFocus(
-                      excluding: _tab == _BudgetTab.income,
+                    child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          for (final (i, c) in spending.indexed) ...[
-                            if (groupAt[i] case final g?)
-                              heading(g, 'budget-group-$g'),
-                            if (i == firstBill)
-                              heading(t.phoneBills, 'budget-bills'),
-                            if (i == firstSaved) ...[
-                              ...totals(),
-                              heading(t.planSaved, 'budget-saved'),
-                            ],
-                            row(c, striped: i.isOdd),
+                          keyCard(),
+                          const SizedBox(height: 12),
+                          // Not while a category's Edit is open: it
+                          // needs the room, and the card comes back with
+                          // what was saved.
+                          if (fits.isNotEmpty && _open == null) ...[
+                            _IncomeFitCard(
+                              fits: fits,
+                              month: period.label == payPeriodLabel
+                                  ? null
+                                  : monthName(t, period.start.month),
+                              current: isCurrent,
+                            ),
+                            const SizedBox(height: 12),
                           ],
-                          if (firstSaved < 0) ...totals(),
-                          const SizedBox(height: 14),
-                          if (archived.isNotEmpty) ...[
-                            Hoverable(
-                              key: const ValueKey('show-archived-categories'),
-                              onTap: () => setState(
-                                () => _showArchived = !_showArchived,
-                              ),
-                              builder: (hover) => Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  6,
-                                  12,
-                                  6,
-                                ),
-                                child: Text(
-                                  _showArchived
-                                      ? t.planHideArchived(archived.length)
-                                      : t.planShowArchived(archived.length),
-                                  style: onest(
-                                    12.5,
-                                    color: hover ? Mid.ink2 : Mid.ink3,
-                                  ),
-                                ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Mid.panel,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Mid.rule),
+                      ),
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+                        children: [
+                          tabs(),
+                          if (_tab == _BudgetTab.income)
+                            _IncomeTab(
+                              data: data,
+                              cameIn: income == null
+                                  ? const []
+                                  : _cameIn(
+                                      budget.cameIn[income.id],
+                                      budget.currency,
+                                    ),
+                              fromPay: fromPay,
+                              expectedPay: expectedPay,
+                              onShowRows: income == null
+                                  ? null
+                                  : () => widget.onShowRows(income, period),
+                              onPay: widget.onPay,
+                              onAskAgain: widget.onAskAgain,
+                            ),
+                          Offstage(
+                            offstage: _tab == _BudgetTab.income,
+                            // Hidden, but kept so what was typed in it stays:
+                            // Tab mustn't walk through it (#163).
+                            child: ExcludeFocus(
+                              excluding: _tab == _BudgetTab.income,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  for (final (i, c) in spending.indexed) ...[
+                                    if (groupAt[i] case final g?)
+                                      heading(g, 'budget-group-$g'),
+                                    if (i == firstBill)
+                                      heading(t.phoneBills, 'budget-bills'),
+                                    if (i == firstSaved) ...[
+                                      ...totals(),
+                                      heading(t.planSaved, 'budget-saved'),
+                                    ],
+                                    row(c, striped: i.isOdd),
+                                  ],
+                                  if (firstSaved < 0) ...totals(),
+                                  const SizedBox(height: 14),
+                                  if (archived.isNotEmpty) ...[
+                                    Hoverable(
+                                      key: const ValueKey(
+                                        'show-archived-categories',
+                                      ),
+                                      onTap: () => setState(
+                                        () => _showArchived = !_showArchived,
+                                      ),
+                                      builder: (hover) => Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          12,
+                                          6,
+                                          12,
+                                          6,
+                                        ),
+                                        child: Text(
+                                          _showArchived
+                                              ? t.planHideArchived(
+                                                  archived.length,
+                                                )
+                                              : t.planShowArchived(
+                                                  archived.length,
+                                                ),
+                                          style: onest(
+                                            12.5,
+                                            color: hover ? Mid.ink2 : Mid.ink3,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    if (_showArchived)
+                                      for (final c in archived)
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 4,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  c.name,
+                                                  style: onest(
+                                                    13.5,
+                                                    color: Mid.ink2,
+                                                  ),
+                                                ),
+                                              ),
+                                              Text(
+                                                _usageText(
+                                                  t,
+                                                  data.categoryUsage[c.id],
+                                                ),
+                                                style: onest(
+                                                  12.5,
+                                                  color: Mid.ink3,
+                                                ),
+                                              ),
+                                              // Money can still sit in an archived one.
+                                              if (budget.lines[c.id]?.left
+                                                  case final left?
+                                                  when left != 0) ...[
+                                                const SizedBox(width: 16),
+                                                Money(
+                                                  left,
+                                                  size: 13,
+                                                  currency: c.currency,
+                                                  color: left < 0
+                                                      ? Mid.coral
+                                                      : Mid.ink2,
+                                                ),
+                                              ],
+                                              const SizedBox(width: 16),
+                                              BarButton(
+                                                key: ValueKey(
+                                                  'unarchive-category-${c.id}',
+                                                ),
+                                                label: t.planShowInMenus,
+                                                onTap: () =>
+                                                    widget.onUnarchive(c),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                  ],
+                                ],
                               ),
                             ),
-                            if (_showArchived)
-                              for (final c in archived)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 4,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          c.name,
-                                          style: onest(13.5, color: Mid.ink2),
-                                        ),
-                                      ),
-                                      Text(
-                                        _usageText(t, data.categoryUsage[c.id]),
-                                        style: onest(12.5, color: Mid.ink3),
-                                      ),
-                                      // Money can still sit in an archived one.
-                                      if (budget.lines[c.id]?.left
-                                          case final left? when left != 0) ...[
-                                        const SizedBox(width: 16),
-                                        Money(
-                                          left,
-                                          size: 13,
-                                          currency: c.currency,
-                                          color: left < 0
-                                              ? Mid.coral
-                                              : Mid.ink2,
-                                        ),
-                                      ],
-                                      const SizedBox(width: 16),
-                                      BarButton(
-                                        key: ValueKey(
-                                          'unarchive-category-${c.id}',
-                                        ),
-                                        label: t.planShowInMenus,
-                                        onTap: () => widget.onUnarchive(c),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                          ],
+                          ),
                         ],
                       ),
                     ),
@@ -1193,6 +1239,10 @@ class _BudgetPageState extends State<_BudgetPage> {
 }
 
 const double _amountWidth = 136;
+
+/// What the categories keep under the cards at the top of the Budget page:
+/// the tabs and a few rows (#234).
+const double _categoriesRoom = 240;
 
 /// Left is wider: on the row the pointer is on, "Move money" goes beside
 /// its amount (owner, 2026-10-23), in both languages.
@@ -1581,6 +1631,216 @@ class _IncomeTab extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The period's plans against its income (#234, the owner's pick B,
+/// 2026-10-27): a heading that says it, a bar with a mark where the income
+/// ends, and what each part of the bar is. Past the mark is coral: a
+/// shortfall. One block per currency, which are never added together.
+class _IncomeFitCard extends StatelessWidget {
+  const _IncomeFitCard({
+    required this.fits,
+    required this.month,
+    required this.current,
+  });
+  final List<IncomeFit> fits;
+
+  /// The month's name; null by pay period.
+  final String? month;
+
+  /// Whether the period is today's: "This pay period", or "That".
+  final bool current;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Container(
+      key: const ValueKey('income-fit'),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+      decoration: BoxDecoration(
+        color: Mid.panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Mid.rule),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, f) in fits.indexed) ...[
+            if (i > 0) const SizedBox(height: 14),
+            _fit(t, f),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _fit(Words t, IncomeFit f) {
+    final c = f.currency, m = month;
+    final tag = f.currency == fits.first.currency ? '' : '-${c.code}';
+    String short(int v) => formatShort(v, currency: c);
+    final over = f.over;
+    final amount = short(over.abs());
+    final heading = switch ((over.sign, m, current)) {
+      (1, final m?, _) => t.planFitOverMonth(m, amount),
+      (1, null, true) => t.planFitOverPay(amount),
+      (1, null, false) => t.planFitOverPayThen(amount),
+      (-1, final m?, _) => t.planFitSpareMonth(m, amount),
+      (-1, null, true) => t.planFitSparePay(amount),
+      (-1, null, false) => t.planFitSparePayThen(amount),
+      (_, final m?, _) => t.planFitEvenMonth(m),
+      (_, null, true) => t.planFitEvenPay,
+      (_, null, false) => t.planFitEvenPayThen,
+    };
+    // The amount in the heading is the one to read: coral when over, and
+    // only when the income is known; with no pay set up, more may come.
+    final at = heading.indexOf(amount);
+    final coral = over > 0 && f.sure;
+    final style = onest(14.5, weight: 600, tabular: true);
+    final parts = [
+      (f.spent, Mid.blue, t.planFitSpent),
+      (f.toSpend, Mid.blue.withValues(alpha: 0.3), t.planFitToSpend),
+      (f.putAside, Mid.green.withValues(alpha: 0.55), t.planFitAside),
+    ];
+    Widget key(Widget mark, String label, String figure, [String? note]) => Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        mark,
+        const SizedBox(width: 6),
+        Text(label, style: onest(12.5, color: Mid.ink3)),
+        const SizedBox(width: 6),
+        Text(figure, style: onest(13, weight: 500, tabular: true)),
+        if (note != null) ...[
+          const SizedBox(width: 6),
+          Text(note, style: onest(12.5, color: Mid.ink3, tabular: true)),
+        ],
+      ],
+    );
+    Widget swatch(Color color) => Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(2),
+      ),
+    );
+    return Column(
+      key: ValueKey('income-fit$tag'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text.rich(
+          key: ValueKey('income-fit-heading$tag'),
+          at < 0 || !coral
+              ? TextSpan(text: heading)
+              : TextSpan(
+                  children: [
+                    TextSpan(text: heading.substring(0, at)),
+                    TextSpan(
+                      text: amount,
+                      style: TextStyle(color: Mid.coral),
+                    ),
+                    TextSpan(text: heading.substring(at + amount.length)),
+                  ],
+                ),
+          style: style,
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 22,
+          child: CustomPaint(
+            painter: _FitBar(
+              parts: [for (final (v, color, _) in parts) (v, color)],
+              income: f.income,
+              coral: f.sure ? Mid.coral : Mid.ink3,
+              mark: Mid.ink,
+              empty: Mid.rule,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 22,
+          runSpacing: 4,
+          children: [
+            for (final (v, color, label) in parts)
+              if (v > 0) key(swatch(color), label, short(v)),
+            key(
+              Container(width: 2, height: 12, color: Mid.ink),
+              t.planFitIncome,
+              short(f.income),
+              f.toCome > 0 ? t.planFitToCome(short(f.toCome)) : null,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The bar under the heading: its parts end to end, the whole as long as
+/// the income or what the period takes, whichever is more; past the
+/// income's mark, coral.
+class _FitBar extends CustomPainter {
+  _FitBar({
+    required this.parts,
+    required this.income,
+    required this.coral,
+    required this.mark,
+    required this.empty,
+  });
+  final List<(int, Color)> parts;
+  final int income;
+  final Color coral, mark, empty;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final takes = parts.fold(0, (sum, p) => sum + p.$1);
+    final whole = takes > income ? takes : income;
+    final h = size.height - 6, top = 3.0;
+    final round = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, top, size.width, h),
+      const Radius.circular(5),
+    );
+    canvas.save();
+    canvas.clipRRect(round);
+    canvas.drawRect(round.outerRect, Paint()..color = empty);
+    if (whole > 0) {
+      double x(int v) => size.width * v / whole;
+      var from = 0;
+      for (final (v, color) in parts) {
+        if (v <= 0) continue;
+        canvas.drawRect(
+          Rect.fromLTRB(x(from), top, x(from + v), top + h),
+          Paint()..color = color,
+        );
+        from += v;
+      }
+      if (takes > income) {
+        canvas.drawRect(
+          Rect.fromLTRB(x(income), top, x(takes), top + h),
+          Paint()..color = coral,
+        );
+      }
+    }
+    canvas.restore();
+    if (whole > 0 && income > 0) {
+      final at = (size.width * income / whole).clamp(1.0, size.width - 1);
+      canvas.drawRect(
+        Rect.fromLTWH(at - 1, 0, 2, size.height),
+        Paint()..color = mark,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FitBar old) =>
+      old.income != income ||
+      old.coral != coral ||
+      old.mark != mark ||
+      old.empty != empty ||
+      old.parts.length != parts.length ||
+      [for (var i = 0; i < parts.length; i++) old.parts[i] != parts[i]]
+          .any((d) => d);
 }
 
 /// "This month" or "This pay period" for the one today is in; otherwise

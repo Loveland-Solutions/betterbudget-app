@@ -4714,3 +4714,52 @@ Settled in the two reviews:
 - **The phone** (owner, 2026-10-27, "Yes"): its Budget has the same group headings,
   after the categories in no group and before Bills, and under a name the one-month
   line and the note.
+
+## Living on the income (owner, 2026-10-27, #234)
+
+The owner: "we need to help them live within their means, meaning, their bills
+shouldn't exceed their income", and wider: "If they have 5,000,000 USD in their
+account, it doesn't matter. What I care about is how much money they make." Not
+assigned comes from Cash & bank, so a household with a big balance always looked
+fine. Three were sketched; the owner picked B.
+
+- **A card of its own under the key card**, one block per currency. A heading says
+  it: "October's plans take ₮350,000 more than its income", the amount in coral; or
+  "… fit in its income, with ₮150,000 to spare"; or "… take exactly its income"
+  ("This pay period's", or "That pay period's" for another). Under it a bar:
+  **Spent so far**, **Still to spend** and **Saved** (the word the Safety net sits
+  under on this page) end to end, a mark where **Income** ends, and coral past the
+  mark. Under the bar each part with its amount, and Income with what's still to
+  come. The categories keep 240 px under the two cards; on a short window the cards
+  scroll. While a category's Edit is open the card steps aside, so Edit has the
+  room it had before (it would otherwise scroll under the card), and comes back
+  with what was saved.
+- **The income is the period's own** (owner: "Show the real income for any given
+  month"): what was filed under Income in the period, plus the pay its schedules
+  still expect, so the figure doesn't turn coral on the 10th because the 25th's
+  half hasn't come. No average of past months, so a bonus month counts as it is.
+  Without pay set up, only what came in.
+- **Pay still to come** is worked out payday by payday from today: a payday gone
+  by without its pay isn't counted on, a month gone by expects nothing, and pay
+  that came early (tied to its schedule, or filed under Income into the pay's
+  account, as typed or imported pay is) isn't counted twice. A gift into another
+  account adds to the month.
+- **Coral only for a real shortfall**: with no pay set up in that currency, more
+  may still come, so until the period ends the heading and the bar past the mark
+  are plain. A currency with no income and no pay gets no block, unless nothing
+  else has one.
+- **What the period takes** is each category's plan for the period (a yearly
+  bill's share), or with no plan what's assigned; and what it spends past what it
+  held from before, when that's more. So school fees saved since February and paid
+  in September count September's share, not all of it again, and money already in
+  the bank assigned past a plan isn't this month's. Money out still without a
+  category counts; money in waiting there takes nothing off it. Archived
+  categories' spending counts.
+- **Money put aside counts against the income** (owner, correcting a sketch that
+  left the Safety net and goals out: "of course money set aside should count …
+  since we want it to egress the checking account. The checking account is a
+  dangerous place for money. It tends to get spent. Put it in the savings where
+  it's safe"). It has its own part of the bar so it can be seen.
+- Rejected: A, rows of their own in the key card (Income, Planned to spend, Put
+  aside, then More than income or Left from income); C, one coral line in the key
+  card only when over, with the detail on the Income tab.

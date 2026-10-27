@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'ledger.dart';
 import 'money.dart';
 import 'pay.dart';
@@ -1689,4 +1691,209 @@ Map<int, BillPayment> billPayments(
     }
     return out;
   }();
+}
+
+/// A period's pay by currency (#163): what the schedules expect in it,
+/// and what has come. Any row filed under a pay's category counts as
+/// come, not only a payday the app scheduled, so pay typed or imported
+/// is "received" too, as the Income line counts it. [toCome] is what's
+/// still expected from [today] on (#234): a payday that passed without its
+/// pay isn't counted on, and pay that came early isn't counted twice.
+typedef PeriodPay = ({
+  Map<Currency, int> expected,
+  Map<Currency, int> came,
+  Map<Currency, int> toCome,
+});
+
+PeriodPay periodPay(
+  LedgerData data, {
+  required DateTime start,
+  required DateTime end,
+  required DateTime today,
+}) {
+  final day = dateOnly(today);
+  final expected = <Currency, int>{}, toCome = <Currency, int>{};
+  // Each schedule's pay that came in the period: rows tied to it, and
+  // money filed under its category into its account, as typed or imported
+  // pay is (it isn't tied to the payday). Money in elsewhere, a gift into
+  // another account, takes nothing off the pay still due.
+  final tied = <int, int>{};
+  for (final x in data.txns) {
+    if (x.scheduled || x.date.isBefore(start) || x.date.isAfter(end)) {
+      continue;
+    }
+    for (final p in data.paySchedules) {
+      if (x.payScheduleId != null && x.payScheduleId != p.id) continue;
+      if (x.payScheduleId == null &&
+          !x.entries.any((e) => e.accountId == p.categoryId)) {
+        continue;
+      }
+      for (final e in x.entries) {
+        if (e.amount > 0 && e.accountId == p.accountId) {
+          tied[p.id] = (tied[p.id] ?? 0) + e.amount;
+        }
+      }
+      if (x.payScheduleId != null) break;
+    }
+  }
+  for (final p in data.paySchedules) {
+    final c = data.accounts[p.accountId]?.currency ?? Currency.mnt;
+    var all = 0, ahead = 0;
+    var d = p.nextAfter(DateTime(start.year, start.month, start.day - 1));
+    for (var i = 0; i < 40 && !d.isAfter(end); i++) {
+      all += p.amountOn(d);
+      if (!d.isBefore(day)) ahead += p.amountOn(d);
+      d = p.nextAfter(d);
+    }
+    expected[c] = (expected[c] ?? 0) + all;
+    final owed = min(ahead, max(all - (tied[p.id] ?? 0), 0));
+    if (owed > 0) toCome[c] = (toCome[c] ?? 0) + owed;
+  }
+  final moneyIds = {for (final a in data.balanceSheetAccounts) a.id};
+  final payCategories = {for (final p in data.paySchedules) p.categoryId};
+  final came = <Currency, int>{};
+  for (final x in data.txns) {
+    if (x.scheduled) continue;
+    if (x.payScheduleId == null &&
+        !x.entries.any((e) => payCategories.contains(e.accountId))) {
+      continue;
+    }
+    if (x.date.isBefore(start) || x.date.isAfter(end)) continue;
+    for (final e in x.entries) {
+      if (e.amount > 0 && moneyIds.contains(e.accountId)) {
+        came[e.currency] = (came[e.currency] ?? 0) + e.amount;
+      }
+    }
+  }
+  return (expected: expected, came: came, toCome: toCome);
+}
+
+/// One currency's period against its income (#234, the owner's pick B,
+/// 2026-10-27: "we need to help them live within their means"). The
+/// income is the period's own, never the balance or an average: what
+/// came in, plus the pay still expected. Money put aside counts against
+/// it too, since it has to leave the account it's spent from ("The
+/// checking account is a dangerous place for money").
+///
+/// What a category takes from the period: its plan for it (a yearly
+/// bill's share), or, with no plan, what's assigned; and what it spends
+/// past what it held from before, when that's more. So money saved up in
+/// earlier months and spent now isn't counted again, and money already
+/// there that's assigned past a plan isn't counted as this period's.
+class IncomeFit {
+  const IncomeFit({
+    required this.currency,
+    required this.cameIn,
+    required this.toCome,
+    required this.spent,
+    required this.toSpend,
+    required this.putAside,
+    required this.sure,
+  });
+
+  final Currency currency;
+
+  /// Filed under Income in the period.
+  final int cameIn;
+
+  /// Pay the schedules still expect in the period, from today on.
+  final int toCome;
+
+  /// Spent so far from the categories that aren't put aside, as far as it
+  /// counts against this period.
+  final int spent;
+
+  /// What those categories still take past what's spent.
+  final int toSpend;
+
+  /// The Safety net and goals.
+  final int putAside;
+
+  /// Whether the income is known: the period has ended, or pay is set up
+  /// in this currency. Otherwise more may still come, and a shortfall
+  /// isn't one yet.
+  final bool sure;
+
+  int get income => cameIn + toCome;
+  int get takes => spent + toSpend + putAside;
+
+  /// What the period takes past its income; below zero, what it leaves.
+  int get over => takes - income;
+
+  /// Each currency with income in the period, or pay set up in it, from
+  /// [start] to [end] ([b]'s period), tugrik first; with none, the
+  /// budget's own currency when anything is planned. [categories] are the
+  /// ones the Budget page counts, archived ones too; [saved] those put
+  /// aside.
+  static List<IncomeFit> of(
+    LedgerData data,
+    Budget b,
+    Iterable<AccountInfo> categories, {
+    required Set<int> saved,
+    required DateTime start,
+    required DateTime end,
+    required DateTime today,
+    required PeriodPay pay,
+  }) {
+    final spent = <Currency, int>{},
+        toSpend = <Currency, int>{},
+        aside = <Currency, int>{};
+    void add(Map<Currency, int> m, Currency c, int v) {
+      if (v > 0) m[c] = (m[c] ?? 0) + v;
+    }
+
+    for (final c in categories) {
+      final l = b.lines[c.id];
+      if (l == null) continue;
+      final plan = l.plan;
+      final asked = plan != null ? plan.planned : max(l.assigned, 0);
+      if (saved.contains(c.id) || isGoal(data, c.id)) {
+        // Spending from what was put aside is what it was for.
+        add(aside, l.currency, asked);
+      } else {
+        final out = max(l.spent, 0);
+        final takes = max<int>(asked, out - max(l.fromBefore, 0));
+        final now = min<int>(out, takes);
+        add(spent, l.currency, now);
+        add(toSpend, l.currency, takes - now);
+      }
+    }
+    // Money out left without a category was spent all the same; it's in
+    // no envelope, so count it from the rows. Money in waiting there isn't
+    // taken off it.
+    final waiting = {
+      for (final c in data.categories)
+        if (isUncategorized(c)) c.id,
+    };
+    for (final x in data.txns) {
+      if (x.scheduled || x.date.isBefore(start) || x.date.isAfter(end)) {
+        continue;
+      }
+      for (final e in x.entries) {
+        if (waiting.contains(e.accountId)) add(spent, e.currency, e.amount);
+      }
+    }
+    final came = b.cameIn[data.income?.id] ?? const <Currency, int>{};
+    bool earns(Currency c) => (came[c] ?? 0) > 0 || (pay.expected[c] ?? 0) > 0;
+    int takes(Currency c) =>
+        (spent[c] ?? 0) + (toSpend[c] ?? 0) + (aside[c] ?? 0);
+    final shown = [
+      for (final c in Currency.values)
+        if (earns(c)) c,
+    ];
+    if (shown.isEmpty && takes(b.currency) > 0) shown.add(b.currency);
+    final ended = dateOnly(today).isAfter(end);
+    return [
+      for (final c in shown)
+        IncomeFit(
+          currency: c,
+          cameIn: came[c] ?? 0,
+          toCome: pay.toCome[c] ?? 0,
+          spent: spent[c] ?? 0,
+          toSpend: toSpend[c] ?? 0,
+          putAside: aside[c] ?? 0,
+          sure: ended || (pay.expected[c] ?? 0) > 0,
+        ),
+    ];
+  }
 }

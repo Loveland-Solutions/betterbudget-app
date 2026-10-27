@@ -10488,5 +10488,107 @@
         "type": "String"
       }
     }
+  },
+  "planFitOverMonth": "{month}’s plans take {amount} more than its income",
+  "@planFitOverMonth": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned (spending and money put aside) is more than the month's income; the amount is in coral.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planFitOverPay": "This pay period’s plans take {amount} more than its income",
+  "@planFitOverPay": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitOverMonth, when the Budget page is by pay period.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planFitSpareMonth": "{month}’s plans fit in its income, with {amount} to spare",
+  "@planFitSpareMonth": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned is less than the month's income.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planFitSparePay": "This pay period’s plans fit in its income, with {amount} to spare",
+  "@planFitSparePay": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitSpareMonth, by pay period.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planFitEvenMonth": "{month}’s plans take exactly its income",
+  "@planFitEvenMonth": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned is exactly the month's income.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planFitEvenPay": "This pay period’s plans take exactly its income",
+  "@planFitEvenPay": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitEvenMonth, by pay period."
+  },
+  "planFitSpent": "Spent so far",
+  "@planFitSpent": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's first part: what the spending categories have spent in the period."
+  },
+  "planFitToSpend": "Still to spend",
+  "@planFitToSpend": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's second part: what the spending categories' plans (or what's assigned to them) still take past what's spent."
+  },
+  "planFitAside": "Saved",
+  "@planFitAside": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's third part: the Safety net and savings goals, the word they sit under on this page (planSaved)."
+  },
+  "planFitIncome": "Income",
+  "@planFitIncome": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): the mark on the bar where the period's income ends."
+  },
+  "planFitToCome": "{amount} still to come",
+  "@planFitToCome": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): under Income: pay the schedules still expect in the period.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planFitOverPayThen": "That pay period’s plans take {amount} more than its income",
+  "@planFitOverPayThen": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitOverPay, for a pay period other than today's.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planFitSparePayThen": "That pay period’s plans fit in its income, with {amount} to spare",
+  "@planFitSparePayThen": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitSparePay, for a pay period other than today's.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planFitEvenPayThen": "That pay period’s plans take exactly its income",
+  "@planFitEvenPayThen": {
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitEvenPay, for a pay period other than today's."
   }
 }

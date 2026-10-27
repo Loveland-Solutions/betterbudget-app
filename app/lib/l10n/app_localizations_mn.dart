@@ -6738,4 +6738,64 @@ class WordsMn extends Words {
   String goalsTotal(String amount) {
     return 'Энэ сард зорилгууддаа $amount';
   }
+
+  @override
+  String planFitOverMonth(String month, String amount) {
+    return '$monthын төлөвлөгөө орлогоосоо илүү байна: $amount';
+  }
+
+  @override
+  String planFitOverPay(String amount) {
+    return 'Энэ цалингийн үеийн төлөвлөгөө орлогоосоо илүү байна: $amount';
+  }
+
+  @override
+  String planFitSpareMonth(String month, String amount) {
+    return '$monthын төлөвлөгөө орлогод багтаж байна, илүү гарах нь: $amount';
+  }
+
+  @override
+  String planFitSparePay(String amount) {
+    return 'Энэ цалингийн үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: $amount';
+  }
+
+  @override
+  String planFitEvenMonth(String month) {
+    return '$monthын төлөвлөгөө орлоготой яг тэнцүү';
+  }
+
+  @override
+  String get planFitEvenPay =>
+      'Энэ цалингийн үеийн төлөвлөгөө орлоготой яг тэнцүү';
+
+  @override
+  String get planFitSpent => 'Одоогоор зарцуулсан';
+
+  @override
+  String get planFitToSpend => 'Цаашид зарцуулах';
+
+  @override
+  String get planFitAside => 'Хуримтлал';
+
+  @override
+  String get planFitIncome => 'Орлого';
+
+  @override
+  String planFitToCome(String amount) {
+    return 'Цаашид орох: $amount';
+  }
+
+  @override
+  String planFitOverPayThen(String amount) {
+    return 'Тэр цалингийн үеийн төлөвлөгөө орлогоосоо илүү байна: $amount';
+  }
+
+  @override
+  String planFitSparePayThen(String amount) {
+    return 'Тэр цалингийн үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: $amount';
+  }
+
+  @override
+  String get planFitEvenPayThen =>
+      'Тэр цалингийн үеийн төлөвлөгөө орлоготой яг тэнцүү';
 }

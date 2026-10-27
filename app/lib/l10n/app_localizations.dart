@@ -9708,6 +9708,90 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{amount} this month to your goals'**
   String goalsTotal(String amount);
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned (spending and money put aside) is more than the month's income; the amount is in coral.
+  ///
+  /// In en, this message translates to:
+  /// **'{month}’s plans take {amount} more than its income'**
+  String planFitOverMonth(String month, String amount);
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitOverMonth, when the Budget page is by pay period.
+  ///
+  /// In en, this message translates to:
+  /// **'This pay period’s plans take {amount} more than its income'**
+  String planFitOverPay(String amount);
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned is less than the month's income.
+  ///
+  /// In en, this message translates to:
+  /// **'{month}’s plans fit in its income, with {amount} to spare'**
+  String planFitSpareMonth(String month, String amount);
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitSpareMonth, by pay period.
+  ///
+  /// In en, this message translates to:
+  /// **'This pay period’s plans fit in its income, with {amount} to spare'**
+  String planFitSparePay(String amount);
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned is exactly the month's income.
+  ///
+  /// In en, this message translates to:
+  /// **'{month}’s plans take exactly its income'**
+  String planFitEvenMonth(String month);
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitEvenMonth, by pay period.
+  ///
+  /// In en, this message translates to:
+  /// **'This pay period’s plans take exactly its income'**
+  String get planFitEvenPay;
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's first part: what the spending categories have spent in the period.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent so far'**
+  String get planFitSpent;
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's second part: what the spending categories' plans (or what's assigned to them) still take past what's spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Still to spend'**
+  String get planFitToSpend;
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's third part: the Safety net and savings goals, the word they sit under on this page (planSaved).
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get planFitAside;
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): the mark on the bar where the period's income ends.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get planFitIncome;
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): under Income: pay the schedules still expect in the period.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} still to come'**
+  String planFitToCome(String amount);
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitOverPay, for a pay period other than today's.
+  ///
+  /// In en, this message translates to:
+  /// **'That pay period’s plans take {amount} more than its income'**
+  String planFitOverPayThen(String amount);
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitSparePay, for a pay period other than today's.
+  ///
+  /// In en, this message translates to:
+  /// **'That pay period’s plans fit in its income, with {amount} to spare'**
+  String planFitSparePayThen(String amount);
+
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitEvenPay, for a pay period other than today's.
+  ///
+  /// In en, this message translates to:
+  /// **'That pay period’s plans take exactly its income'**
+  String get planFitEvenPayThen;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-27** · version 0.59.0 · schema v22 · 931 tests pass
+**Last updated: 2026-10-27** · version 0.60.0 · schema v22 · 939 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -20,8 +20,21 @@ The upload key may now release to production too; a release there is still the o
 say each time.
 
 **Next: the owner's pick from the board's Next column, Beta milestone.** The four
-combs are done (#161: Ledger, Budget, Savings, Payees), and so are the Savings goals.
-What's left for beta there: the native speaker's check of the Mongolian (#90).
+combs are done (#161: Ledger, Budget, Savings, Payees), and so are the Savings goals
+and living on the income (#234). What's left for beta there: the native speaker's
+check of the Mongolian (#90); the store listings say free on Play and the Microsoft
+Store, and Apple's waits for its listing (#98).
+
+**Living on the income** (0.60.0, #234; ADR 0004 "Living on the income"): a card
+under Budget's key card, one block per currency with income or pay: "October's
+plans take ₮350,000 more than its income" (coral) or "… fit in its income, with
+₮150,000 to spare", and a bar of Spent so far, Still to spend and Saved against a
+mark where Income ends. Income is the period's own: what came in, plus pay still
+expected from today on. A category takes its plan (no plan: its Assigned), or what
+it spends past what it held from before; the Safety net and goals count too. Coral
+only once the income is known (pay set up, or the period over). The card steps
+aside while a category's Edit is open (`IncomeFit`, `periodPay` in
+`domain/budget.dart`; `_IncomeFitCard` in `ui/budget.dart`).
 
 **Goals on Savings** (0.59.0, #101 and #102; ADR 0004 "Goals on Savings"): a Goals
 section under the four steps. A goal is a once-only "On a date" line marked a goal

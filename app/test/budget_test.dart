@@ -2890,4 +2890,168 @@ void main() {
       expect(back.lines[snacks]!.assigned, 5000000);
     });
   });
+
+  group('living on the income (#234)', () {
+    const net = 40, school = 41, gifts = 42;
+    const pay = PaySchedule(
+      id: 1,
+      categoryId: salary,
+      accountId: checking,
+      amount: 160000000,
+      rule: PayRule.twiceMonthly,
+      day1: 10,
+      day2: 25,
+      weekend: PayWeekend.keep,
+    );
+    CategoryPlan each(int category, int amount) => CategoryPlan(
+      categoryId: category,
+      kind: PlanKind.each,
+      amount: amount,
+      start: DateTime(2026, 10, 1),
+    );
+    LedgerData month({
+      List<TxnData> more = const [],
+      List<CategoryPlan> plans = const [],
+      List<BudgetAmount> amounts = const [],
+      List<PaySchedule> pays = const [pay],
+    }) => ledger(
+      pay: pays,
+      more: [
+        acct(
+          net,
+          'Safety net',
+          AccountType.expense,
+          role: AccountRole.emergencyFund,
+        ),
+        acct(school, 'School fees', AccountType.expense),
+        acct(gifts, 'Cash box', AccountType.asset),
+      ],
+      plans: [
+        each(food, 200000000),
+        each(housing, 80000000),
+        each(net, 25000000),
+        ...plans,
+      ],
+      amounts: [
+        put(food, oct.start, 100000000),
+        put(dining, oct.start, 50000000),
+        ...amounts,
+      ],
+      rows: [
+        move(DateTime(2026, 10, 10), salary, checking, 160000000),
+        move(DateTime(2026, 10, 12), checking, food, 120000000),
+        move(DateTime(2026, 10, 13), checking, coffee, 10000000),
+        move(DateTime(2026, 10, 14), checking, waiting, 5000000),
+        ...more,
+      ],
+    );
+    IncomeFit fit(
+      LedgerData d, {
+      ({DateTime start, DateTime end})? period,
+      DateTime? on,
+    }) {
+      final p = period ?? oct;
+      final day = on ?? today;
+      final b = Budget.of(d, start: p.start, end: p.end, today: day);
+      final fits = IncomeFit.of(
+        d,
+        b,
+        d.categories.where((c) => !c.isIncome && !isUncategorized(c)),
+        saved: {net},
+        start: p.start,
+        end: p.end,
+        today: day,
+        pay: periodPay(d, start: p.start, end: p.end, today: day),
+      );
+      expect(fits.map((f) => f.currency), [Currency.mnt]);
+      return fits.single;
+    }
+
+    test('the month against its own income, not the balance', () {
+      final f = fit(month());
+      // ₮1,600,000 came on the 10th; the 25th's is still to come.
+      expect(f.cameIn, 160000000);
+      expect(f.toCome, 160000000);
+      expect(f.income, 320000000);
+      expect(f.sure, isTrue);
+      // Groceries spent past what's assigned, Coffee with nothing in it,
+      // and a row with no category: all spent.
+      expect(f.spent, 120000000 + 10000000 + 5000000);
+      // Groceries' plan past what it spent, Dining out's Assigned with no
+      // plan, Housing's plan.
+      expect(f.toSpend, 80000000 + 50000000 + 80000000);
+      // Put aside counts against the income too (owner, 2026-10-27).
+      expect(f.putAside, 25000000);
+      expect(f.over, 370000000 - 320000000);
+    });
+
+    test('pay that came early still counts once', () {
+      final f = fit(
+        month(
+          more: [move(DateTime(2026, 10, 19), salary, checking, 160000000)],
+        ),
+      );
+      expect(f.cameIn, 320000000);
+      expect(f.toCome, 0);
+    });
+
+    test('a gift into another account adds to the month', () {
+      final f = fit(
+        month(more: [move(DateTime(2026, 10, 12), salary, gifts, 50000000)]),
+      );
+      expect(f.cameIn, 210000000);
+      expect(f.toCome, 160000000);
+    });
+
+    test('a payday gone by without its pay is not counted on', () {
+      final late = fit(month(), on: DateTime(2026, 10, 28));
+      expect(late.toCome, 0);
+      expect(late.income, 160000000);
+      // A month gone by expects nothing more.
+      final sep = (start: DateTime(2026, 9, 1), end: DateTime(2026, 9, 30));
+      expect(fit(month(), period: sep).toCome, 0);
+    });
+
+    test('a bill saved for over months counts its share when paid', () {
+      final d = month(
+        plans: [each(school, 10000000)],
+        amounts: [
+          for (var m = 2; m <= 10; m++)
+            put(school, DateTime(2026, m, 1), 10000000),
+        ],
+        more: [move(DateTime(2026, 10, 15), checking, school, 90000000)],
+      );
+      final f = fit(d);
+      // ₮900,000 paid, ₮800,000 of it saved before October.
+      expect(f.spent, 120000000 + 10000000 + 5000000 + 10000000);
+      expect(f.over, 370000000 + 10000000 - 320000000);
+    });
+
+    test('money already there, assigned past a plan, is not this month\'s', () {
+      final f = fit(month(amounts: [put(net, oct.start, 500000000)]));
+      expect(f.putAside, 25000000);
+    });
+
+    test('money in waiting for a category takes nothing off spending', () {
+      final f = fit(
+        month(
+          more: [move(DateTime(2026, 10, 15), waiting, checking, 90000000)],
+        ),
+      );
+      expect(f.spent, 120000000 + 10000000 + 5000000);
+    });
+
+    test(
+      'with no pay set up, a shortfall is not sure until the month ends',
+      () {
+        expect(fit(month(pays: const [])).sure, isFalse);
+        final sep = (start: DateTime(2026, 9, 1), end: DateTime(2026, 9, 30));
+        final gone = month(
+          pays: const [],
+          more: [move(DateTime(2026, 9, 10), salary, checking, 1000)],
+        );
+        expect(fit(gone, period: sep).sure, isTrue);
+      },
+    );
+  });
 }

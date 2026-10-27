@@ -914,6 +914,8 @@ void main() {
     // Another category's Edit does (owner, 2026-10-26): No leaves it out,
     // and ⌘Z puts it back.
     final gid = data.categories.firstWhere((c) => c.name == 'Groceries').id;
+    await tester.ensureVisible(find.byKey(ValueKey('category-menu-$gid')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(ValueKey('category-menu-$gid')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('category-edit')));
@@ -5789,6 +5791,12 @@ void main() {
         await tester.drag(find.byType(ListView).last, const Offset(0, 1000));
         await tester.pumpAndSettle();
       }
+      // Under the income card (#234) a lower row can sit below the list's
+      // edge.
+      if (find.text(name).hitTestable().evaluate().isEmpty) {
+        await tester.ensureVisible(find.text(name));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text(name), buttons: kSecondaryButton);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey(item)));
@@ -5894,7 +5902,7 @@ void main() {
           'rows; an open Edit stays open across ‹ ›', (tester) async {
         final db = await pumpLedger(tester);
         await openBudget(tester);
-        await tester.tap(find.text('Income').first);
+        await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
         await tester.pumpAndSettle();
         for (var i = 0; i < 40; i++) {
           await press(tester, LogicalKeyboardKey.tab);
@@ -7690,6 +7698,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Its menu, from a right-click or ⋯, is Edit and Delete.
+      await tester.ensureVisible(find.text('Coffee'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Coffee'), buttons: kSecondaryButton);
       await tester.pumpAndSettle();
       expect(find.byType(MenuItemButton), findsNWidgets(2));
@@ -8344,6 +8354,8 @@ void main() {
       // The usage, at the bottom of Edit (here from ⋯), opens every row,
       // all time.
       await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(ValueKey('category-menu-${groceries.id}')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('category-menu-${groceries.id}')));
       await tester.pumpAndSettle();

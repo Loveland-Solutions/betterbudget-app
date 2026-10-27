@@ -1588,5 +1588,19 @@
   "goalDoneStatus": "Дууссан",
   "goalDoneLeft": "Төсвийн «{name}» мөрөнд {amount} үлдсэн байна.",
   "goalDoneNote": "Төсөв үүнд өөр мөнгө хүсэхгүй.",
-  "goalsTotal": "Энэ сард зорилгууддаа {amount}"
+  "goalsTotal": "Энэ сард зорилгууддаа {amount}",
+  "planFitOverMonth": "{month}ын төлөвлөгөө орлогоосоо илүү байна: {amount}",
+  "planFitOverPay": "Энэ цалингийн үеийн төлөвлөгөө орлогоосоо илүү байна: {amount}",
+  "planFitSpareMonth": "{month}ын төлөвлөгөө орлогод багтаж байна, илүү гарах нь: {amount}",
+  "planFitSparePay": "Энэ цалингийн үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: {amount}",
+  "planFitEvenMonth": "{month}ын төлөвлөгөө орлоготой яг тэнцүү",
+  "planFitEvenPay": "Энэ цалингийн үеийн төлөвлөгөө орлоготой яг тэнцүү",
+  "planFitSpent": "Одоогоор зарцуулсан",
+  "planFitToSpend": "Цаашид зарцуулах",
+  "planFitAside": "Хуримтлал",
+  "planFitIncome": "Орлого",
+  "planFitToCome": "Цаашид орох: {amount}",
+  "planFitOverPayThen": "Тэр цалингийн үеийн төлөвлөгөө орлогоосоо илүү байна: {amount}",
+  "planFitSparePayThen": "Тэр цалингийн үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: {amount}",
+  "planFitEvenPayThen": "Тэр цалингийн үеийн төлөвлөгөө орлоготой яг тэнцүү"
 }
