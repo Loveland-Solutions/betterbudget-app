@@ -1215,15 +1215,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String planPaidFromSeveral(int count) {
-    return '$count accounts are checked, so this bill isn’t in any forecast. Leave one checked to see it there.';
-  }
-
-  @override
-  String get planPaidFromNoneChecked =>
-      'No account is checked, so this bill isn’t in any forecast.';
-
-  @override
   String planRunsOutZero(String date) {
     return 'Runs out on $date';
   }
@@ -2036,6 +2027,16 @@ class WordsEn extends Words {
   String get rowsTabScheduled => 'Scheduled';
 
   @override
+  String ledgerRowLine(String date, String amount, String payee) {
+    return '$date · $amount · $payee';
+  }
+
+  @override
+  String ledgerRowLineNoPayee(String date, String amount) {
+    return '$date · $amount';
+  }
+
+  @override
   String ledgerFiledUnder(Object category) {
     return 'Filed under $category';
   }
@@ -2274,11 +2275,11 @@ class WordsEn extends Words {
   @override
   String rowsNeeds(String field) {
     String _temp0 = intl.Intl.selectLogic(field, {
-      'when': 'needs date',
-      'account': 'needs account',
-      'payee': 'needs payee',
-      'category': 'needs category',
-      'other': 'needs amount',
+      'when': 'Type a date',
+      'account': 'Choose an account',
+      'payee': 'Type a payee',
+      'category': 'Choose a category',
+      'other': 'Type an amount',
     });
     return '$_temp0';
   }
@@ -2297,7 +2298,7 @@ class WordsEn extends Words {
 
   @override
   String rowsNeedsMore(int count) {
-    return 'needs $count more';
+    return '$count more to fill in';
   }
 
   @override
@@ -3372,6 +3373,15 @@ class WordsEn extends Words {
   }
 
   @override
+  String get rowsDueYesterdayNotInWorking =>
+      'due yesterday · not in Working yet';
+
+  @override
+  String rowsDueDaysAgoNotInWorking(int days) {
+    return 'due $days days ago · not in Working yet';
+  }
+
+  @override
   String startDayOn(String ordinal, int day, String isTwo) {
     return '$ordinal';
   }
@@ -3582,7 +3592,7 @@ class WordsEn extends Words {
 
   @override
   String importClearedDiffers(Object ours, Object bank, Object diff) {
-    return 'After this, the cleared balance is $ours; the bank’s file ends at $bank, $diff apart. Rows from before this file, or ones not cleared, can make the difference.';
+    return '$diff apart from the bank. After this, the cleared balance is $ours; the bank’s file ends at $bank. Rows from before this file, or ones not cleared, can make the difference.';
   }
 
   @override
@@ -3597,7 +3607,7 @@ class WordsEn extends Words {
     Object date,
     Object diff,
   ) {
-    return 'After this, the cleared balance is $ours; the bank’s was $bank on $date, $diff apart. Rows after that day, rows from before this file, or ones not cleared, can make the difference.';
+    return '$diff apart from the bank. After this, the cleared balance is $ours; the bank’s was $bank on $date. Rows after that day, rows from before this file, or ones not cleared, can make the difference.';
   }
 
   @override
@@ -4638,16 +4648,6 @@ class WordsEn extends Words {
   String get planMoneyCurrency => 'Currency';
 
   @override
-  String planOnlyFromOne(String account) {
-    return 'only from $account';
-  }
-
-  @override
-  String planOnlyFromSome(int count, int total) {
-    return 'only from $count of $total accounts';
-  }
-
-  @override
   String planMoneyUndo(String category) {
     return 'Accounts for $category';
   }
@@ -4677,16 +4677,8 @@ class WordsEn extends Words {
     String category,
     String rest,
   ) {
-    return '$held of what’s in $account is for $category. The other $rest there can still be assigned to any category.';
+    return '$held of what’s in $account is for $category. $rest there is in no category yet and can be assigned.';
   }
-
-  @override
-  String planMoneyRestSome(String held, String category, String rest) {
-    return '$held of what’s in these accounts is for $category. The other $rest there can still be assigned to any category.';
-  }
-
-  @override
-  String get planFromNone => 'no account checked';
 
   @override
   String planOtherRows(int count, String amount, String symbol, String other) {
@@ -4702,28 +4694,18 @@ class WordsEn extends Words {
   }
 
   @override
-  String planOffAccount(String amount, String account) {
-    return '$amount paid from $account, which this category doesn’t use';
-  }
-
-  @override
-  String planOffAccounts(String amount, int count) {
-    return '$amount paid from $count accounts this category doesn’t use';
-  }
-
-  @override
   String planBackingOne(String held, String account, String have) {
     return '$held left here, but $account holds $have';
   }
 
   @override
-  String planBackingSome(String held, String have) {
-    return '$held left here, but its accounts hold $have';
-  }
-
-  @override
-  String planBackingShared(String held, int count, String have) {
-    return '$held left in $count categories kept in the same accounts, which hold $have';
+  String planBackingShared(
+    String held,
+    int count,
+    String account,
+    String have,
+  ) {
+    return '$held left in $count categories kept in $account, which holds $have';
   }
 
   @override
@@ -5012,6 +4994,33 @@ class WordsEn extends Words {
   String get planRowWillRead => 'The row will read';
 
   @override
+  String get planPaidFromChoose => 'Choose an account';
+
+  @override
+  String get planPaidFromWanted =>
+      'Choose the account it’s paid from. Any account in its currency can still pay it.';
+
+  @override
+  String planPaidFromSpendHint(String account) {
+    return 'What’s left of it comes out of $account’s forecast a day at a time.';
+  }
+
+  @override
+  String planSpendingFromBudget(String amount) {
+    return '$amount of spending from the budget';
+  }
+
+  @override
+  String planPaidFromGone(String account) {
+    return 'Paid from $account, which is archived: pick another to see it in a forecast';
+  }
+
+  @override
+  String planTakeOut(String amount, String date) {
+    return 'You’ll need to take out about $amount by $date';
+  }
+
+  @override
   String get planLabelPaidFrom => 'Paid from';
 
   @override
@@ -5030,17 +5039,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planAccountsAll => 'All accounts';
-
-  @override
-  String get planAccountsNone => 'No accounts';
-
-  @override
-  String planAccountsSome(int count, int total) {
-    return '$count of $total accounts';
-  }
-
-  @override
   String get setupCurrencySearch => 'Search currencies';
 
   @override
@@ -5055,13 +5053,19 @@ class WordsEn extends Words {
   }
 
   @override
+  String planIncomeUncategorized(String amount) {
+    return '$amount more came in and is still in Not categorized: file it under Income to count it here.';
+  }
+
+  @override
   String planIncomeLine(String amounts) {
     return 'Income: $amounts';
   }
 
   @override
-  String get rowsNewCategoryRefundNote =>
-      'new category · money in counts as a refund to it; for pay, pick Income';
+  String rowsNewCategoryRefundNote(String category) {
+    return 'Money in counts as a refund to $category. For pay, pick Income.';
+  }
 
   @override
   String ledgerPayReplaced(int count) {
@@ -5172,14 +5176,14 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count of your entries are waiting for your computer',
-      one: '1 of your entries is waiting for your computer',
+      other: '$count entries aren’t in your ledger yet',
+      one: '1 entry isn’t in your ledger yet',
     );
     return '$_temp0';
   }
 
   @override
-  String get phoneWaitingTitle => 'Waiting for your computer';
+  String get phoneWaitingTitle => 'Not in your ledger yet';
 
   @override
   String phoneOwed(String amount) {
@@ -5402,8 +5406,8 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new categories are waiting for your computer',
-      one: '1 new category is waiting for your computer',
+      other: '$count new categories aren’t in your ledger yet',
+      one: '1 new category isn’t in your ledger yet',
     );
     return '$_temp0';
   }
@@ -5413,8 +5417,8 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       entries,
       locale: localeName,
-      other: '$entries of your entries',
-      one: '1 of your entries',
+      other: '$entries entries',
+      one: '1 entry',
     );
     String _temp1 = intl.Intl.pluralLogic(
       categories,
@@ -5422,7 +5426,7 @@ class WordsEn extends Words {
       other: '$categories new categories',
       one: '1 new category',
     );
-    return '$_temp0 and $_temp1 are waiting for your computer';
+    return '$_temp0 and $_temp1 aren’t in your ledger yet';
   }
 
   @override

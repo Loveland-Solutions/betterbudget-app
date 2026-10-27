@@ -1704,18 +1704,6 @@ abstract class Words {
   /// **'{count} of them expected'**
   String planOfThemExpected(int count);
 
-  /// Budget page, Edit under a category's row (Yes): note beside Paid from while two or more accounts are checked (the bill is scheduled only in a single account)
-  ///
-  /// In en, this message translates to:
-  /// **'{count} accounts are checked, so this bill isn’t in any forecast. Leave one checked to see it there.'**
-  String planPaidFromSeveral(int count);
-
-  /// Budget page, Edit under a category's row (Yes): note beside Paid from while no account is checked
-  ///
-  /// In en, this message translates to:
-  /// **'No account is checked, so this bill isn’t in any forecast.'**
-  String get planPaidFromNoneChecked;
-
   /// Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip
   ///
   /// In en, this message translates to:
@@ -2861,6 +2849,18 @@ abstract class Words {
   /// **'Scheduled'**
   String get rowsTabScheduled;
 
+  /// Popup's second line after a row's category is changed: which row it is, since a bank repeats payees. {date} is like 09.15, {amount} like −₮200 (money out has a minus), {payee} the row's payee.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · {amount} · {payee}'**
+  String ledgerRowLine(String date, String amount, String payee);
+
+  /// As ledgerRowLine, for a row with no payee: its date and amount.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · {amount}'**
+  String ledgerRowLineNoPayee(String date, String amount);
+
   /// Popup at the bottom, and the undo label, after a row's category is picked from its dropdown. The row's payee is on the line under it. category may be Income, or Income and a pay's name.
   ///
   /// In en, this message translates to:
@@ -3152,7 +3152,7 @@ abstract class Words {
   /// Entry row, note by Add: the one required field still empty. field is when (the date), account, payee, category or amount
   ///
   /// In en, this message translates to:
-  /// **'{field, select, when{needs date} account{needs account} payee{needs payee} category{needs category} other{needs amount}}'**
+  /// **'{field, select, when{Type a date} account{Choose an account} payee{Type a payee} category{Choose a category} other{Type an amount}}'**
   String rowsNeeds(String field);
 
   /// Popup when Enter is pressed on a row with a required field empty: the first one. field is when (the date), account, payee, category or amount
@@ -3164,7 +3164,7 @@ abstract class Words {
   /// Entry row, note by Add: how many required fields are still empty (2 or more)
   ///
   /// In en, this message translates to:
-  /// **'needs {count} more'**
+  /// **'{count} more to fill in'**
   String rowsNeedsMore(int count);
 
   /// Entry row, button beside Save while editing a transaction: closes the row without saving
@@ -4755,6 +4755,18 @@ abstract class Words {
   /// **'due {days} days ago'**
   String startDueDaysAgo(int days);
 
+  /// Register row, small note on a scheduled bill or income one day past its date: Working leaves scheduled rows out until they are confirmed. Lowercase in English.
+  ///
+  /// In en, this message translates to:
+  /// **'due yesterday · not in Working yet'**
+  String get rowsDueYesterdayNotInWorking;
+
+  /// Register row, small note on a scheduled bill or income past its date, e.g. 'due 7 days ago · not in Working yet': Working leaves scheduled rows out until they are confirmed. The forecast's bill list says only startDueDaysAgo, since the forecast counts it as today.
+  ///
+  /// In en, this message translates to:
+  /// **'due {days} days ago · not in Working yet'**
+  String rowsDueDaysAgoNotInWorking(int days);
+
   /// A day of the month something happens on, inside the pay phrases below: English '25th'. Mongolian puts the dative ending on the number ('25-нд', '2-т'); isTwo is 'yes' when the number ends in 2 (хоёр → хоёрт).
   ///
   /// In en, this message translates to:
@@ -5044,7 +5056,7 @@ abstract class Words {
   /// Import window: the account's cleared balance after importing differs from the file's last balance.
   ///
   /// In en, this message translates to:
-  /// **'After this, the cleared balance is {ours}; the bank’s file ends at {bank}, {diff} apart. Rows from before this file, or ones not cleared, can make the difference.'**
+  /// **'{diff} apart from the bank. After this, the cleared balance is {ours}; the bank’s file ends at {bank}. Rows from before this file, or ones not cleared, can make the difference.'**
   String importClearedDiffers(Object ours, Object bank, Object diff);
 
   /// Import window, an OFX file: the account's cleared balance after importing equals the one balance the file gives. date in words.
@@ -5056,7 +5068,7 @@ abstract class Words {
   /// Import window, an OFX file: the account's cleared balance after importing differs from the one balance the file gives. date in words.
   ///
   /// In en, this message translates to:
-  /// **'After this, the cleared balance is {ours}; the bank’s was {bank} on {date}, {diff} apart. Rows after that day, rows from before this file, or ones not cleared, can make the difference.'**
+  /// **'{diff} apart from the bank. After this, the cleared balance is {ours}; the bank’s was {bank} on {date}. Rows after that day, rows from before this file, or ones not cleared, can make the difference.'**
   String importClearedDiffersOn(
     Object ours,
     Object bank,
@@ -6551,18 +6563,6 @@ abstract class Words {
   /// **'Currency'**
   String get planMoneyCurrency;
 
-  /// Budget page: note under a category's name when it uses one account only
-  ///
-  /// In en, this message translates to:
-  /// **'only from {account}'**
-  String planOnlyFromOne(String account);
-
-  /// Budget page: note under a category's name when some of its currency's accounts are unchecked
-  ///
-  /// In en, this message translates to:
-  /// **'only from {count} of {total} accounts'**
-  String planOnlyFromSome(int count, int total);
-
   /// Undo history label for changing which accounts a category uses (shown in Undone/Redone toasts)
   ///
   /// In en, this message translates to:
@@ -6593,10 +6593,10 @@ abstract class Words {
   /// **'Changing the currency removes its plan'**
   String get planMoneyChangePlan;
 
-  /// Budget page, a category's currency and accounts: line under the checklist when one account is left checked; says with real amounts what unchecking does and doesn't reserve
+  /// Category Edit, under Paid from, for a category that keeps money (a bill, savings, one that carries over) paid from a cash or bank account: what of the account is this category's, and what's left in it once every category paid from it has its share (#183). Shown only when that's above zero.
   ///
   /// In en, this message translates to:
-  /// **'{held} of what’s in {account} is for {category}. The other {rest} there can still be assigned to any category.'**
+  /// **'{held} of what’s in {account} is for {category}. {rest} there is in no category yet and can be assigned.'**
   String planMoneyRestOne(
     String held,
     String account,
@@ -6604,35 +6604,11 @@ abstract class Words {
     String rest,
   );
 
-  /// The same line, when several accounts are left checked and some are unchecked
-  ///
-  /// In en, this message translates to:
-  /// **'{held} of what’s in these accounts is for {category}. The other {rest} there can still be assigned to any category.'**
-  String planMoneyRestSome(String held, String category, String rest);
-
-  /// Budget page: note under a category's name when every account is unchecked
-  ///
-  /// In en, this message translates to:
-  /// **'no account checked'**
-  String get planFromNone;
-
   /// Budget page: gold note under a category's name; rows in the other currency are filed under it. It stays until they're fixed; clicking shows them
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{{amount} in 1 row isn’t counted here (this category is in {symbol}); it came out of {other} not assigned} other{{amount} in {count} rows isn’t counted here (this category is in {symbol}); it came out of {other} not assigned}}'**
   String planOtherRows(int count, String amount, String symbol, String other);
-
-  /// Budget page: gold note under a category's name; this period it was paid from an account unchecked for it and the money wasn't moved there (the spending still counts)
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} paid from {account}, which this category doesn’t use'**
-  String planOffAccount(String amount, String account);
-
-  /// The same note, when more than one such account paid
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} paid from {count} accounts this category doesn’t use'**
-  String planOffAccounts(String amount, int count);
 
   /// Budget page: coral note under a category's name; it keeps its money in one account and that account holds less than the category has left
   ///
@@ -6640,17 +6616,11 @@ abstract class Words {
   /// **'{held} left here, but {account} holds {have}'**
   String planBackingOne(String held, String account, String have);
 
-  /// The same note, when it keeps its money in several accounts
+  /// The same note, when several categories paid from the same account and keeping money in it together have more left than it holds. {account} is the account, like “Khan Savings”.
   ///
   /// In en, this message translates to:
-  /// **'{held} left here, but its accounts hold {have}'**
-  String planBackingSome(String held, String have);
-
-  /// The same note, when several categories limited to the same accounts together have more left than those accounts hold
-  ///
-  /// In en, this message translates to:
-  /// **'{held} left in {count} categories kept in the same accounts, which hold {have}'**
-  String planBackingShared(String held, int count, String have);
+  /// **'{held} left in {count} categories kept in {account}, which holds {have}'**
+  String planBackingShared(String held, int count, String account, String have);
 
   /// Budget page, a category's menu (⋯ or right-click): opens everything about the category under its row; a double-click on the row does the same
   ///
@@ -7120,6 +7090,42 @@ abstract class Words {
   /// **'The row will read'**
   String get planRowWillRead;
 
+  /// Category Edit and New category, Paid from: the button before an account is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an account'**
+  String get planPaidFromChoose;
+
+  /// Category Edit and New category, beside Paid from in coral, when Save was clicked before an account was chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the account it’s paid from. Any account in its currency can still pay it.'**
+  String get planPaidFromWanted;
+
+  /// Category Edit, beside Paid from, for a set amount that goes back when the period ends (spent down, like groceries): the forecast takes what's left out of that account day by day. {account} is like “TDB Checking”.
+  ///
+  /// In en, this message translates to:
+  /// **'What’s left of it comes out of {account}’s forecast a day at a time.'**
+  String planPaidFromSpendHint(String account);
+
+  /// Forecast, after the bills it counts: what the budget expects spent from this account before the forecast's end, taken out a day at a time (groceries, transport and the rest). Follows ' · '. Lowercase start in English.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} of spending from the budget'**
+  String planSpendingFromBudget(String amount);
+
+  /// Budget page, under a category's name: the account it's paid from was archived or deleted, so its bills and spending are in no forecast. Clicking it opens Edit. {account} is like “Golomt Visa”.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid from {account}, which is archived: pick another to see it in a forecast'**
+  String planPaidFromGone(String account);
+
+  /// Forecast headline for a cash account the budget's spending would take below zero: how much to take out of the bank, and by when. Not a warning: the account pay goes into counts it. {amount} like ₮350,000, {date} like 10.24.
+  ///
+  /// In en, this message translates to:
+  /// **'You’ll need to take out about {amount} by {date}'**
+  String planTakeOut(String amount, String date);
+
   /// Budget page, Edit under a category's row, both answers: label of the dropdown of checkboxes over the accounts in the category's currency (cash, bank and cards), all checked to begin with; a dated plan's bill is scheduled in the one account left checked
   ///
   /// In en, this message translates to:
@@ -7143,24 +7149,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Changes to {category}'**
   String planEditedUndo(String category);
-
-  /// Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account in the category's currency is checked
-  ///
-  /// In en, this message translates to:
-  /// **'All accounts'**
-  String get planAccountsAll;
-
-  /// Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account is unchecked
-  ///
-  /// In en, this message translates to:
-  /// **'No accounts'**
-  String get planAccountsNone;
-
-  /// Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when only some accounts are checked (two or more; with one it shows that account's name)
-  ///
-  /// In en, this message translates to:
-  /// **'{count} of {total} accounts'**
-  String planAccountsSome(int count, int total);
 
   /// Add account, the Currency dropdown: hint in the search field at the top of the list of every currency
   ///
@@ -7186,17 +7174,23 @@ abstract class Words {
   /// **'{name} (stopped)'**
   String payStopped(String name);
 
+  /// Budget page, Income tab, under the period's income: money that came in this period and is still in Not categorized (imported pay waits there), which the income above doesn't count. Clicking it shows those rows. {amount} is one amount per currency, like “₮2,500,000”.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more came in and is still in Not categorized: file it under Income to count it here.'**
+  String planIncomeUncategorized(String amount);
+
   /// Budget page, under the not-assigned lines: this period's income, each currency on its own, like "Income: ₮3,200,000.00 · $120.00". A click shows the rows.
   ///
   /// In en, this message translates to:
   /// **'Income: {amounts}'**
   String planIncomeLine(String amounts);
 
-  /// Entry row, gold note when the typed category doesn't exist and the amount has a +: the new category will be a spending one, so the money is a refund, not income.
+  /// Entry row, gold line under the row when the typed category doesn't exist and the amount has a +: the new category will be a spending one, so the money is a refund, not income. {category} is the name typed, like “Nomin”.
   ///
   /// In en, this message translates to:
-  /// **'new category · money in counts as a refund to it; for pay, pick Income'**
-  String get rowsNewCategoryRefundNote;
+  /// **'Money in counts as a refund to {category}. For pay, pick Income.'**
+  String rowsNewCategoryRefundNote(String category);
 
   /// Toast after a pay schedule is saved, joined after "Pay saved · next payday …": the user's own scheduled rows for the same pay were taken over.
   ///
@@ -7363,13 +7357,13 @@ abstract class Words {
   /// Phone app, a line under the categories: entries typed on this phone that the Mac hasn’t taken into the ledger yet. Tapping it lists them.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 of your entries is waiting for your computer} other{{count} of your entries are waiting for your computer}}'**
+  /// **'{count, plural, =1{1 entry isn’t in your ledger yet} other{{count} entries aren’t in your ledger yet}}'**
   String phoneWaiting(int count);
 
   /// Phone app: heading of the list of this phone’s entries the Mac hasn’t taken in yet.
   ///
   /// In en, this message translates to:
-  /// **'Waiting for your computer'**
+  /// **'Not in your ledger yet'**
   String get phoneWaitingTitle;
 
   /// Phone app, Accounts list: a credit card’s or loan’s balance.
@@ -7705,13 +7699,13 @@ abstract class Words {
   /// Phone app, the line that opens the waiting list, when only categories made on this phone are waiting, with no entries.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 new category is waiting for your computer} other{{count} new categories are waiting for your computer}}'**
+  /// **'{count, plural, =1{1 new category isn’t in your ledger yet} other{{count} new categories aren’t in your ledger yet}}'**
   String phoneWaitingCategories(int count);
 
   /// Phone app, the line that opens the waiting list, when both entries and categories made on this phone are waiting.
   ///
   /// In en, this message translates to:
-  /// **'{entries, plural, =1{1 of your entries} other{{entries} of your entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} are waiting for your computer'**
+  /// **'{entries, plural, =1{1 entry} other{{entries} entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} aren’t in your ledger yet'**
   String phoneWaitingBoth(int entries, int categories);
 
   /// Phone app, waiting list: asked before a category made on this phone is deleted while entries are filed in it. {amount} is their total, like ₮18,000.00.

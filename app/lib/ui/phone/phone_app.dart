@@ -83,13 +83,13 @@ class PhoneStore extends ChangeNotifier {
   List<PhoneCategory> get categories => [..._snapshot.categories, ..._made];
 
   /// The category called [name], made now unless there is one already
-  /// (whatever its capitals), with the [plan] and the accounts [off] its
-  /// New category page set.
+  /// (whatever its capitals), with the [plan] and the account it's paid
+  /// from ([paidFromId]) its New category page set.
   PhoneCategory categoryCalled(
     String name,
     Currency currency, {
     CategoryPlan? plan,
-    Set<String> off = const {},
+    String? paidFromId,
   }) {
     final already = categoryNamed(categories, name);
     if (already != null) return already;
@@ -101,7 +101,7 @@ class PhoneStore extends ChangeNotifier {
       currency: currency,
       madeHere: true,
       plan: plan,
-      off: off,
+      paidFromId: paidFromId,
       // A bill's date shows here as the computer's bills do.
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
@@ -122,7 +122,7 @@ class PhoneStore extends ChangeNotifier {
     String name,
     Currency currency, {
     CategoryPlan? plan,
-    Set<String> off = const {},
+    String? paidFromId,
   }) {
     final at = _made.indexWhere((c) => c.id == id);
     if (at < 0) return false;
@@ -133,7 +133,7 @@ class PhoneStore extends ChangeNotifier {
       currency: currency,
       madeHere: true,
       plan: plan,
-      off: off,
+      paidFromId: paidFromId,
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
     notifyListeners();
@@ -1719,6 +1719,7 @@ class _EntryState extends State<_EntryScreen> {
   }
 
   Future<void> _pickAccount() async {
+    final t = context.t;
     final accounts = _accounts;
     final chosen = _account;
     final picked = await showModalBottomSheet<PhoneAccount>(
@@ -1730,7 +1731,24 @@ class _EntryState extends State<_EntryScreen> {
           children: [
             for (final a in accounts)
               ListTile(
+                key: ValueKey('paid-from-${a.id}'),
                 title: Text(a.name, style: onest(16, weight: 500)),
+                // What it holds now, entries waiting here counted: whether
+                // the card will go through (owner, 2026-10-28, #184).
+                subtitle: Text(
+                  a.owes
+                      ? t.phoneOwed(
+                          formatMoney(
+                            balanceNow(a, _othersWaiting),
+                            currency: a.currency,
+                          ),
+                        )
+                      : formatMoney(
+                          balanceNow(a, _othersWaiting),
+                          currency: a.currency,
+                        ),
+                  style: onest(14, color: Mid.ink2, tabular: true),
+                ),
                 trailing: a.id == chosen?.id
                     ? Icon(Icons.check, color: Mid.blue)
                     : null,

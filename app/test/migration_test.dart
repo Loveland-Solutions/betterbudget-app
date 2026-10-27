@@ -128,6 +128,141 @@ void main() {
     });
   }
 
+  test(
+    'upgrades a v22 file: each category gets one account it is paid '
+    'from, worked out from the accounts it used; nothing else changes',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('bb-migration');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/betterbudget.sqlite');
+
+      var db = AppDatabase(NativeDatabase(file));
+      await seedDemoIfEmpty(db, today);
+      var ledger = await db.loadLedger();
+      int named(String n) =>
+          ledger.accounts.values.firstWhere((a) => a.name == n).id;
+      final tdb = named('TDB Checking'), khan = named('Khan Savings');
+      final cash = named('Cash wallet'), visa = named('Golomt Visa');
+      final groceries = named('Groceries'), housing = named('Housing');
+      final tuition = named('Tuition'), gifts = named('Gifts');
+      final net = named('Safety net');
+      // Pay goes into Khan Savings here, so the fallback is seen to be pay's.
+      await db.savePaySchedule(
+        accountId: khan,
+        amount: 250000000,
+        rule: PayRule.monthly,
+        day1: 25,
+        today: today,
+      );
+      // Rent's bill from Cash wallet; Tuition's bill with two accounts
+      // checked, so in no forecast; Groceries narrowed to the Visa alone.
+      CategoryPlan bill(int id, int? from) => CategoryPlan(
+        categoryId: id,
+        kind: PlanKind.byDate,
+        amount: 50000000,
+        start: today,
+        due: DateTime(2026, 10, 20),
+        everyMonths: 1,
+        paidFrom: from,
+      );
+      await db.changeCategoryPlan(housing, bill(housing, cash), today);
+      await db.changeCategoryPlan(tuition, bill(tuition, null), today);
+      await db.customStatement('DROP TABLE category_paid_from');
+      // A bill with two accounts checked was never scheduled in a v22 file.
+      await db.customStatement(
+        'DELETE FROM entries WHERE transaction_id IN (SELECT id FROM '
+        'transactions WHERE plan_category_id = ? AND scheduled = 1)',
+        [tuition],
+      );
+      await db.customStatement(
+        'DELETE FROM transactions WHERE plan_category_id = ? AND scheduled = 1',
+        [tuition],
+      );
+      final txns =
+          (await db
+                  .customSelect('SELECT COUNT(*) AS n FROM transactions')
+                  .getSingle())
+              .read<int>('n');
+      await db.customStatement(
+        'UPDATE category_plans SET paid_from_id = ? '
+        'WHERE category_id = ?',
+        [cash, housing],
+      );
+      await db.customStatement(
+        'UPDATE category_plans SET paid_from_id = NULL '
+        'WHERE category_id = ?',
+        [tuition],
+      );
+      for (final a in [tdb, khan, cash]) {
+        await db.customStatement(
+          'INSERT INTO category_accounts_off VALUES (?, ?)',
+          [groceries, a],
+        );
+      }
+      // Gifts left to Khan Savings and Cash: pay goes into Khan Savings.
+      // Housing's bill keeps its own. Safety net ticked to Cash and the Visa
+      // only: not TDB Checking, which it didn't use.
+      for (final a in [tdb, khan]) {
+        await db.customStatement(
+          'INSERT INTO category_accounts_off VALUES (?, ?)',
+          [net, a],
+        );
+      }
+      for (final a in [cash, visa]) {
+        await db.customStatement(
+          'INSERT INTO category_accounts_off VALUES (?, ?)',
+          [tuition, a],
+        );
+      }
+      for (final name in await db.changeTriggersPresent()) {
+        await db.customStatement('DROP TRIGGER IF EXISTS temp."$name"');
+      }
+      await db.customStatement('PRAGMA user_version = 22');
+      await db.close();
+
+      db = AppDatabase(NativeDatabase(file));
+      await expectAllColumns(db);
+      addTearDown(db.close);
+      ledger = await db.loadLedger();
+      // The bill's own account; the one account left; the account pay goes
+      // into for one that used several, or all.
+      expect(ledger.paidFrom[housing], cash);
+      expect(ledger.paidFrom[groceries], visa);
+      expect(ledger.paidFrom[tuition], khan);
+      expect(ledger.paidFrom[gifts], khan);
+      // A Safety net narrowed to Cash and the Visa: its cash one, never one
+      // it didn't use.
+      expect(ledger.paidFrom[net], cash);
+      // A dated plan's bill follows it: Tuition's, in no forecast before, is
+      // from Khan Savings now and gets scheduled there.
+      expect(ledger.plans[tuition]!.paidFrom, khan);
+      expect(ledger.plans[housing]!.paidFrom, cash);
+      await db.ensurePlanBills(today);
+      ledger = await db.loadLedger();
+      expect(
+        ledger.txns.any(
+          (t) =>
+              t.scheduled &&
+              t.planCategoryId == tuition &&
+              t.entries.any((e) => e.accountId == khan),
+        ),
+        isTrue,
+      );
+      // No row was lost: only Tuition's bill was added.
+      expect(
+        (await db
+                .customSelect('SELECT COUNT(*) AS n FROM transactions')
+                .getSingle())
+            .read<int>('n'),
+        txns + 1,
+      );
+      expect(
+        dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+        contains(startsWith('betterbudget.before-v23-from-v22-')),
+      );
+    },
+  );
+
   test('upgrades a v21 file: categories and plans stay as they were, and '
       'take a group, a note and a single month', () async {
     final dir = await Directory.systemTemp.createTemp('bb-migration');
@@ -185,7 +320,7 @@ void main() {
     expect(ledger.accounts[groceries.id]!.note, 'Market');
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v22-from-v21-')),
+      contains(startsWith('betterbudget.before-v23-from-v21-')),
     );
   });
 
@@ -224,7 +359,7 @@ void main() {
     expect(await db.lastChangeSeq(), 1);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v22-from-v19-')),
+      contains(startsWith('betterbudget.before-v23-from-v19-')),
     );
     await db.close();
 
@@ -240,13 +375,13 @@ void main() {
     expect(await db.lastChangeSeq(), 2);
     // A newer build's file is refused and left as it is; this build then
     // opens it again with everything in place.
-    await db.customStatement('PRAGMA user_version = 23');
+    await db.customStatement('PRAGMA user_version = 24');
     await db.close();
     db = AppDatabase(NativeDatabase(file));
     await expectLater(db.loadLedger(), throwsA(isA<NewerLedgerException>()));
     await db.close();
     final raw = sqlite3.open(file.path);
-    raw.execute('PRAGMA user_version = 22');
+    raw.execute('PRAGMA user_version = 23');
     raw.close();
     db = AppDatabase(NativeDatabase(file));
     await expectAllColumns(db);
@@ -302,7 +437,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v22-from-v18-')),
+      contains(startsWith('betterbudget.before-v23-from-v18-')),
     );
   });
 
@@ -340,7 +475,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v22-from-v17-')),
+      contains(startsWith('betterbudget.before-v23-from-v17-')),
     );
   });
 
@@ -404,7 +539,7 @@ void main() {
       expect(after.paySchedules.single.name, isNull);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v22-from-v16-')),
+        contains(startsWith('betterbudget.before-v23-from-v16-')),
       );
     },
   );
@@ -464,7 +599,7 @@ void main() {
     expect(plan.nth, isNull);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v22-from-v15-')),
+      contains(startsWith('betterbudget.before-v23-from-v15-')),
     );
   });
 
@@ -497,7 +632,7 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v22-from-v6-')),
+      contains(startsWith('betterbudget.before-v23-from-v6-')),
     );
   });
 
@@ -531,7 +666,7 @@ void main() {
       await expectAllColumns(db);
       addTearDown(db.close);
       final data = await db.loadLedger();
-      expect(data.accountsOff, isEmpty);
+
       final spending = data.categories.where((c) => !c.isIncome);
       expect(spending, isNotEmpty);
       if (budgetIn != null) {
@@ -554,7 +689,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v22-from-v11-')),
+        contains(startsWith('betterbudget.before-v23-from-v11-')),
       );
     });
   }
@@ -638,7 +773,7 @@ void main() {
       expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v22-from-v12-')),
+        contains(startsWith('betterbudget.before-v23-from-v12-')),
       );
     },
   );
@@ -693,7 +828,7 @@ void main() {
     expect(plans[ids[3]]!.due, DateTime(2027, 1, 15));
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v22-from-v13-')),
+      contains(startsWith('betterbudget.before-v23-from-v13-')),
     );
   });
 
@@ -734,7 +869,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v22-from-v10-')),
+      contains(startsWith('betterbudget.before-v23-from-v10-')),
     );
   });
 
@@ -770,7 +905,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v22-from-v9-')),
+        contains(startsWith('betterbudget.before-v23-from-v9-')),
       );
     },
   );
@@ -808,7 +943,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v22-from-v8-')),
+      contains(startsWith('betterbudget.before-v23-from-v8-')),
     );
   });
 
@@ -918,7 +1053,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v22-from-v5-')),
+        contains(startsWith('betterbudget.before-v23-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});

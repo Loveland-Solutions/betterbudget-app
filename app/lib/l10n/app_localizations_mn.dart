@@ -1174,15 +1174,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String planPaidFromSeveral(int count) {
-    return '$count данс сонгоотой тул энэ төлбөр ямар ч төсөөлөлд харагдахгүй. Нэг л данс сонгоотой үлдээвэл тэнд харагдана.';
-  }
-
-  @override
-  String get planPaidFromNoneChecked =>
-      'Ямар ч данс сонгоогүй тул энэ төлбөр ямар ч төсөөлөлд харагдахгүй.';
-
-  @override
   String planRunsOutZero(String date) {
     return 'Мөнгө дуусах өдөр: $date';
   }
@@ -1955,6 +1946,16 @@ class WordsMn extends Words {
 
   @override
   String get rowsTabScheduled => 'Товлосон';
+
+  @override
+  String ledgerRowLine(String date, String amount, String payee) {
+    return '$date · $amount · $payee';
+  }
+
+  @override
+  String ledgerRowLineNoPayee(String date, String amount) {
+    return '$date · $amount';
+  }
 
   @override
   String ledgerFiledUnder(Object category) {
@@ -3277,6 +3278,15 @@ class WordsMn extends Words {
   }
 
   @override
+  String get rowsDueYesterdayNotInWorking =>
+      'өчигдөр хугацаа нь болсон · үлдэгдэлд хараахан ороогүй';
+
+  @override
+  String rowsDueDaysAgoNotInWorking(int days) {
+    return 'хугацаа нь $days хоногийн өмнө болсон · үлдэгдэлд хараахан ороогүй';
+  }
+
+  @override
   String startDayOn(String ordinal, int day, String isTwo) {
     String _temp0 = intl.Intl.selectLogic(isTwo, {
       'yes': '$day-т',
@@ -3479,7 +3489,7 @@ class WordsMn extends Words {
 
   @override
   String importClearedDiffers(Object ours, Object bank, Object diff) {
-    return 'Үүний дараа баталгаажсан үлдэгдэл $ours, банкны файл $bank-аар дуусна: $diff зөрүүтэй. Энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
+    return 'Банкнаас $diff зөрүүтэй. Үүний дараа баталгаажсан үлдэгдэл $ours, банкны файл $bank-аар дуусна. Энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
   }
 
   @override
@@ -3494,7 +3504,7 @@ class WordsMn extends Words {
     Object date,
     Object diff,
   ) {
-    return 'Үүний дараа баталгаажсан үлдэгдэл $ours, банкны үлдэгдэл ($date) $bank байсан: $diff зөрүүтэй. Тэр өдрөөс хойших, энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
+    return 'Банкнаас $diff зөрүүтэй. Үүний дараа баталгаажсан үлдэгдэл $ours, банкны үлдэгдэл ($date) $bank байсан. Тэр өдрөөс хойших, энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
   }
 
   @override
@@ -4470,16 +4480,6 @@ class WordsMn extends Words {
   String get planMoneyCurrency => 'Валют';
 
   @override
-  String planOnlyFromOne(String account) {
-    return 'зөвхөн $account данснаас';
-  }
-
-  @override
-  String planOnlyFromSome(int count, int total) {
-    return 'зөвхөн $count данснаас (нийт $total)';
-  }
-
-  @override
   String planMoneyUndo(String category) {
     return '$category ангиллын данснууд';
   }
@@ -4509,16 +4509,8 @@ class WordsMn extends Words {
     String category,
     String rest,
   ) {
-    return '$account дансны $held нь $category ангиллынх. Тэнд үлдэх $rest мөнгийг аль ч ангилалд хуваарилж болно.';
+    return '$account дансны $held нь $category ангиллынх. Тэнд байгаа $rest нь одоохондоо ямар ч ангилалд ороогүй тул хуваарилж болно.';
   }
-
-  @override
-  String planMoneyRestSome(String held, String category, String rest) {
-    return 'Эдгээр дансны $held нь $category ангиллынх. Тэнд үлдэх $rest мөнгийг аль ч ангилалд хуваарилж болно.';
-  }
-
-  @override
-  String get planFromNone => 'ямар ч данс сонгоогүй';
 
   @override
   String planOtherRows(int count, String amount, String symbol, String other) {
@@ -4532,28 +4524,18 @@ class WordsMn extends Words {
   }
 
   @override
-  String planOffAccount(String amount, String account) {
-    return '$account данснаас $amount төлсөн: энэ ангилалд сонгоогүй данс';
-  }
-
-  @override
-  String planOffAccounts(String amount, int count) {
-    return 'Энэ ангилалд сонгоогүй $count данснаас $amount төлсөн';
-  }
-
-  @override
   String planBackingOne(String held, String account, String have) {
     return 'Энд $held үлдсэн боловч $account дансанд $have л байна';
   }
 
   @override
-  String planBackingSome(String held, String have) {
-    return 'Энд $held үлдсэн боловч данснуудад нь $have л байна';
-  }
-
-  @override
-  String planBackingShared(String held, int count, String have) {
-    return 'Ижил дансанд хадгалдаг $count ангилалд $held үлдсэн боловч тэдгээр дансанд $have л байна';
+  String planBackingShared(
+    String held,
+    int count,
+    String account,
+    String have,
+  ) {
+    return '$account дансанд хадгалдаг $count ангилалд $held үлдсэн боловч тэр дансанд $have л байна';
   }
 
   @override
@@ -4840,6 +4822,33 @@ class WordsMn extends Words {
   String get planRowWillRead => 'Мөр ингэж харагдана';
 
   @override
+  String get planPaidFromChoose => 'Данс сонгох';
+
+  @override
+  String get planPaidFromWanted =>
+      'Аль данснаас төлөхийг сонгоно уу. Ижил валютын аль ч данс төлж болно.';
+
+  @override
+  String planPaidFromSpendHint(String account) {
+    return 'Үлдэгдэл нь $account дансны төсөөллөөс өдөр бүр хасагдана.';
+  }
+
+  @override
+  String planSpendingFromBudget(String amount) {
+    return 'төсвөөс $amount зарлага';
+  }
+
+  @override
+  String planPaidFromGone(String account) {
+    return '$account данснаас төлдөг, тэр данс архивласан: төсөөлөлд харахын тулд өөр данс сонгоно уу';
+  }
+
+  @override
+  String planTakeOut(String amount, String date) {
+    return '$date-ны дотор ойролцоогоор $amount бэлнээр авах хэрэгтэй';
+  }
+
+  @override
   String get planLabelPaidFrom => 'Төлөх данс';
 
   @override
@@ -4858,17 +4867,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planAccountsAll => 'Бүх данс';
-
-  @override
-  String get planAccountsNone => 'Данс сонгоогүй';
-
-  @override
-  String planAccountsSome(int count, int total) {
-    return '$total данснаас $count';
-  }
-
-  @override
   String get setupCurrencySearch => 'Валют хайх';
 
   @override
@@ -4883,13 +4881,19 @@ class WordsMn extends Words {
   }
 
   @override
+  String planIncomeUncategorized(String amount) {
+    return 'Өөр $amount орж ирсэн ч Ангилаагүй хэвээр байна: энд тооцохын тулд Орлого-д ангилна уу.';
+  }
+
+  @override
   String planIncomeLine(String amounts) {
     return 'Орлого: $amounts';
   }
 
   @override
-  String get rowsNewCategoryRefundNote =>
-      'шинэ ангилал · орсон мөнгө буцаалтад тооцогдоно; цалин бол Орлого-г сонгоно';
+  String rowsNewCategoryRefundNote(String category) {
+    return 'Орсон мөнгө $category ангилалд буцаалт болж тооцогдоно. Цалин бол Орлого-г сонгоно.';
+  }
 
   @override
   String ledgerPayReplaced(int count) {
@@ -5000,13 +5004,13 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Таны $count гүйлгээ компьютерийг хүлээж байна',
+      other: '$count гүйлгээ таны дэвтэрт хараахан ороогүй байна',
     );
     return '$_temp0';
   }
 
   @override
-  String get phoneWaitingTitle => 'Компьютерийг хүлээж байна';
+  String get phoneWaitingTitle => 'Дэвтэрт хараахан ороогүй';
 
   @override
   String phoneOwed(String amount) {
@@ -5229,14 +5233,14 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count шинэ ангилал компьютерийг хүлээж байна',
+      other: '$count шинэ ангилал таны дэвтэрт хараахан ороогүй байна',
     );
     return '$_temp0';
   }
 
   @override
   String phoneWaitingBoth(int entries, int categories) {
-    return 'Таны $entries гүйлгээ, $categories шинэ ангилал компьютерийг хүлээж байна';
+    return '$entries гүйлгээ, $categories шинэ ангилал таны дэвтэрт хараахан ороогүй байна';
   }
 
   @override

@@ -11,7 +11,8 @@ part of 'ledger_screen.dart';
 typedef _CategoryEdit = ({
   String name,
   Currency currency,
-  Set<int> off,
+  // The account it's paid from (#180); null only with none in its currency.
+  int? paidFrom,
   CategoryPlan? plan,
   // Counts in Savings' month of expenses ([inMonthOfExpenses]).
   bool inMonth,
@@ -1110,6 +1111,21 @@ class _BudgetPageState extends State<_BudgetPage> {
                               onShowRows: income == null
                                   ? null
                                   : () => widget.onShowRows(income, period),
+                              waiting: [
+                                for (final (c, v) in _cameIn(
+                                  budget.cameInUncategorized,
+                                  budget.currency,
+                                ))
+                                  if (v > 0) (c, v),
+                              ],
+                              onShowWaiting: switch (data.accounts.values
+                                  .where(
+                                    (a) => !a.deleted && isUncategorized(a),
+                                  )
+                                  .firstOrNull) {
+                                final w? => () => widget.onShowRows(w, period),
+                                null => null,
+                              },
                               onPay: widget.onPay,
                               onAskAgain: widget.onAskAgain,
                             ),
@@ -1445,9 +1461,16 @@ class _IncomeTab extends StatelessWidget {
     required this.onShowRows,
     required this.onPay,
     required this.onAskAgain,
+    this.waiting = const [],
+    this.onShowWaiting,
   });
   final LedgerData data;
   final List<(Currency, int)> cameIn;
+
+  /// Money in this period still in Not categorized, which Income doesn't
+  /// count: said under it, and a click shows the rows (#182).
+  final List<(Currency, int)> waiting;
+  final VoidCallback? onShowWaiting;
 
   /// This period's pay by currency: what has come, and what the
   /// schedules expect.
@@ -1524,6 +1547,24 @@ class _IncomeTab extends StatelessWidget {
             ],
           ),
         ),
+        if (waiting.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+            child: Hoverable(
+              key: const ValueKey('income-waiting'),
+              onTap: onShowWaiting ?? () {},
+              builder: (hover) => Text(
+                t.planIncomeUncategorized(
+                  [for (final (c, v) in waiting) formatMoney(v, currency: c)]
+                      .join(' · '),
+                ),
+                style: onest(13, color: Mid.ink2, tabular: true).copyWith(
+                  decoration: hover ? TextDecoration.underline : null,
+                  decorationColor: Mid.ink2,
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 8),
         for (final (i, p) in pays.indexed)
           Builder(
@@ -2334,10 +2375,9 @@ class _CategoryRowState extends State<_CategoryRow> {
                             child: Hoverable(
                               key: ValueKey('line-flag-${c.id}-$i'),
                               onTap: f.onTap,
+                              // Wrapped, not cut: its amounts are the point.
                               builder: (hover) => Text(
                                 f.text,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                                 style: onest(12, color: f.color, tabular: true)
                                     .copyWith(
                                       decoration: hover
@@ -3132,10 +3172,14 @@ class _NewCategoryWindow extends StatefulWidget {
     required this.onAdd,
     this.name = '',
     this.offerAnother = true,
+    this.paidFrom,
   });
 
   /// The name it starts with: what was typed in the entry row's Category.
   final String name;
+
+  /// Its Paid from to begin with: the account of the row it's made from.
+  final int? paidFrom;
 
   /// Add another beside Add: on the Budget page, not from a row, which
   /// takes the one category.
@@ -3164,6 +3208,7 @@ class _NewCategoryWindowState extends State<_NewCategoryWindow> {
   /// Kept from one to the next: chosen, not guessed. Everything else
   /// starts over, so a bill's Yes doesn't carry into Food unseen.
   late Currency _currency = widget.currency;
+  late int? _paidFrom = widget.paidFrom;
 
   /// Each Add another starts a fresh form.
   int _round = 0;
@@ -3178,6 +3223,7 @@ class _NewCategoryWindowState extends State<_NewCategoryWindow> {
     setState(() {
       _added.add(e.name);
       _currency = e.currency;
+      _paidFrom = e.paidFrom;
       _round++;
     });
     return true;
@@ -3233,6 +3279,7 @@ class _NewCategoryWindowState extends State<_NewCategoryWindow> {
                 onAdd: _add,
                 offerAnother: widget.offerAnother,
                 nameNote: widget.nameNote,
+                paidFrom: _paidFrom,
               ),
             ],
           ),
@@ -4201,48 +4248,25 @@ List<_LineFlag> _lineFlags(
 }) {
   String money(int v, [Currency? currency]) =>
       formatShort(v, currency: currency ?? c.currency);
-  final off = data.accountsOff[c.id] ?? const <int>{};
-  final mine = categoryAccounts(data, c.currency).toList();
-  final used = mine.where((a) => !off.contains(a.id)).toList();
+  final paid = data.accounts[data.paidFrom[c.id]];
+  final kept = paid?.name ?? '';
   return [
-    if (used.length < mine.length)
-      (
-        text: switch (used.length) {
-          0 => t.planFromNone,
-          1 => t.planOnlyFromOne(used.single.name),
-          final n => t.planOnlyFromSome(n, mine.length),
-        },
-        color: Mid.ink2,
-        onTap: onAccounts,
-      ),
+    // Its account put away: nothing of it is in a forecast until another
+    // is picked (warn, don't block).
+    if (paid != null && (paid.archived || paid.deleted))
+      (text: t.planPaidFromGone(paid.name), color: Mid.ink2, onTap: onAccounts),
     if (line.backing case final b? when today)
       (
         text: b.categories > 1
             ? t.planBackingShared(
                 money(b.setAside),
                 b.categories,
+                kept,
                 money(b.have),
               )
-            : used.where((a) => !a.isOwed).length == 1
-            ? t.planBackingOne(
-                money(b.setAside),
-                used.firstWhere((a) => !a.isOwed).name,
-                money(b.have),
-              )
-            : t.planBackingSome(money(b.setAside), money(b.have)),
+            : t.planBackingOne(money(b.setAside), kept, money(b.have)),
         color: Mid.coral,
         onTap: onAccounts,
-      ),
-    if (line.offSpent > 0)
-      (
-        text: line.offAccounts.length == 1
-            ? t.planOffAccount(
-                money(line.offSpent),
-                data.accounts[line.offAccounts.single]?.name ?? '',
-              )
-            : t.planOffAccounts(money(line.offSpent), line.offAccounts.length),
-        color: Mid.note,
-        onTap: onRows,
       ),
     if (line.otherCurrency case final other? when line.otherRows > 0)
       (
@@ -4282,11 +4306,16 @@ class _CategoryEditor extends StatefulWidget {
     this.offerAnother = false,
     this.nameNote,
     this.keep,
+    this.paidFrom,
   });
 
   /// Where what's typed is kept while the page is left; null in the New
   /// category window, whose answers are its own.
   final _EditDraft? keep;
+
+  /// A new category's Paid from to begin with: the account of the row it's
+  /// made from.
+  final int? paidFrom;
 
   /// The category, or for the New category window one not made yet: its
   /// id isn't a real one, and its currency is where the window starts.
@@ -4393,8 +4422,33 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
   Currency get _currency => _p.currency;
   set _currency(Currency c) => _p.currency = c;
-  Set<int> get _off => _d.off ??= {..._savedOff};
-  set _off(Set<int> off) => _d.off = off;
+
+  /// The account it's paid from (#180): as picked; else as saved, in the
+  /// currency it's in; else the account the row it's made from is in, or
+  /// the only account in its currency. Otherwise it waits to be chosen
+  /// (owner, 2026-10-27: "They should specify this when they setup the
+  /// given category"): no guess.
+  int? get _paidFrom {
+    if (_d.paidFromPicked) return _d.paidFrom;
+    final open = categoryAccounts(widget.data, _currency).map((a) => a.id);
+    final saved = widget.data.paidFrom[widget.category.id];
+    if (saved != null && open.contains(saved)) return saved;
+    if (widget.paidFrom case final a? when open.contains(a)) return a;
+    return open.length == 1 ? open.single : null;
+  }
+
+  set _paidFrom(int? id) {
+    _d.paidFrom = id;
+    _d.paidFromPicked = true;
+  }
+
+  /// Save needs one, when its currency has an account to be paid from: for
+  /// a new category, or one put in another currency. One that has none yet
+  /// (the Safety net, left to every account) still saves anything else.
+  bool get _wantsPaidFrom =>
+      (widget.isNew || _currency != widget.category.currency) &&
+      _paidFrom == null &&
+      categoryAccounts(widget.data, _currency).isNotEmpty;
   bool get _inMonth =>
       _d.inMonth ??
       (widget.isNew || inMonthOfExpenses(widget.data, widget.category.id));
@@ -4427,24 +4481,20 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         )
       : widget.category;
 
-  /// The account a dated plan's bill is scheduled in: the one account the
-  /// category is paid from, when it's narrowed to one. One control says
-  /// both (owner, 2026-10-05: "two account selectors: just have one").
+  /// The account a dated plan's bill is scheduled in: the category's Paid
+  /// from. One control says both (owner, 2026-10-05: "two account
+  /// selectors: just have one"). A plan saved with an account since
+  /// archived keeps it while Paid from isn't touched: nothing is rewritten
+  /// behind the user's back (code review, 2026-10-05).
   int? get _paidFromNow {
     if (!_p.hasDate) return null;
-    final used = categoryAccounts(
-      widget.data,
-      _currency,
-    ).where((a) => !_off.contains(a.id)).toList();
-    if (used.length == 1) return used.single.id;
-    // A plan saved with an account (before this row, or one since
-    // archived) keeps it while the checks aren't touched: nothing is
-    // rewritten behind the user's back (code review, 2026-10-05).
     final saved = _plan?.paidFrom;
-    if (saved != null && !_off.contains(saved) && setEquals(_off, _savedOff)) {
+    if (!_d.paidFromPicked &&
+        saved != null &&
+        widget.data.accounts[saved]?.archived == true) {
       return saved;
     }
-    return null;
+    return _paidFrom;
   }
 
   /// Save was tried with something missing: say which.
@@ -4457,8 +4507,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// category low in the list, its Save would be under the window's edge.
   Timer? _reveal;
 
-  Set<int> get _savedOff =>
-      widget.data.accountsOff[widget.category.id] ?? const <int>{};
   CategoryPlan? get _savedPlan => widget.data.plans[widget.category.id];
 
   /// The saved plan while it still means something: in another currency
@@ -4621,6 +4669,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       _nameFocus.requestFocus();
       return;
     }
+    // A name that's a category already: Add opens that one, so nothing
+    // here is asked of it.
+    if (_wantsPaidFrom && widget.nameNote?.call(name) == null) {
+      setState(() => _tried = true);
+      _accountsMenu.open();
+      return;
+    }
     final draft = _draft;
     if (_p.kind != null && draft == null) {
       setState(() => _tried = true);
@@ -4638,7 +4693,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     final edit = (
       name: name,
       currency: _currency,
-      off: _off,
+      paidFrom: _paidFrom,
       plan: draft,
       inMonth: _inMonth,
       goal: _asksGoal && _goal,
@@ -4932,7 +4987,16 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               aside: t.planStopAtHint,
             ),
         ],
-        _accountsRow(t),
+        _accountsRow(
+          t,
+          // Spent down within its period: the forecast takes what's left
+          // out of its account a day at a time (#179).
+          aside: switch (widget.data.accounts[_paidFrom]) {
+            final a? when _p.kind == PlanKind.each && !_p.rollover =>
+              t.planPaidFromSpendHint(a.name),
+            _ => null,
+          },
+        ),
       ] else ...[
         _formRow(
           t.planAmountDue,
@@ -5308,19 +5372,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           ),
         _accountsRow(
           t,
-          // Warn, don't block: with several checked the bill is in no
-          // forecast, said with the count (budget review, 2026-10-05).
-          aside: paidAccount != null && dueText != null
-              ? t.planPaidFromHint(paidAccount.name, dueText)
-              : switch (categoryAccounts(
-                  data,
-                  _currency,
-                ).where((a) => !_off.contains(a.id)).toList()) {
-                  [] => t.planPaidFromNoneChecked,
-                  // One checked, no date yet: what's left to do (#163).
-                  [final one] => t.planPaidFromHintNone(one.name),
-                  final n => t.planPaidFromSeveral(n.length),
-                },
+          aside: switch ((paidAccount, dueText)) {
+            (final a?, final due?) => t.planPaidFromHint(a.name, due),
+            // No date yet: what's left to do (#163).
+            (final a?, null) => t.planPaidFromHintNone(a.name),
+            _ => null,
+          },
         ),
         _formRow(
           eachLabel,
@@ -5587,7 +5644,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                 _currency = x;
                 _tried = false;
                 // The accounts are another currency's now.
-                _off = x == c.currency ? {..._savedOff} : {};
+                _d.paidFromPicked = false;
                 // So would the plan's amount be: the type, date and
                 // repeat stay, and the amount is typed again.
                 if (x == c.currency && !widget.isNew) {
@@ -5604,13 +5661,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     ];
   }
 
-  /// Paid from: the accounts in its currency, in a dropdown that stays
-  /// open while they're checked and unchecked; the button says how many
-  /// it uses. The one row for both what rule 28 called the accounts a
-  /// category uses and the account a dated plan's bill is scheduled in.
+  /// Paid from (#180): one account in its currency, picked from a
+  /// dropdown with each one's balance. The one row for both the account its
+  /// bills and its forecast spending come out of; any account in its
+  /// currency can still pay it.
   Widget _accountsRow(Words t, {String? aside}) {
     final accounts = categoryAccounts(widget.data, _currency).toList();
-    final used = accounts.where((a) => !_off.contains(a.id)).toList();
+    final chosen = widget.data.accounts[_paidFrom];
+    final missing = _tried && _wantsPaidFrom;
     return _formRow(
       t.planLabelPaidFrom,
       SizedBox(
@@ -5626,11 +5684,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             for (final a in accounts)
               MenuItemButton(
                 key: ValueKey('money-account-${a.id}'),
-                closeOnActivate: false,
-                onPressed: () => setState(
-                  () =>
-                      _off.contains(a.id) ? _off.remove(a.id) : _off.add(a.id),
-                ),
+                onPressed: () => setState(() => _paidFrom = a.id),
                 style: ButtonStyle(
                   minimumSize: const WidgetStatePropertyAll(Size(320, 34)),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -5640,11 +5694,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                   overlayColor: WidgetStatePropertyAll(Mid.blueWash),
                 ),
                 leadingIcon: Icon(
-                  _off.contains(a.id)
-                      ? Icons.check_box_outline_blank_rounded
-                      : Icons.check_box_rounded,
+                  Icons.check_rounded,
                   size: 18,
-                  color: _off.contains(a.id) ? Mid.ink3 : Mid.blue,
+                  color: a.id == chosen?.id ? Mid.blue : Colors.transparent,
                 ),
                 trailingIcon: Money(
                   widget.data.balanceOf(a.id),
@@ -5656,10 +5708,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                   a.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: onest(
-                    13,
-                    color: _off.contains(a.id) ? Mid.ink2 : Mid.ink,
-                  ),
+                  style: onest(13, color: Mid.ink),
                 ),
               ),
           ]),
@@ -5668,15 +5717,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             widthFactor: 1,
             child: BarButton(
               key: const ValueKey('money-accounts'),
-              // "All accounts" only when there's more than one: with
-              // one it's named (owner, 2026-10-07).
-              label: used.length == accounts.length && accounts.length > 1
-                  ? t.planAccountsAll
-                  : switch (used.length) {
-                      0 => t.planAccountsNone,
-                      1 => used.single.name,
-                      final n => t.planAccountsSome(n, accounts.length),
-                    },
+              label: chosen?.name ?? t.planPaidFromChoose,
+              color: missing ? Mid.coral : null,
               trailing: Icons.expand_more_rounded,
               active: _accountsMenu.isOpen,
               onTap: () => _accountsMenu.isOpen
@@ -5686,7 +5728,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           ),
         ),
       ),
-      aside: aside,
+      aside: missing ? t.planPaidFromWanted : aside,
     );
   }
 
@@ -5784,30 +5826,37 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         // A plan typed in the new currency takes the old one's place.
         final hasPlan = _savedPlan != null && draft == null;
         final loses = _currency != c.currency && (assigned != 0 || hasPlan);
-        // What unchecking does and doesn't reserve, with the real amounts:
-        // only what the category has left must be in the checked accounts.
-        // Its money is kept in the checked cash and bank accounts; a card
-        // holds none.
-        final checked = accounts
-            .where((a) => !a.isOwed && !_off.contains(a.id))
-            .toList();
-        final have = checked.fold(0, (sum, a) => sum + data.balanceOf(a.id));
+        // What keeping its money in its Paid from sets aside, with the
+        // real amounts (owner, 2026-10-27, #183: "say a given amount of the
+        // account is only for emergency fund. It should be free to
+        // budget"): only what it has left is its; the rest of the account
+        // can be assigned. For one keeping money (not spent down), in a
+        // cash or bank account; a card holds none.
+        final kept = accounts
+            .where((a) => !a.isOwed && a.id == _paidFrom)
+            .firstOrNull;
+        final keeps = !(_p.kind == PlanKind.each && !_p.rollover);
         final holds = _currency == c.currency ? widget.holds : null;
-        final rest =
-            holds == null ||
-                checked.isEmpty ||
-                !accounts.any((a) => _off.contains(a.id)) ||
-                holds < 0 ||
-                have < holds
+        // What's free there: the account less what's left in every
+        // category paid from it, this one included.
+        var free = 0;
+        if (kept != null && keeps && holds != null && holds > 0) {
+          final lines = Budget.of(
+            data,
+            start: widget.period.start,
+            end: widget.period.end,
+            today: widget.today,
+          ).lines;
+          free = data.balanceOf(kept.id) - holds;
+          for (final MapEntry(key: id, value: l) in lines.entries) {
+            if (id != c.id && data.paidFrom[id] == kept.id && l.left > 0) {
+              free -= l.left;
+            }
+          }
+        }
+        final rest = kept == null || free <= 0
             ? null
-            : checked.length == 1
-            ? t.planMoneyRestOne(
-                say(holds),
-                checked.single.name,
-                c.name,
-                say(have - holds),
-              )
-            : t.planMoneyRestSome(say(holds), c.name, say(have - holds));
+            : t.planMoneyRestOne(say(holds!), kept.name, c.name, say(free));
         // Opened low in the list, or grown by a choice, Save would be
         // under the window's edge.
         // The repeat rows grow it too: Custom…, its unit, Ends.
@@ -6269,8 +6318,9 @@ class _EditDraft {
   /// New group… was picked: its name is being typed here.
   TextEditingController? newGroup;
 
-  /// The accounts unticked; null until Edit first asks.
-  Set<int>? off;
+  /// The account it's paid from, as picked; read only once [paidFromPicked].
+  int? paidFrom;
+  bool paidFromPicked = false;
 
   /// In a month of expenses, as answered; null until it is.
   bool? inMonth;

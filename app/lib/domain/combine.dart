@@ -273,6 +273,7 @@ const combineKeys = <String, List<String>>{
   'reconciliations': ['id'],
   'category_plans': ['category_id'],
   'category_accounts_off': ['category_id', 'account_id'],
+  'category_paid_from': ['category_id'],
   'preferences': ['key'],
   // By category and day, as a sum ([_budgetAmounts]).
   'budget_amounts': ['id'],
@@ -304,6 +305,7 @@ const combineOrder = [
   'budget_amounts',
   'category_plans',
   'category_accounts_off',
+  'category_paid_from',
   'payee_rules',
   'payee_rule_accounts',
 ];
@@ -325,6 +327,8 @@ const _references = <(String, String, String)>[
   ('category_plans', 'paid_from_id', 'accounts'),
   ('category_accounts_off', 'category_id', 'accounts'),
   ('category_accounts_off', 'account_id', 'accounts'),
+  ('category_paid_from', 'category_id', 'accounts'),
+  ('category_paid_from', 'account_id', 'accounts'),
   ('payee_rules', 'category_id', 'accounts'),
   ('payee_rules', 'pay_schedule_id', 'pay_schedules'),
   ('payee_rule_accounts', 'rule_id', 'payee_rules'),
@@ -999,10 +1003,10 @@ class _Combine {
       if (parent == 'accounts') _rename(table, column, from, to);
     }
     // A row that named both is now there twice.
-    final seen = <String>{};
-    theirs['category_accounts_off']?.retainWhere(
-      (r) => seen.add(_keyOf('category_accounts_off', r)),
-    );
+    for (final table in ['category_accounts_off', 'category_paid_from']) {
+      final seen = <String>{};
+      theirs[table]?.retainWhere((r) => seen.add(_keyOf(table, r)));
+    }
     final was = _index('preferences', base['preferences']);
     final number = RegExp('(?<![0-9])$from(?![0-9])');
     for (final p in theirs['preferences'] ?? const <Row>[]) {
@@ -1336,6 +1340,16 @@ class _Combine {
         // Income or the Safety net, named or ordered differently on each
         // (a label): one of the two, the same one on both computers.
         if (table == 'accounts' && isSharedRowId(here['id'] as int)) {
+          if (jsonEncode(_sorted(there)).compareTo(jsonEncode(_sorted(here))) <
+              0) {
+            _update(table, there, count: false);
+          }
+          continue;
+        }
+        // A category made on both (one shared id) paid from a different
+        // account on each: one of the two, the same on both computers, as
+        // a label is (#180). Changed on both after, it's asked as a plan is.
+        if (table == 'category_paid_from') {
           if (jsonEncode(_sorted(there)).compareTo(jsonEncode(_sorted(here))) <
               0) {
             _update(table, there, count: false);

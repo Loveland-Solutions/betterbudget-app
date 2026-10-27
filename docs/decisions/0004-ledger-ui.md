@@ -4811,6 +4811,132 @@ fine. Three were sketched; the owner picked B.
   aside, then More than income or Left from income); C, one coral line in the key
   card only when over, with the detail on the Income tab.
 
+## The open questions, sorted (owner, 2026-10-27)
+
+Fifteen "Question:" issues from 2026-10-02 to 10-24, gone through against the app as it
+is now. The owner's answers:
+
+- **Closed as settled:** the test payee (#178; no bank statement here has that line), the
+  offer to take rows out of the opening balance (#259; stays in the popup only, the known
+  issue of 10-24), and collapsing the header on scroll (#186; only an idea, not asked for).
+- **Built as recommended, in one fix:** the note beside Add says what to do, "Type an
+  amount", "Choose a category", "2 more to fill in", in place of "needs amount" (#181);
+  the refund note for money in on a new category, cut off in the 156-pixel column by Add,
+  is a gold line of its own under the row, "Money in counts as a refund to Returns. For
+  pay, pick Income.", and only "new category" stays beside Add. The phone's line is "1
+  entry isn't in your ledger yet", its list headed "Not in your ledger yet" (#185;
+  *rejected:* "1 entry will be added when BetterBudget is next open on your computer").
+  A late scheduled row says what it means for the balance, "due 22 days ago · not in
+  Working yet", on the register's row only: the forecast's bill list keeps "due 22 days
+  ago", since the forecast counts it as today (#188). An import off from the bank leads
+  with the gap, "₮3,298,850.00 apart from the bank." (#188). A Filed under popup's second
+  line says which row, "09.15 · −₮200 · IB-INTERBANK…", date and amount alone when the
+  row has no payee (#177); the "Always filed" popup keeps the payee alone, since it is
+  about the payee, and Added and Edited already name the row in their first line.
+- **A category's default account** (#180): "They should specify this when they setup the
+  given category. Any account with the same currency can use the category, but the
+  default account is the one specified at category creation." This replaces defaulting a
+  new bill's Paid from to the account pay lands in.
+- **Money set aside in an account** (#183): "They should be able to say a given amount of
+  the account is only for emergency fund. It should be free to budget." The rest of the
+  account is free to budget, as built.
+- **The forecast takes out what's budgeted** (#179): "Yes." Groceries, transport and the
+  rest come out of the forecast too, not only dated bills.
+- **Pay saved on the phone takes a payday's place** (#187): "Yes, but she would have to
+  specify which income it was for if it was for a paycheck, no?" With more than one pay
+  set up, the phone asks which pay it is.
+
+## One account a category is paid from; the forecast takes out the budget (owner, 2026-10-27, #180, #179)
+
+The owner's words: "They should specify this when they setup the given category. Any
+account with the same currency can use the category, but the default account is the one
+specified at category creation" (#180); asked whether ticking accounts off then goes, "Yes";
+and on the forecast, "Yes" to taking out what's budgeted for groceries, transport and the
+rest, "If the view is only showing two weeks, then you'd pro-rate it, right?" (#179).
+
+- **Paid from is one account.** Edit and New category, on the computer and the phone,
+  ask for one account in the category's currency, each with its balance, in place of the
+  list of accounts to tick. Any account in the currency can still pay it; nothing is
+  said about one that did. A new one waits to be chosen ("Choose an account"; Save says
+  "Choose the account it's paid from…" in coral and opens the list), unless it's made
+  from a row, where it starts as the row's account, or its currency has one account.
+  Add another keeps it for the next. A name typed in a row and saved bare, a goal, a
+  phone's category with none said, take the account pay goes into, else the currency's
+  first. *Rejected:* keeping the ticks beside it (the owner's "Yes").
+- **What it drives.** A dated bill is scheduled from it, so a bill is in a forecast from
+  the start. Its forecast spending comes out of it. The warning that an account holds
+  less than is set aside in it ("₮1,100,000 left in 2 categories kept in Khan Savings,
+  which holds ₮1,000,000") compares only categories that keep money: a bill, a goal, a
+  set amount that carries over, the Safety net; one spent down within its month (groceries)
+  or with no plan isn't. Savings says where the Safety net sits from its Paid from. The
+  line "₮10,000,000 of what's in Khan Savings is for Emergency fund. The other ₮2,600,000
+  there can still be assigned to any category." stays, for a category that keeps money
+  (#183: "say a given amount of the account is only for emergency fund. It should be
+  free to budget"), now less what every category paid from that account has left, and
+  only while that's above zero. Gone: "only from Khan Savings" under a name (every line would say
+  one), and "paid from an account this category doesn't use". A Budget line's notes
+  wrap rather than cut off, since they carry amounts. A category whose Paid from account
+  is archived says so on its line ("Paid from Golomt Visa, which is archived: pick
+  another to see it in a forecast"). Made on two computers with a different Paid from
+  on each, one of the two is kept, the same on both; changed on both later, it's
+  asked, as a plan is.
+- **The upgrade (v23).** Every spending category gets one, never an account it had
+  unticked: its bill's account; else the one account it still used; else, of those it
+  used, the account pay goes into, else the first cash or bank one, else the first. An
+  untouched Safety net gets none, so Savings doesn't claim where it is; Edit asks for
+  one only for a new category or a change of currency, so it still saves its note. A bill that
+  was in no forecast (two or more accounts ticked) is then scheduled. Nothing else
+  changes; the old ticks stay in the file, unread.
+- **The forecast takes out the budget, a day at a time.** For each category spent down
+  within its period and paid from the account: each period at its plan's pace, by the
+  day, so two weeks take two weeks' worth. In the period today is in, only the days
+  left, and never more than it still has (its Left once anything is assigned, else the
+  plan less what's spent): the first of the month, before assigning, still counts the
+  month, and an underspent one doesn't pile its Left onto the last days. A row already
+  scheduled in it (typed with a later date) comes on its own date and is taken off
+  what's spread. Nothing before the plan begins. Bills come on their
+  dates as before; a category that builds up isn't spent by the day. The line slopes
+  through it; the dots and the bill list are the rows only, and the line under the
+  headline adds "· ₮560,000 of spending from the budget". Beside Paid from, for such a
+  category: "What's left of it comes out of TDB Checking's forecast a day at a time."
+  *Rejected:* all of a month at its first day (the owner's pro-rating).
+
+### Cash and cards in the forecast (owner, 2026-10-28)
+
+Asked whether a wallet the budget's spending would empty should say how much to take out,
+not that it runs out, and whether the bank's forecast should count it: "Yeah, I'll take
+your recommendation."
+
+- **Cash is filled from the bank.** A cash account whose forecast goes below zero says
+  "You'll need to take out about ₮350,000 by 10.24" in ordinary ink, its line and low
+  point not coral, and no dot in the sidebar: it isn't a shortfall.
+- **The bank counts it.** The account pay goes into (else the currency's first bank
+  account) takes, on each day, what would take the wallet below zero, after what's
+  scheduled in the wallet (a withdrawal already typed fills it first). It also takes a
+  card's budget spending when nothing dated pays the card; a card paid by a dated bill
+  is counted through that bill, not twice. A shortfall there is a real one, in coral.
+
+### "Always file" stays in the popup only (owner, 2026-10-28, #176)
+
+Asked whether the popup's "Remember this for next time" should also sit at the foot of a
+row's category dropdown ("Nomin is always filed here · Delete" once set), with the
+recommendation not to: "Your recommendation is spot on." The popup offers it, and the
+Payees page adds one when the popup went too soon. *Rejected:* a second place for the
+same offer in a list opened all the time.
+
+## Three answers on income and the phone (owner, 2026-10-28)
+
+- **A payday on the day balances are typed** (#175, its first part): "The future is only
+  for forecasting. It shouldn't count on the balance unless it comes with the import." As
+  built: a scheduled payday is only in the forecast, and comes into the balance when it's
+  confirmed or comes in an import. Nothing changes.
+- **Money in still in Not categorized** (#182): "Of course, yes." Under the Income tab's
+  income for the period: "₮2,500,000 more came in and is still in Not categorized: file
+  it under Income to count it here.", one amount per currency; a click shows those rows.
+  Income itself still counts only what's filed under it.
+- **Balances in the phone's Paid from list** (#184): "Yes." Each account shows what it
+  holds now, entries still waiting on the phone counted; a card "Owed ₮640,200.00".
+
 ### The pay form: no set day, and every pay named (owner, 2026-10-28, #175)
 
 - **No set day.** Asked whether someone paid irregularly should have "No set day" under

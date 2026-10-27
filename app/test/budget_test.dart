@@ -64,6 +64,14 @@ void main() {
   BudgetAmount put(int category, DateTime date, int amount) =>
       BudgetAmount(categoryId: category, date: date, amount: amount);
 
+  /// A set amount that carries over: money kept for later.
+  CategoryPlan keeps(int category) => CategoryPlan(
+    categoryId: category,
+    kind: PlanKind.each,
+    amount: 0,
+    start: DateTime(2026, 8, 1),
+  );
+
   /// ₮5,400,000 in checking, ₮860,000 owed on the card, a mortgage and a
   /// dollar account that don't count.
   LedgerData ledger({
@@ -74,12 +82,12 @@ void main() {
     List<CategoryPlan> plans = const [],
     List<PaySchedule> pay = const [],
     List<AccountInfo> more = const [],
-    Map<int, Set<int>> off = const {},
+    Map<int, int> paidFrom = const {},
   }) => LedgerData(
     prefs: prefs,
     plans: plans,
     paySchedules: pay,
-    accountsOff: off,
+    paidFrom: paidFrom,
     accounts: [
       acct(checking, 'Checking', AccountType.asset),
       acct(visa, 'Visa', AccountType.liability),
@@ -2012,47 +2020,21 @@ void main() {
       expect(o.pools.single.currency, Currency.mnt);
     });
 
-    test('paid from an account it does not use: counted, and named', () {
+    test('any account in its currency may pay it: counted, nothing said', () {
+      // Paid from Savings, and paid from checking and the card too.
       final d = ledger(
         more: [acct(savings, 'Savings', AccountType.asset)],
-        off: {
-          food: {savings},
-        },
+        paidFrom: {food: savings},
         amounts: [put(food, oct.start, 90000000)],
         rows: [
           move(DateTime(2026, 8, 1), opening, savings, 100000000),
           move(DateTime(2026, 10, 3), checking, food, 10000000),
-          move(DateTime(2026, 10, 4), savings, food, 5000000),
+          move(DateTime(2026, 10, 4), visa, food, 5000000),
         ],
       );
       final l = of(d, oct).lines[food]!;
       expect(l.spent, 15000000);
-      expect(l.offSpent, 5000000);
-      expect(l.offAccounts, [savings]);
       expect(l.backing, isNull);
-      // The money moved there from an account it does use: nothing to say.
-      final covered = ledger(
-        more: [acct(savings, 'Savings', AccountType.asset)],
-        off: {
-          food: {savings},
-        },
-        amounts: [put(food, oct.start, 90000000)],
-        rows: [
-          move(DateTime(2026, 10, 2), checking, savings, 5000000),
-          move(DateTime(2026, 10, 4), savings, food, 5000000),
-        ],
-      );
-      expect(of(covered, oct).lines[food]!.offSpent, 0);
-      // A refund into it isn't a payment from it.
-      final refund = ledger(
-        more: [acct(savings, 'Savings', AccountType.asset)],
-        off: {
-          food: {savings},
-        },
-        amounts: [put(food, oct.start, 90000000)],
-        rows: [move(DateTime(2026, 10, 4), food, savings, 500000)],
-      );
-      expect(of(refund, oct).lines[food]!.offSpent, 0);
     });
 
     test('dollars assigned first don\'t start the tugrik budget', () {
@@ -2116,53 +2098,24 @@ void main() {
       expect(o.pools[1].overspent, 9000);
     });
 
-    test('a category that uses only the card: planned for the Visa', () {
-      // Checking unchecked, the Visa left: nothing to say about where its
-      // money is kept, and a card purchase is its own account's.
+    test('a category paid from the card: nothing to say where it is kept', () {
       final d = ledger(
-        off: {
-          food: {checking},
-        },
-        amounts: [put(food, oct.start, 90000000)],
-        rows: [
-          move(DateTime(2026, 10, 3), visa, food, 10000000),
-          move(DateTime(2026, 10, 6), checking, food, 2000000),
+        paidFrom: {food: visa},
+        plans: [
+          CategoryPlan(
+            categoryId: food,
+            kind: PlanKind.each,
+            amount: 900000000,
+            start: oct.start,
+          ),
         ],
+        amounts: [put(food, oct.start, 900000000)],
       );
-      final l = of(d, oct).lines[food]!;
-      expect(l.spent, 12000000);
-      expect(l.backing, isNull);
-      // Only what checking paid is named.
-      expect(l.offSpent, 2000000);
-      expect(l.offAccounts, [checking]);
+      // More than the card could hold: a card isn't where money is kept.
+      expect(of(d, oct).lines[food]!.backing, isNull);
     });
 
-    test('paid on an unchecked card, then the card paid from its account', () {
-      final rows = [move(DateTime(2026, 10, 3), visa, food, 10000000)];
-      final off = {
-        food: {visa},
-      };
-      final amounts = [put(food, oct.start, 90000000)];
-      var l = of(
-        ledger(off: off, amounts: amounts, rows: rows),
-        oct,
-      ).lines[food]!;
-      expect((l.offSpent, l.spent), (10000000, 10000000));
-      l = of(
-        ledger(
-          off: off,
-          amounts: amounts,
-          rows: [
-            ...rows,
-            move(DateTime(2026, 10, 9), checking, visa, 10000000),
-          ],
-        ),
-        oct,
-      ).lines[food]!;
-      expect(l.offSpent, 0);
-    });
-
-    test('an unchecked account since archived limits nothing', () {
+    test('a Paid from account since archived is compared with nothing', () {
       final d = ledger(
         more: [
           AccountInfo(
@@ -2172,12 +2125,11 @@ void main() {
             archived: true,
           ),
         ],
-        off: {
-          food: {savings},
-        },
+        paidFrom: {food: savings},
+        plans: [keeps(food)],
         amounts: [put(food, oct.start, 600000000)],
       );
-      // More than checking holds, and still no word about its accounts.
+      // More than it holds, and still no word about its account.
       expect(of(d, oct).lines[food]!.backing, isNull);
     });
 
@@ -2188,10 +2140,8 @@ void main() {
           acct(fund, 'Emergency', AccountType.expense),
           acct(trip, 'Trip', AccountType.expense),
         ],
-        off: {
-          fund: {checking},
-          trip: {checking},
-        },
+        paidFrom: {fund: savings, trip: savings},
+        plans: [keeps(fund), keeps(trip)],
         amounts: [put(fund, oct.start, 100000000)],
         rows: [
           move(DateTime(2026, 8, 1), opening, savings, 60000000),
@@ -2214,6 +2164,21 @@ void main() {
       expect(of(d, nov).lines[insurance]!.otherRows, 1);
     });
 
+    test('money in still in Not categorized is said, not counted (#182)', () {
+      final d = ledger(
+        rows: [
+          move(DateTime(2026, 10, 10), waiting, checking, 250000000),
+          move(DateTime(2026, 10, 12), salary, checking, 100000000),
+          // Money out of it isn't money in.
+          move(DateTime(2026, 10, 13), checking, waiting, 500000),
+        ],
+      );
+      final o = of(d, oct);
+      expect(o.cameInUncategorized, {Currency.mnt: 250000000});
+      expect(o.cameIn[salary], {Currency.mnt: 100000000});
+      expect(of(d, nov).cameInUncategorized, isEmpty);
+    });
+
     test('pay in dollars came in, in dollars', () {
       final d = ledger(
         rows: [
@@ -2229,7 +2194,7 @@ void main() {
       expect(of(d, oct).cameIn[salary], {Currency.usd: 300000});
     });
 
-    test('its accounts hold less than is set aside from them', () {
+    test('its account holds less than is set aside in it', () {
       // An emergency fund kept in Savings alone: ₮1,000,000 there.
       final d = ledger(
         more: [
@@ -2237,10 +2202,8 @@ void main() {
           acct(fund, 'Emergency', AccountType.expense),
           acct(trip, 'Trip', AccountType.expense),
         ],
-        off: {
-          fund: {checking, visa},
-          trip: {checking, visa},
-        },
+        paidFrom: {fund: savings, trip: savings, food: checking},
+        plans: [keeps(fund), keeps(trip)],
         amounts: [
           put(fund, oct.start, 80000000),
           put(trip, oct.start, 30000000),
@@ -2267,15 +2230,46 @@ void main() {
             acct(savings, 'Savings', AccountType.asset),
             acct(fund, 'Emergency', AccountType.expense),
           ],
-          off: {
-            fund: {checking, visa},
-          },
+          paidFrom: {fund: savings},
+          plans: [keeps(fund)],
           amounts: [put(fund, oct.start, 80000000)],
           rows: [move(DateTime(2026, 8, 1), opening, savings, 100000000)],
         ),
         oct,
       );
       expect(ok.lines[fund]!.backing, isNull);
+    });
+
+    test('one spent down in its period is not compared with its account', () {
+      // Groceries goes back when the month ends: what's left is spent from
+      // checking as it goes, not kept there (#180). Christmas carries
+      // over, so it is.
+      final d = ledger(
+        paidFrom: {food: checking, xmas: checking},
+        plans: [
+          CategoryPlan(
+            categoryId: food,
+            kind: PlanKind.each,
+            amount: 500000000,
+            start: oct.start,
+            rollover: false,
+          ),
+          CategoryPlan(
+            categoryId: xmas,
+            kind: PlanKind.each,
+            amount: 100000000,
+            start: oct.start,
+          ),
+        ],
+        amounts: [
+          put(food, oct.start, 500000000),
+          put(xmas, oct.start, 100000000),
+        ],
+      );
+      final o = of(d, oct);
+      expect(o.lines[food]!.backing, isNull);
+      // Christmas alone: ₮1,000,000 in a ₮5,400,000 account, nothing to say.
+      expect(o.lines[xmas]!.backing, isNull);
     });
   });
 
@@ -2723,9 +2717,16 @@ void main() {
       },
     );
 
-    test('a category’s currency and accounts, and back', () async {
-      final food = await db.createCategory('Groceries');
+    test('a category’s currency and Paid from, and back', () async {
       final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+      final food = await db.createCategory('Groceries');
+      final other = await db.addAccount(
+        name: 'Golomt',
+        type: AccountType.asset,
+      );
+      // Made with none said: the currency's first account (no pay yet).
+      var d = await db.loadLedger();
+      expect(d.paidFrom[food], bank);
       await db.setBudgetAmount(food, oct.start, oct.end, 90000000);
       final plan = CategoryPlan(
         categoryId: food,
@@ -2734,43 +2735,43 @@ void main() {
         start: DateTime(2026, 10, 5),
       );
       await db.setCategoryPlan(food, plan);
-      // Unchecking an account keeps the amounts and the plan.
+      // A new Paid from keeps the amounts and the plan.
       var before = await db.setCategoryMoney(
         food,
         currency: Currency.mnt,
-        off: {bank},
+        paidFrom: other,
       );
-      var d = await db.loadLedger();
-      expect(d.accountsOff[food], {bank});
+      d = await db.loadLedger();
+      expect(d.paidFrom[food], other);
       expect(d.budgetAmounts, hasLength(1));
-      expect(before.off, isEmpty);
+      expect(before.paidFrom, bank);
       // A change of currency takes both away; undo brings them back.
       before = await db.setCategoryMoney(
         food,
         currency: Currency.usd,
-        off: const {},
+        paidFrom: null,
       );
       d = await db.loadLedger();
       expect(d.accounts[food]!.currency, Currency.usd);
       expect(d.budgetAmounts, isEmpty);
       expect(d.plans, isEmpty);
-      expect(d.accountsOff, isEmpty);
+      expect(d.paidFrom[food], isNull);
       await db.restoreCategoryMoney(food, before);
       d = await db.loadLedger();
       expect(d.accounts[food]!.currency, Currency.mnt);
       expect(d.budgetAmounts.single.amount, 90000000);
       expect(d.plans[food], plan);
-      expect(d.accountsOff[food], {bank});
-      // A new bank account starts unchecked on a category already
-      // narrowed, and checked on the rest.
-      final other = await db.createCategory('Fun');
-      final next = await db.createAccount(
-        name: 'Golomt',
-        type: AccountType.asset,
+      expect(d.paidFrom[food], other);
+      // Pay set up: a category made after starts where pay goes in.
+      await db.savePaySchedule(
+        accountId: other,
+        amount: 250000000,
+        rule: PayRule.monthly,
+        day1: 25,
+        today: today,
       );
-      d = await db.loadLedger();
-      expect(d.accountsOff[food], {bank, next});
-      expect(d.accountsOff[other], isNull);
+      final fun = await db.createCategory('Fun');
+      expect((await db.loadLedger()).paidFrom[fun], other);
       // Merged into a category in the other currency, its amounts don't
       // become that currency's: they go back to not assigned.
       final usd = await db.createCategory('Fun US', currency: Currency.usd);
@@ -2800,7 +2801,61 @@ void main() {
       final ins = await db.createCategory('Insurance', currency: Currency.usd);
       expect((await db.loadLedger()).accounts[ins]!.currency, Currency.usd);
       await db.startNewLedger(today, keepCategories: true);
-      expect((await db.loadLedger()).accountsOff, isEmpty);
+      expect((await db.loadLedger()).paidFrom, isEmpty);
+    });
+
+    test('a bill moves with its Paid from, and back with undo', () async {
+      final a = await db.addAccount(name: 'Bank', type: AccountType.asset);
+      final b = await db.addAccount(name: 'Golomt', type: AccountType.asset);
+      final rent = await db.createCategory('Rent', paidFrom: a);
+      final plan = CategoryPlan(
+        categoryId: rent,
+        kind: PlanKind.byDate,
+        amount: 80000000,
+        start: today,
+        due: DateTime(2026, 11, 20),
+        everyMonths: 1,
+      );
+      // Saved with no account of its own: it takes the category's.
+      await db.changeCategoryPlan(rent, plan, today);
+      Future<Set<int>> billedIn() async => {
+        for (final t in (await db.loadLedger()).txns)
+          if (t.scheduled && t.planCategoryId == rent)
+            for (final e in t.entries)
+              if (e.accountId != rent) e.accountId,
+      };
+      expect(await billedIn(), {a});
+      expect((await db.loadLedger()).plans[rent]!.paidFrom, a);
+      // Edit: Paid from Golomt, and the plan saved with it, as Edit does.
+      final money = await db.setCategoryMoney(
+        rent,
+        currency: Currency.mnt,
+        paidFrom: b,
+      );
+      final change = await db.changeCategoryPlan(
+        rent,
+        plan.withPaidFrom(b),
+        today,
+      );
+      expect(await billedIn(), {b});
+      // ⌘Z, in the order the screen undoes them: exactly as it was.
+      await db.undoPlanChange(rent, change);
+      await db.restoreCategoryMoney(rent, money);
+      final d = await db.loadLedger();
+      expect(d.paidFrom[rent], a);
+      expect(d.plans[rent]!.paidFrom, a);
+      expect(await billedIn(), {a});
+    });
+
+    test('a Safety net left to every account is given no Paid from', () async {
+      await db.addAccount(name: 'Bank', type: AccountType.asset);
+      final net = await db.safetyNetCategory(
+        name: 'Safety net',
+        currency: Currency.mnt,
+      );
+      await db.fillPaidFrom();
+      // Where it's kept is the person's to say.
+      expect((await db.loadLedger()).paidFrom[net], isNull);
     });
 
     test('several amounts in one write, and back', () async {
