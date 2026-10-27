@@ -4811,6 +4811,41 @@ fine. Three were sketched; the owner picked B.
   aside, then More than income or Left from income); C, one coral line in the key
   card only when over, with the detail on the Income tab.
 
+## The open questions, sorted (owner, 2026-10-27)
+
+Fifteen "Question:" issues from 2026-10-02 to 10-24, gone through against the app as it
+is now. The owner's answers:
+
+- **Closed as settled:** the test payee (#178; no bank statement here has that line), the
+  offer to take rows out of the opening balance (#259; stays in the popup only, the known
+  issue of 10-24), and collapsing the header on scroll (#186; only an idea, not asked for).
+- **Built as recommended, in one fix:** the note beside Add says what to do, "Type an
+  amount", "Choose a category", "2 more to fill in", in place of "needs amount" (#181);
+  the refund note for money in on a new category, cut off in the 156-pixel column by Add,
+  is a gold line of its own under the row, "Money in counts as a refund to Returns. For
+  pay, pick Income.", and only "new category" stays beside Add. The phone's line is "1
+  entry isn't in your ledger yet", its list headed "Not in your ledger yet" (#185;
+  *rejected:* "1 entry will be added when BetterBudget is next open on your computer").
+  A late scheduled row says what it means for the balance, "due 22 days ago · not in
+  Working yet", on the register's row only: the forecast's bill list keeps "due 22 days
+  ago", since the forecast counts it as today (#188). An import off from the bank leads
+  with the gap, "₮3,298,850.00 apart from the bank." (#188). A Filed under popup's second
+  line says which row, "09.15 · −₮200 · IB-INTERBANK…", date and amount alone when the
+  row has no payee (#177); the "Always filed" popup keeps the payee alone, since it is
+  about the payee, and Added and Edited already name the row in their first line.
+- **A category's default account** (#180): "They should specify this when they setup the
+  given category. Any account with the same currency can use the category, but the
+  default account is the one specified at category creation." This replaces defaulting a
+  new bill's Paid from to the account pay lands in.
+- **Money set aside in an account** (#183): "They should be able to say a given amount of
+  the account is only for emergency fund. It should be free to budget." The rest of the
+  account is free to budget, as built.
+- **The forecast takes out what's budgeted** (#179): "Yes." Groceries, transport and the
+  rest come out of the forecast too, not only dated bills.
+- **Pay saved on the phone takes a payday's place** (#187): "Yes, but she would have to
+  specify which income it was for if it was for a paycheck, no?" With more than one pay
+  set up, the phone asks which pay it is.
+
 ## One account a category is paid from; the forecast takes out the budget (owner, 2026-10-27, #180, #179)
 
 The owner's words: "They should specify this when they setup the given category. Any
