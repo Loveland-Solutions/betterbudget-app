@@ -129,9 +129,13 @@ if '{' not in t:
     print('Partner Center has no new submission')
     sys.exit()
 s = json.loads(t[t.index('{'):])
+# Before the commit Partner Center hasn't read the package: it is
+# PendingUpload with no version yet (step 4 read it). After, it has one.
 mine = [p for p in s.get('ApplicationPackages') or []
         if p.get('FileName') == 'BetterBudget-$version.msix'
-        and p.get('Version') == '$version.0'
+        and (p.get('Version') == '$version.0'
+             or (p.get('Version') is None
+                 and p.get('FileStatus') == 'PendingUpload'))
         and p.get('FileStatus') != 'PendingDelete']
 if not mine:
     print('the submission waiting in Partner Center (' + str(s.get('Id')) +
