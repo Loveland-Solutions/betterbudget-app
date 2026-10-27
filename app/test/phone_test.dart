@@ -17,7 +17,9 @@ import 'package:betterbudget/domain/ledger.dart'
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/sync.dart' show MadeHow;
+import 'package:betterbudget/l10n/app_localizations.dart';
 import 'package:betterbudget/phone_preview.dart';
+import 'package:betterbudget/ui/ledger_screen.dart' show phonePlanNotes;
 import 'package:betterbudget/ui/phone/phone_app.dart';
 import 'package:betterbudget/ui/phone/phone_start.dart';
 import 'package:betterbudget/ui/schemes.dart';
@@ -1758,6 +1760,92 @@ void main() {
     );
   });
 
+  testWidgets('a category still waiting opens filled in, and Save changes '
+      'it with its entries kept in it', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final day = DateTime(2026, 10, 7);
+    final snapshot = previewSnapshot(DateTime(2026, 10, 7, 8, 10));
+    final account = snapshot.accounts.firstWhere((a) => !a.owes);
+    // ₮450,000 typed for ₮45,000 (#243).
+    final store = PhoneStore(
+      snapshot,
+      made: [
+        PhoneCategory(
+          id: 'new-1',
+          name: 'Mobicom',
+          leftMinor: 0,
+          currency: account.currency,
+          madeHere: true,
+          plan: CategoryPlan(
+            categoryId: -1,
+            kind: PlanKind.byDate,
+            amount: 45000000,
+            start: day,
+            due: DateTime(2026, 10, 15),
+            everyMonths: 1,
+          ),
+          due: DateTime(2026, 10, 15),
+        ),
+      ],
+      waiting: [
+        PhoneEntry(
+          id: 'e1',
+          categoryId: 'new-1',
+          accountId: account.id,
+          payee: 'Mobicom',
+          amountMinor: -4500000,
+          date: day,
+          madeAt: day,
+        ),
+      ],
+    );
+    await tester.pumpWidget(PhoneApp(store: store, now: () => _now));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('waiting-category-new-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit Mobicom'), findsOneWidget);
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.byKey(const ValueKey('new-category-another')), findsNothing);
+    // An entry is filed in it: its currency stays.
+    expect(find.byKey(const ValueKey('money-currency')), findsNothing);
+    // Its own name isn't "taken".
+    expect(find.byKey(const ValueKey('new-category-note')), findsNothing);
+    await tester.enterText(find.byKey(const ValueKey('plan-amount')), '45000');
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit Mobicom'), findsNothing);
+    final c = store.made.single;
+    expect(c.id, 'new-1');
+    expect(c.plan!.amount, 4500000);
+    expect(c.plan!.due, DateTime(2026, 10, 15));
+    expect(c.plan!.everyMonths, 1);
+    expect(store.waiting.single.categoryId, 'new-1');
+
+    // Taken in by the computer while the page is open: its own name isn't
+    // called taken, and Save says it went.
+    await tester.tap(find.byKey(const ValueKey('waiting-category-new-1')));
+    await tester.pumpAndSettle();
+    store.removeCategory('new-1');
+    await tester.pump();
+    expect(find.byKey(const ValueKey('new-category-note')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'The computer took in Mobicom while this was open, so these changes '
+        'weren’t kept. Change it on the computer’s Budget page.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit Mobicom'), findsNothing);
+  });
+
   testWidgets('an overspent category is said in words, not with a minus', (
     tester,
   ) async {
@@ -2516,10 +2604,35 @@ void main() {
               payScheduleId: 999999,
             ),
           ),
+          // Once only, its day gone by before the computer took it in.
+          made(
+            'new-3',
+            'Car tax',
+            CategoryPlan(
+              categoryId: 0,
+              kind: PlanKind.byDate,
+              amount: 12000000,
+              start: DateTime(2026, 9, 1),
+              due: DateTime(2026, 9, 10),
+            ),
+          ),
         ],
       );
       final take = (await db.takePhoneEntries([inbox], today: today))!;
       data = await db.loadLedger();
+      // The computer's popup says each bill, and what came without one
+      // (#244).
+      expect(
+        phonePlanNotes(lookupWords(const Locale('en')), take, data, today),
+        [
+          'Bonus fund came in without its amount of ₮1,000: the payday it '
+              'was set on was deleted on this computer',
+          'Mobicom · ₮45,000 due 10.15',
+          'Car tax · ₮120,000 due 09.10, already passed',
+        ],
+      );
+      // Read again unchanged: nothing more to say.
+      expect(await db.takePhoneEntries([inbox], today: today), isNull);
       final mobicom = id('Mobicom');
       final plan = data.plans[mobicom]!;
       expect(plan.kind, PlanKind.byDate);
@@ -2589,6 +2702,13 @@ void main() {
       );
       final take = (await db.takePhoneEntries([inbox], today: today))!;
       var data = await db.loadLedger();
+      expect(
+        phonePlanNotes(lookupWords(const Locale('en')), take, data, today),
+        [
+          'Gym was here already, so the phone’s ₮1 bill for it wasn’t used',
+          'Internet · ₮60,000 due 10.20',
+        ],
+      );
       expect(data.accounts[internet]!.archived, isFalse);
       expect(data.plans[internet]!.amount, 6000000);
       expect(data.plans[rent]!.amount, 7000000);
@@ -2602,6 +2722,99 @@ void main() {
       data = await db.loadLedger();
       expect(data.accounts[internet]!.archived, isFalse);
       expect(data.plans[internet]!.amount, 6000000);
+    });
+
+    test('a category the phone changes after the computer took it in is '
+        'said once, and the ledger\'s plan stays (#243)', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      PhoneInbox inbox(int amount) => PhoneInbox(
+        device: 'ab12',
+        categories: [
+          PhoneCategory(
+            id: 'new-1',
+            name: 'Mobicom',
+            leftMinor: 0,
+            madeHere: true,
+            plan: CategoryPlan(
+              categoryId: 0,
+              kind: PlanKind.byDate,
+              amount: amount,
+              start: today,
+              due: DateTime(2026, 10, 15),
+              everyMonths: 1,
+            ),
+          ),
+        ],
+      );
+      await db.takePhoneEntries([inbox(45000000)], today: today);
+      // Fixed on the phone before it heard the computer had it.
+      final late = (await db.takePhoneEntries([inbox(4500000)], today: today))!;
+      final data = await db.loadLedger();
+      final mobicom = data.categories.singleWhere((c) => c.name == 'Mobicom');
+      expect(data.plans[mobicom.id]!.amount, 45000000);
+      expect(late.transactionIds, isEmpty);
+      expect(late.plans, isEmpty);
+      expect(
+        phonePlanNotes(lookupWords(const Locale('en')), late, data, today),
+        [
+          'Mobicom was changed on the phone after it came in, to ₮45,000 '
+              'due 10.15; this computer’s stays as it was',
+        ],
+      );
+      expect(await db.takePhoneEntries([inbox(4500000)], today: today), isNull);
+    });
+
+    test('a bill\'s next date, or that it has passed', () {
+      CategoryPlan plan({
+        DateTime? due,
+        int? everyMonths,
+        int? endCount,
+        DateTime? endDate,
+      }) => CategoryPlan(
+        categoryId: 1,
+        kind: PlanKind.byDate,
+        amount: 100,
+        start: DateTime(2026, 8, 1),
+        due: due,
+        everyMonths: everyMonths,
+        endCount: endCount,
+        endDate: endDate,
+      );
+      final day = DateTime(2026, 9, 16);
+      expect(Budget.nextDue(plan(due: DateTime(2026, 9, 20)), day), (
+        date: DateTime(2026, 9, 20),
+        passed: false,
+      ));
+      expect(Budget.nextDue(plan(due: DateTime(2026, 9, 10)), day), (
+        date: DateTime(2026, 9, 10),
+        passed: true,
+      ));
+      expect(
+        Budget.nextDue(plan(due: DateTime(2026, 8, 15), everyMonths: 1), day),
+        (date: DateTime(2026, 10, 15), passed: false),
+      );
+      // Its two bills are both behind it.
+      expect(
+        Budget.nextDue(
+          plan(due: DateTime(2026, 8, 1), everyMonths: 1, endCount: 2),
+          day,
+        ),
+        (date: DateTime(2026, 9, 1), passed: true),
+      );
+      // An end typed before the first bill, still ahead: not passed.
+      expect(
+        Budget.nextDue(
+          plan(
+            due: DateTime(2026, 11, 20),
+            everyMonths: 1,
+            endDate: DateTime(2026, 11, 10),
+          ),
+          day,
+        ),
+        (date: DateTime(2026, 11, 10), passed: false),
+      );
     });
 
     test(
@@ -3437,6 +3650,51 @@ void main() {
       expect(find.byKey(const ValueKey('waiting-link')), findsNothing);
       file.writeAsBytesSync(folder.written[name]!);
       expect(readPhoneInbox(file, keys.kept).entries, isEmpty);
+    });
+
+    testWidgets('a waiting category changed on the phone is written to '
+        'the folder again (#243)', (tester) async {
+      final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+      final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+      final dir = _phoneDir();
+      await start(tester, keys: keys, folder: folder, dir: dir);
+      await _toBudget(tester);
+      await tester.tap(find.byKey(const ValueKey('budget-new-category')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('new-category-name')),
+        'Taxi',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('plan-amount')),
+        '500000',
+      );
+      await tester.tap(find.byKey(const ValueKey('new-category-add')));
+      await tester.pumpAndSettle();
+      final name = folder.written.keys.single;
+      final file = File('${dir.path}/check');
+      PhoneCategory sent() {
+        file.writeAsBytesSync(folder.written[name]!);
+        return readPhoneInbox(file, keys.kept).categories.single;
+      }
+
+      expect(sent().plan!.amount, 50000000);
+      final id = sent().id;
+      await _toLedger(tester);
+      await tester.tap(find.byKey(const ValueKey('waiting-link')));
+      await tester.pumpAndSettle();
+      expect(find.text('new category · ₮500,000'), findsOneWidget);
+      await tester.tap(find.byKey(ValueKey('waiting-category-$id')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('plan-amount')),
+        '50000',
+      );
+      await tester.tap(find.byKey(const ValueKey('new-category-add')));
+      await tester.pumpAndSettle();
+      expect(find.text('new category · ₮50,000'), findsOneWidget);
+      expect(sent().id, id);
+      expect(sent().plan!.amount, 5000000);
     });
 
     testWidgets('entries the phone can’t save go in the record once, '

@@ -110,6 +110,36 @@ class PhoneStore extends ChangeNotifier {
     return category;
   }
 
+  /// Whether an entry waiting here is filed in [id], wholly or in part.
+  bool hasEntriesIn(String id) =>
+      _waiting.any((e) => e.categoryIds.contains(id));
+
+  /// Puts what its page now says into the category [id] made here,
+  /// keeping its id, so the entries filed in it stay there (#243). False
+  /// when the computer has taken it in meanwhile.
+  bool changeCategory(
+    String id,
+    String name,
+    Currency currency, {
+    CategoryPlan? plan,
+    Set<String> off = const {},
+  }) {
+    final at = _made.indexWhere((c) => c.id == id);
+    if (at < 0) return false;
+    _made[at] = PhoneCategory(
+      id: id,
+      name: name.trim(),
+      leftMinor: 0,
+      currency: currency,
+      madeHere: true,
+      plan: plan,
+      off: off,
+      due: plan?.kind == PlanKind.byDate ? plan?.due : null,
+    );
+    notifyListeners();
+    return true;
+  }
+
   /// Takes back a category made here, and the entries filed in it.
   void removeCategory(String id) {
     _made.removeWhere((c) => c.id == id);
@@ -3331,8 +3361,28 @@ class _WaitingScreen extends StatelessWidget {
             if (i < made.length) {
               final c = made[i];
               return _row(
+                key: ValueKey('waiting-category-${c.id}'),
                 title: c.name,
-                under: t.rowsNewCategoryNote,
+                // What it will take to the computer, so a fix shows here.
+                under: switch (c.plan) {
+                  final p? when p.kind == PlanKind.byDate && c.due != null =>
+                    t.phoneWaitingCategoryBill(
+                      formatShort(p.amount, currency: c.currency),
+                      shortDate(c.due!),
+                    ),
+                  final p? => t.phoneWaitingCategoryAmount(
+                    formatShort(p.amount, currency: c.currency),
+                  ),
+                  null => t.rowsNewCategoryNote,
+                },
+                // Nothing has left the phone: it opens to be changed, its
+                // entries staying in it (#243).
+                onTap: () => _openNewCategory(
+                  context,
+                  store: store,
+                  currency: c.currency,
+                  editing: c,
+                ),
                 onDelete: () => _deleteCategory(context, c),
                 deleteLabel: t.rowsDelete,
               );

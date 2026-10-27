@@ -8424,7 +8424,9 @@ void main() {
       // all time.
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(ValueKey('category-menu-${groceries.id}')));
+      await tester.ensureVisible(
+        find.byKey(ValueKey('category-menu-${groceries.id}')),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('category-menu-${groceries.id}')));
       await tester.pumpAndSettle();

@@ -6798,4 +6798,79 @@ class WordsMn extends Words {
   @override
   String get planFitEvenPayThen =>
       'Тэр цалингийн үеийн төлөвлөгөө орлоготой яг тэнцүү';
+
+  @override
+  String phoneCategoryTakenMeanwhile(String name) {
+    return 'Энэ хуудас нээлттэй байх үед компьютер $name ангиллыг авчихсан тул эдгээр өөрчлөлт хадгалагдсангүй. Компьютерын Төсөв хуудсанд өөрчилнө үү.';
+  }
+
+  @override
+  String ledgerPhoneBill(String name, String amount, String date) {
+    return '$name · $amount, төлөх өдөр: $date';
+  }
+
+  @override
+  String ledgerPhoneBillPassed(String name, String amount, String date) {
+    return '$name · $amount, төлөх өдөр: $date — өнгөрсөн';
+  }
+
+  @override
+  String ledgerPhoneBillPaid(String name, String amount) {
+    return '$name · $amount төлөгдсөн';
+  }
+
+  @override
+  String ledgerPhoneBillPayGone(String name, String amount) {
+    return '$name $amount-ийн төлбөргүй орж ирлээ: түүний тохируулсан цалингийн өдрийг энэ компьютер дээр устгасан';
+  }
+
+  @override
+  String ledgerPhoneAmountPayGone(String name, String amount) {
+    return '$name $amount дүнгүй орж ирлээ: түүний тохируулсан цалингийн өдрийг энэ компьютер дээр устгасан';
+  }
+
+  @override
+  String ledgerPhoneBillKept(String name, String amount) {
+    return '$name энд аль хэдийн байсан тул утасны $amount-ийн төлбөрийг ашиглаагүй';
+  }
+
+  @override
+  String ledgerPhoneAmountKept(String name, String amount) {
+    return '$name энд аль хэдийн байсан тул утасны $amount дүнг ашиглаагүй';
+  }
+
+  @override
+  String ledgerPhoneChangedBill(String name, String amount, String date) {
+    return '$name-г орж ирсний дараа утсан дээр өөрчилсөн: $amount, төлөх өдөр: $date. Энэ компьютерынх хэвээр үлдэнэ';
+  }
+
+  @override
+  String ledgerPhoneChangedAmount(String name, String amount) {
+    return '$name-г орж ирсний дараа утсан дээр өөрчилсөн: $amount. Энэ компьютерынх хэвээр үлдэнэ';
+  }
+
+  @override
+  String ledgerPhoneChanged(String name) {
+    return '$name-г орж ирсний дараа утсан дээр өөрчилсөн. Энэ компьютерынх хэвээр үлдэнэ';
+  }
+
+  @override
+  String ledgerPhoneNotesMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Өөр $count: Төсөв хуудсыг харна уу',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phoneWaitingCategoryBill(String amount, String date) {
+    return 'шинэ ангилал · $amount, төлөх өдөр: $date';
+  }
+
+  @override
+  String phoneWaitingCategoryAmount(String amount) {
+    return 'шинэ ангилал · $amount';
+  }
 }

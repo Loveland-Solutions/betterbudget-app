@@ -7051,4 +7051,80 @@ class WordsEn extends Words {
   @override
   String get planFitEvenPayThen =>
       'That pay period’s plans take exactly its income';
+
+  @override
+  String phoneCategoryTakenMeanwhile(String name) {
+    return 'The computer took in $name while this was open, so these changes weren’t kept. Change it on the computer’s Budget page.';
+  }
+
+  @override
+  String ledgerPhoneBill(String name, String amount, String date) {
+    return '$name · $amount due $date';
+  }
+
+  @override
+  String ledgerPhoneBillPassed(String name, String amount, String date) {
+    return '$name · $amount due $date, already passed';
+  }
+
+  @override
+  String ledgerPhoneBillPaid(String name, String amount) {
+    return '$name · $amount paid';
+  }
+
+  @override
+  String ledgerPhoneBillPayGone(String name, String amount) {
+    return '$name came in without its $amount bill: the payday it was set on was deleted on this computer';
+  }
+
+  @override
+  String ledgerPhoneAmountPayGone(String name, String amount) {
+    return '$name came in without its amount of $amount: the payday it was set on was deleted on this computer';
+  }
+
+  @override
+  String ledgerPhoneBillKept(String name, String amount) {
+    return '$name was here already, so the phone’s $amount bill for it wasn’t used';
+  }
+
+  @override
+  String ledgerPhoneAmountKept(String name, String amount) {
+    return '$name was here already, so the phone’s amount of $amount for it wasn’t used';
+  }
+
+  @override
+  String ledgerPhoneChangedBill(String name, String amount, String date) {
+    return '$name was changed on the phone after it came in, to $amount due $date; this computer’s stays as it was';
+  }
+
+  @override
+  String ledgerPhoneChangedAmount(String name, String amount) {
+    return '$name was changed on the phone after it came in, to $amount; this computer’s stays as it was';
+  }
+
+  @override
+  String ledgerPhoneChanged(String name) {
+    return '$name was changed on the phone after it came in; this computer’s stays as it was';
+  }
+
+  @override
+  String ledgerPhoneNotesMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more: see the Budget page',
+      one: '1 more: see the Budget page',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phoneWaitingCategoryBill(String amount, String date) {
+    return 'new category · $amount due $date';
+  }
+
+  @override
+  String phoneWaitingCategoryAmount(String amount) {
+    return 'new category · $amount';
+  }
 }

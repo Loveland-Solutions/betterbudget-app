@@ -979,6 +979,31 @@ class Budget {
     return null;
   }
 
+  /// The plan's first bill on [today] or after; when there is none, its
+  /// last, already passed (a once-only one taken in late, #244).
+  static ({DateTime date, bool passed}) nextDue(
+    CategoryPlan plan,
+    DateTime today, {
+    PaySchedule? pay,
+  }) {
+    final day = dateOnly(today);
+    final last = plan.repeats
+        ? lastDue(plan, pay: pay)
+        : dueAfter(plan, 0, pay: pay);
+    var n = 0;
+    while (n < _mostPeriods) {
+      final d = dueAfter(plan, n, pay: pay);
+      if (last != null && d.isAfter(last)) break;
+      if (!d.isBefore(day)) return (date: d, passed: false);
+      if (!plan.repeats) break;
+      n++;
+    }
+    final at = last ?? dueAfter(plan, n, pay: pay);
+    // An end typed before the first bill is the date it stops, which can
+    // still be ahead.
+    return (date: at, passed: at.isBefore(day));
+  }
+
   /// [date] is past the plan's last bill.
   static bool over(CategoryPlan plan, DateTime date, {PaySchedule? pay}) =>
       switch (lastDue(plan, pay: pay)) {

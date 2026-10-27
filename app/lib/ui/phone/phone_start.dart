@@ -246,13 +246,15 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     final store = _store, outbox = _outbox, folder = _folder;
     if (store == null || outbox == null || folder == null) return;
     final inbox = store.inbox;
-    final saying = [
-      for (final e in inbox.entries) '${e.id}>${e.categoryId}',
-      for (final c in inbox.categories) c.id,
-    ].join(',');
+    final saying = phoneInboxSaying(inbox);
     if (saying == _sent) return;
     // A phone that has never had anything to say writes no file.
-    if (_sent == null && saying.isEmpty && !outbox.exists) return;
+    if (_sent == null &&
+        inbox.entries.isEmpty &&
+        inbox.categories.isEmpty &&
+        !outbox.exists) {
+      return;
+    }
     _sent = saying;
     // Kept on the phone at once: only the folder waits its turn, and a
     // folder that hangs with no signal can't cost an entry.

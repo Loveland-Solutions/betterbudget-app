@@ -320,13 +320,24 @@ const showSourceKey = 'register.source';
 /// copy of the phone's file turning up in the folder must not bring an
 /// entry in a second time.
 class PhoneTaken {
-  const PhoneTaken({this.entries = const {}, this.categories = const {}});
+  const PhoneTaken({
+    this.entries = const {},
+    this.categories = const {},
+    this.seen = const {},
+  });
 
   /// The ids of the entries that are in the ledger.
   final Set<String> entries;
 
   /// The id a phone gave a category it made, to the id the ledger gave it.
   final Map<String, String> categories;
+
+  /// Each taken category as the phone's file had it when last read (its
+  /// name, currency, plan and accounts, in one string): one the phone
+  /// changes after the computer took it in is said, not applied (#243).
+  /// None for a category taken by an older version: read again, it's
+  /// recorded with nothing said.
+  final Map<String, String> seen;
 
   static Map<String, PhoneTaken> decode(String? json) {
     if (json == null) return {};
@@ -338,6 +349,11 @@ class PhoneTaken {
             categories: {
               for (final MapEntry(:key, :value)
                   in (value['categories'] as Map).entries)
+                '$key': '$value',
+            },
+            seen: {
+              for (final MapEntry(:key, :value)
+                  in ((value['seen'] as Map?) ?? const {}).entries)
                 '$key': '$value',
             },
           ),
@@ -355,6 +371,11 @@ class PhoneTaken {
           for (final id in taken[device]!.categories.keys.toList()..sort())
             id: taken[device]!.categories[id],
         },
+        if (taken[device]!.seen.isNotEmpty)
+          'seen': {
+            for (final id in taken[device]!.seen.keys.toList()..sort())
+              id: taken[device]!.seen[id],
+          },
       },
   });
 }

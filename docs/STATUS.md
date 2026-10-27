@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-27** · version 0.60.1 · schema v22 · 941 tests pass
+**Last updated: 2026-10-27** · version 0.61.0 · schema v22 · 945 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -24,6 +24,17 @@ combs are done (#161: Ledger, Budget, Savings, Payees), and so are the Savings g
 and living on the income (#234). What's left for beta there: the native speaker's
 check of the Mongolian (#90); the store listings say free on Play and the Microsoft
 Store, and Apple's waits for its listing (#98).
+
+**A phone's new category, both ends** (0.61.0, #243 and #244; ADR 0004 "New
+category"): on the phone, a category still waiting opens from the Waiting list filled
+in, "Edit Mobicom" with Save, its entries kept in it (`PhoneStore.changeCategory`);
+its row says the bill it will take. On the computer, the popup that takes it in says
+each bill that came ("Mobicom · ₮45,000 due 10.15", "already passed", "paid"), any
+plan left out and why, and a change the phone made after the computer had it, which
+is said, not applied (`phonePlanNotes` in `ui/ledger_screen.dart`, `PhoneTake.leftOut`,
+`PhoneTaken.seen`). The phone's file is written again on any change to it
+(`phoneInboxSaying`), which also fixes a waiting entry's edit never reaching the
+computer.
 
 **Living on the income** (0.60.0, #234; ADR 0004 "Living on the income"): a card
 under Budget's key card, one block per currency with income or pay: "October's
