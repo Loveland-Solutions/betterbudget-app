@@ -4080,6 +4080,40 @@ is set before it's made, so nothing opens after Add.
   with a plan keeps the computer's, and its own Paid from either way (budget review).
   A due date is picked from today on, as a date typed on the computer rolls ahead. A
   computer on an older version takes the category in bare.
+- **A phone's category still waiting can be changed** (#243, budget review): tapped on
+  the phone's Waiting list, it opens on the same page filled in, titled "Edit
+  Mobicom", with **Save** in place of Add and no Add another. Its entries stay in it,
+  under the same id. Its currency is offered only while no entry is filed in it (an
+  entry's money is in its account's currency). The keyboard doesn't come up: it opens
+  on what it says. Its row on the Waiting list says what it will take to the
+  computer, "new category · ₮45,000 due 10.15", so a fix shows without opening it
+  again. If the computer took it in while the page was open, Save says so ("…
+  Change it on the computer's Budget page.") and keeps nothing. Delete on the same
+  line is unchanged.
+- **Changed on the phone after the computer took it in** (code and budget reviews):
+  the phone hears that the computer has it only when the computer's ledger reaches
+  the folder, so a Save can come in between. The computer remembers each phone
+  category as it read it; one that's changed later isn't applied (the computer may
+  have assigned money to it since, and what this computer has stays this person's
+  to change) but said once in the popup: "Mobicom was changed on the phone after it
+  came in, to ₮45,000 due 10.15; this computer's stays as it was", with **Edit
+  Mobicom**. The phone's file is now written again whenever anything in it changes,
+  not only when an id does: before, a waiting entry fixed on the phone (its amount,
+  payee or date) never reached the folder either.
+- **The computer's popup says what a phone's category brought** (#244, budget
+  review): under "1 new category from your phone", first what needs doing, with the
+  phone's figures: "Mobicom came in without its ₮45,000 bill: the payday it was set
+  on was deleted on this computer", or "Mobicom was here already, so the phone's
+  ₮45,000 bill for it wasn't used" (it had its own plan, or another currency), and
+  the late change above; then each bill that came: "Mobicom · ₮45,000 due 10.15" (the
+  next due date), "…, already passed" for a once-only bill whose day went by before
+  the computer took it in, or "Mobicom · ₮45,000 paid" when an entry taken in with it
+  paid it. "amount" in place of "bill" for one with no due date. Two lines at most;
+  past two, the first and "2 more: see the Budget page". **Edit Mobicom** stays the
+  popup's button when one category is concerned, a left-out one included. When
+  nothing came in but such a line, that line alone is the popup, with no Undo
+  (nothing changed to undo). A category archived on the computer comes back only
+  when the phone's bill does.
 
 
 ## Move money between categories (2026-10-23)

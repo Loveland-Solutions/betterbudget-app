@@ -10,12 +10,15 @@ part of 'phone_app.dart';
 /// Opens New category. [forEntry]: from an entry's Category list, in the
 /// entry's [currency] with no other offered, and no Add another; the
 /// category made, or the one already called that, comes back for the entry.
+/// [editing]: a category made here and still waiting, opened filled in to
+/// be changed, with Save in place of Add (#243).
 Future<PhoneCategory?> _openNewCategory(
   BuildContext context, {
   required PhoneStore store,
   required Currency currency,
   String name = '',
   bool forEntry = false,
+  PhoneCategory? editing,
 }) {
   final now = store.now();
   final today = DateTime(now.year, now.month, now.day);
@@ -26,8 +29,9 @@ Future<PhoneCategory?> _openNewCategory(
         store: store,
         today: today,
         currency: currency,
-        name: name,
+        name: editing?.name ?? name,
         forEntry: forEntry,
+        editing: editing,
       ),
     ),
   );
@@ -40,12 +44,14 @@ class _NewCategoryPage extends StatefulWidget {
     required this.currency,
     required this.name,
     required this.forEntry,
+    this.editing,
   });
   final PhoneStore store;
   final DateTime today;
   final Currency currency;
   final String name;
   final bool forEntry;
+  final PhoneCategory? editing;
 
   @override
   State<_NewCategoryPage> createState() => _NewCategoryPageState();
@@ -57,10 +63,28 @@ const _pageCategoryId = -1;
 
 class _NewCategoryPageState extends State<_NewCategoryPage> {
   late final _name = TextEditingController(text: widget.name);
-  late PlanAnswers _p = _fresh(widget.currency);
+  late PlanAnswers _p = widget.editing == null
+      ? _fresh(widget.currency)
+      : (_fresh(widget.editing!.currency)
+          ..show(widget.editing!.plan, periodPayId: _data.periodSchedule?.id));
 
   /// The accounts in its currency it isn't paid from (rule 28).
-  Set<int> _off = {};
+  late Set<int> _off = {
+    for (final a in widget.editing?.off ?? const <String>{}) ?int.tryParse(a),
+  };
+
+  /// The computer took in the category being changed while the page was
+  /// open: there's nothing left here to change.
+  bool get _takenMeanwhile =>
+      widget.editing != null &&
+      !widget.store.made.any((c) => c.id == widget.editing!.id);
+
+  /// The ledger's categories and the ones made here, but for the one
+  /// being changed: its own name isn't taken.
+  List<PhoneCategory> get _others => [
+    for (final c in widget.store.categories)
+      if (c.id != widget.editing?.id) c,
+  ];
 
   /// What Add another has made so far: the only sign of it, since the
   /// page stays open.
@@ -113,8 +137,11 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     return used.length == 1 ? used.single.id : null;
   }
 
-  CategoryPlan? get _draft =>
-      _p.draft(categoryId: _pageCategoryId, paidFrom: _paidFrom);
+  CategoryPlan? get _draft => _p.draft(
+    categoryId: _pageCategoryId,
+    paidFrom: _paidFrom,
+    old: widget.editing?.plan,
+  );
 
   /// Each typed field's focus, by its key: a tap on its row puts the
   /// cursor there.
@@ -135,7 +162,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   /// What's said under the name as it's typed: it's taken, and what Add
   /// does then. [blocks]: Add can't go ahead with it.
   ({String text, bool blocks})? _nameNote(Words t, String name) {
-    if (name.isEmpty) return null;
+    if (name.isEmpty || _takenMeanwhile) return null;
     final key = name.toLowerCase();
     for (final a in widget.store.snapshot.accounts) {
       if (a.name.trim().toLowerCase() == key) {
@@ -146,7 +173,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     if (isIncomeName(name)) {
       return (text: t.ledgerAlreadyCategory(t.ledgerIncome), blocks: true);
     }
-    final already = categoryNamed(widget.store.categories, name);
+    final already = categoryNamed(_others, name);
     if (already == null) return null;
     // An entry takes the one there is; Budget has it already.
     return widget.forEntry
@@ -157,8 +184,13 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   void _add({bool another = false}) {
     final t = context.t;
     final name = _name.text.trim();
+    // Its own name is the ledger's now: Save says it was taken in.
+    if (widget.editing case final c? when _takenMeanwhile) {
+      _save(c, name);
+      return;
+    }
     final note = _nameNote(t, name);
-    final already = categoryNamed(widget.store.categories, name);
+    final already = categoryNamed(_others, name);
     // A name that's a category already goes in the entry as it is: the
     // plan's answers don't count for it.
     final fromList = widget.forEntry && already != null;
@@ -170,6 +202,10 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     }
     if (already != null) {
       Navigator.of(context).pop(already);
+      return;
+    }
+    if (widget.editing case final c?) {
+      _save(c, name);
       return;
     }
     final made = widget.store.categoryCalled(
@@ -195,6 +231,42 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       _round++;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+  }
+
+  /// Save, for a category still waiting: in place, or, when the computer
+  /// took it in while the page was open, said so.
+  Future<void> _save(PhoneCategory c, String name) async {
+    final kept = widget.store.changeCategory(
+      c.id,
+      name,
+      _currency,
+      plan: _draft,
+      off: {for (final a in _off) '$a'},
+    );
+    if (!kept) {
+      final t = context.t;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Mid.panel,
+          content: Text(
+            t.phoneCategoryTakenMeanwhile(c.name),
+            style: onest(17, height: 1.35),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                t.startClose,
+                style: onest(15, weight: 600, color: Mid.blue),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+    }
+    Navigator.of(context).pop();
   }
 
   // ---------- pickers ----------
@@ -860,7 +932,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   Widget build(BuildContext context) {
     final t = context.t;
     return ListenableBuilder(
-      listenable: Listenable.merge([_name, _p.typing]),
+      listenable: Listenable.merge([_name, _p.typing, widget.store]),
       builder: (context, _) {
         final name = _name.text.trim();
         final note = _nameNote(t, name);
@@ -901,8 +973,12 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
               }();
         final nameNote =
             note?.text ?? (_tried && name.isEmpty ? t.planEnterName : null);
+        // Not once an entry is filed in it: that entry's money is in its
+        // account's currency.
         final offerCurrency =
             !widget.forEntry &&
+            !(widget.editing != null &&
+                widget.store.hasEntriesIn(widget.editing!.id)) &&
             (_currencies.length > 1 || !_currencies.contains(_currency));
         return Scaffold(
           backgroundColor: Mid.ground,
@@ -916,7 +992,11 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                     children: [
                       Expanded(
                         child: Text(
-                          t.phoneNewCategoryTitle,
+                          widget.editing == null
+                              ? t.phoneNewCategoryTitle
+                              : t.ledgerEditCategory(widget.editing!.name),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: onest(20, weight: 600),
                         ),
                       ),
@@ -952,7 +1032,9 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                             child: TextField(
                               key: const ValueKey('new-category-name'),
                               controller: _name,
-                              autofocus: true,
+                              // Changing a waiting one opens on what it
+                              // says, not under the keyboard.
+                              autofocus: widget.editing == null,
                               textCapitalization: TextCapitalization.sentences,
                               style: onest(18, weight: 600),
                               cursorColor: Mid.blue,
@@ -1068,7 +1150,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      if (!widget.forEntry) ...[
+                      if (!widget.forEntry && widget.editing == null) ...[
                         Expanded(
                           child: OutlinedButton(
                             key: const ValueKey('new-category-another'),
@@ -1100,7 +1182,9 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                             ),
                             textStyle: onest(17, weight: 600),
                           ),
-                          child: Text(t.planAdd),
+                          child: Text(
+                            widget.editing == null ? t.planAdd : t.planSave,
+                          ),
                         ),
                       ),
                     ],

@@ -9792,6 +9792,90 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'That pay period’s plans take exactly its income'**
   String get planFitEvenPayThen;
+
+  /// Phone app, a box after Save on a category made on the phone and still waiting (#243), when the computer took that category in while the page was open. {name} is the category as it was, like Mobicom.
+  ///
+  /// In en, this message translates to:
+  /// **'The computer took in {name} while this was open, so these changes weren’t kept. Change it on the computer’s Budget page.'**
+  String phoneCategoryTakenMeanwhile(String name);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). The bill that came with it and the day it is next due. {name} like Mobicom, {amount} like ₮45,000, {date} MM.DD, like 10.15.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · {amount} due {date}'**
+  String ledgerPhoneBill(String name, String amount, String date);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). As ledgerPhoneBill, for a once-only bill whose day passed before the computer took it in.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · {amount} due {date}, already passed'**
+  String ledgerPhoneBillPassed(String name, String amount, String date);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). As ledgerPhoneBill, when an entry from the phone taken in at the same time paid that bill.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · {amount} paid'**
+  String ledgerPhoneBillPaid(String name, String amount);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). The bill was on a payday deleted on the computer meanwhile, so the category came with no bill. {name} like Mobicom, {amount} like ₮45,000.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} came in without its {amount} bill: the payday it was set on was deleted on this computer'**
+  String ledgerPhoneBillPayGone(String name, String amount);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). As ledgerPhoneBillPayGone, for an amount set each pay period rather than a bill.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} came in without its amount of {amount}: the payday it was set on was deleted on this computer'**
+  String ledgerPhoneAmountPayGone(String name, String amount);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). The computer already had a category of that name (with its own plan, or in another currency), so the phone's bill was left out. {name} like Mobicom, {amount} like ₮45,000.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was here already, so the phone’s {amount} bill for it wasn’t used'**
+  String ledgerPhoneBillKept(String name, String amount);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). As ledgerPhoneBillKept, for an amount with no due date.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was here already, so the phone’s amount of {amount} for it wasn’t used'**
+  String ledgerPhoneAmountKept(String name, String amount);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). The category was changed on the phone after this computer had taken it in; the change is not applied here, only said. {name} like Mobicom, {amount} like ₮45,000, {date} MM.DD, like 10.15.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was changed on the phone after it came in, to {amount} due {date}; this computer’s stays as it was'**
+  String ledgerPhoneChangedBill(String name, String amount, String date);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). As ledgerPhoneChangedBill, for an amount with no due date.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was changed on the phone after it came in, to {amount}; this computer’s stays as it was'**
+  String ledgerPhoneChangedAmount(String name, String amount);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). As ledgerPhoneChangedBill, when the phone's version has no bill or amount (its name or accounts changed, or its bill was taken off).
+  ///
+  /// In en, this message translates to:
+  /// **'{name} was changed on the phone after it came in; this computer’s stays as it was'**
+  String ledgerPhoneChanged(String name);
+
+  /// Line under the computer's popup when it takes in a category made on a phone (#244). After the first of more than two such lines: how many more.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 more: see the Budget page} other{{count} more: see the Budget page}}'**
+  String ledgerPhoneNotesMore(int count);
+
+  /// Phone app, Waiting list: under the name of a category made on the phone and not yet taken in by the computer, when it has a bill (#243): its amount and due date (MM.DD). Lowercase start, as rowsNewCategoryNote.
+  ///
+  /// In en, this message translates to:
+  /// **'new category · {amount} due {date}'**
+  String phoneWaitingCategoryBill(String amount, String date);
+
+  /// As phoneWaitingCategoryBill, for an amount with no due date.
+  ///
+  /// In en, this message translates to:
+  /// **'new category · {amount}'**
+  String phoneWaitingCategoryAmount(String amount);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

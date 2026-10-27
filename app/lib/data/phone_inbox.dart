@@ -108,6 +108,31 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
   arriving.renameSync(file.path);
 }
 
+/// Everything [writePhoneInbox] puts in the file, in one string: the phone
+/// writes again only when it changes, and a change to a waiting entry or
+/// category under the same id is one (#243).
+String phoneInboxSaying(PhoneInbox inbox) => jsonEncode([
+  for (final c in inbox.categories)
+    [
+      c.id,
+      c.name,
+      c.currency.code,
+      c.plan == null ? null : planToJson(c.plan!),
+      c.off.toList()..sort(),
+    ],
+  for (final e in inbox.entries)
+    [
+      e.id,
+      e.categoryId,
+      e.accountId,
+      e.payee,
+      e.amountMinor,
+      e.date.toIso8601String(),
+      e.madeAt.toIso8601String(),
+      for (final l in e.lines) [l.categoryId, l.amountMinor],
+    ],
+]);
+
 /// Reads a phone's file. Throws when [key] doesn't open it or it isn't one
 /// (half-arrived, or from another ledger).
 PhoneInbox readPhoneInbox(File file, Uint8List? key) {

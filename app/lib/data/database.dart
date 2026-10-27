@@ -12,6 +12,7 @@ import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../domain/payee_rules.dart';
 import '../domain/phone.dart';
+import 'phone_inbox.dart' show planToJson;
 import '../domain/setup.dart' show SetupKeys;
 import '../domain/sync.dart';
 import '../import/mapping.dart';
@@ -590,8 +591,13 @@ class PhoneTake {
     this.unarchivedIds = const [],
     this.categoryNames = const [],
     this.plans = const {},
+    this.leftOut = const [],
   ]);
   final List<int> transactionIds;
+
+  /// A phone's plan that didn't come with its category, for the popup to
+  /// say (#244), and why ([PhonePlanFate]).
+  final List<PhonePlanLeftOut> leftOut;
 
   /// The plans the phones' categories came with, by category (one it made,
   /// or one it had already with no plan), and what giving them did, for
@@ -605,6 +611,38 @@ class PhoneTake {
   /// The archived categories it brought back to file an entry in.
   final List<int> unarchivedIds;
 }
+
+/// A plan a phone's category came with that the ledger didn't take, and
+/// the category it was for, by the ledger's name.
+typedef PhonePlanLeftOut = ({
+  int categoryId,
+  String name,
+  CategoryPlan? plan,
+  Currency currency,
+  PhonePlanFate fate,
+});
+
+/// Why a phone's plan isn't the ledger's.
+enum PhonePlanFate {
+  /// It was on a payday deleted on the computer meanwhile.
+  payGone,
+
+  /// The computer had a category of that name already, and kept its own.
+  kept,
+
+  /// The phone changed the category after the computer took it in: what it
+  /// says now is said, and the ledger's stays (#243).
+  changedAfter,
+}
+
+/// A phone's category as its file says it, in one string, to see whether
+/// the phone changed it since the computer last read it.
+String phoneCategoryPrint(PhoneCategory c) => jsonEncode({
+  'name': c.name.trim(),
+  'currency': c.currency.code,
+  'plan': c.plan == null ? null : planToJson(c.plan!),
+  'off': c.off.toList()..sort(),
+});
 
 /// What a row of a bank file does on import. The person can turn a match
 /// into its own row, or leave a row out.
@@ -5399,6 +5437,8 @@ class AppDatabase extends _$AppDatabase {
     final plans = <int, ({CategoryPlan plan, PlanChange change})>{};
     final added = <int>[], made = <int>[], unarchived = <int>[];
     final madeNames = <String>[];
+    final leftOut = <PhonePlanLeftOut>[];
+    final nameOf = {for (final a in live) a.id: a.name};
     for (final inbox in inboxes) {
       final was = taken[inbox.device] ?? const PhoneTaken();
       final categories = {...was.categories};
@@ -5419,7 +5459,7 @@ class AppDatabase extends _$AppDatabase {
           madeNames.add(c.name.trim());
           spending.add(id);
           byName[name] = id;
-          await _phoneCategorySettings(
+          final took = await _phoneCategorySettings(
             id,
             c,
             today: today,
@@ -5431,43 +5471,85 @@ class AppDatabase extends _$AppDatabase {
             pays: pays,
             plans: plans,
           );
-        } else if (c.plan != null &&
-            currencyOf[id] == c.currency.code &&
-            !plans.containsKey(id) &&
-            await (select(
-                  categoryPlans,
-                )..where((p) => p.categoryId.equals(id!))).getSingleOrNull() ==
-                null) {
-          // Already a category here (made on the computer meanwhile, or
-          // archived where the phone can't see it) with no plan of its own:
-          // the phone's bill is the one it has, and an archived one comes
-          // back with it. One with a plan keeps the computer's, and its
-          // own Paid from either way.
-          if (archived.remove(id)) {
-            await setArchived(id, false);
-            unarchived.add(id);
+          if (!took) {
+            leftOut.add((
+              categoryId: id,
+              name: c.name.trim(),
+              plan: c.plan,
+              currency: c.currency,
+              fate: PhonePlanFate.payGone,
+            ));
           }
-          await _phoneCategorySettings(
-            id,
-            c,
-            today: today,
-            accounts: {
-              for (final a in live)
-                if (paidFrom.contains(a.id) && a.currency == c.currency.code)
-                  a.id,
-            },
-            pays: pays,
-            plans: plans,
-            withOff: false,
-          );
+        } else if (c.plan case final plan?) {
+          final payGone =
+              plan.payScheduleId != null && !pays.contains(plan.payScheduleId);
+          if (!plans.containsKey(id) &&
+              !payGone &&
+              currencyOf[id] == c.currency.code &&
+              await (select(categoryPlans)
+                        ..where((p) => p.categoryId.equals(id!)))
+                      .getSingleOrNull() ==
+                  null) {
+            // Already a category here (made on the computer meanwhile, or
+            // archived where the phone can't see it) with no plan of its
+            // own: the phone's bill is the one it has, and an archived one
+            // comes back with it. One with a plan keeps the computer's,
+            // and its own Paid from either way.
+            if (archived.remove(id)) {
+              await setArchived(id, false);
+              unarchived.add(id);
+            }
+            await _phoneCategorySettings(
+              id,
+              c,
+              today: today,
+              accounts: {
+                for (final a in live)
+                  if (paidFrom.contains(a.id) && a.currency == c.currency.code)
+                    a.id,
+              },
+              pays: pays,
+              plans: plans,
+              withOff: false,
+            );
+          } else if (!leftOut.any((l) => l.categoryId == id)) {
+            // Its pay is gone (and an archived one stays archived: nothing
+            // comes with it), or it has a plan of its own, from this
+            // computer or another phone's take just now: said once.
+            leftOut.add((
+              categoryId: id,
+              name: nameOf[id] ?? c.name.trim(),
+              plan: plan,
+              currency: c.currency,
+              fate: payGone ? PhonePlanFate.payGone : PhonePlanFate.kept,
+            ));
+          }
         }
         categories[c.id] = '$id';
         return id;
       }
 
       final theirs = {for (final c in inbox.categories) c.id: c};
+      final seen = {...was.seen};
       for (final c in inbox.categories) {
-        if (!categories.containsKey(c.id)) await categoryFor(c);
+        final print = phoneCategoryPrint(c);
+        if (!categories.containsKey(c.id)) {
+          await categoryFor(c);
+        } else if (seen[c.id] != null &&
+            seen[c.id] != print &&
+            spending.contains(int.tryParse(categories[c.id]!))) {
+          final id = int.parse(categories[c.id]!);
+          // Changed on the phone after it came in, before the phone heard:
+          // the ledger's stays, and the popup says what the phone has now.
+          leftOut.add((
+            categoryId: id,
+            name: nameOf[id] ?? c.name.trim(),
+            plan: c.plan,
+            currency: c.currency,
+            fate: PhonePlanFate.changedAfter,
+          ));
+        }
+        seen[c.id] = print;
       }
       final entries = {...was.entries};
       // The ledger's category for one a phone names: its own id, one it
@@ -5620,21 +5702,23 @@ class AppDatabase extends _$AppDatabase {
       taken[inbox.device] = PhoneTaken(
         entries: entries,
         categories: categories,
+        seen: seen,
       );
     }
     final after = PhoneTaken.encode(taken);
     if (after != row?.value) await setPreference(phoneTakenKey, after);
-    return added.isEmpty && made.isEmpty && plans.isEmpty
+    return added.isEmpty && made.isEmpty && plans.isEmpty && leftOut.isEmpty
         ? null
-        : PhoneTake(added, made, unarchived, madeNames, plans);
+        : PhoneTake(added, made, unarchived, madeNames, plans, leftOut);
   });
 
   /// What a phone's New category page set for the category [id] just
   /// made for [c]: the accounts it isn't paid from (unless not [withOff],
   /// for one the computer had already), and its plan. Only
   /// what still fits the ledger: an account or pay gone since the phone
-  /// looked is left out, and a plan on a pay that's gone with it.
-  Future<void> _phoneCategorySettings(
+  /// looked is left out, and a plan on a pay that's gone with it: false
+  /// then.
+  Future<bool> _phoneCategorySettings(
     int id,
     PhoneCategory c, {
     required DateTime today,
@@ -5652,8 +5736,10 @@ class AppDatabase extends _$AppDatabase {
       await setCategoryMoney(id, currency: c.currency, off: off);
     }
     final p = c.plan;
-    if (p == null) return;
-    if (p.payScheduleId != null && !pays.contains(p.payScheduleId)) return;
+    if (p == null) return true;
+    if (p.payScheduleId != null && !pays.contains(p.payScheduleId)) {
+      return false;
+    }
     // One the computer had already keeps its own Paid from: the bill goes
     // only to an account it uses.
     final unused = withOff
@@ -5690,6 +5776,7 @@ class AppDatabase extends _$AppDatabase {
           : null,
     );
     plans[id] = (plan: plan, change: await changeCategoryPlan(id, plan, today));
+    return true;
   }
 
   /// Undo for [takePhoneEntries]: its rows go, and the categories it made.

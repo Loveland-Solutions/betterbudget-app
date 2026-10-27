@@ -766,16 +766,53 @@ class _LedgerScreenState extends State<LedgerScreen> {
       // The phone's rows in a bill's category pay it (owner, 2026-10-21);
       // they go and come back with the rows.
       final settled = take.transactionIds.isEmpty
-          ? (ties: const <_Tie>[], unsure: const <BillPayment>[])
+          ? (
+              ties: const <_Tie>[],
+              unsure: const <BillPayment>[],
+              paid: const <int>{},
+            )
           : await _settleIncoming(take.transactionIds.toSet());
+      // The bills that came and the plans left out are said by the
+      // ledger's names and currencies: wait for it to have the categories.
+      final named = {
+        ...take.plans.keys,
+        for (final l in take.leftOut) l.categoryId,
+      };
+      while (mounted && named.any((id) => _data?.accounts[id] == null)) {
+        try {
+          await (_nextData ??= Completer<void>()).future.timeout(
+            const Duration(seconds: 2),
+          );
+        } on TimeoutException {
+          break;
+        }
+      }
       if (!mounted) return;
       final t = context.t;
       // The categories it made, and one it had already that took the
       // phone's bill.
       final categories = {...take.categoryIds, ...take.plans.keys}.toList();
-      final label = take.transactionIds.isEmpty
+      final notes = _data == null
+          ? const <String>[]
+          : phonePlanNotes(t, take, _data!, today, paid: settled.paid);
+      // Nothing came in but what a phone's plan couldn't be: that alone
+      // is said.
+      final onlyNotes =
+          take.transactionIds.isEmpty &&
+          categories.isEmpty &&
+          take.unarchivedIds.isEmpty &&
+          notes.isNotEmpty;
+      final label = onlyNotes
+          ? notes.first
+          : take.transactionIds.isEmpty
           ? t.ledgerCategoryFromPhone(categories.length)
           : t.ledgerFromPhone(take.transactionIds.length);
+      final under = onlyNotes ? notes.skip(1).toList() : notes;
+      // One category to see to: its Edit is where that's done.
+      final toEdit = {
+        ...categories,
+        for (final l in take.leftOut) l.categoryId,
+      };
       // Not in ⌘Z's history (owner, 2026-10-08): ⌘Z pressed for something
       // just typed would take out rows the phone has already let go of.
       // Only this popup's Undo does, and ⌘⇧Z brings them back.
@@ -810,32 +847,42 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 label: t.ledgerShowMoved,
                 onTap: () => _askBill(settled.unsure.first),
               )
-            : categories.length == 1
+            : toEdit.length == 1
             ? (
                 label: t.ledgerEditCategory(
-                  take.categoryIds.isEmpty
-                      ? _data?.accounts[categories.single]?.name ?? ''
-                      : take.categoryNames.single,
+                  _data?.accounts[toEdit.single]?.name ??
+                      take.categoryNames.firstOrNull ??
+                      '',
                 ),
-                onTap: () => _editCategory(categories.single),
+                onTap: () => _editCategory(toEdit.single),
               )
             : null,
-        undo: () async {
-          try {
-            await action.undo();
-          } catch (e) {
-            if (mounted) {
-              _showFailure(
-                context.t.ledgerCouldntUndo(label),
-                error: _undoError(e),
-                kept: context.t.problemCouldntUndo,
-              );
-            }
-            return;
-          }
-          _redo.add(action);
-          if (mounted) _showToast(context.t.ledgerUndone(label));
+        // Each bill that came, a line each; past two, how many more.
+        detail: switch (under) {
+          [] => null,
+          [final one] => one,
+          [final one, final two] => '$one\n$two',
+          [final one, ...final rest] =>
+            '$one\n${t.ledgerPhoneNotesMore(rest.length)}',
         },
+        undo: onlyNotes
+            ? null
+            : () async {
+                try {
+                  await action.undo();
+                } catch (e) {
+                  if (mounted) {
+                    _showFailure(
+                      context.t.ledgerCouldntUndo(label),
+                      error: _undoError(e),
+                      kept: context.t.problemCouldntUndo,
+                    );
+                  }
+                  return;
+                }
+                _redo.add(action);
+                if (mounted) _showToast(context.t.ledgerUndone(label));
+              },
       );
     } catch (e) {
       debugPrint('Taking in the phones’ entries failed: $e');
@@ -3376,11 +3423,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// Rows that came in ([ids], from the phone or a bank file): those near
   /// their bill pay it, tied now and undone with the rows; the others are
   /// left for the person, who is told how many there are to check.
-  Future<({List<_Tie> ties, List<BillPayment> unsure})> _settleIncoming(
-    Set<int> ids,
-  ) async {
+  Future<({List<_Tie> ties, List<BillPayment> unsure, Set<int> paid})>
+  _settleIncoming(Set<int> ids) async {
     final ties = <_Tie>[];
     final unsure = <BillPayment>[];
+    // The categories whose bill a row paid.
+    final paid = <int>{};
     try {
       final data = await db.loadLedger();
       for (final p in _payments(data).values) {
@@ -3393,12 +3441,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
         }
         if (!mounted) break;
         final tied = await _tieBill(p);
-        if (tied != null) ties.add(tied);
+        if (tied != null) {
+          ties.add(tied);
+          paid.add(p.bill.planCategoryId!);
+        }
       }
     } catch (e) {
       debugPrint('Looking for bills paid failed: $e');
     }
-    return (ties: ties, unsure: unsure);
+    return (ties: ties, unsure: unsure, paid: paid);
   }
 
   /// Moves a row entered in the wrong account. It leaves this register, so
@@ -5779,7 +5830,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // The file's rows in a bill's category pay it (owner, 2026-10-21),
     // in the same undo as the import.
     final settled = record.added.isEmpty
-        ? (ties: const <_Tie>[], unsure: const <BillPayment>[])
+        ? (
+            ties: const <_Tie>[],
+            unsure: const <BillPayment>[],
+            paid: const <int>{},
+          )
         : await _settleIncoming(record.added.keys.toSet());
     if (!mounted) return;
     _did(
@@ -9167,6 +9222,75 @@ class _PrimaryButton extends StatelessWidget {
 /// An undo or redo found its rows changed since; the popup says so.
 class _ChangedSince implements Exception {
   const _ChangedSince();
+}
+
+/// What a phone's categories brought (#244), the ones to act on first:
+/// each plan the ledger left out, with why and the phone's figures, then
+/// each bill that came, with its amount and the day it's due (or that the
+/// day has passed, or that a row just taken in [paid] it). [data] is the
+/// ledger once it has them.
+List<String> phonePlanNotes(
+  Words t,
+  PhoneTake take,
+  LedgerData data,
+  DateTime today, {
+  Set<int> paid = const {},
+}) {
+  final notes = <String>[];
+  String due(CategoryPlan plan) => shortDate(
+    Budget.nextDue(
+      plan,
+      today,
+      pay: data.payScheduleById(plan.payScheduleId),
+    ).date,
+  );
+  for (final l in take.leftOut) {
+    final plan = l.plan;
+    final amount = plan == null
+        ? ''
+        : formatShort(plan.amount, currency: l.currency);
+    final bill = plan?.kind == PlanKind.byDate;
+    notes.add(switch (l.fate) {
+      PhonePlanFate.payGone when bill => t.ledgerPhoneBillPayGone(
+        l.name,
+        amount,
+      ),
+      PhonePlanFate.payGone => t.ledgerPhoneAmountPayGone(l.name, amount),
+      PhonePlanFate.kept when bill => t.ledgerPhoneBillKept(l.name, amount),
+      PhonePlanFate.kept => t.ledgerPhoneAmountKept(l.name, amount),
+      PhonePlanFate.changedAfter when plan == null => t.ledgerPhoneChanged(
+        l.name,
+      ),
+      // A bill on a payday that's gone has no date to give.
+      PhonePlanFate.changedAfter
+          when bill &&
+              (plan!.payScheduleId == null ||
+                  data.payScheduleById(plan.payScheduleId) != null) =>
+        t.ledgerPhoneChangedBill(l.name, amount, due(plan)),
+      PhonePlanFate.changedAfter => t.ledgerPhoneChangedAmount(l.name, amount),
+    });
+  }
+  for (final MapEntry(key: id, value: (:plan, change: _))
+      in take.plans.entries) {
+    final category = data.accounts[id];
+    if (category == null || plan.kind != PlanKind.byDate) continue;
+    final amount = formatShort(plan.amount, currency: category.currency);
+    if (paid.contains(id)) {
+      notes.add(t.ledgerPhoneBillPaid(category.name, amount));
+      continue;
+    }
+    final next = Budget.nextDue(
+      plan,
+      today,
+      pay: data.payScheduleById(plan.payScheduleId),
+    );
+    notes.add(
+      next.passed
+          ? t.ledgerPhoneBillPassed(category.name, amount, shortDate(next.date))
+          : t.ledgerPhoneBill(category.name, amount, shortDate(next.date)),
+    );
+  }
+  return notes;
 }
 
 class _Toast extends StatelessWidget {

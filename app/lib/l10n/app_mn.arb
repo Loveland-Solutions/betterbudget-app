@@ -1602,5 +1602,19 @@
   "planFitToCome": "Цаашид орох: {amount}",
   "planFitOverPayThen": "Тэр цалингийн үеийн төлөвлөгөө орлогоосоо илүү байна: {amount}",
   "planFitSparePayThen": "Тэр цалингийн үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: {amount}",
-  "planFitEvenPayThen": "Тэр цалингийн үеийн төлөвлөгөө орлоготой яг тэнцүү"
+  "planFitEvenPayThen": "Тэр цалингийн үеийн төлөвлөгөө орлоготой яг тэнцүү",
+  "phoneCategoryTakenMeanwhile": "Энэ хуудас нээлттэй байх үед компьютер {name} ангиллыг авчихсан тул эдгээр өөрчлөлт хадгалагдсангүй. Компьютерын Төсөв хуудсанд өөрчилнө үү.",
+  "ledgerPhoneBill": "{name} · {amount}, төлөх өдөр: {date}",
+  "ledgerPhoneBillPassed": "{name} · {amount}, төлөх өдөр: {date} — өнгөрсөн",
+  "ledgerPhoneBillPaid": "{name} · {amount} төлөгдсөн",
+  "ledgerPhoneBillPayGone": "{name} {amount}-ийн төлбөргүй орж ирлээ: түүний тохируулсан цалингийн өдрийг энэ компьютер дээр устгасан",
+  "ledgerPhoneAmountPayGone": "{name} {amount} дүнгүй орж ирлээ: түүний тохируулсан цалингийн өдрийг энэ компьютер дээр устгасан",
+  "ledgerPhoneBillKept": "{name} энд аль хэдийн байсан тул утасны {amount}-ийн төлбөрийг ашиглаагүй",
+  "ledgerPhoneAmountKept": "{name} энд аль хэдийн байсан тул утасны {amount} дүнг ашиглаагүй",
+  "ledgerPhoneChangedBill": "{name}-г орж ирсний дараа утсан дээр өөрчилсөн: {amount}, төлөх өдөр: {date}. Энэ компьютерынх хэвээр үлдэнэ",
+  "ledgerPhoneChangedAmount": "{name}-г орж ирсний дараа утсан дээр өөрчилсөн: {amount}. Энэ компьютерынх хэвээр үлдэнэ",
+  "ledgerPhoneChanged": "{name}-г орж ирсний дараа утсан дээр өөрчилсөн. Энэ компьютерынх хэвээр үлдэнэ",
+  "ledgerPhoneNotesMore": "{count, plural, other{Өөр {count}: Төсөв хуудсыг харна уу}}",
+  "phoneWaitingCategoryBill": "шинэ ангилал · {amount}, төлөх өдөр: {date}",
+  "phoneWaitingCategoryAmount": "шинэ ангилал · {amount}"
 }
