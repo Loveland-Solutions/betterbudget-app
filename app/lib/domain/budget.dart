@@ -186,6 +186,7 @@ class PlanLine {
     this.late = false,
     this.toward = 0,
     this.pastDate = false,
+    this.finished = false,
   });
 
   final CategoryPlan plan;
@@ -207,6 +208,10 @@ class PlanLine {
   /// A once-only amount whose date is before this period: a bill would be
   /// overdue now.
   final bool pastDate;
+
+  /// A goal past its date that the person said is done: it asks for
+  /// nothing more, short or not.
+  final bool finished;
 
   /// A set amount seen by its own period, which was given an amount of its
   /// own ([CategoryPlan.once]): [each] is that one, not the plan's.
@@ -674,9 +679,9 @@ class Budget {
                 wentBackOn: wentBackOn,
                 skipped: skippedBills(data, plan),
                 pays: data.paySchedules,
-                askAllLate:
-                    !isGoal(data, id) ||
-                    data.prefs[ReadyKeys.goalLate(id)] == 'all',
+                lateWay: isGoal(data, id)
+                    ? data.prefs[ReadyKeys.goalLate(id)] ?? 'keep'
+                    : 'all',
               ),
       );
       // Only what a category with money holds is out of the money not
@@ -1174,7 +1179,7 @@ class Budget {
     DateTime? wentBackOn,
     Set<DateTime> skipped = const {},
     List<PaySchedule> pays = const [],
-    bool askAllLate = true,
+    String lateWay = 'all',
   }) {
     // The day a bill is counted in: the last payday on or before it is
     // due, since that pay is what has to cover it (owner, 2026-10-24).
@@ -1350,7 +1355,20 @@ class Budget {
       final put = assignedIn(begins.start, p.start);
       final missing = atLeast0(firstNeed - put);
       final toward = base + put + assigned;
-      if (!askAllLate && missing > 0) {
+      if (lateWay == 'done') {
+        return PlanLine(
+          plan: plan,
+          each: 0,
+          planned: 0,
+          due: first,
+          done: true,
+          usual: usual,
+          toward: toward,
+          pastDate: true,
+          finished: true,
+        );
+      }
+      if (lateWay == 'keep' && missing > 0) {
         final part = usual < missing ? usual : missing;
         return PlanLine(
           plan: plan,

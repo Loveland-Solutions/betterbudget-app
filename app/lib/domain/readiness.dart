@@ -86,8 +86,9 @@ abstract final class ReadyKeys {
   static String goal(int categoryId) => 'ready.goal.$categoryId';
 
   /// 'all': a goal whose date has passed short asks for the rest at once,
-  /// as a missed bill does. Unset keeps asking its usual part until the
-  /// person picks (owner, 2026-10-27: "a way for the user to choose").
+  /// as a missed bill does; 'done': it happened, and nothing more is asked
+  /// (owner, 2026-10-27). Unset keeps asking its usual part until the
+  /// person picks (owner: "a way for the user to choose").
   static String goalLate(int categoryId) => 'ready.goalLate.$categoryId';
 }
 

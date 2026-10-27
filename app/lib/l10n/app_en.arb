@@ -10446,5 +10446,47 @@
   "goalEnterDate": "Enter the date it's wanted by",
   "@goalEnterDate": {
     "description": "New goal panel: under By when? when Add is pressed with no date that reads"
+  },
+  "goalDone": "It's done",
+  "@goalDone": {
+    "description": "Savings page, a goal whose date passed short: the third choice; it happened and the rest was covered, so Budget stops asking"
+  },
+  "goalDoneUndo": "{name}: done",
+  "@goalDoneUndo": {
+    "description": "Undo/redo label: a late goal marked done",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "goalDoneStatus": "Done",
+  "@goalDoneStatus": {
+    "description": "Savings page, a goal's card after It's done: in place of '₮X of ₮Y'"
+  },
+  "goalDoneLeft": "{amount} is still in {name} on Budget.",
+  "@goalDoneLeft": {
+    "description": "Savings page, a done goal whose category still holds money",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "goalDoneNote": "Budget asks nothing more for it.",
+  "@goalDoneNote": {
+    "description": "Savings page, a done goal that holds nothing"
+  },
+  "goalsTotal": "{amount} this month to your goals",
+  "@goalsTotal": {
+    "description": "Savings page: under the Goals heading, with two or more goals asking money; one line per currency",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
   }
 }

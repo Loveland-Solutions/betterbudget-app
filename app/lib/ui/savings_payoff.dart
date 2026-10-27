@@ -637,7 +637,7 @@ class _Payoff extends StatelessWidget {
   final currency = CurrencyScope.of(context);
   final asking = [
     for (final g in r.goals)
-      if (!g.ready && g.usual > 0 && g.currency == currency) g,
+      if (!g.ready && !g.finished && g.usual > 0 && g.currency == currency) g,
   ];
   if (asking.isEmpty) return null;
   final sum = asking.fold(0, (s, g) => s + g.usual);

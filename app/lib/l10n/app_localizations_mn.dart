@@ -6714,4 +6714,28 @@ class WordsMn extends Words {
 
   @override
   String get goalEnterDate => 'Хэзээ гэхэд хэрэгтэйг оруулна уу';
+
+  @override
+  String get goalDone => 'Дууссан';
+
+  @override
+  String goalDoneUndo(String name) {
+    return '$name: дууссан';
+  }
+
+  @override
+  String get goalDoneStatus => 'Дууссан';
+
+  @override
+  String goalDoneLeft(String amount, String name) {
+    return 'Төсвийн «$name» мөрөнд $amount үлдсэн байна.';
+  }
+
+  @override
+  String get goalDoneNote => 'Төсөв үүнд өөр мөнгө хүсэхгүй.';
+
+  @override
+  String goalsTotal(String amount) {
+    return 'Энэ сард зорилгууддаа $amount';
+  }
 }

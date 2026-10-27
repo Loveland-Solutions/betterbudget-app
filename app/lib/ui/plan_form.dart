@@ -691,6 +691,8 @@ PlanNote planNote(
     // This period's bill was paid: the one thing a person asks of a bill's
     // row (#274). Short still comes first: it's about the next one.
     state = t.planPaidOn(date(paid));
+  } else if (p.finished) {
+    state = null;
   } else if (once && p.done) {
     state = t.planSetAsideState;
   } else if (p.plan.kind == PlanKind.each || p.waiting || p.done || p.late) {

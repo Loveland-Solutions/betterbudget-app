@@ -6967,4 +6967,28 @@ class WordsEn extends Words {
 
   @override
   String get goalEnterDate => 'Enter the date it\'s wanted by';
+
+  @override
+  String get goalDone => 'It\'s done';
+
+  @override
+  String goalDoneUndo(String name) {
+    return '$name: done';
+  }
+
+  @override
+  String get goalDoneStatus => 'Done';
+
+  @override
+  String goalDoneLeft(String amount, String name) {
+    return '$amount is still in $name on Budget.';
+  }
+
+  @override
+  String get goalDoneNote => 'Budget asks nothing more for it.';
+
+  @override
+  String goalsTotal(String amount) {
+    return '$amount this month to your goals';
+  }
 }

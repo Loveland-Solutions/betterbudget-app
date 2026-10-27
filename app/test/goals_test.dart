@@ -274,4 +274,23 @@ void main() {
     );
     p.dispose();
   });
+
+  test('a late goal marked done asks nothing more, and goes when spent', () {
+    final late = DateTime(2027, 1, 10);
+    final prefs = {
+      ReadyKeys.goal(wedding): 'yes',
+      ReadyKeys.goalLate(wedding): 'done',
+    };
+    final data = ledger(assigned: {9: 300000}, prefs: prefs);
+    final g = goalOn(data, late);
+    expect(g.finished, isTrue);
+    expect(g.asks, 0);
+    expect(g.left, 300000);
+    final line = monthBudget(data, late).lines[wedding]!;
+    expect(line.plan!.finished, isTrue);
+    expect(line.short, 0);
+    // Spent on the wedding: nothing left to say.
+    final spent = spend(data, DateTime(2026, 12, 20), 300000);
+    expect(goalsOf(spent, monthBudget(spent, late), late), isEmpty);
+  });
 }

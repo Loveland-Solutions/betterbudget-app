@@ -75,6 +75,17 @@ class _Goals extends StatelessWidget {
                   Text(t.goalsSubtitle, style: onest(13, color: Mid.ink3)),
                 ],
               ),
+              // Several goals together can ask more than a pay holds: their
+              // total, each currency on its own (owner, 2026-10-27).
+              for (final (i, total) in _totals(r.goals).indexed)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    t.goalsTotal(total),
+                    key: ValueKey('goals-total-$i'),
+                    style: onest(13.5, weight: 500, tabular: true),
+                  ),
+                ),
               if (before != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
@@ -112,6 +123,20 @@ class _Goals extends StatelessWidget {
   }
 }
 
+/// What two or more goals ask this month, by currency, said as money.
+List<String> _totals(List<Goal> goals) {
+  final sums = <Currency, int>{}, count = <Currency, int>{};
+  for (final g in goals) {
+    if (g.asks <= 0 || g.ready || g.finished) continue;
+    sums[g.currency] = (sums[g.currency] ?? 0) + g.asks;
+    count[g.currency] = (count[g.currency] ?? 0) + 1;
+  }
+  return [
+    for (final MapEntry(key: c, value: v) in sums.entries)
+      if (count[c]! > 1) formatShort(v, currency: c),
+  ];
+}
+
 /// One goal: how far along it is, and, behind or late, what it takes.
 class _GoalCard extends StatelessWidget {
   const _GoalCard({super.key, required this.goal, required this.actions});
@@ -133,6 +158,8 @@ class _GoalCard extends StatelessWidget {
         g.due.year == g.today.year && g.due.month == g.today.month;
     final status = g.ready
         ? t.goalReady(money(g.amount))
+        : g.finished
+        ? t.goalDoneStatus
         : [
             t.planFundOf(money(g.saved), money(g.amount)),
             if (!g.late)
@@ -211,7 +238,11 @@ class _GoalCard extends StatelessWidget {
             const SizedBox.shrink()
           else if (g.late) ...[
             line(
-              t.goalLate(date(g.due), money(g.toGo)),
+              !g.finished
+                  ? t.goalLate(date(g.due), money(g.toGo))
+                  : g.left > 0
+                  ? t.goalDoneLeft(money(g.left), g.category.name)
+                  : t.goalDoneNote,
               key: ValueKey('goal-late-$id'),
             ),
             Padding(
@@ -222,7 +253,7 @@ class _GoalCard extends StatelessWidget {
                   _Choice(
                     key: ValueKey('goal-keep-$id'),
                     label: t.goalKeepUsual(money(g.usual)),
-                    on: !g.askAll,
+                    on: !g.askAll && !g.finished,
                     onTap: () => actions.setPref(
                       ReadyKeys.goalLate(id),
                       null,
@@ -237,6 +268,16 @@ class _GoalCard extends StatelessWidget {
                       ReadyKeys.goalLate(id),
                       'all',
                       t.goalAskRestUndo(g.category.name),
+                    ),
+                  ),
+                  _Choice(
+                    key: ValueKey('goal-done-$id'),
+                    label: t.goalDone,
+                    on: g.finished,
+                    onTap: () => actions.setPref(
+                      ReadyKeys.goalLate(id),
+                      'done',
+                      t.goalDoneUndo(g.category.name),
                     ),
                   ),
                   if (readyAt != null) move(),

@@ -19,6 +19,8 @@ class Goal {
     required this.today,
     required this.askAll,
     required this.pastDate,
+    required this.finished,
+    required this.left,
   });
 
   final AccountInfo category;
@@ -53,6 +55,13 @@ class Goal {
   Currency get currency => category.currency;
   int get toGo => saved >= amount ? 0 : amount - saved;
   bool get ready => toGo == 0;
+
+  /// Past its date, the person said it's done ([ReadyKeys.goalLate]
+  /// 'done'): Budget asks nothing more.
+  final bool finished;
+
+  /// What its category holds now.
+  final int left;
 
   /// Its date is before this month, as Budget has it (with pays, the
   /// last payday before the date).
@@ -102,7 +111,10 @@ List<Goal> goalsOf(LedgerData data, Budget budget, DateTime today) {
     final p = line?.plan;
     final saved = p?.toward ?? 0;
     final pastDate = p?.pastDate ?? false;
-    if (saved >= plan.amount && pastDate && (line?.left ?? 0) <= 0) continue;
+    final late = data.prefs[ReadyKeys.goalLate(c.id)];
+    final finished = pastDate && late == 'done';
+    final left = line?.left ?? 0;
+    if ((saved >= plan.amount || finished) && pastDate && left <= 0) continue;
     out.add(
       Goal(
         category: c,
@@ -114,7 +126,9 @@ List<Goal> goalsOf(LedgerData data, Budget budget, DateTime today) {
         usual: line?.plan?.usual ?? 0,
         behind: line?.short ?? 0,
         today: day,
-        askAll: data.prefs[ReadyKeys.goalLate(c.id)] == 'all',
+        askAll: late == 'all',
+        finished: finished,
+        left: left,
       ),
     );
   }

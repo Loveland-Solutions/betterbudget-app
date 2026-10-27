@@ -9672,6 +9672,42 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Enter the date it\'s wanted by'**
   String get goalEnterDate;
+
+  /// Savings page, a goal whose date passed short: the third choice; it happened and the rest was covered, so Budget stops asking
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s done'**
+  String get goalDone;
+
+  /// Undo/redo label: a late goal marked done
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: done'**
+  String goalDoneUndo(String name);
+
+  /// Savings page, a goal's card after It's done: in place of '₮X of ₮Y'
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get goalDoneStatus;
+
+  /// Savings page, a done goal whose category still holds money
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} is still in {name} on Budget.'**
+  String goalDoneLeft(String amount, String name);
+
+  /// Savings page, a done goal that holds nothing
+  ///
+  /// In en, this message translates to:
+  /// **'Budget asks nothing more for it.'**
+  String get goalDoneNote;
+
+  /// Savings page: under the Goals heading, with two or more goals asking money; one line per currency
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} this month to your goals'**
+  String goalsTotal(String amount);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

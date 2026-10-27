@@ -759,6 +759,35 @@ void main() {
     final card = find.byKey(ValueKey('goal-${wedding.id}'));
     expect(card, findsOneWidget);
     expect(find.byKey(ValueKey('goal-asks-${wedding.id}')), findsOneWidget);
+    // One goal: no total.
+    expect(find.byKey(const ValueKey('goals-total-0')), findsNothing);
+
+    // Two: what they ask together, under the heading.
+    await press(add);
+    await tester.enterText(find.byKey(const ValueKey('goal-name')), 'Car');
+    await tester.enterText(amount, '1200000');
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('goal-date')),
+        matching: find.byType(TextField),
+      ),
+      '2026.12.31',
+    );
+    await tester.pumpAndSettle();
+    await press(find.byKey(const ValueKey('goal-save')));
+    await settle(tester);
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('goals-total-0'))).data,
+      '₮1,050,000 this month to your goals',
+    );
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('goals-total-0')), findsNothing);
 
     // Edit opens its Edit on Budget, where it's asked as a goal.
     await press(find.byKey(ValueKey('goal-edit-${wedding.id}')));

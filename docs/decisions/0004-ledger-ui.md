@@ -3134,6 +3134,16 @@ timeline), the owner picked **A**.
   - Step 2's line says what goals ask a month while kept up with, not a one-off rest.
   - Known: Savings counts by the calendar month; seen by pay, Budget asks the same
     money a pay at a time.
+- **Two more answers from the owner** (the budget review's questions, 2026-10-27,
+  "Yes" to both):
+  - **It's done:** a goal past its date short has a third choice beside Keep and Ask
+    for the rest, for a wedding that happened with the family covering the rest
+    (`ready.goalLate.<id>` = `done`). Budget asks nothing more and its row says only
+    when it was due; the card reads "Done", and "₮800,000 is still in Wedding on
+    Budget." while its category holds money. Spent to nothing, it leaves Savings.
+  - **The total:** with two or more goals asking money, under the Goals heading,
+    "₮2,650,000 this month to your goals", each currency on its own line. Said as
+    "this month" because it is this month's asks, catch-ups included.
 
 ### Two computers: what is said when the ledger comes from another one (2026-10-09)
 
