@@ -4880,3 +4880,11 @@ your recommendation."
   scheduled in the wallet (a withdrawal already typed fills it first). It also takes a
   card's budget spending when nothing dated pays the card; a card paid by a dated bill
   is counted through that bill, not twice. A shortfall there is a real one, in coral.
+
+### "Always file" stays in the popup only (owner, 2026-10-28, #176)
+
+Asked whether the popup's "Remember this for next time" should also sit at the foot of a
+row's category dropdown ("Nomin is always filed here · Delete" once set), with the
+recommendation not to: "Your recommendation is spot on." The popup offers it, and the
+Payees page adds one when the popup went too soon. *Rejected:* a second place for the
+same offer in a list opened all the time.
