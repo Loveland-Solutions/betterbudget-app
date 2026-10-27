@@ -383,7 +383,8 @@ class _GoalPanelState extends State<_GoalPanel> {
     final made = await widget.actions.addGoal((
       name: name,
       currency: _currency,
-      off: const {},
+      // The account pay goes into, as any category made without one.
+      paidFrom: null,
       plan: CategoryPlan(
         categoryId: 0,
         kind: PlanKind.byDate,

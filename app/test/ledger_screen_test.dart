@@ -2310,7 +2310,7 @@ void main() {
       await tester.enterText(field('₮0.00'), '8000');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300)); // border fade-in
-      expect(find.text('needs 2 more'), findsOneWidget);
+      expect(find.text('2 more to fill in'), findsOneWidget);
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/entry_needs.png'),
@@ -2999,11 +2999,12 @@ void main() {
           matching: find.text('Groceries'),
         ),
       );
-      // The popup: what happened, then the row's payee on its own line.
+      // The popup: what happened, then which row on its own line, since a
+      // bank repeats payees.
       expect(find.text('Filed under Groceries'), findsOneWidget);
       String detail() =>
           tester.widget<Text>(find.byKey(const ValueKey('toast-detail'))).data!;
-      expect(detail(), 'Unitel');
+      expect(detail(), '09.16 · −₮30,000 · Unitel');
       // A card of one width in the page's corner, clear of the sidebar.
       final popup = tester.getRect(
         find.byWidgetPredicate((w) => '${w.runtimeType}' == '_Toast'),
@@ -3025,7 +3026,7 @@ void main() {
       await settle(tester);
       // An undo still says which row it changed.
       expect(find.text('Undone · Filed under Groceries'), findsOneWidget);
-      expect(detail(), 'Unitel');
+      expect(detail(), '09.16 · −₮30,000 · Unitel');
       expect(await category(), 'Phone & internet');
       await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
       await settle(tester);
@@ -3964,8 +3965,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('transfer-swap')));
     await tester.pump();
     expect(find.text('From Golomt Visa to TDB Checking'), findsOneWidget);
-    expect(find.text('needs payee'), findsNothing); // transfers need none
-    expect(find.text('needs amount'), findsOneWidget);
+    expect(find.text('Type a payee'), findsNothing); // transfers need none
+    expect(find.text('Type an amount'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -4442,7 +4443,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
     expect(find.text('Mobicom'), findsOneWidget); // now the next scheduled
     // The only late one: no count.
     expect(find.byKey(const ValueKey('overdue-count')), findsNothing);
@@ -4491,7 +4492,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await settle(tester);
-    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -4567,7 +4568,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
     expect(find.text('· 1 more overdue'), findsOneWidget);
 
     // Asked on the bill's row, without opening it, and under the forecast.
@@ -4586,16 +4587,16 @@ void main() {
     await tapAndWrite(tester, find.byKey(const ValueKey('looks-paid-yes')));
     expect(find.text('Mobicom bill paid.'), findsOneWidget);
     // Univision is the next, and the only late one left.
-    expect(find.text('· due 4 days ago'), findsOneWidget);
+    expect(find.text('· due 4 days ago · not in Working yet'), findsOneWidget);
     expect(find.byKey(const ValueKey('overdue-count')), findsNothing);
     expect(find.byKey(const ValueKey('looks-paid')), findsNothing);
     expect(find.byKey(const ValueKey('forecast-maybe-paid')), findsNothing);
 
     await tapAndWait(tester, find.text('Undo'));
-    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
     expect(find.text('· 1 more overdue'), findsOneWidget);
     await redo(tester);
-    expect(find.text('· due 4 days ago'), findsOneWidget);
+    expect(find.text('· due 4 days ago · not in Working yet'), findsOneWidget);
 
     // Nothing like it in the account: Confirm opens with no such line.
     await tapAndWait(tester, find.text('Confirm'));
@@ -4747,7 +4748,7 @@ void main() {
 
     // Late, so October's is scheduled too.
     await expectState([DateTime(2026, 9, 12), DateTime(2026, 10, 12)], null);
-    expect(find.text('· due 4 days ago'), findsOneWidget);
+    expect(find.text('· due 4 days ago · not in Working yet'), findsOneWidget);
 
     const line = 'Paid on 09.14? IB TRANSFER 0412, −₮270,000.00';
     int outlined() =>
@@ -4882,7 +4883,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('looks-paid')), findsNothing);
-    expect(find.text('· due 7 days ago'), findsOneWidget);
+    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
     await tapAndWait(tester, find.text('Undo'));
     expect(find.byKey(const ValueKey('looks-paid')), findsOneWidget);
     await tidy(tester, db);
@@ -7160,23 +7161,10 @@ void main() {
       // window's edge until it scrolls.
       await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
-      // One control for the accounts: left checked alone, TDB Checking is
-      // where the bill is scheduled.
-      expect(
-        find.textContaining(
-          'accounts are checked, so this bill isn’t in any forecast',
-        ),
-        findsOneWidget,
-      );
+      // One control for the account (#180): TDB Checking, its Paid
+      // from, is where the bill is scheduled.
       await pick('money-accounts');
-      for (final a in data.openAccounts) {
-        if (a.id == checking) continue;
-        final box = find.byKey(ValueKey('money-account-${a.id}'));
-        if (box.evaluate().isEmpty) continue;
-        await tester.tap(box);
-        await tester.pumpAndSettle();
-      }
-      await pick('money-accounts');
+      await pick('money-account-$checking');
       expect(
         find.textContaining('The bill shows in TDB Checking'),
         findsOneWidget,
@@ -7549,9 +7537,8 @@ void main() {
           find.byKey(ValueKey('category-editor-$insurance')),
           findsOneWidget,
         );
-        // The accounts are a dropdown of checkboxes: with one dollar
-        // account it names it ("All accounts" is for more than one), and
-        // stays open while they're picked.
+        // Paid from is a dropdown of the accounts in its currency (#180):
+        // with one dollar account it's that one.
         expect(
           find.descendant(
             of: find.byKey(const ValueKey('money-accounts')),
@@ -7595,23 +7582,19 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('money-accounts')));
         await tester.pumpAndSettle();
         // Cards are accounts too: the Visa is in the list.
-        for (final name in ['TDB Checking', 'Cash wallet', 'Golomt Visa']) {
-          await tester.tap(
-            find.byKey(ValueKey('money-account-${account(name)}')),
-          );
-          await tester.pumpAndSettle();
-        }
+        expect(
+          find.byKey(ValueKey('money-account-${account('Golomt Visa')}')),
+          findsOneWidget,
+        );
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile('goldens/budget_accounts_open.png'),
         );
-        // A click on the dropdown's button closes it; it names the one
-        // account left.
-        await tester.ensureVisible(
-          find.byKey(const ValueKey('money-accounts')),
+        final was = data.paidFrom[groceries];
+        // Picking one closes it, and the button names it.
+        await tester.tap(
+          find.byKey(ValueKey('money-account-${account('Khan Savings')}')),
         );
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('money-accounts')));
         await tester.pumpAndSettle();
         expect(
           find.descendant(
@@ -7628,17 +7611,12 @@ void main() {
         );
         await click('edit-save');
         await reload();
-        expect(data.accountsOff[groceries], {
-          account('TDB Checking'),
-          account('Cash wallet'),
-          account('Golomt Visa'),
-        });
-        expect(find.text('only from Khan Savings'), findsOneWidget);
-        // September's groceries were paid from the others: counted, and
-        // named.
+        expect(data.paidFrom[groceries], account('Khan Savings'));
+        // September's groceries were paid from other accounts: that's
+        // allowed, and nothing is said about it.
         expect(
           find.textContaining('which this category doesn’t use'),
-          findsOneWidget,
+          findsNothing,
         );
         await tester.drag(
           find.byKey(ValueKey('category-row-$groceries')),
@@ -7649,11 +7627,11 @@ void main() {
           find.byType(LedgerScreen),
           matchesGoldenFile('goldens/budget_currencies.png'),
         );
-        // ⌘Z checks them again.
+        // ⌘Z puts its Paid from back.
         await chord(tester, LogicalKeyboardKey.keyZ);
         await settle(tester);
         await reload();
-        expect(data.accountsOff, isEmpty);
+        expect(data.paidFrom[groceries], was);
 
         // Changing Car insurance to tugrik says what it takes back first.
         await editCategory(tester, 'Car insurance');
@@ -7695,6 +7673,18 @@ void main() {
           r'Changing the currency sends the $120.00 assigned to it back to '
           'not assigned',
         );
+        // In tugrik it's paid from a tugrik account, asked for again.
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('money-accounts')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Choose an account'), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('money-accounts')));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(ValueKey('money-account-${account('TDB Checking')}')),
+        );
+        await tester.pumpAndSettle();
         await click('edit-save');
         await reload();
         expect(data.accounts[insurance]!.currency, Currency.mnt);
@@ -7769,6 +7759,22 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/budget_categories.png'),
       );
+      // Enter with no Paid from yet says so, and opens the list (#180).
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(
+        find.text(
+          'Choose the account it’s paid from. Any account in its currency '
+          'can still pay it.',
+        ),
+        findsOneWidget,
+      );
+      final tdb = (await tester.runAsync(db.loadLedger))!.balanceSheetAccounts
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      await tester.tap(find.byKey(ValueKey('money-account-$tdb')));
+      await tester.pumpAndSettle();
+      await tester.showKeyboard(find.byKey(const ValueKey('edit-name')));
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle(tester);
       // Added from the window, which closes: everything was set in it, so
@@ -7964,6 +7970,36 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('money in on a new category says, on its own line, it is a '
+        'refund', (tester) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'Nomin',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        'Returns',
+      );
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '6500');
+      await tester.pumpAndSettle();
+      // Beside Add, only the short note; no + yet, so no refund line.
+      expect(find.text('new category'), findsOneWidget);
+      expect(find.byKey(const ValueKey('refund-line')), findsNothing);
+
+      await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '+6500');
+      await tester.pumpAndSettle();
+      expect(find.text('new category'), findsOneWidget);
+      expect(
+        find.text(
+          'Money in counts as a refund to Returns. For pay, pick Income.',
+        ),
+        findsOneWidget,
+      );
+      await tidy(tester, db);
+    });
+
     testWidgets('a new name in the entry row becomes a category', (
       tester,
     ) async {
@@ -8050,19 +8086,22 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
+      final was = data.paidFrom[gifts];
       await tester.tap(find.byKey(ValueKey('money-account-$wallet')));
       await tester.pumpAndSettle();
-      expect(find.text('3 of 4 accounts'), findsOneWidget);
-      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('money-accounts')));
-      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('money-accounts')),
+          matching: find.text('Cash wallet'),
+        ),
+        findsOneWidget,
+      );
       await tapAndWait(tester, find.byKey(const ValueKey('edit-save')));
       await reload();
       expect(data.accounts[gifts]!.name, 'Presents');
       expect(data.plans[gifts]!.kind, PlanKind.each);
       expect(data.plans[gifts]!.amount, 5000000);
-      expect(data.accountsOff[gifts], {wallet});
+      expect(data.paidFrom[gifts], wallet);
       expect(find.text('Changes to Presents'), findsOneWidget);
 
       await chord(tester, LogicalKeyboardKey.keyZ);
@@ -8070,13 +8109,13 @@ void main() {
       await reload();
       expect(data.accounts[gifts]!.name, 'Gifts');
       expect(data.plans[gifts], isNull);
-      expect(data.accountsOff, isEmpty);
+      expect(data.paidFrom[gifts], was);
       await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
       await settle(tester);
       await reload();
       expect(data.accounts[gifts]!.name, 'Presents');
       expect(data.plans[gifts]!.amount, 5000000);
-      expect(data.accountsOff[gifts], {wallet});
+      expect(data.paidFrom[gifts], wallet);
 
       // Spending or income isn't a choice: income is the app's own.
       await editCategory(tester, 'Presents');
@@ -8201,6 +8240,14 @@ void main() {
         find.byKey(const ValueKey('edit-name')),
         'Post box',
       );
+      final tdb = (await tester.runAsync(db.loadLedger))!.balanceSheetAccounts
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      await tester.tap(find.byKey(const ValueKey('money-accounts')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('money-account-$tdb')));
+      await tester.pumpAndSettle();
+      await tester.showKeyboard(find.byKey(const ValueKey('edit-name')));
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle(tester);
       expect(find.byKey(const ValueKey('edit-name')), findsNothing);
@@ -8265,6 +8312,14 @@ void main() {
       await type('plan-date', '10.15');
       // What's set aside is the amount alone (owner, 2026-10-22).
       expect(find.textContaining('worked out'), findsNothing);
+      // Paid from, asked of a new one (#180); it carries to the next.
+      final tdb = (await load()).balanceSheetAccounts
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await tester.pumpAndSettle();
+      await tap('money-accounts');
+      await tap('money-account-$tdb');
       await tap('new-category-another');
 
       // The window stays, empty for the next, and says what went in. The
@@ -8291,6 +8346,10 @@ void main() {
       expect(plan.due, DateTime(2026, 10, 15));
       expect(data.categories.where((c) => c.name == 'Taxi'), hasLength(1));
       expect(data.plans.containsKey(mobicom.id), isTrue);
+      expect(data.paidFrom[mobicom.id], tdb);
+      expect(plan.paidFrom, tdb);
+      final taxi = data.categories.firstWhere((c) => c.name == 'Taxi');
+      expect(data.paidFrom[taxi.id], tdb);
 
       // Each Add is its own undo: one takes back Taxi, the next Mobicom
       // with its plan.
@@ -8345,11 +8404,11 @@ void main() {
       expect(paidFrom(), 'AFCU Checking');
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
-      // Several tugrik accounts: all of them.
+      // Several tugrik accounts: the one it's paid from (#180).
       await editCategory(tester, 'Groceries');
       await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
-      expect(paidFrom(), 'All accounts');
+      expect(paidFrom(), 'TDB Checking');
       await tidy(tester, db);
     });
   });
@@ -10129,7 +10188,7 @@ void main() {
     expect(find.text('Filed under Bank fees'), findsOneWidget);
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('toast-detail'))).data,
-      'IB-INTERBANK TRANSFER CHARGE 1.2.3, 1.2.4',
+      '09.15 · −₮200 · IB-INTERBANK TRANSFER CHARGE 1.2.3, 1.2.4',
     );
     expect(
       find.text('Remember this for next time, and file 1 more row now'),
@@ -10427,7 +10486,7 @@ void main() {
       },
     );
 
-    testWidgets('a row with no payee has no line for one', (tester) async {
+    testWidgets('a row with no payee has no place for one', (tester) async {
       final db = await pumpLedger(tester);
       await tester.runAsync(() async {
         final data = await db.loadLedger();
@@ -10453,8 +10512,9 @@ void main() {
           matching: find.text('Groceries'),
         ),
       );
+      // Which row it was still says, without an empty place for the payee.
       expect(find.text('Filed under Groceries'), findsOneWidget);
-      expect(find.byKey(const ValueKey('toast-detail')), findsNothing);
+      expect(find.text('09.16 · −₮123.45'), findsOneWidget);
       await tidy(tester, db);
     });
   });

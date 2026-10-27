@@ -1,5 +1,6 @@
-import 'budget.dart' show Budget;
+import 'budget.dart' show Budget, nextBudgetPeriod;
 import 'ledger.dart';
+import 'money.dart' show Currency;
 import 'pay.dart';
 
 /// How far the forecast looks (owner's request, 2026-10-05): through the
@@ -85,6 +86,203 @@ List<RegisterRow> projectScheduled(
   return out;
 }
 
+/// What the budget expects spent from [accountId], day by day, from [today]
+/// through [until] (owner, 2026-10-27, #179: the forecast "should also take
+/// out what's budgeted for groceries, transport and the rest"; "you'd
+/// pro-rate it"). From each category paid from it (#180) whose set amount
+/// goes back when its period ends, so is spent within it: each period at
+/// its plan's pace, by the day. In the period today is in, only the days
+/// left, and never more than it still has: its Left once anything is
+/// assigned, else the plan less what it spent (so the first of the month,
+/// before assigning, still counts the month; and an underspent one doesn't
+/// pile its Left onto the last days). Rows already scheduled in it (one
+/// typed with a later date) come on their own dates, so they're taken off
+/// what's spread. A bill comes on its date, and one that builds up (car
+/// repairs) isn't spent by the day, so neither is here.
+List<({DateTime date, int amount})> projectSpending(
+  LedgerData data, {
+  required int accountId,
+  required DateTime today,
+  required DateTime until,
+}) {
+  final account = data.accounts[accountId];
+  if (account == null) return const [];
+  final start = dateOnly(today), end = dateOnly(until);
+  if (end.isBefore(start)) return const [];
+  final byDay = <DateTime, int>{};
+  void spread(int amount, DateTime from, DateTime to, int days) {
+    // [amount] over the [days] the period has, for those from [from]
+    // through [to]; what rounding leaves goes on its last day.
+    if (amount <= 0 || days <= 0) return;
+    var given = 0, n = 0;
+    for (
+      var d = from;
+      !d.isAfter(to);
+      d = DateTime(d.year, d.month, d.day + 1)
+    ) {
+      n++;
+      final share = n == days ? amount - given : amount ~/ days;
+      given += share;
+      if (share != 0) byDay[d] = (byDay[d] ?? 0) - share;
+    }
+  }
+
+  int daysIn(DateTime a, DateTime b) =>
+      DateTime.utc(
+        b.year,
+        b.month,
+        b.day,
+      ).difference(DateTime.utc(a.year, a.month, a.day)).inDays +
+      1;
+  // One budget per period the categories run by, for what each has left.
+  final budgets = <(DateTime, DateTime), Budget>{};
+  for (final MapEntry(key: id, value: paidFrom) in data.paidFrom.entries) {
+    if (paidFrom != accountId) continue;
+    final category = data.accounts[id];
+    final plan = data.plans[id];
+    if (category == null ||
+        category.deleted ||
+        category.archived ||
+        category.currency != account.currency ||
+        plan == null ||
+        plan.kind != PlanKind.each ||
+        plan.rollover) {
+      continue;
+    }
+    final own = data.payScheduleById(plan.payScheduleId);
+    // Its rows already scheduled, from today on, by day.
+    final scheduled = <DateTime, int>{};
+    for (final t in data.txns) {
+      if (!t.scheduled) continue;
+      final d = dateOnly(t.date);
+      if (d.isBefore(start)) continue;
+      for (final e in t.entries) {
+        if (e.accountId == id) scheduled[d] = (scheduled[d] ?? 0) + e.amount;
+      }
+    }
+    int scheduledIn(DateTime from, DateTime to) => scheduled.entries
+        .where((x) => !x.key.isBefore(from) && !x.key.isAfter(to))
+        .fold(0, (sum, x) => sum + x.value);
+    var p = budgetPeriod(start, own);
+    final budget = budgets.putIfAbsent((
+      p.start,
+      p.end,
+    ), () => Budget.of(data, start: p.start, end: p.end, today: start));
+    final line = budget.lines[id];
+    final days = daysIn(p.start, p.end), left = daysIn(start, p.end);
+    final pace = plan.amountIn(p.start) * left ~/ days;
+    final has = line == null
+        ? 0
+        : line.assigned != 0
+        ? line.left
+        : plan.amountIn(p.start) - line.counted;
+    // Not before the plan began.
+    final begun = !p.end.isBefore(dateOnly(plan.start));
+    final now = (pace < has ? pace : has) - scheduledIn(start, p.end);
+    if (begun) spread(now, start, p.end.isAfter(end) ? end : p.end, left);
+    for (var walked = 0; walked < 400; walked++) {
+      final next = nextBudgetPeriod(p, own);
+      if (!next.start.isAfter(p.start) || next.start.isAfter(end)) break;
+      p = next;
+      if (p.end.isBefore(dateOnly(plan.start))) continue;
+      final to = p.end.isAfter(end) ? end : p.end;
+      spread(
+        plan.amountIn(p.start) - scheduledIn(p.start, p.end),
+        p.start,
+        to,
+        daysIn(p.start, p.end),
+      );
+    }
+  }
+  return [
+    for (final d in byDay.keys.toList()..sort()) (date: d, amount: byDay[d]!),
+  ];
+}
+
+/// What the account pay goes into ([accountId]) will pay out for the
+/// others, day by day, from [today] through [until] (owner, 2026-10-28):
+/// cash taken out to fill a wallet the budget's spending would take below
+/// zero, and a card's spending when nothing scheduled pays the card (a
+/// card paid by a dated bill is counted through that bill). Only accounts
+/// in its currency, and only for the one account pay goes into there (else
+/// its first bank account).
+List<({DateTime date, int amount})> projectFunding(
+  LedgerData data, {
+  required int accountId,
+  required DateTime today,
+  required DateTime until,
+}) {
+  final here = data.accounts[accountId];
+  if (here == null || !here.isBalanceSheet || here.isOwed || here.isCash) {
+    return const [];
+  }
+  if (fundingAccount(data, here.currency) != accountId) return const [];
+  final start = dateOnly(today), end = dateOnly(until);
+  final byDay = <DateTime, int>{};
+  for (final a in data.openAccounts) {
+    if (a.id == accountId || a.currency != here.currency) continue;
+    final days = projectSpending(
+      data,
+      accountId: a.id,
+      today: start,
+      until: end,
+    );
+    if (days.isEmpty) continue;
+    if (a.isCash) {
+      // The wallet as it goes, with what's scheduled in it: what would take
+      // it below zero is taken out of the bank that day.
+      final events = <DateTime, int>{};
+      for (final r in data.registerFor(a.id).scheduled) {
+        final d = r.date.isBefore(start) ? start : dateOnly(r.date);
+        if (!d.isAfter(end)) events[d] = (events[d] ?? 0) + r.amount;
+      }
+      for (final x in days) {
+        events[x.date] = (events[x.date] ?? 0) + x.amount;
+      }
+      var bal = data.summaryFor(a.id).working;
+      for (final d in events.keys.toList()..sort()) {
+        bal += events[d]!;
+        if (bal < 0) {
+          byDay[d] = (byDay[d] ?? 0) + bal;
+          bal = 0;
+        }
+      }
+    } else if (a.isOwed && !_paidByBill(data, a.id)) {
+      for (final x in days) {
+        byDay[x.date] = (byDay[x.date] ?? 0) + x.amount;
+      }
+    }
+  }
+  return [
+    for (final d in byDay.keys.toList()..sort()) (date: d, amount: byDay[d]!),
+  ];
+}
+
+/// The account money for cash and cards comes from, in [currency]: the
+/// one pay goes into, else the first bank account.
+int? fundingAccount(LedgerData data, Currency currency) {
+  bool bank(AccountInfo a) =>
+      a.type == AccountType.asset && !a.isCash && a.currency == currency;
+  for (final p in data.paySchedules) {
+    final a = data.accounts[p.accountId];
+    if (a != null && !a.archived && !a.deleted && bank(a)) return a.id;
+  }
+  return data.openAccounts.where(bank).firstOrNull?.id;
+}
+
+/// A card a dated bill pays: its category, or any dated plan scheduled to
+/// pay into it.
+bool _paidByBill(LedgerData data, int card) {
+  final c = Budget.loanCategory(data, card);
+  if (c != null && data.plans[c]?.kind == PlanKind.byDate) return true;
+  return data.txns.any(
+    (t) =>
+        t.scheduled &&
+        t.planCategoryId != null &&
+        t.entries.any((e) => e.accountId == card && e.amount > 0),
+  );
+}
+
 /// Answers "will this account make it through the next pay period?" from
 /// scheduled transactions and the pay plan. Deterministic and local: no
 /// history, no guessing.
@@ -109,6 +307,9 @@ class Forecast {
     required this.firstShort,
     this.firstShortBalance = 0,
     this.expectedBills = 0,
+    this.spendingTotal = 0,
+    this.takeOut = 0,
+    this.takeOutBy,
     required this.billTotal,
     required this.billCount,
     required this.inTotal,
@@ -167,6 +368,18 @@ class Forecast {
   /// How many of the bills are expected (projected), not scheduled rows.
   final int expectedBills;
 
+  /// What the budget expects spent before [end], day by day
+  /// ([projectSpending]); not in [billTotal]. Its steps are [ForecastStep]
+  /// with `spending` set.
+  final int spendingTotal;
+
+  /// Cash: how much has to be taken out to keep it from going below zero
+  /// before [end], and the first day it's needed (owner, 2026-10-28: the
+  /// wallet is filled from the bank, so that isn't a shortfall). 0 and null
+  /// otherwise; a cash forecast is never [isShort] for it.
+  final int takeOut;
+  final DateTime? takeOutBy;
+
   /// Money going out before [end], and how many rows.
   final int billTotal;
   final int billCount;
@@ -189,16 +402,42 @@ class Forecast {
   /// Below zero before any scheduled bill lands.
   bool get shortNow => !owed && startBalance < 0;
 
+  /// The steps that are rows (bills, money in), not a day's spending.
+  List<ForecastStep> get rowSteps => [
+    for (final s in steps)
+      if (!s.spending) s,
+  ];
+
   /// The balance once every step has happened.
   int get endBalance => steps.isEmpty ? startBalance : steps.last.balance;
 }
 
+/// [spending]: a day of what the budget expects spent ([projectSpending]),
+/// not a row: its [row] stands in, with only the date and amount.
 typedef ForecastStep = ({
   DateTime date,
   int balance,
   String label,
   RegisterRow row,
+  bool spending,
 });
+
+/// A day's spending from the budget as a row the walk can sort.
+RegisterRow _spendingRow(DateTime date, int amount) => RegisterRow(
+  txnId: 0,
+  entryId: 0,
+  date: date,
+  payee: '',
+  memo: '',
+  amount: amount,
+  cleared: Cleared.uncleared,
+  scheduled: true,
+  kind: RowKind.simple,
+  categoryLabel: '',
+  categoryId: null,
+  splitLines: const [],
+  projected: true,
+);
 
 const _fallbackHorizon = Duration(days: 30);
 const _paydayLookahead = Duration(days: 45);
@@ -212,6 +451,8 @@ Forecast buildForecast({
   bool payIsSetUp = false,
   DateTime? until,
   List<RegisterRow> projected = const [],
+  List<({DateTime date, int amount})> spending = const [],
+  bool cash = false,
 }) {
   final start = dateOnly(today);
   // Overdue bills still have to be paid; treat them as due today.
@@ -262,7 +503,14 @@ Forecast buildForecast({
       until ??
       nextPayday ??
       (payday != null ? when(payday) : start.add(_fallbackHorizon));
-  final rows = [...counted, if (until != null) ...projected];
+  // A day's spending counts through the last day, as a bill does.
+  final spent = [
+    for (final x in spending)
+      if (!x.date.isBefore(start) && !x.date.isAfter(end))
+        _spendingRow(x.date, x.amount),
+  ];
+  final isSpending = Set<RegisterRow>.identity()..addAll(spent);
+  final rows = [...counted, if (until != null) ...projected, ...spent];
 
   // Bills on the last day count; money in on it doesn't (like the paycheck
   // that ends it, it may land after them), except a transfer, the user's own
@@ -297,7 +545,9 @@ Forecast buildForecast({
   // On a card, balances are shown as what's owed.
   int shown(int v) => owed ? -v : v;
   var bal = working, billTotal = 0, billCount = 0, inTotal = 0;
-  var expectedBills = 0, firstShortBalance = !owed && working < 0 ? working : 0;
+  var expectedBills = 0, spendingTotal = 0;
+  DateTime? takeOutBy;
+  var firstShortBalance = !owed && working < 0 ? working : 0;
   var low = shown(working);
   var lowDate = start;
   DateTime? firstShort = !owed && working < 0 ? start : null;
@@ -305,7 +555,10 @@ Forecast buildForecast({
 
   for (final (i: _, :r) in inRange) {
     bal += r.amount;
-    if (r.amount < 0) {
+    final day = isSpending.contains(r);
+    if (day) {
+      spendingTotal -= r.amount;
+    } else if (r.amount < 0) {
       billTotal -= r.amount;
       billCount++;
       if (r.projected) expectedBills++;
@@ -313,13 +566,21 @@ Forecast buildForecast({
       inTotal += r.amount;
     }
     final label = r.kind == RowKind.transfer ? r.payee : r.categoryLabel;
-    steps.add((date: when(r), balance: shown(bal), label: label, row: r));
+    steps.add((
+      date: when(r),
+      balance: shown(bal),
+      label: label,
+      row: r,
+      spending: day,
+    ));
     if (!owed && bal < low) {
       low = bal;
       lowDate = when(r);
     }
+    // Cash below zero is filled from the bank, not short.
+    if (cash && bal < 0) takeOutBy ??= when(r);
     // To zero or below (owner, 2026-10-05): nothing left is already short.
-    if (!owed && bal <= 0 && firstShort == null) {
+    if (!owed && !cash && bal <= 0 && firstShort == null) {
       firstShort = when(r);
       firstShortBalance = bal;
     }
@@ -336,6 +597,9 @@ Forecast buildForecast({
     firstShort: firstShort,
     firstShortBalance: firstShortBalance,
     expectedBills: expectedBills,
+    spendingTotal: spendingTotal,
+    takeOut: cash && low < 0 ? -low : 0,
+    takeOutBy: takeOutBy,
     billTotal: billTotal,
     billCount: billCount,
     inTotal: inTotal,

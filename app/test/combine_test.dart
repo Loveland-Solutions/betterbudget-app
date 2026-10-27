@@ -87,6 +87,7 @@ LedgerRows ledger() => {
   ],
   'category_plans': [],
   'category_accounts_off': [],
+  'category_paid_from': [],
   'preferences': [pref('budget.began', '2026-10-01')],
 };
 
@@ -954,6 +955,33 @@ void main() {
       final found = run();
       expect(found.conflict, isNull);
       expect(found.ops, isEmpty);
+    });
+
+    test('a category made on both, paid from another account on each: one '
+        'of the two, the same on both computers (#180)', () {
+      const taxi = 0x4000000000000009;
+      for (final (side, from) in [(mine, 1), (theirs, 2)]) {
+        side['accounts']!.add(account(taxi, 'Taxi', type: 'expense'));
+        side['category_paid_from']!.add({
+          'category_id': taxi,
+          'account_id': from,
+        });
+      }
+      final here = combined()['category_paid_from']!.single['account_id'];
+      // Combined the other way round, the other computer keeps the same.
+      final there = after(
+        theirs,
+        combine(base: base, mine: theirs, theirs: mine).ops,
+      )['category_paid_from']!.single['account_id'];
+      expect(here, there);
+      // Changed on both after it was shared: asked, as a plan is.
+      base = combined();
+      mine = copy(base);
+      theirs = copy(base);
+      mine['category_paid_from']!.single['account_id'] = 1;
+      theirs['category_paid_from']!.single['account_id'] = 2;
+      if (here == 1) mine['category_paid_from']!.single['account_id'] = 3;
+      expect(run().conflict, contains('changed on both'));
     });
 
     test('the payday each scheduled, confirmed there on another day, edited '

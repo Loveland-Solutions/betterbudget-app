@@ -93,7 +93,10 @@ class EntryRowController {
   /// Set by the screen: "+ New category" opens the New category window
   /// with the name typed and the row's currency (owner, 2026-10-22, #237).
   /// The category it made or picked, or null when it closed without one.
-  Future<AccountInfo?> Function(String name, Currency currency)? newCategory;
+  /// [account]: the one picked under All accounts (null in an account's
+  /// own register), the new category's Paid from to begin with.
+  Future<AccountInfo?> Function(String name, Currency currency, int? account)?
+  newCategory;
   List<String> payeeNames = const [];
   final payeeFocus = FocusNode(debugLabel: 'entry-payee');
 
@@ -521,6 +524,10 @@ class _EntryRowState extends State<EntryRow> {
     return other != null && other.currency != _hereCurrency ? other : null;
   }
 
+  /// The account picked for the row under All accounts; null in an
+  /// account's own register, which the screen knows.
+  int? get _hereId => _picking ? widget.controller.account?.id : null;
+
   /// The account the row is in, for the transfer sentence.
   String? get _here =>
       _picking ? widget.controller.account?.name : widget.accountName;
@@ -656,7 +663,7 @@ class _EntryRowState extends State<EntryRow> {
   /// typed, and saving the row still makes it, bare, as before.
   Future<void> _pickNew(String name) async {
     final open = widget.controller.newCategory;
-    final made = open == null ? null : await open(name, _hereCurrency);
+    final made = open == null ? null : await open(name, _hereCurrency, _hereId);
     if (!mounted) return;
     if (open == null) {
       // Picked on purpose: no doubt left.
@@ -678,7 +685,11 @@ class _EntryRowState extends State<EntryRow> {
   /// "+ New category" on a split's line: the same window, and the
   /// category it made on the line.
   Future<void> _pickNewOnLine(_SplitLine l, String name) async {
-    final made = await widget.controller.newCategory!(name, _hereCurrency);
+    final made = await widget.controller.newCategory!(
+      name,
+      _hereCurrency,
+      _hereId,
+    );
     if (!mounted) return;
     setState(() {
       if (made == null) {
@@ -735,11 +746,16 @@ class _EntryRowState extends State<EntryRow> {
     };
   }
 
-  /// With a `+` it says what money in will be: a refund to the new
-  /// category, not income.
-  String get _newCategoryNote => _amount.text.trim().startsWith('+')
-      ? context.t.rowsNewCategoryRefundNote
-      : context.t.rowsNewCategoryNote;
+  String get _newCategoryNote => context.t.rowsNewCategoryNote;
+
+  /// With a `+` on a new category, what money in will be: a refund to it,
+  /// not income. Its own line under the row, since the note by Add is too
+  /// narrow to hold it.
+  String? get _refundLine {
+    final typed = _newCategory;
+    if (typed == null || !_amount.text.trim().startsWith('+')) return null;
+    return context.t.rowsNewCategoryRefundNote(typed);
+  }
 
   /// A transfer spelled out before it's added: "₮640,200.00 from TDB
   /// Checking to Golomt Visa". The category reads "→ Golomt Visa" either way,
@@ -1930,13 +1946,15 @@ class _EntryRowState extends State<EntryRow> {
     } else {
       return const SizedBox.shrink();
     }
+    // Two short lines when it doesn't fit beside Add ("Type an / amount"),
+    // rather than cut off.
     return Tooltip(
       message: text,
       child: Text(
         text,
-        style: onest(12, color: color, tabular: true),
+        style: onest(12, color: color, tabular: true, height: 1.15),
         textAlign: TextAlign.right,
-        maxLines: 1,
+        maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -1968,6 +1986,7 @@ class _EntryRowState extends State<EntryRow> {
     final initial = _initial;
     final lit = _active || _editing;
     final transferLine = _transferLine;
+    final refundLine = _refundLine;
     final shortBy = _shortBy;
     final t = context.t;
     // An amount a reconcile locked, and what changing it would take back.
@@ -2321,6 +2340,7 @@ class _EntryRowState extends State<EntryRow> {
                                   ? null
                                   : _swapDirection,
                             ),
+                          if (refundLine != null) _RefundLine(text: refundLine),
                           if (_exchangeWith case final other?)
                             _ExchangeLine(
                               other: other,
@@ -2656,6 +2676,31 @@ class _TransferLine extends StatelessWidget {
           ),
         ],
       ],
+    ),
+  );
+}
+
+/// Under a new category with money in: it will be a refund to it.
+class _RefundLine extends StatelessWidget {
+  const _RefundLine({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('refund-line'),
+    width: Cols.category + Cols.gap + Cols.amount + Cols.gap + Cols.balance,
+    height: 30,
+    margin: const EdgeInsets.only(top: 6),
+    padding: const EdgeInsets.only(left: 10),
+    alignment: Alignment.centerLeft,
+    child: Tooltip(
+      message: text,
+      child: Text(
+        text,
+        style: onest(12.5, color: Mid.note),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
     ),
   );
 }

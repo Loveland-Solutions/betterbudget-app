@@ -1207,11 +1207,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // is in (rule 28).
     final data = _data;
     final account = d.account ?? data?.accounts[_accountId];
+    // Paid from the account the row is in (#180).
     return db.createCategory(
       name,
       currency:
           account?.currency ??
           (data == null ? Currency.mnt : Budget.currencyOf(data)),
+      paidFrom: account?.id,
     );
   }
 
@@ -2245,6 +2247,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// The payday after [row] by its pay plan, so the forecast can run
   /// through the whole period. Null for income typed by hand: it belongs
   /// to no plan.
+  /// [projectSpending] by account, end and day, for each ledger read.
+  final _spending =
+      Expando<
+        Map<(int, DateTime?, DateTime), List<({DateTime date, int amount})>>
+      >();
+
   /// How far every forecast looks: the user's choice, kept in the ledger.
   ForecastSpan _span(LedgerData data) =>
       ForecastSpan.parse(data.prefs[ForecastSpan.prefKey]);
@@ -2276,6 +2284,32 @@ class _LedgerScreenState extends State<LedgerScreen> {
               payById: data.payScheduleById,
               planOf: (id) => data.plans[id],
             ),
+      // What the budget expects spent from it (#179): far enough for any
+      // pay period; the forecast stops at its own end. Worked out once per
+      // ledger, not on every hover.
+      // The account pay goes into also pays out for the wallet and a card
+      // nothing scheduled pays (owner, 2026-10-28).
+      spending: (_spending[data] ??= {}).putIfAbsent(
+        (account.id, until, dateOnly(today)),
+        () {
+          final to = until ?? today.add(const Duration(days: 120));
+          return [
+            ...projectSpending(
+              data,
+              accountId: account.id,
+              today: today,
+              until: to,
+            ),
+            ...projectFunding(
+              data,
+              accountId: account.id,
+              today: today,
+              until: to,
+            ),
+          ]..sort((a, b) => a.date.compareTo(b.date));
+        },
+      ),
+      cash: account.isCash,
     );
   }
 
@@ -4060,11 +4094,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ].join(' · ');
   }
 
+  /// Which row a popup is about, since a bank repeats payees: "09.15 ·
+  /// −₮200 · IB-INTERBANK…".
+  String _rowLine(Words t, RegisterRow r) {
+    final date = sayDate(t, r.date);
+    final amount = formatShort(r.amount, currency: r.currency);
+    final payee = rowPayee(t, r);
+    return payee.isEmpty
+        ? t.ledgerRowLineNoPayee(date, amount)
+        : t.ledgerRowLine(date, amount, payee);
+  }
+
   /// A row's category from its inline menu, in whichever account it's in.
   Future<void> _setCategory(RegisterRow r, AccountInfo c) async {
     final t = context.t;
     final over = _loaded;
-    final payee = rowPayee(t, r);
+    final which = _rowLine(t, r);
     final previous = await db.setCategoryMany(
       transactionIds: [r.txnId],
       accountId: r.accountId,
@@ -4073,7 +4118,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (previous.isEmpty) return;
     _did(
       t.ledgerFiledUnder(c.name),
-      detail: payee,
+      detail: which,
       more: _alwaysOffer(r, c),
       undo: () async => _expect(
         (await db.restoreCategories(previous, r.accountId)).length ==
@@ -4138,7 +4183,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final label = _payLabel(t, data, pay);
     _did(
       t.ledgerFiledUnder(label),
-      detail: rowPayee(t, r),
+      detail: _rowLine(t, r),
       more: _alwaysOffer(r, income, pay: pay, label: label),
       undo: () => db.undoTakeAsPay(taken),
       redo: () => db.redoTakeAsPay(taken),
@@ -5087,19 +5132,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  /// Puts [c] in [currency], using every account in it but [off] (rule
-  /// 28). Unchecking an account is quiet; a change of currency takes back
-  /// what was assigned and removes the plan, and says so, with Undo.
+  /// Puts [c] in [currency], paid from [paidFrom] (#180). A new Paid from
+  /// is quiet; a change of currency takes back what was assigned and
+  /// removes the plan, and says so, with Undo.
   Future<void> _setCategoryMoney(
     AccountInfo c,
     Currency currency,
-    Set<int> off,
+    int? paidFrom,
   ) async {
     final t = context.t;
     final data = _data!;
-    final was = data.accountsOff[c.id] ?? const <int>{};
     final changed = currency != c.currency;
-    if (!changed && was.length == off.length && was.containsAll(off)) return;
+    if (!changed && data.paidFrom[c.id] == paidFrom) return;
     final assigned = data.budgetAmounts
         .where((b) => b.categoryId == c.id)
         .fold(0, (sum, b) => sum + b.amount);
@@ -5114,7 +5158,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final from = dateKey(budgetPeriod(today, data.periodSchedule).start);
     late CategoryMoney before;
     Future<void> write() async {
-      before = await db.setCategoryMoney(c.id, currency: currency, off: off);
+      before = await db.setCategoryMoney(
+        c.id,
+        currency: currency,
+        paidFrom: paidFrom,
+      );
       if (changed) await db.setPreference(fromKey, from);
     }
 
@@ -5241,11 +5289,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (renamed && _categoryNamed(data, e.name, except: c.id) != null) {
       return _renameCategory(data, c, e.name);
     }
-    final off = data.accountsOff[c.id] ?? const <int>{};
     final oldPlan = data.plans[c.id];
     final currency = e.currency != c.currency;
-    final money =
-        currency || off.length != e.off.length || !off.containsAll(e.off);
+    final money = currency || data.paidFrom[c.id] != e.paidFrom;
     // A change of currency removes the plan itself.
     final plan = e.plan != (currency ? null : oldPlan);
     final monthKey = ReadyKeys.leftOut(c.id);
@@ -5271,7 +5317,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (changes.isEmpty) return;
     if (changes.length == 1 && !month && !goal && !details) {
       if (renamed) return _renameCategory(data, c, e.name);
-      if (money) return _setCategoryMoney(c, e.currency, e.off);
+      if (money) return _setCategoryMoney(c, e.currency, e.paidFrom);
       return _setCategoryPlan(c, e.plan);
     }
     final assigned = data.budgetAmounts
@@ -5311,7 +5357,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         moneyBefore = await db.setCategoryMoney(
           c.id,
           currency: e.currency,
-          off: e.off,
+          paidFrom: e.paidFrom,
         );
         if (currency) await db.setPreference(fromKey, from);
       }
@@ -5408,6 +5454,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<AccountInfo?> _newCategoryForRow(
     String name,
     Currency currency,
+    int? account,
   ) async {
     final data = _data;
     if (data == null) return null;
@@ -5423,6 +5470,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
         currency: currency,
         name: name,
         offerAnother: false,
+        // Paid from the row's account to begin with (#180).
+        paidFrom: account ?? _accountId,
         nameNote: (n) => _categoryNameNote(n, inRow: true),
         onAdd: (e) async {
           final now = _data;
@@ -5477,7 +5526,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         await _saveCategory(back, (
           name: existing.name,
           currency: e.currency,
-          off: e.off,
+          paidFrom: e.paidFrom,
           plan: e.plan,
           inMonth: e.inMonth,
           goal: e.goal,
@@ -5493,9 +5542,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
     late int id;
     PlanChange? planChange;
     Future<void> settings() async {
-      if (e.off.isNotEmpty) {
-        await db.setCategoryMoney(id, currency: e.currency, off: e.off);
-      }
       // Said either way: a deleted category's id may come round again.
       await db.setPreference(ReadyKeys.leftOut(id), e.inMonth ? null : 'yes');
       await db.setPreference(ReadyKeys.goal(id), e.goal ? 'yes' : null);
@@ -5507,7 +5553,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
     if (!await _accountWrite(
       () => db.transaction(() async {
-        id = await db.createCategory(e.name, currency: e.currency);
+        id = await db.createCategory(
+          e.name,
+          currency: e.currency,
+          paidFrom: e.paidFrom,
+        );
         await settings();
         if (e.plan != null) {
           planChange = await db.changeCategoryPlan(id, e.plan, today);

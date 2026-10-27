@@ -83,13 +83,13 @@ class PhoneStore extends ChangeNotifier {
   List<PhoneCategory> get categories => [..._snapshot.categories, ..._made];
 
   /// The category called [name], made now unless there is one already
-  /// (whatever its capitals), with the [plan] and the accounts [off] its
-  /// New category page set.
+  /// (whatever its capitals), with the [plan] and the account it's paid
+  /// from ([paidFromId]) its New category page set.
   PhoneCategory categoryCalled(
     String name,
     Currency currency, {
     CategoryPlan? plan,
-    Set<String> off = const {},
+    String? paidFromId,
   }) {
     final already = categoryNamed(categories, name);
     if (already != null) return already;
@@ -101,7 +101,7 @@ class PhoneStore extends ChangeNotifier {
       currency: currency,
       madeHere: true,
       plan: plan,
-      off: off,
+      paidFromId: paidFromId,
       // A bill's date shows here as the computer's bills do.
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
@@ -122,7 +122,7 @@ class PhoneStore extends ChangeNotifier {
     String name,
     Currency currency, {
     CategoryPlan? plan,
-    Set<String> off = const {},
+    String? paidFromId,
   }) {
     final at = _made.indexWhere((c) => c.id == id);
     if (at < 0) return false;
@@ -133,7 +133,7 @@ class PhoneStore extends ChangeNotifier {
       currency: currency,
       madeHere: true,
       plan: plan,
-      off: off,
+      paidFromId: paidFromId,
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
     notifyListeners();

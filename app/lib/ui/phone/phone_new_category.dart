@@ -68,10 +68,18 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       : (_fresh(widget.editing!.currency)
           ..show(widget.editing!.plan, periodPayId: _data.periodSchedule?.id));
 
-  /// The accounts in its currency it isn't paid from (rule 28).
-  late Set<int> _off = {
-    for (final a in widget.editing?.off ?? const <String>{}) ?int.tryParse(a),
-  };
+  /// The account it's paid from (#180), as picked or as it was saved;
+  /// null until then, unless its currency has only the one.
+  late int? _picked = int.tryParse(widget.editing?.paidFromId ?? '');
+
+  int? get _paidFromId {
+    final open = _accounts.map((a) => a.id);
+    if (_picked case final a? when open.contains(a)) return a;
+    return open.length == 1 ? open.single : null;
+  }
+
+  /// Save needs one, when its currency has an account to be paid from.
+  bool get _wantsPaidFrom => _paidFromId == null && _accounts.isNotEmpty;
 
   /// The computer took in the category being changed while the page was
   /// open: there's nothing left here to change.
@@ -129,13 +137,9 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   List<AccountInfo> get _accounts =>
       categoryAccounts(_data, _currency).toList();
 
-  /// The account a dated plan's bill is scheduled in: the one account
-  /// it's paid from, when it's narrowed to one.
-  int? get _paidFrom {
-    if (!_p.hasDate) return null;
-    final used = _accounts.where((a) => !_off.contains(a.id)).toList();
-    return used.length == 1 ? used.single.id : null;
-  }
+  /// The account a dated plan's bill is scheduled in: the one it's paid
+  /// from.
+  int? get _paidFrom => _p.hasDate ? _paidFromId : null;
 
   CategoryPlan? get _draft => _p.draft(
     categoryId: _pageCategoryId,
@@ -196,7 +200,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     final fromList = widget.forEntry && already != null;
     if (name.isEmpty ||
         (note?.blocks ?? false) ||
-        (!fromList && _p.missing != null)) {
+        (!fromList && (_p.missing != null || _wantsPaidFrom))) {
       setState(() => _tried = true);
       return;
     }
@@ -212,7 +216,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       name,
       _currency,
       plan: _draft,
-      off: {for (final a in _off) '$a'},
+      paidFromId: _paidFromId?.toString(),
     );
     if (!another) {
       Navigator.of(context).pop(made);
@@ -223,10 +227,9 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     setState(() {
       _added.add(made.name);
       _name.clear();
-      // Only the currency stays: a bill's Yes kept from Rent would make
-      // Food a bill unseen.
+      // Only the currency and Paid from stay: a bill's Yes kept from Rent
+      // would make Food a bill unseen.
       _p = _fresh(keep);
-      _off = {};
       _tried = false;
       _round++;
     });
@@ -241,7 +244,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       name,
       _currency,
       plan: _draft,
-      off: {for (final a in _off) '$a'},
+      paidFromId: _paidFromId?.toString(),
     );
     if (!kept) {
       final t = context.t;
@@ -328,7 +331,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       _p.currency = picked;
       // The accounts are another currency's now, and so would the
       // amounts be: the rest stays, and the amounts are typed again.
-      _off = {};
+      _picked = null;
       _p.amount.clear();
       _p.upTo.clear();
       _tried = false;
@@ -413,57 +416,13 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   }
 
   Future<void> _pickAccounts(Words t) async {
-    final accounts = _accounts;
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Mid.panel,
-      builder: (context) => StatefulBuilder(
-        builder: (context, again) => SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                child: Text(
-                  t.planLabelPaidFrom,
-                  style: onest(14, color: Mid.ink2),
-                ),
-              ),
-              for (final a in accounts)
-                CheckboxListTile(
-                  key: ValueKey('money-account-${a.id}'),
-                  value: !_off.contains(a.id),
-                  activeColor: Mid.blue,
-                  title: Text(a.name, style: onest(16, weight: 500)),
-                  onChanged: (_) {
-                    setState(
-                      () => _off.contains(a.id)
-                          ? _off.remove(a.id)
-                          : _off.add(a.id),
-                    );
-                    again(() {});
-                  },
-                ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(44, 44),
-                      foregroundColor: Mid.blue,
-                      textStyle: onest(16, weight: 600),
-                    ),
-                    child: Text(t.rowsSplitDone),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final picked = await _pick<int?>(
+      t.planLabelPaidFrom,
+      [for (final a in _accounts) (a.id, a.name)],
+      chosen: _paidFromId,
+      keyPrefix: 'money-account',
     );
+    if (picked != null && mounted) setState(() => _picked = picked);
   }
 
   // ---------- the page ----------
@@ -661,20 +620,12 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     final hasAmount = a.amount.text.trim().isNotEmpty;
     final missing = _tried ? a.missing : null;
     String money(int v) => formatShort(v, currency: _currency);
-    final accounts = _accounts;
-    final used = accounts.where((x) => !_off.contains(x.id)).toList();
-    final accountsLabel = used.length == accounts.length && accounts.length > 1
-        ? t.planAccountsAll
-        : switch (used.length) {
-            0 => t.planAccountsNone,
-            1 => used.single.name,
-            final n => t.planAccountsSome(n, accounts.length),
-          };
     final paidRow = _choiceRow(
       'money-accounts',
       t.planLabelPaidFrom,
-      accountsLabel,
+      _data.accounts[_paidFromId]?.name ?? t.planPaidFromChoose,
       () => _pickAccounts(t),
+      wrong: _tried && _wantsPaidFrom,
     );
     final dueRow = switch (a.repeat) {
       PlanRepeat.payday => _fieldRow(
@@ -899,17 +850,12 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
           ),
         ),
       ]),
-      // Warn, don't block: with several checked the bill is in no
-      // forecast, said with the count.
-      _aside(
-        paidAccount != null && dueText != null
-            ? t.planPaidFromHint(paidAccount.name, dueText)
-            : switch (used) {
-                [] => t.planPaidFromNoneChecked,
-                [final one] => t.planPaidFromHintNone(one.name),
-                final n => t.planPaidFromSeveral(n.length),
-              },
-      ),
+      if (paidAccount != null)
+        _aside(
+          dueText != null
+              ? t.planPaidFromHint(paidAccount.name, dueText)
+              : t.planPaidFromHintNone(paidAccount.name),
+        ),
     ];
   }
 
