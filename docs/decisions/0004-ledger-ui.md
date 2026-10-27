@@ -4865,3 +4865,18 @@ rest, "If the view is only showing two weeks, then you'd pro-rate it, right?" (#
   headline adds "· ₮560,000 of spending from the budget". Beside Paid from, for such a
   category: "What's left of it comes out of TDB Checking's forecast a day at a time."
   *Rejected:* all of a month at its first day (the owner's pro-rating).
+
+### Cash and cards in the forecast (owner, 2026-10-28)
+
+Asked whether a wallet the budget's spending would empty should say how much to take out,
+not that it runs out, and whether the bank's forecast should count it: "Yeah, I'll take
+your recommendation."
+
+- **Cash is filled from the bank.** A cash account whose forecast goes below zero says
+  "You'll need to take out about ₮350,000 by 10.24" in ordinary ink, its line and low
+  point not coral, and no dot in the sidebar: it isn't a shortfall.
+- **The bank counts it.** The account pay goes into (else the currency's first bank
+  account) takes, on each day, what would take the wallet below zero, after what's
+  scheduled in the wallet (a withdrawal already typed fills it first). It also takes a
+  card's budget spending when nothing dated pays the card; a card paid by a dated bill
+  is counted through that bill, not twice. A shortfall there is a real one, in coral.

@@ -592,6 +592,10 @@ class ForecastPanel extends StatelessWidget {
             : f.low == 0
             ? t.planRunsOutZero(on)
             : t.planRunsOut(on, money(f.low));
+      } else if (f.takeOutBy case final by?) {
+        // Cash the budget's spending would take below zero: filled from
+        // the bank, said in ordinary ink (owner, 2026-10-28).
+        headline = t.planTakeOut(money(f.takeOut), sayDate(t, by));
       } else if (f.steps.isEmpty) {
         // The budget's spending lowers the line too (#179).
         headline = t.planNothingScheduled;
@@ -1670,14 +1674,21 @@ class _ForecastPainter extends CustomPainter {
     canvas.restore();
     canvas.save();
     canvas.clipRect(Rect.fromLTRB(-4, zero, w + 4, h + 4));
-    canvas.drawPath(path, stroke..color = f.owed ? Mid.blue : Mid.coral);
+    // Below zero is coral, a shortfall; a wallet filled from the bank isn't.
+    canvas.drawPath(
+      path,
+      stroke..color = f.owed || f.takeOut > 0 ? Mid.blue : Mid.coral,
+    );
     canvas.restore();
 
     for (final s in f.rowSteps) {
       canvas.drawCircle(
         Offset(x(s.date), y(s.balance)),
         2.5,
-        Paint()..color = !f.owed && s.balance < 0 ? Mid.coral : Mid.ink2,
+        Paint()
+          ..color = !f.owed && f.takeOut == 0 && s.balance < 0
+              ? Mid.coral
+              : Mid.ink2,
       );
     }
     canvas.drawCircle(
@@ -1738,7 +1749,7 @@ class _ForecastPainter extends CustomPainter {
       tag(
         amount(f.low),
         Offset(x(f.lowDate), y(f.low)),
-        f.low < 0 ? Mid.coral : Mid.ink2,
+        f.low < 0 && f.takeOut == 0 ? Mid.coral : Mid.ink2,
         [(false, false), (true, false), (false, true), (true, true)],
       );
     }

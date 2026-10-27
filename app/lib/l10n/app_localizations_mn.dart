@@ -4814,6 +4814,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String planTakeOut(String amount, String date) {
+    return '$date-ны дотор ойролцоогоор $amount бэлнээр авах хэрэгтэй';
+  }
+
+  @override
   String get planLabelPaidFrom => 'Төлөх данс';
 
   @override

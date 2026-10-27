@@ -7078,6 +7078,12 @@ abstract class Words {
   /// **'Paid from {account}, which is archived: pick another to see it in a forecast'**
   String planPaidFromGone(String account);
 
+  /// Forecast headline for a cash account the budget's spending would take below zero: how much to take out of the bank, and by when. Not a warning: the account pay goes into counts it. {amount} like ₮350,000, {date} like 10.24.
+  ///
+  /// In en, this message translates to:
+  /// **'You’ll need to take out about {amount} by {date}'**
+  String planTakeOut(String amount, String date);
+
   /// Budget page, Edit under a category's row, both answers: label of the dropdown of checkboxes over the accounts in the category's currency (cash, bank and cards), all checked to begin with; a dated plan's bill is scheduled in the one account left checked
   ///
   /// In en, this message translates to:

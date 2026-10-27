@@ -2287,15 +2287,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
       // What the budget expects spent from it (#179): far enough for any
       // pay period; the forecast stops at its own end. Worked out once per
       // ledger, not on every hover.
+      // The account pay goes into also pays out for the wallet and a card
+      // nothing scheduled pays (owner, 2026-10-28).
       spending: (_spending[data] ??= {}).putIfAbsent(
         (account.id, until, dateOnly(today)),
-        () => projectSpending(
-          data,
-          accountId: account.id,
-          today: today,
-          until: until ?? today.add(const Duration(days: 120)),
-        ),
+        () {
+          final to = until ?? today.add(const Duration(days: 120));
+          return [
+            ...projectSpending(
+              data,
+              accountId: account.id,
+              today: today,
+              until: to,
+            ),
+            ...projectFunding(
+              data,
+              accountId: account.id,
+              today: today,
+              until: to,
+            ),
+          ]..sort((a, b) => a.date.compareTo(b.date));
+        },
       ),
+      cash: account.isCash,
     );
   }
 

@@ -1,5 +1,6 @@
 import 'budget.dart' show Budget, nextBudgetPeriod;
 import 'ledger.dart';
+import 'money.dart' show Currency;
 import 'pay.dart';
 
 /// How far the forecast looks (owner's request, 2026-10-05): through the
@@ -198,6 +199,90 @@ List<({DateTime date, int amount})> projectSpending(
   ];
 }
 
+/// What the account pay goes into ([accountId]) will pay out for the
+/// others, day by day, from [today] through [until] (owner, 2026-10-28):
+/// cash taken out to fill a wallet the budget's spending would take below
+/// zero, and a card's spending when nothing scheduled pays the card (a
+/// card paid by a dated bill is counted through that bill). Only accounts
+/// in its currency, and only for the one account pay goes into there (else
+/// its first bank account).
+List<({DateTime date, int amount})> projectFunding(
+  LedgerData data, {
+  required int accountId,
+  required DateTime today,
+  required DateTime until,
+}) {
+  final here = data.accounts[accountId];
+  if (here == null || !here.isBalanceSheet || here.isOwed || here.isCash) {
+    return const [];
+  }
+  if (fundingAccount(data, here.currency) != accountId) return const [];
+  final start = dateOnly(today), end = dateOnly(until);
+  final byDay = <DateTime, int>{};
+  for (final a in data.openAccounts) {
+    if (a.id == accountId || a.currency != here.currency) continue;
+    final days = projectSpending(
+      data,
+      accountId: a.id,
+      today: start,
+      until: end,
+    );
+    if (days.isEmpty) continue;
+    if (a.isCash) {
+      // The wallet as it goes, with what's scheduled in it: what would take
+      // it below zero is taken out of the bank that day.
+      final events = <DateTime, int>{};
+      for (final r in data.registerFor(a.id).scheduled) {
+        final d = r.date.isBefore(start) ? start : dateOnly(r.date);
+        if (!d.isAfter(end)) events[d] = (events[d] ?? 0) + r.amount;
+      }
+      for (final x in days) {
+        events[x.date] = (events[x.date] ?? 0) + x.amount;
+      }
+      var bal = data.summaryFor(a.id).working;
+      for (final d in events.keys.toList()..sort()) {
+        bal += events[d]!;
+        if (bal < 0) {
+          byDay[d] = (byDay[d] ?? 0) + bal;
+          bal = 0;
+        }
+      }
+    } else if (a.isOwed && !_paidByBill(data, a.id)) {
+      for (final x in days) {
+        byDay[x.date] = (byDay[x.date] ?? 0) + x.amount;
+      }
+    }
+  }
+  return [
+    for (final d in byDay.keys.toList()..sort()) (date: d, amount: byDay[d]!),
+  ];
+}
+
+/// The account money for cash and cards comes from, in [currency]: the
+/// one pay goes into, else the first bank account.
+int? fundingAccount(LedgerData data, Currency currency) {
+  bool bank(AccountInfo a) =>
+      a.type == AccountType.asset && !a.isCash && a.currency == currency;
+  for (final p in data.paySchedules) {
+    final a = data.accounts[p.accountId];
+    if (a != null && !a.archived && !a.deleted && bank(a)) return a.id;
+  }
+  return data.openAccounts.where(bank).firstOrNull?.id;
+}
+
+/// A card a dated bill pays: its category, or any dated plan scheduled to
+/// pay into it.
+bool _paidByBill(LedgerData data, int card) {
+  final c = Budget.loanCategory(data, card);
+  if (c != null && data.plans[c]?.kind == PlanKind.byDate) return true;
+  return data.txns.any(
+    (t) =>
+        t.scheduled &&
+        t.planCategoryId != null &&
+        t.entries.any((e) => e.accountId == card && e.amount > 0),
+  );
+}
+
 /// Answers "will this account make it through the next pay period?" from
 /// scheduled transactions and the pay plan. Deterministic and local: no
 /// history, no guessing.
@@ -223,6 +308,8 @@ class Forecast {
     this.firstShortBalance = 0,
     this.expectedBills = 0,
     this.spendingTotal = 0,
+    this.takeOut = 0,
+    this.takeOutBy,
     required this.billTotal,
     required this.billCount,
     required this.inTotal,
@@ -285,6 +372,13 @@ class Forecast {
   /// ([projectSpending]); not in [billTotal]. Its steps are [ForecastStep]
   /// with `spending` set.
   final int spendingTotal;
+
+  /// Cash: how much has to be taken out to keep it from going below zero
+  /// before [end], and the first day it's needed (owner, 2026-10-28: the
+  /// wallet is filled from the bank, so that isn't a shortfall). 0 and null
+  /// otherwise; a cash forecast is never [isShort] for it.
+  final int takeOut;
+  final DateTime? takeOutBy;
 
   /// Money going out before [end], and how many rows.
   final int billTotal;
@@ -358,6 +452,7 @@ Forecast buildForecast({
   DateTime? until,
   List<RegisterRow> projected = const [],
   List<({DateTime date, int amount})> spending = const [],
+  bool cash = false,
 }) {
   final start = dateOnly(today);
   // Overdue bills still have to be paid; treat them as due today.
@@ -451,6 +546,7 @@ Forecast buildForecast({
   int shown(int v) => owed ? -v : v;
   var bal = working, billTotal = 0, billCount = 0, inTotal = 0;
   var expectedBills = 0, spendingTotal = 0;
+  DateTime? takeOutBy;
   var firstShortBalance = !owed && working < 0 ? working : 0;
   var low = shown(working);
   var lowDate = start;
@@ -481,8 +577,10 @@ Forecast buildForecast({
       low = bal;
       lowDate = when(r);
     }
+    // Cash below zero is filled from the bank, not short.
+    if (cash && bal < 0) takeOutBy ??= when(r);
     // To zero or below (owner, 2026-10-05): nothing left is already short.
-    if (!owed && bal <= 0 && firstShort == null) {
+    if (!owed && !cash && bal <= 0 && firstShort == null) {
       firstShort = when(r);
       firstShortBalance = bal;
     }
@@ -500,6 +598,8 @@ Forecast buildForecast({
     firstShortBalance: firstShortBalance,
     expectedBills: expectedBills,
     spendingTotal: spendingTotal,
+    takeOut: cash && low < 0 ? -low : 0,
+    takeOutBy: takeOutBy,
     billTotal: billTotal,
     billCount: billCount,
     inTotal: inTotal,
