@@ -7712,6 +7712,41 @@ void main() {
       },
     );
 
+    testWidgets('money in still in Not categorized is said under Income, and '
+        'shows its rows (#182)', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        final checking = data.balanceSheetAccounts
+            .firstWhere((a) => a.name == 'TDB Checking')
+            .id;
+        await db.postSimple(
+          accountId: checking,
+          date: DateTime(2026, 9, 15),
+          today: DateTime(2026, 9, 16),
+          payee: 'LoveSol',
+          counterAccountId: await db.createCategory('Not categorized'),
+          amount: 250000000,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await openBudget(tester);
+      await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          '₮2,500,000.00 more came in and is still in Not categorized: '
+          'file it under Income to count it here.',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('income-waiting')));
+      await settle(tester);
+      expect(find.text('LoveSol'), findsWidgets);
+      await tidy(tester, db);
+    });
+
     testWidgets('the Budget screen lists categories with how they are used', (
       tester,
     ) async {

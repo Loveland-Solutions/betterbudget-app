@@ -4810,3 +4810,16 @@ fine. Three were sketched; the owner picked B.
 - Rejected: A, rows of their own in the key card (Income, Planned to spend, Put
   aside, then More than income or Left from income); C, one coral line in the key
   card only when over, with the detail on the Income tab.
+
+## Three answers on income and the phone (owner, 2026-10-28)
+
+- **A payday on the day balances are typed** (#175, its first part): "The future is only
+  for forecasting. It shouldn't count on the balance unless it comes with the import." As
+  built: a scheduled payday is only in the forecast, and comes into the balance when it's
+  confirmed or comes in an import. Nothing changes.
+- **Money in still in Not categorized** (#182): "Of course, yes." Under the Income tab's
+  income for the period: "₮2,500,000 more came in and is still in Not categorized: file
+  it under Income to count it here.", one amount per currency; a click shows those rows.
+  Income itself still counts only what's filed under it.
+- **Balances in the phone's Paid from list** (#184): "Yes." Each account shows what it
+  holds now, entries still waiting on the phone counted; a card "Owed ₮640,200.00".

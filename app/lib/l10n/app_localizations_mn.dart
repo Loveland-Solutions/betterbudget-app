@@ -4872,6 +4872,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String planIncomeUncategorized(String amount) {
+    return 'Өөр $amount орж ирсэн ч Ангилаагүй хэвээр байна: энд тооцохын тулд Орлого-д ангилна уу.';
+  }
+
+  @override
   String planIncomeLine(String amounts) {
     return 'Орлого: $amounts';
   }

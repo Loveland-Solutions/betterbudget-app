@@ -1110,6 +1110,21 @@ class _BudgetPageState extends State<_BudgetPage> {
                               onShowRows: income == null
                                   ? null
                                   : () => widget.onShowRows(income, period),
+                              waiting: [
+                                for (final (c, v) in _cameIn(
+                                  budget.cameInUncategorized,
+                                  budget.currency,
+                                ))
+                                  if (v > 0) (c, v),
+                              ],
+                              onShowWaiting: switch (data.accounts.values
+                                  .where(
+                                    (a) => !a.deleted && isUncategorized(a),
+                                  )
+                                  .firstOrNull) {
+                                final w? => () => widget.onShowRows(w, period),
+                                null => null,
+                              },
                               onPay: widget.onPay,
                               onAskAgain: widget.onAskAgain,
                             ),
@@ -1445,9 +1460,16 @@ class _IncomeTab extends StatelessWidget {
     required this.onShowRows,
     required this.onPay,
     required this.onAskAgain,
+    this.waiting = const [],
+    this.onShowWaiting,
   });
   final LedgerData data;
   final List<(Currency, int)> cameIn;
+
+  /// Money in this period still in Not categorized, which Income doesn't
+  /// count: said under it, and a click shows the rows (#182).
+  final List<(Currency, int)> waiting;
+  final VoidCallback? onShowWaiting;
 
   /// This period's pay by currency: what has come, and what the
   /// schedules expect.
@@ -1524,6 +1546,24 @@ class _IncomeTab extends StatelessWidget {
             ],
           ),
         ),
+        if (waiting.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+            child: Hoverable(
+              key: const ValueKey('income-waiting'),
+              onTap: onShowWaiting ?? () {},
+              builder: (hover) => Text(
+                t.planIncomeUncategorized(
+                  [for (final (c, v) in waiting) formatMoney(v, currency: c)]
+                      .join(' · '),
+                ),
+                style: onest(13, color: Mid.ink2, tabular: true).copyWith(
+                  decoration: hover ? TextDecoration.underline : null,
+                  decorationColor: Mid.ink2,
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 8),
         for (final (i, p) in pays.indexed)
           Builder(

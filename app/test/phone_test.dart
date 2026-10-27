@@ -690,6 +690,23 @@ void main() {
     expect(find.text('Golomt Visa'), findsNothing);
   });
 
+  testWidgets('Paid from lists each account with what it holds now (#184)', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('account-row')));
+    await tester.pumpAndSettle();
+    final rows = find.byWidgetPredicate(
+      (w) => w is ListTile && '${w.key}'.contains('paid-from-'),
+    );
+    expect(rows, findsWidgets);
+    for (final row in tester.widgetList<ListTile>(rows)) {
+      expect((row.subtitle! as Text).data, contains('₮'));
+    }
+    // A card says what's owed.
+    expect(find.textContaining('Owed ₮'), findsWidgets);
+  });
+
   testWidgets(
     'a name that isn’t a category makes one, waiting for your computer',
     (tester) async {

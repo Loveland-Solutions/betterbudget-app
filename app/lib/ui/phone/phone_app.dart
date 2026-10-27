@@ -1719,6 +1719,7 @@ class _EntryState extends State<_EntryScreen> {
   }
 
   Future<void> _pickAccount() async {
+    final t = context.t;
     final accounts = _accounts;
     final chosen = _account;
     final picked = await showModalBottomSheet<PhoneAccount>(
@@ -1730,7 +1731,24 @@ class _EntryState extends State<_EntryScreen> {
           children: [
             for (final a in accounts)
               ListTile(
+                key: ValueKey('paid-from-${a.id}'),
                 title: Text(a.name, style: onest(16, weight: 500)),
+                // What it holds now, entries waiting here counted: whether
+                // the card will go through (owner, 2026-10-28, #184).
+                subtitle: Text(
+                  a.owes
+                      ? t.phoneOwed(
+                          formatMoney(
+                            balanceNow(a, _othersWaiting),
+                            currency: a.currency,
+                          ),
+                        )
+                      : formatMoney(
+                          balanceNow(a, _othersWaiting),
+                          currency: a.currency,
+                        ),
+                  style: onest(14, color: Mid.ink2, tabular: true),
+                ),
                 trailing: a.id == chosen?.id
                     ? Icon(Icons.check, color: Mid.blue)
                     : null,

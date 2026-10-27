@@ -5044,6 +5044,11 @@ class WordsEn extends Words {
   }
 
   @override
+  String planIncomeUncategorized(String amount) {
+    return '$amount more came in and is still in Not categorized: file it under Income to count it here.';
+  }
+
+  @override
   String planIncomeLine(String amounts) {
     return 'Income: $amounts';
   }

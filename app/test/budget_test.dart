@@ -2214,6 +2214,21 @@ void main() {
       expect(of(d, nov).lines[insurance]!.otherRows, 1);
     });
 
+    test('money in still in Not categorized is said, not counted (#182)', () {
+      final d = ledger(
+        rows: [
+          move(DateTime(2026, 10, 10), waiting, checking, 250000000),
+          move(DateTime(2026, 10, 12), salary, checking, 100000000),
+          // Money out of it isn't money in.
+          move(DateTime(2026, 10, 13), checking, waiting, 500000),
+        ],
+      );
+      final o = of(d, oct);
+      expect(o.cameInUncategorized, {Currency.mnt: 250000000});
+      expect(o.cameIn[salary], {Currency.mnt: 100000000});
+      expect(of(d, nov).cameInUncategorized, isEmpty);
+    });
+
     test('pay in dollars came in, in dollars', () {
       final d = ledger(
         rows: [
