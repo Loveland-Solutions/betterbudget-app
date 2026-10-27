@@ -259,9 +259,9 @@ class CategoryPlans extends Table {
   Set<Column> get primaryKey => {categoryId};
 }
 
-/// An account a spending category doesn't use (rule 28). A category uses
-/// every account in its currency unless it has a row here, so a new
-/// account is used by all of them.
+/// An account a spending category didn't use (rule 28), until v23 gave
+/// each category one account it's paid from ([CategoryPaidFrom]). Nothing
+/// reads or writes it now; the upgrade read it once.
 @DataClassName('CategoryAccountOffRow')
 class CategoryAccountsOff extends Table {
   IntColumn get categoryId => integer().references(Accounts, #id)();
@@ -269,6 +269,20 @@ class CategoryAccountsOff extends Table {
 
   @override
   Set<Column> get primaryKey => {categoryId, accountId};
+}
+
+/// The account a spending category is paid from (v23, #180; owner,
+/// 2026-10-27: "Any account with the same currency can use the category,
+/// but the default account is the one specified at category creation").
+/// Its bills are scheduled there and its forecast spending comes out of it.
+/// It replaces [CategoryAccountsOff], kept only so an older file opens.
+@DataClassName('CategoryPaidFromRow')
+class CategoryPaidFrom extends Table {
+  IntColumn get categoryId => integer().references(Accounts, #id)();
+  IntColumn get accountId => integer().references(Accounts, #id)();
+
+  @override
+  Set<Column> get primaryKey => {categoryId};
 }
 
 /// A payee the app remembers a category for (ADR 0004 "Payees: the real
@@ -348,17 +362,17 @@ class Changes extends Table {
 }
 
 /// What [AppDatabase.setCategoryMoney] replaced, so undo can put it back:
-/// the category's currency and unchecked accounts, and what a change of
-/// currency took away (its amounts and its plan).
+/// the category's currency and the account it was paid from, and what a
+/// change of currency took away (its amounts and its plan).
 class CategoryMoney {
   const CategoryMoney({
     required this.currency,
-    required this.off,
+    required this.paidFrom,
     this.amounts = const [],
     this.plan,
   });
   final Currency currency;
-  final Set<int> off;
+  final int? paidFrom;
   final List<BudgetAmount> amounts;
   final CategoryPlan? plan;
 }
@@ -642,6 +656,9 @@ String phoneCategoryPrint(PhoneCategory c) => jsonEncode({
   'currency': c.currency.code,
   'plan': c.plan == null ? null : planToJson(c.plan!),
   'off': c.off.toList()..sort(),
+  // Only when there is one, so a category a phone before 0.62.0 sent
+  // prints as it did and isn't taken for changed.
+  'paidFrom': ?c.paidFromId,
 });
 
 /// What a row of a bank file does on import. The person can turn a match
@@ -960,6 +977,7 @@ class SharedKey {
     BudgetAmounts,
     CategoryPlans,
     CategoryAccountsOff,
+    CategoryPaidFrom,
     PayeeRules,
     PayeeRuleAccounts,
     Changes,
@@ -1007,7 +1025,7 @@ class AppDatabase extends _$AppDatabase {
   String? thisComputer;
 
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1199,6 +1217,13 @@ class AppDatabase extends _$AppDatabase {
           await _addColumnOnce(m, accounts, accounts.budgetGroup);
           await _addColumnOnce(m, accounts, accounts.note);
           await _addColumnOnce(m, categoryPlans, categoryPlans.once);
+        }
+        if (from < 23) {
+          // One account each category is paid from, in place of the
+          // accounts it didn't use (#180): worked out from what's here,
+          // every category, plan and row kept.
+          await _createTableOnce(m, categoryPaidFrom);
+          await fillPaidFrom();
         }
         // Each trigger names its table's columns: made afresh after every
         // upgrade, whatever it changed.
@@ -1432,10 +1457,12 @@ class AppDatabase extends _$AppDatabase {
         "(SELECT id FROM accounts WHERE type = 'income')",
       );
     }
-    await customStatement(
-      'DELETE FROM category_accounts_off WHERE category_id IN '
-      "(SELECT id FROM accounts WHERE type = 'income')",
-    );
+    for (final t in ['category_accounts_off', 'category_paid_from']) {
+      await customStatement(
+        'DELETE FROM $t WHERE category_id IN '
+        "(SELECT id FROM accounts WHERE type = 'income')",
+      );
+    }
     await customStatement(
       "DELETE FROM accounts WHERE type = 'income' AND id <> ?",
       [keep],
@@ -1512,6 +1539,16 @@ class AppDatabase extends _$AppDatabase {
 
   /// Adds [column] unless [table] has it already: an upgrade that ran, or a
   /// file an older build relabeled, mustn't stop the ledger opening.
+  /// [table], unless it's there already (a file taken back to an older
+  /// version in a test keeps a table added later).
+  Future<void> _createTableOnce(Migrator m, TableInfo table) async {
+    final have = await customSelect(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+      variables: [Variable(table.actualTableName)],
+    ).get();
+    if (have.isEmpty) await m.createTable(table);
+  }
+
   Future<void> _addColumnOnce(
     Migrator m,
     TableInfo table,
@@ -1883,6 +1920,7 @@ class AppDatabase extends _$AppDatabase {
       'budget_amounts',
       'category_plans',
       'category_accounts_off',
+      'category_paid_from',
       'payee_rules',
       'payee_rule_accounts',
     ];
@@ -2006,7 +2044,7 @@ class AppDatabase extends _$AppDatabase {
       preferences,
       budgetAmounts,
       categoryPlans,
-      categoryAccountsOff,
+      categoryPaidFrom,
       payeeRules,
       payeeRuleAccounts,
     },
@@ -2030,15 +2068,12 @@ class AppDatabase extends _$AppDatabase {
     final prefRows = await select(preferences).get();
     final budgetRows = await select(budgetAmounts).get();
     final planRows = await select(categoryPlans).get();
-    final offRows = await select(categoryAccountsOff).get();
+    final paidRows = await select(categoryPaidFrom).get();
     final ruleRows = await (select(
       payeeRules,
     )..where((r) => r.deletedAt.isNull())).get();
     final ruleLinks = await select(payeeRuleAccounts).get();
-    final accountsOff = <int, Set<int>>{};
-    for (final r in offRows) {
-      accountsOff.putIfAbsent(r.categoryId, () => {}).add(r.accountId);
-    }
+    final paidFrom = {for (final r in paidRows) r.categoryId: r.accountId};
 
     final byTxn = <int, List<EntryData>>{};
     for (final e in entryRows) {
@@ -2078,7 +2113,7 @@ class AppDatabase extends _$AppDatabase {
       prefs: {for (final p in prefRows) p.key: p.value},
       payeeRules: [for (final r in ruleRows) _ruleInfo(r, ruleLinks)],
       plans: [for (final p in planRows) _plan(p)],
-      accountsOff: accountsOff,
+      paidFrom: paidFrom,
       budgetAmounts: [
         for (final b in budgetRows)
           BudgetAmount(
@@ -3167,20 +3202,6 @@ class AppDatabase extends _$AppDatabase {
     await (update(accounts)..where((a) => a.id.equals(id))).write(
       AccountsCompanion(currency: Value(currency.code)),
     );
-    // A category already narrowed to some accounts doesn't take a new one
-    // on its own: it starts unchecked there. Categories using every
-    // account get it, as before.
-    if (type == AccountType.asset || type == AccountType.liability) {
-      await customStatement(
-        'INSERT INTO category_accounts_off (category_id, account_id) '
-        'SELECT DISTINCT o.category_id, ? FROM category_accounts_off o '
-        'JOIN accounts c ON c.id = o.category_id '
-        'JOIN accounts a ON a.id = o.account_id '
-        'WHERE c.currency = ? AND c.deleted_at IS NULL '
-        'AND a.deleted_at IS NULL AND a.archived_at IS NULL',
-        [id, currency.code],
-      );
-    }
     return id;
   });
 
@@ -3357,6 +3378,12 @@ class AppDatabase extends _$AppDatabase {
     CategoryPlan? plan,
   ) async {
     await _assertOwnCategory(categoryId);
+    // A dated one with no account follows the category's Paid from (#180).
+    // Only here, not in undo or redo, which put back exactly what was.
+    if (plan != null && plan.kind == PlanKind.byDate && plan.paidFrom == null) {
+      final from = await _paidFromOf(categoryId);
+      if (from != null) plan = plan.withPaidFrom(from);
+    }
     final old = await (select(
       categoryPlans,
     )..where((p) => p.categoryId.equals(categoryId))).getSingleOrNull();
@@ -3402,7 +3429,10 @@ class AppDatabase extends _$AppDatabase {
           endCount: Value(plan.endCount),
           rollover: Value(plan.rollover),
           upToMinor: Value(plan.upTo),
-          paidFromId: Value(plan.paidFrom),
+          // Only a dated plan's bill is scheduled anywhere.
+          paidFromId: Value(
+            plan.kind == PlanKind.byDate ? plan.paidFrom : null,
+          ),
           once: Value(
             plan.once.isEmpty
                 ? null
@@ -3881,19 +3911,14 @@ class AppDatabase extends _$AppDatabase {
   Future<CategoryMoney> setCategoryMoney(
     int categoryId, {
     required Currency currency,
-    required Set<int> off,
+    required int? paidFrom,
   }) => transaction(() async {
     await _assertOwnCategory(categoryId);
     final row = await (select(
       accounts,
     )..where((a) => a.id.equals(categoryId))).getSingle();
     final was = Currency.fromCode(row.currency);
-    final oldOff = {
-      for (final r in await (select(
-        categoryAccountsOff,
-      )..where((r) => r.categoryId.equals(categoryId))).get())
-        r.accountId,
-    };
+    final oldPaidFrom = await _paidFromOf(categoryId);
     var amounts = const <BudgetAmount>[];
     CategoryPlan? plan;
     if (was != currency) {
@@ -3911,10 +3936,10 @@ class AppDatabase extends _$AppDatabase {
         AccountsCompanion(currency: Value(currency.code)),
       );
     }
-    await _setAccountsOff(categoryId, off);
+    await _setPaidFrom(categoryId, paidFrom);
     return CategoryMoney(
       currency: was,
-      off: oldOff,
+      paidFrom: oldPaidFrom,
       amounts: amounts,
       plan: plan,
     );
@@ -3926,7 +3951,7 @@ class AppDatabase extends _$AppDatabase {
         await (update(accounts)..where((a) => a.id.equals(categoryId))).write(
           AccountsCompanion(currency: Value(before.currency.code)),
         );
-        await _setAccountsOff(categoryId, before.off);
+        await _setPaidFrom(categoryId, before.paidFrom);
         for (final b in before.amounts) {
           await into(budgetAmounts).insert(
             BudgetAmountsCompanion.insert(
@@ -3942,16 +3967,113 @@ class AppDatabase extends _$AppDatabase {
         }
       });
 
-  Future<void> _setAccountsOff(int categoryId, Set<int> off) async {
+  Future<int?> _paidFromOf(int categoryId) async =>
+      (await (select(
+            categoryPaidFrom,
+          )..where((r) => r.categoryId.equals(categoryId))).getSingleOrNull())
+          ?.accountId;
+
+  /// The account [categoryId] is paid from (null: none yet). A dated
+  /// plan's bill is scheduled from the plan's own, which Edit saves the
+  /// same, through [changeCategoryPlan], so the bill moves with it.
+  Future<void> _setPaidFrom(int categoryId, int? account) async {
     await (delete(
-      categoryAccountsOff,
+      categoryPaidFrom,
     )..where((r) => r.categoryId.equals(categoryId))).go();
-    for (final a in off) {
-      await into(categoryAccountsOff).insert(
-        CategoryAccountsOffCompanion.insert(
-          categoryId: categoryId,
-          accountId: a,
+    if (account != null) {
+      await into(categoryPaidFrom).insert(
+        CategoryPaidFromCompanion.insert(
+          categoryId: Value(categoryId),
+          accountId: account,
         ),
+      );
+    }
+  }
+
+  /// The v23 upgrade (#180), and the demo's categories: each spending
+  /// category without one gets the account it's paid from. Its dated bill's
+  /// account when it has one; else the one account in its currency it
+  /// still used; else, among those it used, the account pay goes into, else
+  /// the first cash or bank one, else the first. A dated plan's bill then follows it, so one
+  /// that was in no account's forecast (two or more accounts checked) is
+  /// scheduled. The Safety net, left to every account, gets none: where it
+  /// sits is the person's to say, and Savings says nothing until they do.
+  Future<void> fillPaidFrom() async {
+    final categories = await customSelect(
+      "SELECT id, currency, role FROM accounts WHERE type = 'expense' "
+      'AND deleted_at IS NULL '
+      'AND id NOT IN (SELECT category_id FROM category_paid_from)',
+    ).get();
+    final open = await customSelect(
+      'SELECT id, currency, type FROM accounts '
+      "WHERE type IN ('asset', 'liability') AND deleted_at IS NULL "
+      'AND archived_at IS NULL '
+      "AND (role IS NULL OR role NOT IN ('mortgage', 'studentLoan')) "
+      'ORDER BY sort_order, id',
+    ).get();
+    final inCurrency = <String, List<int>>{};
+    final money = <int>{};
+    for (final a in open) {
+      inCurrency
+          .putIfAbsent(a.read<String>('currency'), () => [])
+          .add(a.read<int>('id'));
+      if (a.read<String>('type') == 'asset') money.add(a.read<int>('id'));
+    }
+    final off = <int, Set<int>>{};
+    for (final r in await customSelect(
+      'SELECT category_id, account_id FROM category_accounts_off',
+    ).get()) {
+      off
+          .putIfAbsent(r.read<int>('category_id'), () => {})
+          .add(r.read<int>('account_id'));
+    }
+    final billFrom = {
+      for (final r in await customSelect(
+        'SELECT category_id, paid_from_id FROM category_plans '
+        'WHERE paid_from_id IS NOT NULL',
+      ).get())
+        r.read<int>('category_id'): r.read<int>('paid_from_id'),
+    };
+    final payInto = [
+      for (final r in await customSelect(
+        'SELECT account_id FROM pay_schedules WHERE deleted_at IS NULL '
+        'ORDER BY id',
+      ).get())
+        r.read<int>('account_id'),
+    ];
+    for (final c in categories) {
+      final id = c.read<int>('id');
+      final here = inCurrency[c.read<String>('currency')] ?? const <int>[];
+      if (here.isEmpty) continue;
+      final used = [
+        for (final a in here)
+          if (!(off[id]?.contains(a) ?? false)) a,
+      ];
+      if (c.read<String?>('role') == AccountRole.emergencyFund.name &&
+          billFrom[id] == null &&
+          used.length == here.length) {
+        continue;
+      }
+      // Never one it didn't use: pay's account only when it's among them,
+      // else its first cash or bank one, else its first.
+      final from = used.isEmpty ? here : used;
+      final account = switch (billFrom[id]) {
+        final b? when here.contains(b) => b,
+        _ when used.length == 1 => used.single,
+        _ =>
+          payInto.where(from.contains).firstOrNull ??
+              from.where(money.contains).firstOrNull ??
+              from.first,
+      };
+      await customStatement(
+        'INSERT INTO category_paid_from (category_id, account_id) '
+        'VALUES (?, ?)',
+        [id, account],
+      );
+      await customStatement(
+        'UPDATE category_plans SET paid_from_id = ? '
+        "WHERE category_id = ? AND kind = 'byDate'",
+        [account, id],
       );
     }
   }
@@ -4080,6 +4202,7 @@ class AppDatabase extends _$AppDatabase {
           await delete(budgetAmounts).go();
           await delete(categoryPlans).go();
           await delete(categoryAccountsOff).go();
+          await delete(categoryPaidFrom).go();
           await delete(payeeRuleAccounts).go();
           await delete(payeeRules).go();
           await delete(entries).go();
@@ -4727,23 +4850,35 @@ class AppDatabase extends _$AppDatabase {
   // ---------- categories ----------
 
   /// A spending category, in one [currency] (rule 28).
+  /// A spending category, paid from [paidFrom] (#180), or with none given
+  /// from the account pay goes into in [currency], or that currency's first
+  /// account ([_firstPaidFrom]).
   Future<int> createCategory(
     String name, {
     Currency currency = Currency.mnt,
-  }) async => into(accounts).insert(
-    AccountsCompanion.insert(
-      // A category is its name in its currency, as combine counts them: one
-      // row on every computer that makes it, by hand or for a phone or an
-      // import. (A bank account isn't: two of one name may be two accounts.)
-      id: await _freeId(
-        accounts,
-        SharedKey('category', '${currency.code}|${name.trim().toLowerCase()}'),
+    int? paidFrom,
+  }) => transaction(() async {
+    final id = await into(accounts).insert(
+      AccountsCompanion.insert(
+        // A category is its name in its currency, as combine counts them:
+        // one row on every computer that makes it, by hand or for a phone
+        // or an import. (A bank account isn't: two of one name may be two
+        // accounts.)
+        id: await _freeId(
+          accounts,
+          SharedKey(
+            'category',
+            '${currency.code}|${name.trim().toLowerCase()}',
+          ),
+        ),
+        name: name.trim(),
+        type: AccountType.expense,
+        currency: Value(currency.code),
       ),
-      name: name.trim(),
-      type: AccountType.expense,
-      currency: Value(currency.code),
-    ),
-  );
+    );
+    await _setPaidFrom(id, paidFrom ?? await _firstPaidFrom(currency));
+    return id;
+  });
 
   /// The one income category (rule 30), made the first time it's wanted.
   /// Its rows are in the currency of the account the money came into.
@@ -5510,7 +5645,7 @@ class AppDatabase extends _$AppDatabase {
               },
               pays: pays,
               plans: plans,
-              withOff: false,
+              isNew: false,
             );
           } else if (!leftOut.any((l) => l.categoryId == id)) {
             // Its pay is gone (and an archived one stays archived: nothing
@@ -5713,11 +5848,10 @@ class AppDatabase extends _$AppDatabase {
   });
 
   /// What a phone's New category page set for the category [id] just
-  /// made for [c]: the accounts it isn't paid from (unless not [withOff],
-  /// for one the computer had already), and its plan. Only
-  /// what still fits the ledger: an account or pay gone since the phone
-  /// looked is left out, and a plan on a pay that's gone with it: false
-  /// then.
+  /// made for [c]: the account it's paid from (only when [isNew]: one the
+  /// computer had already keeps its own), and its plan. Only what still
+  /// fits the ledger: an account or pay gone since the phone looked is
+  /// left out, and a plan on a pay that's gone with it: false then.
   Future<bool> _phoneCategorySettings(
     int id,
     PhoneCategory c, {
@@ -5725,32 +5859,24 @@ class AppDatabase extends _$AppDatabase {
     required Set<int> accounts,
     required Set<int> pays,
     required Map<int, ({CategoryPlan plan, PlanChange change})> plans,
-    bool withOff = true,
+    bool isNew = true,
   }) async {
-    final off = {
-      if (withOff)
-        for (final a in c.off)
-          if (int.tryParse(a) case final n? when accounts.contains(n)) n,
-    };
-    if (off.isNotEmpty) {
-      await setCategoryMoney(id, currency: c.currency, off: off);
+    if (isNew) {
+      await setCategoryMoney(
+        id,
+        currency: c.currency,
+        paidFrom:
+            _phonePaidFrom(c, accounts) ?? await _firstPaidFrom(c.currency),
+      );
     }
     final p = c.plan;
     if (p == null) return true;
     if (p.payScheduleId != null && !pays.contains(p.payScheduleId)) {
       return false;
     }
-    // One the computer had already keeps its own Paid from: the bill goes
-    // only to an account it uses.
-    final unused = withOff
-        ? off
-        : {
-            for (final r in await (select(
-              categoryAccountsOff,
-            )..where((r) => r.categoryId.equals(id))).get())
-              r.accountId,
-          };
-    final paid = p.paidFrom;
+    // One the computer had already keeps its own Paid from, and the bill
+    // goes there with it; a new one takes the phone's.
+    final paid = isNew ? p.paidFrom : null;
     final plan = CategoryPlan(
       categoryId: id,
       kind: p.kind,
@@ -5770,13 +5896,53 @@ class AppDatabase extends _$AppDatabase {
       endCount: p.endCount,
       rollover: p.rollover,
       upTo: p.upTo,
-      paidFrom:
-          paid != null && accounts.contains(paid) && !unused.contains(paid)
-          ? paid
-          : null,
+      paidFrom: paid != null && accounts.contains(paid) ? paid : null,
     );
     plans[id] = (plan: plan, change: await changeCategoryPlan(id, plan, today));
     return true;
+  }
+
+  /// The account a phone said a category it made is paid from, among
+  /// [accounts]: its own Paid from; or, from a phone before 0.62.0, its
+  /// bill's, or the one account it left checked.
+  int? _phonePaidFrom(PhoneCategory c, Set<int> accounts) {
+    int? fits(String? id) => switch (int.tryParse(id ?? '')) {
+      final n? when accounts.contains(n) => n,
+      _ => null,
+    };
+    if (fits(c.paidFromId) case final n?) return n;
+    if (c.plan?.paidFrom case final n? when accounts.contains(n)) return n;
+    final used = accounts.where((a) => !c.off.contains('$a')).toList();
+    return used.length == 1 ? used.single : null;
+  }
+
+  /// A new category's Paid from when nothing said one: the account pay
+  /// goes into, in [currency], or that currency's first account (as the
+  /// v23 upgrade, [fillPaidFrom]). Null with no account in it.
+  Future<int?> _firstPaidFrom(Currency currency) async {
+    final here = [
+      for (final r in await customSelect(
+        'SELECT id FROM accounts '
+        "WHERE type IN ('asset', 'liability') AND deleted_at IS NULL "
+        'AND archived_at IS NULL AND currency = ? '
+        "AND (role IS NULL OR role NOT IN ('mortgage', 'studentLoan')) "
+        'ORDER BY sort_order, id',
+        variables: [Variable(currency.code)],
+        readsFrom: {accounts},
+      ).get())
+        r.read<int>('id'),
+    ];
+    final pays = await customSelect(
+      'SELECT account_id FROM pay_schedules WHERE deleted_at IS NULL '
+      'ORDER BY id',
+      readsFrom: {paySchedules},
+    ).get();
+    for (final p in pays) {
+      if (here.contains(p.read<int>('account_id'))) {
+        return p.read<int>('account_id');
+      }
+    }
+    return here.firstOrNull;
   }
 
   /// Undo for [takePhoneEntries]: its rows go, and the categories it made.

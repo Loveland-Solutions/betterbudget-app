@@ -1754,19 +1754,6 @@
       }
     }
   },
-  "planPaidFromSeveral": "{count} accounts are checked, so this bill isn’t in any forecast. Leave one checked to see it there.",
-  "@planPaidFromSeveral": {
-    "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while two or more accounts are checked (the bill is scheduled only in a single account)",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "planPaidFromNoneChecked": "No account is checked, so this bill isn’t in any forecast.",
-  "@planPaidFromNoneChecked": {
-    "description": "Budget page, Edit under a category's row (Yes): note beside Paid from while no account is checked"
-  },
   "planRunsOutZero": "Runs out on {date}",
   "@planRunsOutZero": {
     "description": "Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip",
@@ -6841,27 +6828,6 @@
   "@planMoneyCurrency": {
     "description": "Budget page, a category's currency and accounts: label over the choice of ₮ or $"
   },
-  "planOnlyFromOne": "only from {account}",
-  "@planOnlyFromOne": {
-    "description": "Budget page: note under a category's name when it uses one account only",
-    "placeholders": {
-      "account": {
-        "type": "String"
-      }
-    }
-  },
-  "planOnlyFromSome": "only from {count} of {total} accounts",
-  "@planOnlyFromSome": {
-    "description": "Budget page: note under a category's name when some of its currency's accounts are unchecked",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
   "planMoneyUndo": "Accounts for {category}",
   "@planMoneyUndo": {
     "description": "Undo history label for changing which accounts a category uses (shown in Undone/Redone toasts)",
@@ -6905,9 +6871,9 @@
   "@planMoneyChangePlan": {
     "description": "The same line, for a category with a plan and nothing assigned"
   },
-  "planMoneyRestOne": "{held} of what’s in {account} is for {category}. The other {rest} there can still be assigned to any category.",
+  "planMoneyRestOne": "{held} of what’s in {account} is for {category}. {rest} there is in no category yet and can be assigned.",
   "@planMoneyRestOne": {
-    "description": "Budget page, a category's currency and accounts: line under the checklist when one account is left checked; says with real amounts what unchecking does and doesn't reserve",
+    "description": "Category Edit, under Paid from, for a category that keeps money (a bill, savings, one that carries over) paid from a cash or bank account: what of the account is this category's, and what's left in it once every category paid from it has its share (#183). Shown only when that's above zero.",
     "placeholders": {
       "held": {
         "type": "String"
@@ -6922,25 +6888,6 @@
         "type": "String"
       }
     }
-  },
-  "planMoneyRestSome": "{held} of what’s in these accounts is for {category}. The other {rest} there can still be assigned to any category.",
-  "@planMoneyRestSome": {
-    "description": "The same line, when several accounts are left checked and some are unchecked",
-    "placeholders": {
-      "held": {
-        "type": "String"
-      },
-      "category": {
-        "type": "String"
-      },
-      "rest": {
-        "type": "String"
-      }
-    }
-  },
-  "planFromNone": "no account checked",
-  "@planFromNone": {
-    "description": "Budget page: note under a category's name when every account is unchecked"
   },
   "planOtherRows": "{count, plural, =1{{amount} in 1 row isn’t counted here (this category is in {symbol}); it came out of {other} not assigned} other{{amount} in {count} rows isn’t counted here (this category is in {symbol}); it came out of {other} not assigned}}",
   "@planOtherRows": {
@@ -6960,30 +6907,6 @@
       }
     }
   },
-  "planOffAccount": "{amount} paid from {account}, which this category doesn’t use",
-  "@planOffAccount": {
-    "description": "Budget page: gold note under a category's name; this period it was paid from an account unchecked for it and the money wasn't moved there (the spending still counts)",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      },
-      "account": {
-        "type": "String"
-      }
-    }
-  },
-  "planOffAccounts": "{amount} paid from {count} accounts this category doesn’t use",
-  "@planOffAccounts": {
-    "description": "The same note, when more than one such account paid",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "planBackingOne": "{held} left here, but {account} holds {have}",
   "@planBackingOne": {
     "description": "Budget page: coral note under a category's name; it keeps its money in one account and that account holds less than the category has left",
@@ -6999,27 +6922,18 @@
       }
     }
   },
-  "planBackingSome": "{held} left here, but its accounts hold {have}",
-  "@planBackingSome": {
-    "description": "The same note, when it keeps its money in several accounts",
-    "placeholders": {
-      "held": {
-        "type": "String"
-      },
-      "have": {
-        "type": "String"
-      }
-    }
-  },
-  "planBackingShared": "{held} left in {count} categories kept in the same accounts, which hold {have}",
+  "planBackingShared": "{held} left in {count} categories kept in {account}, which holds {have}",
   "@planBackingShared": {
-    "description": "The same note, when several categories limited to the same accounts together have more left than those accounts hold",
+    "description": "The same note, when several categories paid from the same account and keeping money in it together have more left than it holds. {account} is the account, like “Khan Savings”.",
     "placeholders": {
       "held": {
         "type": "String"
       },
       "count": {
         "type": "int"
+      },
+      "account": {
+        "type": "String"
       },
       "have": {
         "type": "String"
@@ -7406,6 +7320,41 @@
   "@planEditName": {
     "description": "Budget page, Edit under a category's row: label over the field with the category's name"
   },
+  "planPaidFromChoose": "Choose an account",
+  "@planPaidFromChoose": {
+    "description": "Category Edit and New category, Paid from: the button before an account is chosen."
+  },
+  "planPaidFromWanted": "Choose the account it’s paid from. Any account in its currency can still pay it.",
+  "@planPaidFromWanted": {
+    "description": "Category Edit and New category, beside Paid from in coral, when Save was clicked before an account was chosen."
+  },
+  "planPaidFromSpendHint": "What’s left of it comes out of {account}’s forecast a day at a time.",
+  "@planPaidFromSpendHint": {
+    "description": "Category Edit, beside Paid from, for a set amount that goes back when the period ends (spent down, like groceries): the forecast takes what's left out of that account day by day. {account} is like “TDB Checking”.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "planSpendingFromBudget": "{amount} of spending from the budget",
+  "@planSpendingFromBudget": {
+    "description": "Forecast, after the bills it counts: what the budget expects spent from this account before the forecast's end, taken out a day at a time (groceries, transport and the rest). Follows ' · '. Lowercase start in English.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planPaidFromGone": "Paid from {account}, which is archived: pick another to see it in a forecast",
+  "@planPaidFromGone": {
+    "description": "Budget page, under a category's name: the account it's paid from was archived or deleted, so its bills and spending are in no forecast. Clicking it opens Edit. {account} is like “Golomt Visa”.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
   "planLabelPaidFrom": "Paid from",
   "@planLabelPaidFrom": {
     "description": "Budget page, Edit under a category's row, both answers: label of the dropdown of checkboxes over the accounts in the category's currency (cash, bank and cards), all checked to begin with; a dated plan's bill is scheduled in the one account left checked"
@@ -7434,26 +7383,6 @@
     "placeholders": {
       "category": {
         "type": "String"
-      }
-    }
-  },
-  "planAccountsAll": "All accounts",
-  "@planAccountsAll": {
-    "description": "Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account in the category's currency is checked"
-  },
-  "planAccountsNone": "No accounts",
-  "@planAccountsNone": {
-    "description": "Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when every account is unchecked"
-  },
-  "planAccountsSome": "{count} of {total} accounts",
-  "@planAccountsSome": {
-    "description": "Budget page, Edit under a spending category's row: what the Accounts this category uses dropdown says when only some accounts are checked (two or more; with one it shows that account's name)",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
       }
     }
   },

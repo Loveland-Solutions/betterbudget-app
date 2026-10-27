@@ -4846,3 +4846,57 @@ is now. The owner's answers:
   specify which income it was for if it was for a paycheck, no?" With more than one pay
   set up, the phone asks which pay it is.
 
+## One account a category is paid from; the forecast takes out the budget (owner, 2026-10-27, #180, #179)
+
+The owner's words: "They should specify this when they setup the given category. Any
+account with the same currency can use the category, but the default account is the one
+specified at category creation" (#180); asked whether ticking accounts off then goes, "Yes";
+and on the forecast, "Yes" to taking out what's budgeted for groceries, transport and the
+rest, "If the view is only showing two weeks, then you'd pro-rate it, right?" (#179).
+
+- **Paid from is one account.** Edit and New category, on the computer and the phone,
+  ask for one account in the category's currency, each with its balance, in place of the
+  list of accounts to tick. Any account in the currency can still pay it; nothing is
+  said about one that did. A new one waits to be chosen ("Choose an account"; Save says
+  "Choose the account it's paid from…" in coral and opens the list), unless it's made
+  from a row, where it starts as the row's account, or its currency has one account.
+  Add another keeps it for the next. A name typed in a row and saved bare, a goal, a
+  phone's category with none said, take the account pay goes into, else the currency's
+  first. *Rejected:* keeping the ticks beside it (the owner's "Yes").
+- **What it drives.** A dated bill is scheduled from it, so a bill is in a forecast from
+  the start. Its forecast spending comes out of it. The warning that an account holds
+  less than is set aside in it ("₮1,100,000 left in 2 categories kept in Khan Savings,
+  which holds ₮1,000,000") compares only categories that keep money: a bill, a goal, a
+  set amount that carries over, the Safety net; one spent down within its month (groceries)
+  or with no plan isn't. Savings says where the Safety net sits from its Paid from. The
+  line "₮10,000,000 of what's in Khan Savings is for Emergency fund. The other ₮2,600,000
+  there can still be assigned to any category." stays, for a category that keeps money
+  (#183: "say a given amount of the account is only for emergency fund. It should be
+  free to budget"), now less what every category paid from that account has left, and
+  only while that's above zero. Gone: "only from Khan Savings" under a name (every line would say
+  one), and "paid from an account this category doesn't use". A Budget line's notes
+  wrap rather than cut off, since they carry amounts. A category whose Paid from account
+  is archived says so on its line ("Paid from Golomt Visa, which is archived: pick
+  another to see it in a forecast"). Made on two computers with a different Paid from
+  on each, one of the two is kept, the same on both; changed on both later, it's
+  asked, as a plan is.
+- **The upgrade (v23).** Every spending category gets one, never an account it had
+  unticked: its bill's account; else the one account it still used; else, of those it
+  used, the account pay goes into, else the first cash or bank one, else the first. An
+  untouched Safety net gets none, so Savings doesn't claim where it is; Edit asks for
+  one only for a new category or a change of currency, so it still saves its note. A bill that
+  was in no forecast (two or more accounts ticked) is then scheduled. Nothing else
+  changes; the old ticks stay in the file, unread.
+- **The forecast takes out the budget, a day at a time.** For each category spent down
+  within its period and paid from the account: each period at its plan's pace, by the
+  day, so two weeks take two weeks' worth. In the period today is in, only the days
+  left, and never more than it still has (its Left once anything is assigned, else the
+  plan less what's spent): the first of the month, before assigning, still counts the
+  month, and an underspent one doesn't pile its Left onto the last days. A row already
+  scheduled in it (typed with a later date) comes on its own date and is taken off
+  what's spread. Nothing before the plan begins. Bills come on their
+  dates as before; a category that builds up isn't spent by the day. The line slopes
+  through it; the dots and the bill list are the rows only, and the line under the
+  headline adds "· ₮560,000 of spending from the budget". Beside Paid from, for such a
+  category: "What's left of it comes out of TDB Checking's forecast a day at a time."
+  *Rejected:* all of a month at its first day (the owner's pro-rating).

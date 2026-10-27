@@ -522,17 +522,19 @@ class Readiness {
       for (final id in fundCategoryIds(data, main)) data.accounts[id]!,
     ];
     final fund = fundCategories.fold(0, (s, c) => s + (held[c.id] ?? 0));
-    // Where it sits, when the category is paid from only some accounts.
+    // Where it sits: the account its category is paid from (#180), when
+    // there's one category and that's one of several cash and bank
+    // accounts.
     final banks = [
       for (final a in open)
         if (!a.isOwed) a,
     ];
-    final off = fundCategories.length == 1
-        ? data.accountsOff[fundCategories.single.id] ?? const <int>{}
-        : const <int>{};
+    final paidFrom = fundCategories.length == 1
+        ? data.paidFrom[fundCategories.single.id]
+        : null;
     final keptIn = [
       for (final a in banks)
-        if (!off.contains(a.id)) a,
+        if (a.id == paidFrom) a,
     ];
     final limited = keptIn.isNotEmpty && keptIn.length < banks.length;
     final there = keptIn.fold(0, (s, a) => s + data.balanceOf(a.id));

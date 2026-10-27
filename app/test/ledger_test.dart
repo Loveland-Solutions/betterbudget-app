@@ -2105,6 +2105,158 @@ void main() {
       expect(f.low, -70775000);
     });
 
+    test('the budget\'s spending comes out a day at a time (#179)', () async {
+      final food = await categoryId('Groceries');
+      final fun = await categoryId('Entertainment');
+      // Groceries: ₮600,000 a month, spent down, paid from checking.
+      // Entertainment carries over, so it isn't spent by the day.
+      await db.setCategoryPlan(
+        food,
+        CategoryPlan(
+          categoryId: food,
+          kind: PlanKind.each,
+          amount: 60000000,
+          start: DateTime(2026, 9, 1),
+          rollover: false,
+        ),
+      );
+      await db.setCategoryPlan(
+        fun,
+        CategoryPlan(
+          categoryId: fun,
+          kind: PlanKind.each,
+          amount: 10000000,
+          start: DateTime(2026, 9, 1),
+        ),
+      );
+      for (final c in [food, fun]) {
+        await db.setCategoryMoney(
+          c,
+          currency: Currency.mnt,
+          paidFrom: checking,
+        );
+      }
+      await db.setBudgetAmount(
+        food,
+        DateTime(2026, 9, 1),
+        DateTime(2026, 9, 30),
+        60000000,
+      );
+      final ledger = await db.loadLedger();
+      final left = Budget.of(
+        ledger,
+        start: DateTime(2026, 9, 1),
+        end: DateTime(2026, 9, 30),
+        today: today,
+      ).lines[food]!.left;
+      expect(left, greaterThan(0));
+      final days = projectSpending(
+        ledger,
+        accountId: checking,
+        today: today,
+        until: DateTime(2026, 10, 14),
+      );
+      int sum(DateTime from, DateTime to) => days
+          .where((d) => !d.date.isBefore(from) && !d.date.isAfter(to))
+          .fold(0, (s, d) => s - d.amount);
+      // September at the plan's pace for its 15 days left, ₮300,000,
+      // never more than it has left.
+      final pace = 60000000 * 15 ~/ 30;
+      expect(
+        sum(DateTime(2026, 9, 16), DateTime(2026, 9, 30)),
+        left < pace ? left : pace,
+      );
+      expect(days.first.date, DateTime(2026, 9, 16));
+      // October's ₮600,000 pro-rated: 14 of its 31 days.
+      expect(
+        sum(DateTime(2026, 10, 1), DateTime(2026, 10, 14)),
+        (60000000 ~/ 31) * 14,
+      );
+      expect(days.last.date, DateTime(2026, 10, 14));
+      // Nothing from another account.
+      expect(
+        projectSpending(
+          ledger,
+          accountId: ledger.balanceSheetAccounts
+              .firstWhere((a) => a.name == 'Khan Savings')
+              .id,
+          today: today,
+          until: DateTime(2026, 10, 14),
+        ),
+        isEmpty,
+      );
+
+      // In the forecast: the line falls by it, and it isn't a bill.
+      final f = buildForecast(
+        working: ledger.summaryFor(checking).working,
+        today: today,
+        scheduled: ledger.registerFor(checking).scheduled,
+        spending: days,
+      );
+      final without = await forecast();
+      expect(f.billCount, without.billCount);
+      expect(f.billTotal, without.billTotal);
+      expect(f.spendingTotal, greaterThan(0));
+      expect(f.rowSteps.length, without.steps.length);
+      expect(f.steps.where((s) => s.spending), isNotEmpty);
+      expect(f.endBalance, without.endBalance - f.spendingTotal);
+      expect(f.low, lessThan(without.low));
+    });
+
+    test('the budget\'s spending: the first of a month before assigning, '
+        'and a row already scheduled is not counted twice', () async {
+      final food = await categoryId('Groceries');
+      await db.setCategoryPlan(
+        food,
+        CategoryPlan(
+          categoryId: food,
+          kind: PlanKind.each,
+          amount: 31000000,
+          start: DateTime(2026, 9, 1),
+          rollover: false,
+        ),
+      );
+      await db.setCategoryMoney(
+        food,
+        currency: Currency.mnt,
+        paidFrom: checking,
+      );
+      int total(LedgerData d, DateTime on) => projectSpending(
+        d,
+        accountId: checking,
+        today: on,
+        until: DateTime(2026, 10, 31),
+      ).fold(0, (s, x) => s - x.amount);
+      // October 1st, nothing assigned yet: October still counts, all of it.
+      var d = await db.loadLedger();
+      expect(total(d, DateTime(2026, 10, 1)), 31000000);
+      // A ₮50,000 row typed for the 25th comes on its date, as a scheduled
+      // row; what's spread is less by it.
+      await db.postSimple(
+        accountId: checking,
+        date: DateTime(2026, 10, 25),
+        today: DateTime(2026, 10, 1),
+        payee: 'Nomin',
+        counterAccountId: food,
+        amount: -5000000,
+      );
+      d = await db.loadLedger();
+      expect(total(d, DateTime(2026, 10, 1)), 26000000);
+      // A plan that begins in November takes nothing from October.
+      await db.setCategoryPlan(
+        food,
+        CategoryPlan(
+          categoryId: food,
+          kind: PlanKind.each,
+          amount: 31000000,
+          start: DateTime(2026, 11, 1),
+          rollover: false,
+        ),
+      );
+      d = await db.loadLedger();
+      expect(total(d, DateTime(2026, 10, 1)), 0);
+    });
+
     test('landing exactly on zero is short too', () {
       final r = RegisterRow(
         txnId: 1,

@@ -65,6 +65,8 @@ Future<void> seedDemoIfEmpty(AppDatabase db, DateTime today) async {
     ]) {
       cat[n] = await db.addAccount(name: n, type: AccountType.expense);
     }
+    // Each paid from TDB Checking, its currency's first account (#180).
+    await db.fillPaidFrom();
     // Built in, as the app makes it for a ledger past setup.
     await db.safetyNetCategory(name: 'Safety net', currency: Currency.mnt);
 

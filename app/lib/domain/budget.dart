@@ -71,8 +71,6 @@ class EnvelopeLine {
     this.otherRows = 0,
     this.otherAmount = 0,
     this.otherCurrency,
-    this.offSpent = 0,
-    this.offAccounts = const [],
     this.backing,
     this.paidOn,
     this.counted = 0,
@@ -124,17 +122,10 @@ class EnvelopeLine {
   final int otherAmount;
   final Currency? otherCurrency;
 
-  /// This period's spending paid from accounts it doesn't keep its money
-  /// in (it still counts), and those accounts. Less whatever was moved
-  /// into them this period from an account it does use: money moved to
-  /// cover a payment isn't worth a note.
-  final int offSpent;
-  final List<int> offAccounts;
-
-  /// Set when it keeps its money in only some accounts and they hold
-  /// less than is left in the categories kept there: what's left in
-  /// them, in how many categories (this one included), and what the
-  /// accounts hold. As of today.
+  /// Set when the account it keeps its money in (its Paid from, cash or
+  /// bank) holds less than is left in the categories kept there: what's
+  /// left in them, in how many categories (this one included), and what
+  /// the account holds. As of today.
   final ({int setAside, int categories, int have})? backing;
 
   /// Assigned for this period.
@@ -467,10 +458,6 @@ class Budget {
     final cameIn = <int, Map<Currency, int>>{};
     final otherRows = <int, int>{}, otherAmount = <int, int>{};
     final otherCurrency = <int, Currency>{};
-    // By category, what each account it doesn't use paid this period;
-    // and what was moved between accounts this period, by (from, to).
-    final offPaid = <int, Map<int, int>>{};
-    final moved = <(int, int), int>{};
     // [on]: the day the plan counts it, when that isn't [d] (a bill the
     // bank took a day before its date).
     void spend(int id, DateTime d, int amount, bool counted, {DateTime? on}) {
@@ -520,17 +507,6 @@ class Budget {
     for (final t in data.txns) {
       if (t.scheduled) continue;
       final d = dateOnly(t.date);
-      // A plain move between two of the user's accounts this period.
-      if (within(d) && t.entries.length == 2) {
-        final a = t.entries[0], b = t.entries[1];
-        if (a.currency == b.currency &&
-            (data.accounts[a.accountId]?.isBalanceSheet ?? false) &&
-            (data.accounts[b.accountId]?.isBalanceSheet ?? false)) {
-          final (from, to) = a.amount < 0 ? (a, b) : (b, a);
-          final key = (from.accountId, to.accountId);
-          moved[key] = (moved[key] ?? 0) + to.amount;
-        }
-      }
       // Paid out of money that counts, in this currency.
       bool fromMoney(Currency c) => t.entries.any((x) {
         final a = data.accounts[x.accountId];
@@ -572,17 +548,6 @@ class Budget {
               : null;
           spend(a.id, d, x.amount, counted, on: planned);
           notePaid(a.id, d, planned);
-          // Paid from an account it doesn't use: counted all the same.
-          final off = data.accountsOff[a.id];
-          if (off != null && counted && within(d)) {
-            for (final y in t.entries) {
-              if (off.contains(y.accountId)) {
-                final paid = offPaid.putIfAbsent(a.id, () => {});
-                paid[y.accountId] = (paid[y.accountId] ?? 0) + x.amount;
-                break;
-              }
-            }
-          }
         } else if (loans[a.id] case final c?
             when x.amount > 0 && fromMoney(x.currency)) {
           // A payment into a long loan, from money that counts.
@@ -700,76 +665,45 @@ class Budget {
       }
     }
 
-    // The accounts a category uses: those in its currency it hasn't
-    // unchecked, cards included (a bill can be planned for the Visa).
-    // Its money is kept in the cash and bank ones among them: a card
-    // holds none.
-    Set<int> used(int id, {bool moneyOnly = false}) {
-      final off = data.accountsOff[id] ?? const <int>{};
-      final c = currencyOfCategory(id);
-      return {
-        for (final a in data.accounts.values)
-          if (spendable(a, c) &&
-              (!moneyOnly || a.type == AccountType.asset) &&
-              !off.contains(a.id))
-            a.id,
-      };
+    // Where a category keeps its money: the account it's paid from, when
+    // that's cash or bank (a card holds none). Only one keeping money for
+    // later is compared with it (#180).
+    int? keptIn(int id) {
+      final a = data.accounts[data.paidFrom[id]];
+      if (a == null ||
+          a.archived ||
+          a.type != AccountType.asset ||
+          !spendable(a, currencyOfCategory(id))) {
+        return null;
+      }
+      return a.id;
     }
 
-    // Limited only by an account still in use: one unchecked and later
-    // archived or deleted limits nothing anyone can see.
-    bool limits(int id, int account) {
-      final a = data.accounts[account];
-      return a != null && !a.archived && spendable(a, currencyOfCategory(id));
-    }
-
-    final limited = {
-      for (final id in envelopes)
-        if (data.accountsOff[id]?.any((a) => limits(id, a)) ?? false)
-          id: used(id),
+    // A plan that keeps money (a bill, a goal, one that carries over), or
+    // the Safety net. One with no plan, or spent down, is spent from its
+    // account as it goes.
+    bool keeps(int id) => switch (data.plans[id]) {
+      final p? => !_emptied(p),
+      null => data.accounts[id]?.role == AccountRole.emergencyFund,
     };
-    for (final MapEntry(key: id, value: accounts) in limited.entries) {
-      // Paid from an account it doesn't use, less what was moved there
-      // this period from one it does (the card paid, cash taken out).
-      var offSpent = 0;
-      final offAccounts = <int>[];
-      for (final MapEntry(key: account, value: paid)
-          in (offPaid[id] ?? const <int, int>{}).entries) {
-        var covered = 0;
-        for (final a in accounts) {
-          covered += moved[(a, account)] ?? 0;
-        }
-        if (paid > covered) {
-          offSpent += paid - covered;
-          offAccounts.add(account);
-        }
-      }
-      // It can't hold more than its cash and bank accounts do. Others
-      // kept in the same ones (or fewer of them) share them. One that
-      // uses only cards keeps its money nowhere in particular, so
-      // there's nothing to compare.
-      ({int setAside, int categories, int have})? backing;
-      final kept = used(id, moneyOnly: true);
-      if ((holding[id] ?? 0) > 0 && kept.isNotEmpty) {
-        var have = 0, setAside = 0, categories = 0;
-        for (final a in kept) {
-          have += data.balanceOf(a);
-        }
-        for (final other in limited.keys) {
-          final theirs = used(other, moneyOnly: true);
-          if (currencyOfCategory(other) == currencyOfCategory(id) &&
-              theirs.isNotEmpty &&
-              kept.containsAll(theirs) &&
-              (holding[other] ?? 0) > 0) {
-            setAside += holding[other]!;
-            categories++;
-          }
-        }
-        if (setAside > have) {
-          backing = (setAside: setAside, categories: categories, have: have);
+    final kept = <int, int>{
+      for (final id in envelopes)
+        if (keeps(id)) id: ?keptIn(id),
+    };
+    for (final MapEntry(key: id, value: account) in kept.entries) {
+      if ((holding[id] ?? 0) <= 0) continue;
+      // It can't hold more than its account does. Others kept there share
+      // it.
+      final have = data.balanceOf(account);
+      var setAside = 0, categories = 0;
+      for (final MapEntry(key: other, value: theirs) in kept.entries) {
+        if (theirs == account && (holding[other] ?? 0) > 0) {
+          setAside += holding[other]!;
+          categories++;
         }
       }
-      if (offSpent == 0 && backing == null) continue;
+      if (setAside <= have) continue;
+      final backing = (setAside: setAside, categories: categories, have: have);
       final l = lines[id]!;
       lines[id] = EnvelopeLine(
         assigned: l.assigned,
@@ -781,8 +715,6 @@ class Budget {
         otherRows: l.otherRows,
         otherAmount: l.otherAmount,
         otherCurrency: l.otherCurrency,
-        offSpent: offSpent,
-        offAccounts: offAccounts,
         backing: backing,
         paidOn: l.paidOn,
         counted: l.counted,

@@ -1016,6 +1016,30 @@ class CategoryPlan {
     );
   }
 
+  /// This plan with its bill paid from [account].
+  CategoryPlan withPaidFrom(int? account) => CategoryPlan(
+    categoryId: categoryId,
+    kind: kind,
+    amount: amount,
+    start: start,
+    due: due,
+    everyMonths: everyMonths,
+    everyDays: everyDays,
+    onDates: onDates,
+    payScheduleId: payScheduleId,
+    daysAfterPay: daysAfterPay,
+    weekend: weekend,
+    weekdays: weekdays,
+    nth: nth,
+    nthWeekday: nthWeekday,
+    endDate: endDate,
+    endCount: endCount,
+    rollover: rollover,
+    upTo: upTo,
+    paidFrom: account,
+    once: once,
+  );
+
   bool get repeats =>
       everyMonths != null ||
       everyDays != null ||
@@ -1122,7 +1146,7 @@ class LedgerData {
     this.prefs = const {},
     this.budgetAmounts = const [],
     List<CategoryPlan> plans = const [],
-    this.accountsOff = const {},
+    this.paidFrom = const {},
   }) : accounts = {for (final a in accounts) a.id: a},
        plans = {for (final p in plans) p.categoryId: p} {
     // Amounts tell two currencies with one symbol apart only while both
@@ -1133,10 +1157,10 @@ class LedgerData {
     });
   }
 
-  /// By spending category, the accounts it doesn't use (rule 28). A
-  /// category uses every account in its currency unless one is unchecked,
-  /// so a new account is used by all of them.
-  final Map<int, Set<int>> accountsOff;
+  /// By spending category, the account it's paid from (#180): its bills
+  /// are scheduled there and its forecast spending comes out of it. Any
+  /// account in its currency may pay it.
+  final Map<int, int> paidFrom;
 
   /// Each spending category's plan, by category (rule 27).
   final Map<int, CategoryPlan> plans;
@@ -1174,7 +1198,7 @@ class LedgerData {
     stoppedPaySchedules: stoppedPaySchedules,
     prefs: prefs,
     budgetAmounts: budgetAmounts,
-    accountsOff: accountsOff,
+    paidFrom: paidFrom,
     plans: [
       for (final p in plans.values)
         if (p.categoryId != categoryId) p,
@@ -1204,7 +1228,7 @@ class LedgerData {
             b.date.isAfter(dateOnly(end)))
           b,
     ],
-    accountsOff: accountsOff,
+    paidFrom: paidFrom,
     plans: plans.values.toList(),
   );
 
@@ -1223,7 +1247,7 @@ class LedgerData {
     stoppedPaySchedules: stoppedPaySchedules,
     prefs: prefs,
     budgetAmounts: budgetAmounts,
-    accountsOff: accountsOff,
+    paidFrom: paidFrom,
     plans: plans.values.toList(),
   );
 
@@ -1253,7 +1277,7 @@ class LedgerData {
     stoppedPaySchedules: stoppedPaySchedules,
     prefs: prefs,
     budgetAmounts: budgetAmounts,
-    accountsOff: accountsOff,
+    paidFrom: paidFrom,
     plans: plans.values.toList(),
   );
 
