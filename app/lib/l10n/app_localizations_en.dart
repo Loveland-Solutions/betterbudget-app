@@ -6991,4 +6991,64 @@ class WordsEn extends Words {
   String goalsTotal(String amount) {
     return '$amount this month to your goals';
   }
+
+  @override
+  String planFitOverMonth(String month, String amount) {
+    return '$month’s plans take $amount more than its income';
+  }
+
+  @override
+  String planFitOverPay(String amount) {
+    return 'This pay period’s plans take $amount more than its income';
+  }
+
+  @override
+  String planFitSpareMonth(String month, String amount) {
+    return '$month’s plans fit in its income, with $amount to spare';
+  }
+
+  @override
+  String planFitSparePay(String amount) {
+    return 'This pay period’s plans fit in its income, with $amount to spare';
+  }
+
+  @override
+  String planFitEvenMonth(String month) {
+    return '$month’s plans take exactly its income';
+  }
+
+  @override
+  String get planFitEvenPay =>
+      'This pay period’s plans take exactly its income';
+
+  @override
+  String get planFitSpent => 'Spent so far';
+
+  @override
+  String get planFitToSpend => 'Still to spend';
+
+  @override
+  String get planFitAside => 'Saved';
+
+  @override
+  String get planFitIncome => 'Income';
+
+  @override
+  String planFitToCome(String amount) {
+    return '$amount still to come';
+  }
+
+  @override
+  String planFitOverPayThen(String amount) {
+    return 'That pay period’s plans take $amount more than its income';
+  }
+
+  @override
+  String planFitSparePayThen(String amount) {
+    return 'That pay period’s plans fit in its income, with $amount to spare';
+  }
+
+  @override
+  String get planFitEvenPayThen =>
+      'That pay period’s plans take exactly its income';
 }
