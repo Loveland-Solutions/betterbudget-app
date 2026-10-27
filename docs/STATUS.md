@@ -19,11 +19,35 @@ details") is answered: Sign in details holds the demo key (`DEMO-DEMO-DEMO-DEMO-
 The upload key may now release to production too; a release there is still the owner's
 say each time.
 
-**Next: the owner's pick from the board's Next column, Beta milestone.** The four
-combs are done (#161: Ledger, Budget, Savings, Payees), and so are the Savings goals
-and living on the income (#234). What's left for beta there: the native speaker's
-check of the Mongolian (#90); the store listings say free on Play and the Microsoft
-Store, and Apple's waits for its listing (#98).
+**Next: the phone build of 0.65.0 to Internal testing, then #187.** The ledger is v23
+since 0.62.0 (#314), and a phone on 0.61 can't open it from a fresh start (an open one
+keeps its figures and still sends entries), so the owner's wife needs it from Play.
+Then #187, decided 2026-10-27: a phone entry under Income takes the place of the next
+payday, the phone asking which pay when there's more than one. Every "Question:"
+issue on the board is answered. Still for beta: the native speaker's check of the
+Mongolian (#90); Apple's listing (#98).
+
+**The open questions, answered** (0.61.1 to 0.65.0, 2026-10-27/28; ADR 0004 from "The
+open questions, sorted"):
+- **One Paid from per category** (0.62.0, #180, #183): one account, chosen when the
+  category is made, on the computer and the phone; any account in its currency can pay
+  it. Ledger v23, `category_paid_from`, filled by `fillPaidFrom` from the old ticks
+  (never an account it had unticked); an untouched Safety net gets none. Bills follow
+  it. "Its account holds less" compares only categories that keep money; the free-amount
+  line takes off every category on the account. Leftovers: #315.
+- **The forecast takes out the budget** (0.62.0, #179): categories spent down within
+  their period come out of their Paid from a day at a time (`projectSpending`), at the
+  plan's pace, capped by what's left, less rows already scheduled. Cash the budget
+  would empty says "You'll need to take out about ₮350,000 by 10.24", and the account
+  pay goes into counts it, and a card's spending when no dated bill pays it (0.63.0,
+  `projectFunding`).
+- **Words** (0.61.1): the note by Add says what to do ("Type an amount"), the refund
+  note is a line of its own, the phone says "1 entry isn't in your ledger yet", a late
+  row "due 22 days ago · not in Working yet", a Filed under popup names the row's date
+  and amount, an import off from the bank leads with the gap.
+- **Income and the phone** (0.64.0, #182, #184): the Income tab says money in still in
+  Not categorized; the phone's Paid from list shows balances.
+- **The pay form** (0.65.0, #175): "No set day" under When; every pay needs a name.
 
 **A phone's new category, both ends** (0.61.0, #243 and #244; ADR 0004 "New
 category"): on the phone, a category still waiting opens from the Waiting list filled
