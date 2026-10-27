@@ -11,6 +11,9 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
+**Last Play build: 0.57.0 (512), on Internal testing 2026-10-27**, with everything
+above for the phone.
+
 **Next: the owner's pick from the board's Next column, Beta milestone.** The four
 combs are done (#161: Ledger, Budget, Savings, Payees). What's left for beta there:
 the native speaker's check of the
@@ -23,22 +26,21 @@ its name) in Edit; **Just for September** under a set amount, with **Skip Septem
 (`CategoryPlan.once`); **Clear September's Assigned** on the key card, after a window
 that says where the money really goes and what ends short. The cap was already
 Edit's **Up to**. The phone's Budget has the group headings, the one-month line and
-the note; it needs a new Play build.
+the note.
 
 **Report a problem… is in the app** (0.53.0, #92; ADR 0004 "Report a problem: at the
 foot of the sidebar, and on the phone"): a quiet line under Net worth, and the last
 line of the phone's Budget. It opens lls.mn's contact form in the browser with
 `?from=betterbudget&version=…&platform=…&os=…` (`data/report_problem.dart`); the page
 names the report and shows what goes with the message (the website's README,
-"BetterBudget reports"); `PRIVACY.md` section 5 says so. The phone's line needs a new
-Play build. It is also on the screens shown when the ledger won't open (0.54.0,
+"BetterBudget reports"); `PRIVACY.md` section 5 says so. It is also on the screens shown when the ledger won't open (0.54.0,
 #292): under Try again on the computer, and under the phone's problem steps. A failure's opened Details have
 **Copy** (0.55.0, #293; `ui/copy_details.dart`), on the popup and that screen. **Recent
 problems** (0.56.0, #294; `data/problem_log.dart`; ADR 0004 "Recent problems"): a card in
 Settings while there are any, and a line above Report a problem… on the phone's
 Budget, each with Copy all; a plain file on the device, no amounts. `PRIVACY.md` and
 lls.mn's copy say so (their PRs: Loveland-Solutions/betterbudget#1,
-lovelandsolutions-website#6, to merge first). The phone's part needs a Play build. The
+lovelandsolutions-website#6, to merge first). The
 public repo's README points there too, and its Issues are off
 (#93, 2026-10-27).
 
@@ -50,7 +52,7 @@ the entry row. "File the N" files this period's rows only. A pay's line is for
 money in only; a line's category takes every ticked account's currency; Remember
 on one account takes it off a shared line. The Edit is held by the screen
 (`_PayeeKeep`). **The phone fills a remembered payee's category** on the account
-it's entered in (`PhoneSnapshot.rememberedFor`): it needs a new Play build.
+it's entered in (`PhoneSnapshot.rememberedFor`).
 
 **The Savings comb is done** (0.50.0–0.50.2, #164; ADR 0004 "The Savings page's
 fine-tooth comb: three answers", "The Savings page by keys and mouse", "The Savings
@@ -91,7 +93,7 @@ Assigned and Spent, its Spent opening the period's rows. `UsedRing` and `usedCol
 `theme.dart`; `_TotalsRow` in `budget.dart`; `EnvelopeLine.usedShare` and `paidOn`.
 **The phone's Budget screen has the same ring** before each category's name, worked
 out on the phone against what's left now (ADR 0005 "The phone's ring";
-`usedShareNow`); the owner's Pixel needs a new Play build to see it.
+`usedShareNow`).
 
 **Google Play's production track has 0.52.0 (build 489)**, moved there from
 Internal testing by the owner on 2026-10-26; uploaded the same day with
@@ -136,8 +138,7 @@ the category with its plan and Paid from, its bill scheduled; the take's undo ta
 bill too. An older computer takes the category in bare. The answers and the plan they
 make are one class, `PlanAnswers` in `ui/plan_form.dart`, which the computer's Edit
 now uses too. `_NewCategoryPage`, `_CustomRepeatPage` in
-`ui/phone/phone_new_category.dart`; `_phoneCategorySettings` in `database.dart`. The
-Play build with it is made (0.45.0 `.aab`, 2026-10-23), for the owner to upload.
+`ui/phone/phone_new_category.dart`; `_phoneCategorySettings` in `database.dart`.
 
 **The entry row's "+ New category" opens the New category window** (0.44.0, part of
 #237): in Category and on a split's line, always at the top of the list beside Split;
