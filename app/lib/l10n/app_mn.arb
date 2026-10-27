@@ -1157,6 +1157,7 @@
   "planPaidFromSpendHint": "Үлдэгдэл нь {account} дансны төсөөллөөс өдөр бүр хасагдана.",
   "planSpendingFromBudget": "төсвөөс {amount} зарлага",
   "planPaidFromGone": "{account} данснаас төлдөг, тэр данс архивласан: төсөөлөлд харахын тулд өөр данс сонгоно уу",
+  "planTakeOut": "{date}-ны дотор ойролцоогоор {amount} бэлнээр авах хэрэгтэй",
   "planLabelPaidFrom": "Төлөх данс",
   "planUpTo": "дээд хэмжээ {amount}",
   "planSetAsideAmount": "{amount} хуваарилж дууссан",

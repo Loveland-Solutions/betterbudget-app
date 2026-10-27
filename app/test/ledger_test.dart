@@ -2257,6 +2257,66 @@ void main() {
       expect(total(d, DateTime(2026, 10, 1)), 0);
     });
 
+    test('a wallet the budget empties is filled from the bank, not short; '
+        'a card nothing pays is paid from it too', () async {
+      final food = await categoryId('Groceries');
+      final fuel = await categoryId('Transport');
+      var d = await db.loadLedger();
+      int named(String n) =>
+          d.balanceSheetAccounts.firstWhere((a) => a.name == n).id;
+      final cash = named('Cash wallet'), visa = named('Golomt Visa');
+      // Groceries ₮310,000 a month from the ₮86,500 wallet; Transport
+      // ₮31,000 a month on the Visa, which no bill pays.
+      for (final (c, amount, from) in [
+        (food, 31000000, cash),
+        (fuel, 3100000, visa),
+      ]) {
+        await db.setCategoryPlan(
+          c,
+          CategoryPlan(
+            categoryId: c,
+            kind: PlanKind.each,
+            amount: amount,
+            start: DateTime(2026, 10, 1),
+            rollover: false,
+          ),
+        );
+        await db.setCategoryMoney(c, currency: Currency.mnt, paidFrom: from);
+      }
+      d = await db.loadLedger();
+      final on = DateTime(2026, 10, 1), until = DateTime(2026, 10, 31);
+      // Cash's own forecast: below zero, but a thing to take out, not short.
+      final wallet = buildForecast(
+        working: d.summaryFor(cash).working,
+        today: on,
+        scheduled: d.registerFor(cash).scheduled,
+        until: until,
+        spending: projectSpending(d, accountId: cash, today: on, until: until),
+        cash: true,
+      );
+      expect(wallet.isShort, isFalse);
+      expect(wallet.takeOut, 31000000 - d.summaryFor(cash).working);
+      expect(wallet.takeOutBy, isNotNull);
+      // The bank pays it out: what the wallet lacks, and the card's month.
+      final funded = projectFunding(
+        d,
+        accountId: checking,
+        today: on,
+        until: until,
+      );
+      expect(funded.fold(0, (s, x) => s - x.amount), wallet.takeOut + 3100000);
+      // Only the account pay goes into does: not Khan Savings.
+      expect(
+        projectFunding(
+          d,
+          accountId: named('Khan Savings'),
+          today: on,
+          until: until,
+        ),
+        isEmpty,
+      );
+    });
+
     test('landing exactly on zero is short too', () {
       final r = RegisterRow(
         txnId: 1,

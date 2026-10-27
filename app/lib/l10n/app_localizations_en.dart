@@ -5005,6 +5005,11 @@ class WordsEn extends Words {
   }
 
   @override
+  String planTakeOut(String amount, String date) {
+    return 'You’ll need to take out about $amount by $date';
+  }
+
+  @override
   String get planLabelPaidFrom => 'Paid from';
 
   @override
