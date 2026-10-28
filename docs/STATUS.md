@@ -11,9 +11,9 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**On Play: 0.57.1 (516) on every track, 2026-10-27.** Internal testing; alpha (closed
-testing), replacing 0.34.4; and production at full rollout, with new release notes. Alpha
-and production were in Google's review that day. Play's App access check ("Missing sign in
+**On Play: 0.66.0 (553) on every track, 2026-10-28.** Internal testing; alpha (closed
+testing); and production at full rollout, with notes for people who never saw the test
+builds. Alpha and production were in Google's review that day. Play's App access check ("Missing sign in
 details") is answered: Sign in details holds the demo key (`DEMO-DEMO-DEMO-DEMO-DEMO`,
 #303; ADR 0005 "A demo key for Play's review"), which opens the phone on made-up figures.
 The upload key may now release to production too; a release there is still the owner's
@@ -172,9 +172,9 @@ Assigned and Spent, its Spent opening the period's rows. `UsedRing` and `usedCol
 out on the phone against what's left now (ADR 0005 "The phone's ring";
 `usedShareNow`).
 
-**Google Play's production track has 0.52.0 (build 489)**, moved there from
-Internal testing by the owner on 2026-10-26; uploaded the same day with
-`app/tool/release_play.sh` from main (the phone fills a remembered payee). A phone
+**Google Play's tracks all have 0.66.0 (build 553)**, from main on 2026-10-28
+(pay saved on the phone takes its payday's place); uploaded to Internal testing with
+`app/tool/release_play.sh`, then moved to alpha and production. A phone
 change after it needs a new one. Before offering one, compare this line with
 `git log` on `app/lib/ui/phone/`, and rewrite this line after each upload.
 
