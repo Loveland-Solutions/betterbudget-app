@@ -609,55 +609,55 @@ abstract class Words {
   /// Undo-menu label after a pay schedule is stopped.
   ///
   /// In en, this message translates to:
-  /// **'Pay stopped'**
+  /// **'Regular income stopped'**
   String get ledgerPayStopped;
 
   /// Toast after a pay schedule is stopped.
   ///
   /// In en, this message translates to:
-  /// **'Pay no longer scheduled · paydays already past stay'**
+  /// **'Regular income no longer scheduled · paydays already past stay'**
   String get ledgerPayStoppedToast;
 
   /// Toast after stopping a pay and moving the categories per it. how is "Every month" or "Every pay period · Jenny".
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Pay no longer scheduled · 1 category now {how}} other{Pay no longer scheduled · {count} categories now {how}}}'**
+  /// **'{count, plural, =1{Regular income no longer scheduled · 1 category now {how}} other{Regular income no longer scheduled · {count} categories now {how}}}'**
   String ledgerPayStoppedMoved(int count, String how);
 
   /// Toast and undo-menu label after a pay schedule is saved.
   ///
   /// In en, this message translates to:
-  /// **'Pay saved'**
+  /// **'Regular income saved'**
   String get ledgerPaySaved;
 
   /// Toast after a pay schedule is saved. date is a full date.
   ///
   /// In en, this message translates to:
-  /// **'Pay saved · next payday {date}'**
+  /// **'Regular income saved · next payday {date}'**
   String ledgerPaySavedNext(String date);
 
   /// Undo-menu label after "I don’t have regular pay" is chosen.
   ///
   /// In en, this message translates to:
-  /// **'No regular pay'**
+  /// **'No regular income'**
   String get ledgerNoRegularPay;
 
   /// Undo-menu label after Settings → "ask again" for pay.
   ///
   /// In en, this message translates to:
-  /// **'Asking for pay again'**
+  /// **'Asking for regular income again'**
   String get ledgerAskingForPayAgain;
 
   /// Toast after "I don’t have regular pay" is chosen.
   ///
   /// In en, this message translates to:
-  /// **'No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this'**
+  /// **'No regular income · the app won’t ask for it · the Budget page’s Income tab changes this'**
   String get ledgerNoRegularPayToast;
 
   /// Toast after Settings → ask for pay again.
   ///
   /// In en, this message translates to:
-  /// **'The forecast will ask for your pay again'**
+  /// **'The forecast will ask for your regular income again'**
   String get ledgerAskForPayAgainToast;
 
   /// Undo-menu label (no toast): the Budget page is now viewed by calendar month.
@@ -777,7 +777,7 @@ abstract class Words {
   /// Toast when saving or stopping pay failed.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t change the pay'**
+  /// **'Couldn’t change the regular income'**
   String get ledgerCouldntChangePay;
 
   /// Toast when switching budget by month / pay period failed.
@@ -1347,7 +1347,7 @@ abstract class Words {
   /// Erase-everything dialog, list of what goes.
   ///
   /// In en, this message translates to:
-  /// **'Your pay'**
+  /// **'Your regular income'**
   String get ledgerYourPay;
 
   /// Erase-everything dialog, list of what goes.
@@ -1521,7 +1521,7 @@ abstract class Words {
   /// Toast when a change is refused (rare; usually a row changed in the meantime).
   ///
   /// In en, this message translates to:
-  /// **'Pay is money in'**
+  /// **'Regular income is money in'**
   String get ledgerDbPayIsIn;
 
   /// Toast when a change is refused (rare; usually a row changed in the meantime).
@@ -1761,7 +1761,7 @@ abstract class Words {
   /// Forecast, small label above it: it runs up to that payday (the paycheck on that day isn't counted).
   ///
   /// In en, this message translates to:
-  /// **'Until your {date} paycheck'**
+  /// **'Until your income on {date}'**
   String planUntilPaycheck(String date);
 
   /// Forecast headline when no scheduled bill takes the balance below today's.
@@ -1773,7 +1773,7 @@ abstract class Words {
   /// Forecast chart, label on the step up where the next paycheck lands.
   ///
   /// In en, this message translates to:
-  /// **'+{amount} pay'**
+  /// **'+{amount} income'**
   String planChartPay(String amount);
 
   /// Forecast headline when the lowest point comes after the next paycheck, so it counts on that pay arriving on time and in full.
@@ -1850,7 +1850,7 @@ abstract class Words {
   /// Account header, forecast panel: gold link after the small title; opens pay setup
   ///
   /// In en, this message translates to:
-  /// **' · no payday ahead · Add your pay →'**
+  /// **' · no payday ahead · Add your regular income →'**
   String get planAddPay;
 
   /// Account header, forecast panel: bill list header (left), the list runs until this date
@@ -1904,7 +1904,7 @@ abstract class Words {
   /// Budget page, Income tab: tooltip on the top-right Add your pay / Add other pay button
   ///
   /// In en, this message translates to:
-  /// **'Set up a paycheck: how much, how often, and the account it goes into'**
+  /// **'Set up regular income: how much, how often, and the account it goes into'**
   String get setupAddPayTip;
 
   /// Budget page, Income tab, beside the Income line: this period's pay that has come, of what the pay schedules expect in it, per currency (the owner's wording)
@@ -1958,25 +1958,25 @@ abstract class Words {
   /// Budget page: the pay note beside the Income line; the user said there is no regular pay
   ///
   /// In en, this message translates to:
-  /// **'No regular pay'**
+  /// **'No regular income'**
   String get planPaydayNoRegular;
 
   /// Budget page: the pay note beside the Income line, gold, when pay is not set up yet
   ///
   /// In en, this message translates to:
-  /// **'Pay not set up'**
+  /// **'Regular income not set up'**
   String get planPaydayNotSetUp;
 
   /// Budget page: added at the end of the pay note when there are more pay schedules
   ///
   /// In en, this message translates to:
-  /// **' · {count, plural, =1{+1 more pay} other{+{count} more pays}}'**
+  /// **' · {count, plural, =1{+1 more} other{+{count} more}}'**
   String planMorePay(int count);
 
   /// Budget page: gold suggestion in the pay note, pay that varies (two amounts a month)
   ///
   /// In en, this message translates to:
-  /// **'Your last 6 pays were each more than 5% over the estimate · raise it?'**
+  /// **'The last 6 times it came, each was more than 5% over the estimate · raise it?'**
   String get planRaiseSplit;
 
   /// Budget page: gold suggestion in the pay note, pay that varies
@@ -1988,25 +1988,25 @@ abstract class Words {
   /// Budget page: gold suggestion in the pay note, the same pay came in lower twice
   ///
   /// In en, this message translates to:
-  /// **'Your last 2 pays were {amount}, less than planned · change the amount?'**
+  /// **'The last 2 times it came it was {amount}, less than planned · change the amount?'**
   String planLastTwoLess(String amount);
 
   /// Budget page: gold suggestion in the pay note, the same pay came in different twice
   ///
   /// In en, this message translates to:
-  /// **'Your last 2 pays were {amount} · change the amount?'**
+  /// **'The last 2 times it came it was {amount} · change the amount?'**
   String planLastTwoMore(String amount);
 
   /// Budget page: the pay note beside the Income line; pay is the amount and when (e.g. ₮2,100,000 monthly on the 25th)
   ///
   /// In en, this message translates to:
-  /// **'Pay: {pay}'**
+  /// **'Regular income: {pay}'**
   String planPaydayPay(String pay);
 
   /// Budget page: the pay note beside the Income line, with the next payday
   ///
   /// In en, this message translates to:
-  /// **'Pay: {pay} · next {date}'**
+  /// **'Regular income: {pay} · next {date}'**
   String planPaydayPayNext(String pay, String date);
 
   /// Budget page: usage on a category with no transactions
@@ -2894,7 +2894,7 @@ abstract class Words {
   /// A row's category dropdown and chip: income that is the paycheck of the one pay set up, when it has no name.
   ///
   /// In en, this message translates to:
-  /// **'Income · paycheck'**
+  /// **'Income · regular income'**
   String get rowsIncomePaycheck;
 
   /// Register filter tab, shown only while rows wait in the Not categorized category (imported rows the app couldn’t match to a category): click shows just those rows. A count follows in brackets. Same words as the category’s name.
@@ -3926,25 +3926,25 @@ abstract class Words {
   /// Pay setup, note by Save when the amount is empty.
   ///
   /// In en, this message translates to:
-  /// **'Type how much you’re paid'**
+  /// **'Type how much comes in'**
   String get setupAmountMissing;
 
   /// Pay setup (twice a month, different amounts), note when one amount is empty. day is startDayOn: English "10th", Mongolian "10-нд".
   ///
   /// In en, this message translates to:
-  /// **'Type how much you’re paid on the {day}'**
+  /// **'Type how much comes in on the {day}'**
   String setupAmountMissingOn(String day);
 
   /// Pay setup (twice a month, different amounts), note before the days are typed.
   ///
   /// In en, this message translates to:
-  /// **'Type how much you’re paid on the first payday'**
+  /// **'Type how much comes in on the first payday'**
   String get setupAmountMissingFirst;
 
   /// Pay setup (twice a month, different amounts), note before the days are typed.
   ///
   /// In en, this message translates to:
-  /// **'Type how much you’re paid on the second payday'**
+  /// **'Type how much comes in on the second payday'**
   String get setupAmountMissingSecond;
 
   /// Pay setup, label beside one payday's amount (twice a month). Short. day is startDayOn: English "10th", Mongolian "10-нд".
@@ -4016,13 +4016,13 @@ abstract class Words {
   /// Pay setup dialog title for new pay; the Budget page's Income tab button when there is no pay yet.
   ///
   /// In en, this message translates to:
-  /// **'Add your pay'**
+  /// **'Add your regular income'**
   String get setupAddYourPay;
 
   /// Pay setup dialog title when editing pay.
   ///
   /// In en, this message translates to:
-  /// **'Your pay'**
+  /// **'Your regular income'**
   String get setupYourPay;
 
   /// Pay setup, label beside the account pay goes into. Also the phone app’s Ledger, in place of Paid from, when the entry is money in: the account a refund or income went into. Short.
@@ -4040,19 +4040,19 @@ abstract class Words {
   /// Pay setup, hint in the empty employer field.
   ///
   /// In en, this message translates to:
-  /// **'Employer (optional)'**
+  /// **'Who it’s from (optional)'**
   String get setupEmployerHint;
 
   /// Pay setup, hint in the empty name field.
   ///
   /// In en, this message translates to:
-  /// **'Jenny, or Jeff’s job'**
+  /// **'Jenny’s job, or Child support'**
   String get setupNameHint;
 
   /// Pay setup, label beside "About the same each time" / "It varies". Short.
   ///
   /// In en, this message translates to:
-  /// **'Pay is'**
+  /// **'The amount is'**
   String get setupPayIs;
 
   /// Pay setup, choice: the amount doesn't change.
@@ -4070,7 +4070,7 @@ abstract class Words {
   /// Pay setup, note under "It varies".
   ///
   /// In en, this message translates to:
-  /// **'Hourly, shifts, overtime: it changes each time. Leave bonuses out; they aren’t every payday.'**
+  /// **'Hourly work, shifts, sales: it changes each time. Leave out extras that don’t come every time, like bonuses.'**
   String get setupVariesHint;
 
   /// Pay setup, label beside the amount when pay varies. Short.
@@ -4088,19 +4088,19 @@ abstract class Words {
   /// Pay setup (twice a month), choice: one amount both days.
   ///
   /// In en, this message translates to:
-  /// **'The same each paycheck'**
+  /// **'The same each time'**
   String get setupSameEachPaycheck;
 
   /// Pay setup (twice a month), choice: an advance one day, the rest the other.
   ///
   /// In en, this message translates to:
-  /// **'A different amount each paycheck'**
+  /// **'A different amount each time'**
   String get setupDifferentEachPaycheck;
 
   /// Pay setup, note: the one paycheck found in the ledger.
   ///
   /// In en, this message translates to:
-  /// **'Your last paycheck: {amount}'**
+  /// **'The last time it came: {amount}'**
   String setupLastPaycheck(String amount);
 
   /// Pay setup, note: the range of recent paychecks found (count is 2 or more).
@@ -4118,7 +4118,7 @@ abstract class Words {
   /// Pay setup, amber warning when the typed amount is above some recent paychecks.
   ///
   /// In en, this message translates to:
-  /// **'Higher than {above} of your last {count} paychecks: the forecast may look better than it’ll be.'**
+  /// **'Higher than {above} of the last {count} times it came: the forecast may look better than it’ll be.'**
   String setupHigherThan(int above, int count);
 
   /// Pay setup, label beside how often pay comes. Short.
@@ -4236,7 +4236,7 @@ abstract class Words {
   /// Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name.
   ///
   /// In en, this message translates to:
-  /// **'Give this pay a name, like Jenny or Jeff’s job.'**
+  /// **'Give it a name, like Jenny’s job or Child support.'**
   String get setupNameMissing;
 
   /// Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”.
@@ -4248,31 +4248,31 @@ abstract class Words {
   /// Pay setup, under the form when When is No set day: what saving it does.
   ///
   /// In en, this message translates to:
-  /// **'With no set day, the forecast doesn’t expect it. When pay comes, file it under Income.'**
+  /// **'With no set day, the forecast doesn’t expect it. When it comes, file it under Income.'**
   String get setupNoSetDayMeans;
 
   /// Pay setup, button: self-employed or between jobs; stops asking for pay.
   ///
   /// In en, this message translates to:
-  /// **'I don’t have regular pay'**
+  /// **'I don’t have regular income'**
   String get setupNoRegularPay;
 
   /// Pay setup (editing), red button that removes the pay schedule.
   ///
   /// In en, this message translates to:
-  /// **'Stop scheduling pay'**
+  /// **'Stop scheduling this income'**
   String get setupStopPay;
 
   /// Dialog title when stopping a pay that categories are budgeted per. Coral.
   ///
   /// In en, this message translates to:
-  /// **'Stop this pay?'**
+  /// **'Stop this regular income?'**
   String get stopPayTitle;
 
   /// Stop-pay dialog: which categories have a set amount each of its pay periods or a bill every payday of it. names is a comma list.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 category is budgeted per this pay: {names}} other{{count} categories are budgeted per this pay: {names}}}'**
+  /// **'{count, plural, =1{1 category is budgeted per this income: {names}} other{{count} categories are budgeted per this income: {names}}}'**
   String stopPayPerIt(int count, String names);
 
   /// Stop-pay dialog, label over the choices: Every month, or another pay's periods.
@@ -4290,7 +4290,7 @@ abstract class Words {
   /// Pay setup, main button.
   ///
   /// In en, this message translates to:
-  /// **'Save pay'**
+  /// **'Save'**
   String get setupSavePay;
 
   /// Budget page, Income tab (a pay's line) and a pay's title: an account that was archived.
@@ -4308,7 +4308,7 @@ abstract class Words {
   /// Was Settings → Budget's label beside the pay list; unused since 2026-10-05 (pay is listed on the Budget page's Income tab).
   ///
   /// In en, this message translates to:
-  /// **'Pay'**
+  /// **'Regular income'**
   String get setupPay;
 
   /// Budget page, Income tab, one pay. amounts is like "₮2,100,000 · monthly on the 25th".
@@ -4326,7 +4326,7 @@ abstract class Words {
   /// Budget page, Income tab, after "I don't have regular pay".
   ///
   /// In en, this message translates to:
-  /// **'You said you don’t have regular pay, so the forecast doesn’t ask for it.'**
+  /// **'You said you don’t have regular income, so the forecast doesn’t ask for it.'**
   String get setupSaidNoPay;
 
   /// Budget page, Income tab, button that undoes "I don't have regular pay".
@@ -4338,7 +4338,7 @@ abstract class Words {
   /// Budget page, Income tab, the add button when some pay is already set up.
   ///
   /// In en, this message translates to:
-  /// **'Add other pay'**
+  /// **'Add other regular income'**
   String get setupAddOtherPay;
 
   /// Suggested file name in the Save dialog when saving the recovery key to a text file. Keep .txt.
@@ -5498,7 +5498,7 @@ abstract class Words {
   /// Budget page, tooltip on the view dropdown beside the period.
   ///
   /// In en, this message translates to:
-  /// **'View by month, or by one pay’s periods'**
+  /// **'View by month, or by the periods of one regular income'**
   String get planViewTip;
 
   /// Budget page: the period shown, beside the arrows. name is a month name, "This month", "This pay period" or "Pay period"; start and end are month.day
@@ -7189,7 +7189,7 @@ abstract class Words {
   /// Entry row, gold line under the row when the typed category doesn't exist and the amount has a +: the new category will be a spending one, so the money is a refund, not income. {category} is the name typed, like “Nomin”.
   ///
   /// In en, this message translates to:
-  /// **'Money in counts as a refund to {category}. For pay, pick Income.'**
+  /// **'Money in counts as a refund to {category}. If it’s income, pick Income.'**
   String rowsNewCategoryRefundNote(String category);
 
   /// Toast after a pay schedule is saved, joined after "Pay saved · next payday …": the user's own scheduled rows for the same pay were taken over.
@@ -7303,7 +7303,7 @@ abstract class Words {
   /// Setup: the second step’s name in the row of step names across the top. Pay as in a paycheck.
   ///
   /// In en, this message translates to:
-  /// **'Pay'**
+  /// **'Income'**
   String get setupStepPay;
 
   /// Setup: the button that goes on to the next step.
@@ -7321,19 +7321,19 @@ abstract class Words {
   /// Setup, Pay step, under the amount of a paycheck: the figure wanted is the deposit as the bank statement shows it, not the salary before tax and social insurance. A loan payment the bank takes after the pay lands is entered later as a bill, so it must not be taken off here.
   ///
   /// In en, this message translates to:
-  /// **'The amount that lands in the account, not your salary before tax. A loan payment the bank takes afterwards is a bill.'**
+  /// **'The amount that lands in the account, not the amount before tax. A loan payment the bank takes afterwards is a bill.'**
   String get setupPayArrives;
 
   /// Setup, Pay step, when the only accounts are credit cards or loans. “Accounts” is the first step’s name, “Cash” the account Type.
   ///
   /// In en, this message translates to:
-  /// **'Pay goes into a bank account or Cash. Add one on Accounts to set up your pay.'**
+  /// **'Income goes into a bank account or Cash. Add one on Accounts to set up your regular income.'**
   String get setupPayNeedsAccount;
 
   /// Setup, Pay step: the one line shown after “I don’t have regular pay” was chosen, with an “Add your pay” button beside it.
   ///
   /// In en, this message translates to:
-  /// **'No regular pay'**
+  /// **'No regular income'**
   String get setupNoRegularPayLine;
 
   /// Phone app, the first screen’s heading above the list of categories and what is left in each. {month} is a month’s name from monthNames.

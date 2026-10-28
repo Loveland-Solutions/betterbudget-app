@@ -4957,3 +4957,19 @@ same offer in a list opened all the time.
   "No, they should name every paycheck." Name stays first and is needed: with it empty
   the line under the form says "Give this pay a name, like Jenny or Jeff's job." and Save
   waits; "(optional)" is gone from its hint. *Rejected:* hiding it until a second pay.
+
+## Income isn't always pay: regular income (owner, 2026-10-28, #329)
+
+On the Income tab, under "Salary from Loveland Solutions": "You're assuming all income
+is salary. What about social security, child support, etc. Let's just call it planned or
+regular income." The word is **regular income**, already the word on "I don't have
+regular income": the form's title is **Add your regular income** and **Your regular
+income**, setup's step is **Income**, the main button **Save**, the Budget note
+**Regular income: ₮5,973,750 …**. The employer field is **Who it's from (optional)**,
+the name's example **Jenny's job, or Child support**, and an amount that varies is "the
+same each time" or "a different amount each time", not each paycheck. In Mongolian
+"цалин" (salary) is gone: тогтмол орлого, and a payday or pay period is орлого орох
+өдөр and орлогын үе. In English **payday** and **pay period** stay, as people say them of
+a pension or a benefit too. "Pay a bill", the debt steps' "pay off", and the retirement
+step's "from your pay" and employer match, which are about a job, stay. *Rejected:*
+"planned income" (the app's word, not the one people say).
