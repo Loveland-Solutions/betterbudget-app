@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-28** · version 0.66.0 · schema v23 · 960 tests pass
+**Last updated: 2026-10-29** · version 0.66.1 · schema v23 · 960 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -19,10 +19,16 @@ details") is answered: Sign in details holds the demo key (`DEMO-DEMO-DEMO-DEMO-
 The upload key may now release to production too; a release there is still the owner's
 say each time.
 
-**Next: the phone build of 0.66.0 to Internal testing.** The ledger is v23 since 0.62.0
+**Next: the phone build of 0.66.1 to Internal testing.** The ledger is v23 since 0.62.0
 (#314), and a phone on 0.61 can't open it from a fresh start (an open one keeps its
 figures and still sends entries), so the owner's wife needs it from Play. Every
 "Question:" issue on the board is answered.
+
+**Regular income, not pay** (0.66.1, #329; ADR 0004 "Income isn't always pay"): the
+pay form, its toasts and the Budget and forecast lines say regular income, who it's
+from and each time it comes, not Pay, paycheck, Employer or salary; in Mongolian цалин
+is тогтмол орлого. Payday and pay period stay in English. The code's names (`PaySchedule`,
+`setupPay…`) are unchanged.
 
 **Pay saved on the phone** (0.66.0, #187; ADR 0004 "Pay saved on the phone takes a
 payday's place"): for money in, the phone's Category list has Income, then each pay by

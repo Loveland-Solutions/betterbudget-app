@@ -401,50 +401,51 @@ class WordsMn extends Words {
   String get ledgerAddBankAccountFirst => 'Эхлээд банкны данс нэмнэ үү';
 
   @override
-  String get ledgerPayStopped => 'Цалин зогслоо';
+  String get ledgerPayStopped => 'Тогтмол орлого зогслоо';
 
   @override
   String get ledgerPayStoppedToast =>
-      'Цалин товлогдохоо больсон · өнгөрсөн цалингийн өдрүүд хэвээр үлдэнэ';
+      'Тогтмол орлого товлогдохоо больсон · өнгөрсөн орлого орох өдрүүд хэвээр үлдэнэ';
 
   @override
   String ledgerPayStoppedMoved(int count, String how) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Цалин товлогдохоо больсон · $count ангилал одоо $how',
-      one: 'Цалин товлогдохоо больсон · 1 ангилал одоо $how',
+      other: 'Тогтмол орлого товлогдохоо больсон · $count ангилал одоо $how',
+      one: 'Тогтмол орлого товлогдохоо больсон · 1 ангилал одоо $how',
     );
     return '$_temp0';
   }
 
   @override
-  String get ledgerPaySaved => 'Цалин хадгалагдлаа';
+  String get ledgerPaySaved => 'Тогтмол орлого хадгалагдлаа';
 
   @override
   String ledgerPaySavedNext(String date) {
-    return 'Цалин хадгалагдлаа · дараагийн цалингийн өдөр $date';
+    return 'Тогтмол орлого хадгалагдлаа · дараагийн орлого орох өдөр $date';
   }
 
   @override
-  String get ledgerNoRegularPay => 'Тогтмол цалингүй';
+  String get ledgerNoRegularPay => 'Тогтмол орлогогүй';
 
   @override
-  String get ledgerAskingForPayAgain => 'Цалинг дахин асууна';
+  String get ledgerAskingForPayAgain => 'Тогтмол орлогыг дахин асууна';
 
   @override
   String get ledgerNoRegularPayToast =>
-      'Тогтмол цалингүй · апп цалин асуухгүй · Төсөв хуудасны Орлого хэсгээс өөрчилнө';
+      'Тогтмол орлогогүй · апп үүнийг асуухгүй · Төсөв хуудасны Орлого хэсгээс өөрчилнө';
 
   @override
-  String get ledgerAskForPayAgainToast => 'Төсөөлөл таны цалинг дахин асууна';
+  String get ledgerAskForPayAgainToast =>
+      'Төсөөлөл таны тогтмол орлогыг дахин асууна';
 
   @override
   String get ledgerBudgetByMonth => 'Төсвийг сараар харуулав';
 
   @override
   String ledgerBudgetByPayPeriod(String name) {
-    return 'Төсвийг цалингийн үеэр харуулав · $name';
+    return 'Төсвийг орлогын үеэр харуулав · $name';
   }
 
   @override
@@ -533,7 +534,7 @@ class WordsMn extends Words {
   String get ledgerCouldntChangeAccount => 'Дансыг өөрчилж чадсангүй';
 
   @override
-  String get ledgerCouldntChangePay => 'Цалинг өөрчилж чадсангүй';
+  String get ledgerCouldntChangePay => 'Тогтмол орлогыг өөрчилж чадсангүй';
 
   @override
   String get ledgerCouldntChangeBudgetPeriod =>
@@ -920,7 +921,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get ledgerYourPay => 'Таны цалин';
+  String get ledgerYourPay => 'Таны тогтмол орлого';
 
   @override
   String ledgerReconciles(int count) {
@@ -1046,7 +1047,7 @@ class WordsMn extends Words {
   String get ledgerDbNotSingleCategory => 'Нэг ангилалтай гүйлгээ биш';
 
   @override
-  String get ledgerDbPayIsIn => 'Цалин бол орж ирэх мөнгө';
+  String get ledgerDbPayIsIn => 'Тогтмол орлого бол орж ирэх мөнгө';
 
   @override
   String get ledgerDbNotCategory => 'Ангилал биш';
@@ -1212,7 +1213,7 @@ class WordsMn extends Words {
 
   @override
   String planUntilPaycheck(String date) {
-    return 'Цалингийн өдөр $date хүртэл';
+    return 'Орлого орох өдөр $date хүртэл';
   }
 
   @override
@@ -1222,12 +1223,12 @@ class WordsMn extends Words {
 
   @override
   String planChartPay(String amount) {
-    return '+$amount цалин';
+    return '+$amount орлого';
   }
 
   @override
   String planLowestAfterPay(String amount, String date) {
-    return 'Доод үлдэгдэл $amount · $date, цалингийн дараа';
+    return 'Доод үлдэгдэл $amount · $date, орлого орсны дараа';
   }
 
   @override
@@ -1276,7 +1277,7 @@ class WordsMn extends Words {
   String get planSpanTip => 'Төсөөлөл хэр хол харахыг сонгоно';
 
   @override
-  String get planAddPay => ' · цалингийн өдөр алга · Цалингаа нэмэх →';
+  String get planAddPay => ' · орлого орох өдөр алга · Тогтмол орлогоо нэмэх →';
 
   @override
   String planUntilDate(String date) {
@@ -1312,7 +1313,7 @@ class WordsMn extends Words {
 
   @override
   String get setupAddPayTip =>
-      'Цалингаа тохируулах: хэд, хэр давтамжтай, аль данс руу орохыг';
+      'Тогтмол орлогоо тохируулах: хэд, хэр давтамжтай, аль данс руу орохыг';
 
   @override
   String planIncomeExpected(String received, String expected) {
@@ -1349,48 +1350,48 @@ class WordsMn extends Words {
   String get planShowInMenus => 'Цэсэнд харуулах';
 
   @override
-  String get planPaydayNoRegular => 'Тогтмол цалингүй';
+  String get planPaydayNoRegular => 'Тогтмол орлогогүй';
 
   @override
-  String get planPaydayNotSetUp => 'Цалин тохируулаагүй';
+  String get planPaydayNotSetUp => 'Тогтмол орлого тохируулаагүй';
 
   @override
   String planMorePay(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'өөр $count цалин',
+      other: 'өөр $count',
     );
     return ' · $_temp0';
   }
 
   @override
   String get planRaiseSplit =>
-      'Сүүлийн 6 цалин бүгд тооцоолсон дүнгээс 5%-иас их орсон · нэмэх үү?';
+      'Сүүлийн 6 удаа бүгд тооцоолсон дүнгээс 5%-иас их орсон · нэмэх үү?';
 
   @override
   String planRaiseLowest(String amount) {
-    return 'Сүүлийн 6 цалингийн доод дүн $amount · тооцоолсон дүнг нэмэх үү?';
+    return 'Сүүлийн 6 удаагийн доод дүн $amount · тооцоолсон дүнг нэмэх үү?';
   }
 
   @override
   String planLastTwoLess(String amount) {
-    return 'Сүүлийн 2 цалин $amount орсон, төлөвлөснөөс бага · шинэчлэх үү?';
+    return 'Сүүлийн 2 удаа $amount орсон, төлөвлөснөөс бага · шинэчлэх үү?';
   }
 
   @override
   String planLastTwoMore(String amount) {
-    return 'Сүүлийн 2 цалин $amount орсон · дүнг шинэчлэх үү?';
+    return 'Сүүлийн 2 удаа $amount орсон · дүнг шинэчлэх үү?';
   }
 
   @override
   String planPaydayPay(String pay) {
-    return 'Цалин: $pay';
+    return 'Тогтмол орлого: $pay';
   }
 
   @override
   String planPaydayPayNext(String pay, String date) {
-    return 'Цалин: $pay · дараагийн $date';
+    return 'Тогтмол орлого: $pay · дараагийн $date';
   }
 
   @override
@@ -1996,7 +1997,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get rowsIncomePaycheck => 'Орлого · цалин';
+  String get rowsIncomePaycheck => 'Орлого · тогтмол орлого';
 
   @override
   String get rowsTabUncategorized => 'Ангилаагүй';
@@ -2750,11 +2751,11 @@ class WordsMn extends Words {
 
   @override
   String get setupAmountMissingFirst =>
-      'Эхний цалингийн өдөр орох дүнг оруулна уу';
+      'Эхний орлого орох өдөр орох дүнг оруулна уу';
 
   @override
   String get setupAmountMissingSecond =>
-      'Хоёр дахь цалингийн өдөр орох дүнг оруулна уу';
+      'Хоёр дахь орлого орох өдөр орох дүнг оруулна уу';
 
   @override
   String setupOnDay(String day) {
@@ -2792,14 +2793,14 @@ class WordsMn extends Words {
 
   @override
   String setupWhenPayday(String example) {
-    return 'Цалингийн өдөр хэзээ вэ? ($example)';
+    return 'Орлого хэзээ ордог вэ? ($example)';
   }
 
   @override
-  String get setupAddYourPay => 'Цалингаа нэмэх';
+  String get setupAddYourPay => 'Тогтмол орлогоо нэмэх';
 
   @override
-  String get setupYourPay => 'Таны цалин';
+  String get setupYourPay => 'Таны тогтмол орлого';
 
   @override
   String get setupPaidInto => 'Орох данс';
@@ -2808,13 +2809,13 @@ class WordsMn extends Words {
   String get setupFrom => 'Хэнээс';
 
   @override
-  String get setupEmployerHint => 'Ажил олгогч (заавал биш)';
+  String get setupEmployerHint => 'Хаанаас ордог (заавал биш)';
 
   @override
-  String get setupNameHint => 'Жени, эсвэл Жеффийн ажил';
+  String get setupNameHint => 'Жений ажил, эсвэл тэтгэвэр';
 
   @override
-  String get setupPayIs => 'Цалин';
+  String get setupPayIs => 'Дүн нь';
 
   @override
   String get setupPaySame => 'Ихэвчлэн ижил';
@@ -2824,23 +2825,23 @@ class WordsMn extends Words {
 
   @override
   String get setupVariesHint =>
-      'Цагаар, ээлжээр, илүү цаг: удаа бүр өөр. Урамшууллыг оруулахгүй; тэр цалин бүрт ирдэггүй.';
+      'Цагаар, ээлжээр, борлуулалтаар: удаа бүр өөр. Урамшуулал шиг удаа бүр ирдэггүй нэмэлтийг оруулахгүй.';
 
   @override
   String get setupExpectAtLeast => 'Багадаа';
 
   @override
-  String get setupEachPayday => 'Цалин бүрт';
+  String get setupEachPayday => 'Удаа бүр';
 
   @override
-  String get setupSameEachPaycheck => 'Цалин бүр ижил';
+  String get setupSameEachPaycheck => 'Удаа бүр ижил';
 
   @override
-  String get setupDifferentEachPaycheck => 'Цалин бүр өөр дүн';
+  String get setupDifferentEachPaycheck => 'Удаа бүр өөр дүн';
 
   @override
   String setupLastPaycheck(String amount) {
-    return 'Сүүлийн цалин: $amount';
+    return 'Сүүлд орсон нь: $amount';
   }
 
   @override
@@ -2850,11 +2851,11 @@ class WordsMn extends Words {
 
   @override
   String get setupLowEndSafer =>
-      'Төсөөлөл үүнд тулгуурладаг тул бага дүн нь илүү найдвартай: цалингийн өдөр их орж ирэх нь дутуу орохоос дээр.';
+      'Төсөөлөл үүнд тулгуурладаг тул бага дүн нь илүү найдвартай: орлого орох өдөр их орж ирэх нь дутуу орохоос дээр.';
 
   @override
   String setupHigherThan(int above, int count) {
-    return 'Сүүлийн $count цалингийн $above нь үүнээс бага: төсөөлөл бодит байдлаас сайн харагдаж магадгүй.';
+    return 'Сүүлийн $count удаагийн $above нь үүнээс бага: төсөөлөл бодит байдлаас сайн харагдаж магадгүй.';
   }
 
   @override
@@ -2891,7 +2892,7 @@ class WordsMn extends Words {
 
   @override
   String get setupDaysMeet =>
-      'Богино сард хоёр өдөр хоёулаа сарын сүүлийн өдөрт таарна: тэр сард цалин хоёр биш, нэг удаа орно.';
+      'Богино сард хоёр өдөр хоёулаа сарын сүүлийн өдөрт таарна: тэр сард орлого хоёр биш, нэг удаа орно.';
 
   @override
   String get setupOnWeekend => 'Амралтын өдөр';
@@ -2910,22 +2911,22 @@ class WordsMn extends Words {
 
   @override
   String setupPaydaysAYear(int count) {
-    return 'Жилд $count цалин: жилийн хоёр сард гурван цалин орно.';
+    return 'Жилд $count удаа орно: жилийн хоёр сард гурван удаа орно.';
   }
 
   @override
   String setupNextPayday(String date, String amount) {
-    return 'Дараагийн цалин $date · $amount';
+    return 'Дараагийн орлого $date · $amount';
   }
 
   @override
   String setupNextPaydayOrMore(String date, String amount) {
-    return 'Дараагийн цалин $date · багадаа $amount';
+    return 'Дараагийн орлого $date · багадаа $amount';
   }
 
   @override
   String setupNextPaydayMonthly(String date, String amount, String perMonth) {
-    return 'Дараагийн цалин $date · $amount · сард ойролцоогоор $perMonth';
+    return 'Дараагийн орлого $date · $amount · сард ойролцоогоор $perMonth';
   }
 
   @override
@@ -2934,36 +2935,36 @@ class WordsMn extends Words {
     String amount,
     String perMonth,
   ) {
-    return 'Дараагийн цалин $date · багадаа $amount · сард ойролцоогоор $perMonth';
+    return 'Дараагийн орлого $date · багадаа $amount · сард ойролцоогоор $perMonth';
   }
 
   @override
   String get setupNameMissing =>
-      'Энэ цалинд нэр өгнө үү, жишээ нь Жени эсвэл Жеффийн ажил.';
+      'Нэр өгнө үү, жишээ нь Жений ажил эсвэл Хүүхдийн тэтгэлэг.';
 
   @override
   String get setupNoSetDay => 'Тогтсон өдөргүй';
 
   @override
   String get setupNoSetDayMeans =>
-      'Тогтсон өдөргүй бол төсөөлөл үүнийг хүлээхгүй. Цалин орж ирэхэд Орлого-д ангилна уу.';
+      'Тогтсон өдөргүй бол төсөөлөл үүнийг хүлээхгүй. Орж ирэхэд нь Орлого-д ангилна уу.';
 
   @override
-  String get setupNoRegularPay => 'Надад тогтмол цалин байхгүй';
+  String get setupNoRegularPay => 'Надад тогтмол орлого байхгүй';
 
   @override
-  String get setupStopPay => 'Цалин товлохоо болих';
+  String get setupStopPay => 'Энэ орлогыг товлохоо болих';
 
   @override
-  String get stopPayTitle => 'Энэ цалинг зогсоох уу?';
+  String get stopPayTitle => 'Энэ тогтмол орлогыг зогсоох уу?';
 
   @override
   String stopPayPerIt(int count, String names) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count ангилал энэ цалингаар төсөвлөгдсөн: $names',
-      one: '1 ангилал энэ цалингаар төсөвлөгдсөн: $names',
+      other: '$count ангилал энэ орлогоор төсөвлөгдсөн: $names',
+      one: '1 ангилал энэ орлогоор төсөвлөгдсөн: $names',
     );
     return '$_temp0';
   }
@@ -2973,15 +2974,15 @@ class WordsMn extends Words {
 
   @override
   String stopPayBillsMonthly(String names) {
-    return 'Цалин бүрийн төлбөр дараагийн цалингийн өдрөөс сар бүр ирнэ: $names.';
+    return 'Орлого орох бүрийн төлбөр дараагийн орлого орох өдрөөс сар бүр ирнэ: $names.';
   }
 
   @override
-  String get setupSavePay => 'Цалин хадгалах';
+  String get setupSavePay => 'Хадгалах';
 
   @override
   String setupNameArchived(String name) {
-    return '$name (архивласан · буцаатал цалин орохгүй)';
+    return '$name (архивласан · буцаатал орлого орохгүй)';
   }
 
   @override
@@ -2990,7 +2991,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get setupPay => 'Цалин';
+  String get setupPay => 'Тогтмол орлого';
 
   @override
   String setupPayLine(String category, String amounts, String account) {
@@ -3002,13 +3003,13 @@ class WordsMn extends Words {
 
   @override
   String get setupSaidNoPay =>
-      'Та тогтмол цалингүй гэж хэлсэн тул төсөөлөл цалин асуухгүй.';
+      'Та тогтмол орлогогүй гэж хэлсэн тул төсөөлөл үүнийг асуухгүй.';
 
   @override
   String get setupAskAgain => 'Дахин асуух';
 
   @override
-  String get setupAddOtherPay => 'Өөр цалин нэмэх';
+  String get setupAddOtherPay => 'Өөр тогтмол орлого нэмэх';
 
   @override
   String get startKeyFileName => 'BetterBudget сэргээх түлхүүр.txt';
@@ -3354,7 +3355,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get startThisPayPeriod => 'Энэ цалингийн үе';
+  String get startThisPayPeriod => 'Энэ орлогын үе';
 
   @override
   String get startThisMonth => 'Энэ сар';
@@ -3828,13 +3829,13 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planPayPeriod => 'Цалингийн үе';
+  String get planPayPeriod => 'Орлогын үе';
 
   @override
   String get planViewMonth => 'Сар';
 
   @override
-  String get planViewTip => 'Сараар, эсвэл нэг цалингийн үеэр харах';
+  String get planViewTip => 'Сараар, эсвэл нэг тогтмол орлогын үеэр харах';
 
   @override
   String planPeriodTitle(String name, String start, String end) {
@@ -4271,7 +4272,7 @@ class WordsMn extends Words {
 
   @override
   String planEachPay(String amount) {
-    return 'цалингийн үе бүрт $amount';
+    return 'орлогын үе бүрт $amount';
   }
 
   @override
@@ -4281,7 +4282,7 @@ class WordsMn extends Words {
 
   @override
   String planThisPay(String amount) {
-    return 'энэ цалингийн үед $amount';
+    return 'энэ орлогын үед $amount';
   }
 
   @override
@@ -4291,7 +4292,7 @@ class WordsMn extends Words {
 
   @override
   String planEachPayOf(String amount, String name) {
-    return 'цалингийн үе бүрт $amount · $name';
+    return 'орлогын үе бүрт $amount · $name';
   }
 
   @override
@@ -4301,7 +4302,7 @@ class WordsMn extends Words {
 
   @override
   String planAboutThisPay(String amount) {
-    return 'энэ цалингийн үед ойролцоогоор $amount';
+    return 'энэ орлогын үед ойролцоогоор $amount';
   }
 
   @override
@@ -4463,7 +4464,7 @@ class WordsMn extends Words {
 
   @override
   String planWentBackPay(String amount) {
-    return 'өмнөх цалингийн үеэс үлдсэн $amount хуваарилаагүй мөнгө рүү буцсан';
+    return 'өмнөх орлогын үеэс үлдсэн $amount хуваарилаагүй мөнгө рүү буцсан';
   }
 
   @override
@@ -4588,7 +4589,7 @@ class WordsMn extends Words {
 
   @override
   String get planDueNoMeansPay =>
-      'Цалингийн үе бүр зарцуулдаг тогтмол дүн, жишээ нь хүнс.';
+      'Орлогын үе бүр зарцуулдаг тогтмол дүн, жишээ нь хүнс.';
 
   @override
   String get planDueYesMeans =>
@@ -4604,7 +4605,7 @@ class WordsMn extends Words {
   String get planSetAsideMonth => 'Сар бүр хуваарилах';
 
   @override
-  String get planSetAsidePay => 'Цалингийн үе бүрт хуваарилах';
+  String get planSetAsidePay => 'Орлогын үе бүрт хуваарилах';
 
   @override
   String get planNothingSet => 'тогтоогоогүй';
@@ -4615,7 +4616,7 @@ class WordsMn extends Words {
 
   @override
   String get planEmptyHintPay =>
-      'Хоосон үлдээвэл хэдийг хуваарилахаа цалингийн үе бүрт өөрөө шийднэ.';
+      'Хоосон үлдээвэл хэдийг хуваарилахаа орлогын үе бүрт өөрөө шийднэ.';
 
   @override
   String get planLeftMonthEnd => 'Сарын эцэст үлдсэн нь';
@@ -4674,19 +4675,19 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planEveryPayday => 'Цалин бүрт';
+  String get planEveryPayday => 'Орлого орох бүрт';
 
   @override
   String planEveryPaydayOf(String name) {
-    return 'Цалин бүрт · $name';
+    return 'Орлого орох бүрт · $name';
   }
 
   @override
-  String get planEveryPayPeriod => 'Цалингийн үе бүрт';
+  String get planEveryPayPeriod => 'Орлогын үе бүрт';
 
   @override
   String planEveryPayPeriodOf(String name) {
-    return 'Цалингийн үе бүрт · $name';
+    return 'Орлогын үе бүрт · $name';
   }
 
   @override
@@ -4788,10 +4789,10 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planDaysAfterPay => 'хоногийн дараа, цалингийн өдрөөс';
+  String get planDaysAfterPay => 'хоногийн дараа, орлого орох өдрөөс';
 
   @override
-  String get planOnPayday => 'цалингийн өдөр';
+  String get planOnPayday => 'орлого орох өдөр';
 
   @override
   String get planWeekendKeep => 'Тэр өдөртөө';
@@ -4892,7 +4893,7 @@ class WordsMn extends Words {
 
   @override
   String rowsNewCategoryRefundNote(String category) {
-    return 'Орсон мөнгө $category ангилалд буцаалт болж тооцогдоно. Цалин бол Орлого-г сонгоно.';
+    return 'Орсон мөнгө $category ангилалд буцаалт болж тооцогдоно. Орлого бол Орлого-г сонгоно.';
   }
 
   @override
@@ -4965,7 +4966,7 @@ class WordsMn extends Words {
   String get setupStepAccounts => 'Дансууд';
 
   @override
-  String get setupStepPay => 'Цалин';
+  String get setupStepPay => 'Орлого';
 
   @override
   String get setupContinue => 'Үргэлжлүүлэх';
@@ -4975,14 +4976,14 @@ class WordsMn extends Words {
 
   @override
   String get setupPayArrives =>
-      'Дансанд орж ирдэг дүн буюу гар дээр авдаг цалин; татвар, НДШ суутгахаас өмнөх цалин биш. Банк дараа нь татдаг зээлийн төлбөр бол тусдаа төлбөр.';
+      'Дансанд орж ирдэг дүн; татвар, НДШ суутгахаас өмнөх дүн биш. Банк дараа нь татдаг зээлийн төлбөр бол тусдаа төлбөр.';
 
   @override
   String get setupPayNeedsAccount =>
-      'Цалин банкны данс эсвэл бэлэн мөнгөний дансанд орно. Цалингаа тохируулахын тулд «Дансууд» алхамд нэгийг нэмээрэй.';
+      'Орлого банкны данс эсвэл бэлэн мөнгөний дансанд орно. Тогтмол орлогоо тохируулахын тулд «Дансууд» алхамд нэгийг нэмээрэй.';
 
   @override
-  String get setupNoRegularPayLine => 'Тогтмол цалингүй';
+  String get setupNoRegularPayLine => 'Тогтмол орлогогүй';
 
   @override
   String phoneLeftIn(String month) {
@@ -6190,7 +6191,7 @@ class WordsMn extends Words {
 
   @override
   String planOncePay(String date) {
-    return 'Зөвхөн нэг цалингийн үед · $date';
+    return 'Зөвхөн нэг орлогын үед · $date';
   }
 
   @override
@@ -6199,7 +6200,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planSkipPay => 'Энэ цалингийн үеийг алгасах';
+  String get planSkipPay => 'Энэ орлогын үеийг алгасах';
 
   @override
   String planOnceBackMonth(String amount, String next) {
@@ -6218,7 +6219,7 @@ class WordsMn extends Words {
 
   @override
   String planOnceSkippedPay(String amount, String date) {
-    return 'Тэр цалингийн үед юу ч хуваарилахгүй. $date-с дахин $amount болно.';
+    return 'Тэр орлогын үед юу ч хуваарилахгүй. $date-с дахин $amount болно.';
   }
 
   @override
@@ -6228,7 +6229,7 @@ class WordsMn extends Words {
 
   @override
   String planOncePayLine(String amount, String usual) {
-    return 'зөвхөн энэ цалингийн үед $amount, дараа нь цалингийн үе бүрт $usual';
+    return 'зөвхөн энэ орлогын үед $amount, дараа нь орлогын үе бүрт $usual';
   }
 
   @override
@@ -6238,7 +6239,7 @@ class WordsMn extends Words {
 
   @override
   String planSkippedPay(String usual) {
-    return 'энэ цалингийн үеийг алгассан, дараа нь цалингийн үе бүрт $usual';
+    return 'энэ орлогын үеийг алгассан, дараа нь орлогын үе бүрт $usual';
   }
 
   @override
@@ -6262,7 +6263,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planClearPay => 'Энэ цалингийн үеийн хуваарилсныг цэвэрлэх';
+  String get planClearPay => 'Энэ орлогын үеийн хуваарилсныг цэвэрлэх';
 
   @override
   String planClearMonthTitle(String month) {
@@ -6270,8 +6271,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planClearPayTitle =>
-      'Энэ цалингийн үеийн хуваарилсныг цэвэрлэх үү?';
+  String get planClearPayTitle => 'Энэ орлогын үеийн хуваарилсныг цэвэрлэх үү?';
 
   @override
   String planClearBody(String amount, int count) {
@@ -6290,7 +6290,7 @@ class WordsMn extends Words {
 
   @override
   String get planClearShortPay =>
-      'Зарцуулсан нь хэвээр тул эдгээр нь энэ цалингийн үеийг дутагдалтай дуусгана:';
+      'Зарцуулсан нь хэвээр тул эдгээр нь энэ орлогын үеийг дутагдалтай дуусгана:';
 
   @override
   String planClearMore(int count) {
@@ -6307,7 +6307,7 @@ class WordsMn extends Words {
 
   @override
   String planClearedPay(String amount) {
-    return 'Энэ цалингийн үеийн хуваарилсныг цэвэрлэлээ · $amount';
+    return 'Энэ орлогын үеийн хуваарилсныг цэвэрлэлээ · $amount';
   }
 
   @override
@@ -6317,7 +6317,7 @@ class WordsMn extends Words {
 
   @override
   String planOnceCappedPay(String cap, String amount) {
-    return 'Дээд хэмжээ $cap тул тэр цалингийн үед $amount л хуваарилна.';
+    return 'Дээд хэмжээ $cap тул тэр орлогын үед $amount л хуваарилна.';
   }
 
   @override
@@ -6340,7 +6340,7 @@ class WordsMn extends Words {
 
   @override
   String planClearLaterPay(String amount) {
-    return 'Энэ цалингийн үед шилжсэн нь мөн хасагдана: ангиллууд $amount-өөр бага үлдэгдэлтэй дуусгана.';
+    return 'Энэ орлогын үед шилжсэн нь мөн хасагдана: ангиллууд $amount-өөр бага үлдэгдэлтэй дуусгана.';
   }
 
   @override
@@ -6363,7 +6363,7 @@ class WordsMn extends Words {
 
   @override
   String planClearPayIn(String code) {
-    return 'Энэ цалингийн үеийн $code хуваарилсныг цэвэрлэх';
+    return 'Энэ орлогын үеийн $code хуваарилсныг цэвэрлэх';
   }
 
   @override
@@ -6761,7 +6761,7 @@ class WordsMn extends Words {
 
   @override
   String planFitOverPay(String amount) {
-    return 'Энэ цалингийн үеийн төлөвлөгөө орлогоосоо илүү байна: $amount';
+    return 'Энэ орлогын үеийн төлөвлөгөө орлогоосоо илүү байна: $amount';
   }
 
   @override
@@ -6771,7 +6771,7 @@ class WordsMn extends Words {
 
   @override
   String planFitSparePay(String amount) {
-    return 'Энэ цалингийн үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: $amount';
+    return 'Энэ орлогын үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: $amount';
   }
 
   @override
@@ -6781,7 +6781,7 @@ class WordsMn extends Words {
 
   @override
   String get planFitEvenPay =>
-      'Энэ цалингийн үеийн төлөвлөгөө орлоготой яг тэнцүү';
+      'Энэ орлогын үеийн төлөвлөгөө орлоготой яг тэнцүү';
 
   @override
   String get planFitSpent => 'Одоогоор зарцуулсан';
@@ -6802,17 +6802,17 @@ class WordsMn extends Words {
 
   @override
   String planFitOverPayThen(String amount) {
-    return 'Тэр цалингийн үеийн төлөвлөгөө орлогоосоо илүү байна: $amount';
+    return 'Тэр орлогын үеийн төлөвлөгөө орлогоосоо илүү байна: $amount';
   }
 
   @override
   String planFitSparePayThen(String amount) {
-    return 'Тэр цалингийн үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: $amount';
+    return 'Тэр орлогын үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: $amount';
   }
 
   @override
   String get planFitEvenPayThen =>
-      'Тэр цалингийн үеийн төлөвлөгөө орлоготой яг тэнцүү';
+      'Тэр орлогын үеийн төлөвлөгөө орлоготой яг тэнцүү';
 
   @override
   String phoneCategoryTakenMeanwhile(String name) {
@@ -6836,12 +6836,12 @@ class WordsMn extends Words {
 
   @override
   String ledgerPhoneBillPayGone(String name, String amount) {
-    return '$name $amount-ийн төлбөргүй орж ирлээ: түүний тохируулсан цалингийн өдрийг энэ компьютер дээр устгасан';
+    return '$name $amount-ийн төлбөргүй орж ирлээ: түүний тохируулсан орлого орох өдрийг энэ компьютер дээр устгасан';
   }
 
   @override
   String ledgerPhoneAmountPayGone(String name, String amount) {
-    return '$name $amount дүнгүй орж ирлээ: түүний тохируулсан цалингийн өдрийг энэ компьютер дээр устгасан';
+    return '$name $amount дүнгүй орж ирлээ: түүний тохируулсан орлого орох өдрийг энэ компьютер дээр устгасан';
   }
 
   @override

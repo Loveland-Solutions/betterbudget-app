@@ -634,15 +634,15 @@
   "@ledgerAddBankAccountFirst": {
     "description": "Toast when pay setup is opened with no bank account."
   },
-  "ledgerPayStopped": "Pay stopped",
+  "ledgerPayStopped": "Regular income stopped",
   "@ledgerPayStopped": {
     "description": "Undo-menu label after a pay schedule is stopped."
   },
-  "ledgerPayStoppedToast": "Pay no longer scheduled · paydays already past stay",
+  "ledgerPayStoppedToast": "Regular income no longer scheduled · paydays already past stay",
   "@ledgerPayStoppedToast": {
     "description": "Toast after a pay schedule is stopped."
   },
-  "ledgerPayStoppedMoved": "{count, plural, =1{Pay no longer scheduled · 1 category now {how}} other{Pay no longer scheduled · {count} categories now {how}}}",
+  "ledgerPayStoppedMoved": "{count, plural, =1{Regular income no longer scheduled · 1 category now {how}} other{Regular income no longer scheduled · {count} categories now {how}}}",
   "@ledgerPayStoppedMoved": {
     "description": "Toast after stopping a pay and moving the categories per it. how is \"Every month\" or \"Every pay period · Jenny\".",
     "placeholders": {
@@ -654,11 +654,11 @@
       }
     }
   },
-  "ledgerPaySaved": "Pay saved",
+  "ledgerPaySaved": "Regular income saved",
   "@ledgerPaySaved": {
     "description": "Toast and undo-menu label after a pay schedule is saved."
   },
-  "ledgerPaySavedNext": "Pay saved · next payday {date}",
+  "ledgerPaySavedNext": "Regular income saved · next payday {date}",
   "@ledgerPaySavedNext": {
     "description": "Toast after a pay schedule is saved. date is a full date.",
     "placeholders": {
@@ -667,19 +667,19 @@
       }
     }
   },
-  "ledgerNoRegularPay": "No regular pay",
+  "ledgerNoRegularPay": "No regular income",
   "@ledgerNoRegularPay": {
     "description": "Undo-menu label after \"I don’t have regular pay\" is chosen."
   },
-  "ledgerAskingForPayAgain": "Asking for pay again",
+  "ledgerAskingForPayAgain": "Asking for regular income again",
   "@ledgerAskingForPayAgain": {
     "description": "Undo-menu label after Settings → \"ask again\" for pay."
   },
-  "ledgerNoRegularPayToast": "No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this",
+  "ledgerNoRegularPayToast": "No regular income · the app won’t ask for it · the Budget page’s Income tab changes this",
   "@ledgerNoRegularPayToast": {
     "description": "Toast after \"I don’t have regular pay\" is chosen."
   },
-  "ledgerAskForPayAgainToast": "The forecast will ask for your pay again",
+  "ledgerAskForPayAgainToast": "The forecast will ask for your regular income again",
   "@ledgerAskForPayAgainToast": {
     "description": "Toast after Settings → ask for pay again."
   },
@@ -813,7 +813,7 @@
   "@ledgerCouldntChangeAccount": {
     "description": "Toast when a change to an account failed."
   },
-  "ledgerCouldntChangePay": "Couldn’t change the pay",
+  "ledgerCouldntChangePay": "Couldn’t change the regular income",
   "@ledgerCouldntChangePay": {
     "description": "Toast when saving or stopping pay failed."
   },
@@ -1361,7 +1361,7 @@
       }
     }
   },
-  "ledgerYourPay": "Your pay",
+  "ledgerYourPay": "Your regular income",
   "@ledgerYourPay": {
     "description": "Erase-everything dialog, list of what goes."
   },
@@ -1508,7 +1508,7 @@
   "@ledgerDbNotSingleCategory": {
     "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
   },
-  "ledgerDbPayIsIn": "Pay is money in",
+  "ledgerDbPayIsIn": "Regular income is money in",
   "@ledgerDbPayIsIn": {
     "description": "Toast when a change is refused (rare; usually a row changed in the meantime)."
   },
@@ -1827,7 +1827,7 @@
   "@planNothingBudgeted": {
     "description": "Forecast, under the list when pay is known but nothing is budgeted or scheduled to go out. The owner's wording (2026-09-30)."
   },
-  "planUntilPaycheck": "Until your {date} paycheck",
+  "planUntilPaycheck": "Until your income on {date}",
   "@planUntilPaycheck": {
     "description": "Forecast, small label above it: it runs up to that payday (the paycheck on that day isn't counted).",
     "placeholders": {
@@ -1845,7 +1845,7 @@
       }
     }
   },
-  "planChartPay": "+{amount} pay",
+  "planChartPay": "+{amount} income",
   "@planChartPay": {
     "description": "Forecast chart, label on the step up where the next paycheck lands.",
     "placeholders": {
@@ -1949,7 +1949,7 @@
   "@planSpanTip": {
     "description": "Account header, forecast panel: tooltip on the small title, which is a dropdown of spans (until the paycheck after next, 30, 60 or 90 days, 6 months, a year)"
   },
-  "planAddPay": " · no payday ahead · Add your pay →",
+  "planAddPay": " · no payday ahead · Add your regular income →",
   "@planAddPay": {
     "description": "Account header, forecast panel: gold link after the small title; opens pay setup"
   },
@@ -2005,7 +2005,7 @@
   "@planAddCategory": {
     "description": "Budget page: button, top right"
   },
-  "setupAddPayTip": "Set up a paycheck: how much, how often, and the account it goes into",
+  "setupAddPayTip": "Set up regular income: how much, how often, and the account it goes into",
   "@setupAddPayTip": {
     "description": "Budget page, Income tab: tooltip on the top-right Add your pay / Add other pay button"
   },
@@ -2078,15 +2078,15 @@
   "@planShowInMenus": {
     "description": "Budget page: button on an archived category, un-archives it"
   },
-  "planPaydayNoRegular": "No regular pay",
+  "planPaydayNoRegular": "No regular income",
   "@planPaydayNoRegular": {
     "description": "Budget page: the pay note beside the Income line; the user said there is no regular pay"
   },
-  "planPaydayNotSetUp": "Pay not set up",
+  "planPaydayNotSetUp": "Regular income not set up",
   "@planPaydayNotSetUp": {
     "description": "Budget page: the pay note beside the Income line, gold, when pay is not set up yet"
   },
-  "planMorePay": " · {count, plural, =1{+1 more pay} other{+{count} more pays}}",
+  "planMorePay": " · {count, plural, =1{+1 more} other{+{count} more}}",
   "@planMorePay": {
     "description": "Budget page: added at the end of the pay note when there are more pay schedules",
     "placeholders": {
@@ -2095,7 +2095,7 @@
       }
     }
   },
-  "planRaiseSplit": "Your last 6 pays were each more than 5% over the estimate · raise it?",
+  "planRaiseSplit": "The last 6 times it came, each was more than 5% over the estimate · raise it?",
   "@planRaiseSplit": {
     "description": "Budget page: gold suggestion in the pay note, pay that varies (two amounts a month)"
   },
@@ -2108,7 +2108,7 @@
       }
     }
   },
-  "planLastTwoLess": "Your last 2 pays were {amount}, less than planned · change the amount?",
+  "planLastTwoLess": "The last 2 times it came it was {amount}, less than planned · change the amount?",
   "@planLastTwoLess": {
     "description": "Budget page: gold suggestion in the pay note, the same pay came in lower twice",
     "placeholders": {
@@ -2117,7 +2117,7 @@
       }
     }
   },
-  "planLastTwoMore": "Your last 2 pays were {amount} · change the amount?",
+  "planLastTwoMore": "The last 2 times it came it was {amount} · change the amount?",
   "@planLastTwoMore": {
     "description": "Budget page: gold suggestion in the pay note, the same pay came in different twice",
     "placeholders": {
@@ -2126,7 +2126,7 @@
       }
     }
   },
-  "planPaydayPay": "Pay: {pay}",
+  "planPaydayPay": "Regular income: {pay}",
   "@planPaydayPay": {
     "description": "Budget page: the pay note beside the Income line; pay is the amount and when (e.g. ₮2,100,000 monthly on the 25th)",
     "placeholders": {
@@ -2135,7 +2135,7 @@
       }
     }
   },
-  "planPaydayPayNext": "Pay: {pay} · next {date}",
+  "planPaydayPayNext": "Regular income: {pay} · next {date}",
   "@planPaydayPayNext": {
     "description": "Budget page: the pay note beside the Income line, with the next payday",
     "placeholders": {
@@ -3104,7 +3104,7 @@
       "pay": {}
     }
   },
-  "rowsIncomePaycheck": "Income · paycheck",
+  "rowsIncomePaycheck": "Income · regular income",
   "@rowsIncomePaycheck": {
     "description": "A row's category dropdown and chip: income that is the paycheck of the one pay set up, when it has no name."
   },
@@ -4196,11 +4196,11 @@
   "@setupShowEveryRow": {
     "description": "Tooltip on ✕ of a filter chip on All accounts. Esc is the key."
   },
-  "setupAmountMissing": "Type how much you’re paid",
+  "setupAmountMissing": "Type how much comes in",
   "@setupAmountMissing": {
     "description": "Pay setup, note by Save when the amount is empty."
   },
-  "setupAmountMissingOn": "Type how much you’re paid on the {day}",
+  "setupAmountMissingOn": "Type how much comes in on the {day}",
   "@setupAmountMissingOn": {
     "description": "Pay setup (twice a month, different amounts), note when one amount is empty. day is startDayOn: English \"10th\", Mongolian \"10-нд\".",
     "placeholders": {
@@ -4209,11 +4209,11 @@
       }
     }
   },
-  "setupAmountMissingFirst": "Type how much you’re paid on the first payday",
+  "setupAmountMissingFirst": "Type how much comes in on the first payday",
   "@setupAmountMissingFirst": {
     "description": "Pay setup (twice a month, different amounts), note before the days are typed."
   },
-  "setupAmountMissingSecond": "Type how much you’re paid on the second payday",
+  "setupAmountMissingSecond": "Type how much comes in on the second payday",
   "@setupAmountMissingSecond": {
     "description": "Pay setup (twice a month, different amounts), note before the days are typed."
   },
@@ -4276,11 +4276,11 @@
       }
     }
   },
-  "setupAddYourPay": "Add your pay",
+  "setupAddYourPay": "Add your regular income",
   "@setupAddYourPay": {
     "description": "Pay setup dialog title for new pay; the Budget page's Income tab button when there is no pay yet."
   },
-  "setupYourPay": "Your pay",
+  "setupYourPay": "Your regular income",
   "@setupYourPay": {
     "description": "Pay setup dialog title when editing pay."
   },
@@ -4292,15 +4292,15 @@
   "@setupFrom": {
     "description": "Pay setup, label beside the employer field. Short."
   },
-  "setupEmployerHint": "Employer (optional)",
+  "setupEmployerHint": "Who it’s from (optional)",
   "@setupEmployerHint": {
     "description": "Pay setup, hint in the empty employer field."
   },
-  "setupNameHint": "Jenny, or Jeff’s job",
+  "setupNameHint": "Jenny’s job, or Child support",
   "@setupNameHint": {
     "description": "Pay setup, hint in the empty name field."
   },
-  "setupPayIs": "Pay is",
+  "setupPayIs": "The amount is",
   "@setupPayIs": {
     "description": "Pay setup, label beside \"About the same each time\" / \"It varies\". Short."
   },
@@ -4312,7 +4312,7 @@
   "@setupPayVaries": {
     "description": "Pay setup, choice: the amount changes each time."
   },
-  "setupVariesHint": "Hourly, shifts, overtime: it changes each time. Leave bonuses out; they aren’t every payday.",
+  "setupVariesHint": "Hourly work, shifts, sales: it changes each time. Leave out extras that don’t come every time, like bonuses.",
   "@setupVariesHint": {
     "description": "Pay setup, note under \"It varies\"."
   },
@@ -4324,15 +4324,15 @@
   "@setupEachPayday": {
     "description": "Pay setup, label beside the amount. Short."
   },
-  "setupSameEachPaycheck": "The same each paycheck",
+  "setupSameEachPaycheck": "The same each time",
   "@setupSameEachPaycheck": {
     "description": "Pay setup (twice a month), choice: one amount both days."
   },
-  "setupDifferentEachPaycheck": "A different amount each paycheck",
+  "setupDifferentEachPaycheck": "A different amount each time",
   "@setupDifferentEachPaycheck": {
     "description": "Pay setup (twice a month), choice: an advance one day, the rest the other."
   },
-  "setupLastPaycheck": "Your last paycheck: {amount}",
+  "setupLastPaycheck": "The last time it came: {amount}",
   "@setupLastPaycheck": {
     "description": "Pay setup, note: the one paycheck found in the ledger.",
     "placeholders": {
@@ -4360,7 +4360,7 @@
   "@setupLowEndSafer": {
     "description": "Pay setup, note when pay varies."
   },
-  "setupHigherThan": "Higher than {above} of your last {count} paychecks: the forecast may look better than it’ll be.",
+  "setupHigherThan": "Higher than {above} of the last {count} times it came: the forecast may look better than it’ll be.",
   "@setupHigherThan": {
     "description": "Pay setup, amber warning when the typed amount is above some recent paychecks.",
     "placeholders": {
@@ -4511,7 +4511,7 @@
       }
     }
   },
-  "setupNameMissing": "Give this pay a name, like Jenny or Jeff’s job.",
+  "setupNameMissing": "Give it a name, like Jenny’s job or Child support.",
   "@setupNameMissing": {
     "description": "Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name."
   },
@@ -4519,23 +4519,23 @@
   "@setupNoSetDay": {
     "description": "Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”."
   },
-  "setupNoSetDayMeans": "With no set day, the forecast doesn’t expect it. When pay comes, file it under Income.",
+  "setupNoSetDayMeans": "With no set day, the forecast doesn’t expect it. When it comes, file it under Income.",
   "@setupNoSetDayMeans": {
     "description": "Pay setup, under the form when When is No set day: what saving it does."
   },
-  "setupNoRegularPay": "I don’t have regular pay",
+  "setupNoRegularPay": "I don’t have regular income",
   "@setupNoRegularPay": {
     "description": "Pay setup, button: self-employed or between jobs; stops asking for pay."
   },
-  "setupStopPay": "Stop scheduling pay",
+  "setupStopPay": "Stop scheduling this income",
   "@setupStopPay": {
     "description": "Pay setup (editing), red button that removes the pay schedule."
   },
-  "stopPayTitle": "Stop this pay?",
+  "stopPayTitle": "Stop this regular income?",
   "@stopPayTitle": {
     "description": "Dialog title when stopping a pay that categories are budgeted per. Coral."
   },
-  "stopPayPerIt": "{count, plural, =1{1 category is budgeted per this pay: {names}} other{{count} categories are budgeted per this pay: {names}}}",
+  "stopPayPerIt": "{count, plural, =1{1 category is budgeted per this income: {names}} other{{count} categories are budgeted per this income: {names}}}",
   "@stopPayPerIt": {
     "description": "Stop-pay dialog: which categories have a set amount each of its pay periods or a bill every payday of it. names is a comma list.",
     "placeholders": {
@@ -4560,7 +4560,7 @@
       }
     }
   },
-  "setupSavePay": "Save pay",
+  "setupSavePay": "Save",
   "@setupSavePay": {
     "description": "Pay setup, main button."
   },
@@ -4585,7 +4585,7 @@
       }
     }
   },
-  "setupPay": "Pay",
+  "setupPay": "Regular income",
   "@setupPay": {
     "description": "Was Settings → Budget's label beside the pay list; unused since 2026-10-05 (pay is listed on the Budget page's Income tab)."
   },
@@ -4608,7 +4608,7 @@
   "@setupEdit": {
     "description": "Budget page, Income tab, button beside a pay."
   },
-  "setupSaidNoPay": "You said you don’t have regular pay, so the forecast doesn’t ask for it.",
+  "setupSaidNoPay": "You said you don’t have regular income, so the forecast doesn’t ask for it.",
   "@setupSaidNoPay": {
     "description": "Budget page, Income tab, after \"I don't have regular pay\"."
   },
@@ -4616,7 +4616,7 @@
   "@setupAskAgain": {
     "description": "Budget page, Income tab, button that undoes \"I don't have regular pay\"."
   },
-  "setupAddOtherPay": "Add other pay",
+  "setupAddOtherPay": "Add other regular income",
   "@setupAddOtherPay": {
     "description": "Budget page, Income tab, the add button when some pay is already set up."
   },
@@ -5854,7 +5854,7 @@
   "@planViewMonth": {
     "description": "Budget page, the view dropdown beside the period: by calendar month (the other choices are each pay's name). Short."
   },
-  "planViewTip": "View by month, or by one pay’s periods",
+  "planViewTip": "View by month, or by the periods of one regular income",
   "@planViewTip": {
     "description": "Budget page, tooltip on the view dropdown beside the period."
   },
@@ -7449,7 +7449,7 @@
       }
     }
   },
-  "rowsNewCategoryRefundNote": "Money in counts as a refund to {category}. For pay, pick Income.",
+  "rowsNewCategoryRefundNote": "Money in counts as a refund to {category}. If it’s income, pick Income.",
   "@rowsNewCategoryRefundNote": {
     "description": "Entry row, gold line under the row when the typed category doesn't exist and the amount has a +: the new category will be a spending one, so the money is a refund, not income. {category} is the name typed, like “Nomin”.",
     "placeholders": {
@@ -7545,7 +7545,7 @@
   "@setupStepAccounts": {
     "description": "Setup: the first step’s name in the row of step names across the top."
   },
-  "setupStepPay": "Pay",
+  "setupStepPay": "Income",
   "@setupStepPay": {
     "description": "Setup: the second step’s name in the row of step names across the top. Pay as in a paycheck."
   },
@@ -7557,15 +7557,15 @@
   "@setupBack": {
     "description": "Setup: the button that goes to the step before. Nothing is undone by it."
   },
-  "setupPayArrives": "The amount that lands in the account, not your salary before tax. A loan payment the bank takes afterwards is a bill.",
+  "setupPayArrives": "The amount that lands in the account, not the amount before tax. A loan payment the bank takes afterwards is a bill.",
   "@setupPayArrives": {
     "description": "Setup, Pay step, under the amount of a paycheck: the figure wanted is the deposit as the bank statement shows it, not the salary before tax and social insurance. A loan payment the bank takes after the pay lands is entered later as a bill, so it must not be taken off here."
   },
-  "setupPayNeedsAccount": "Pay goes into a bank account or Cash. Add one on Accounts to set up your pay.",
+  "setupPayNeedsAccount": "Income goes into a bank account or Cash. Add one on Accounts to set up your regular income.",
   "@setupPayNeedsAccount": {
     "description": "Setup, Pay step, when the only accounts are credit cards or loans. “Accounts” is the first step’s name, “Cash” the account Type."
   },
-  "setupNoRegularPayLine": "No regular pay",
+  "setupNoRegularPayLine": "No regular income",
   "@setupNoRegularPayLine": {
     "description": "Setup, Pay step: the one line shown after “I don’t have regular pay” was chosen, with an “Add your pay” button beside it."
   },

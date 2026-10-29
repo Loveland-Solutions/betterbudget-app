@@ -5542,7 +5542,7 @@ void main() {
     // The headline is calm; the line above the title isn't, and the
     // sidebar's dot agrees. Both name the first dip: what it would take
     // to stay above zero that day.
-    expect(find.text('Until your 11.10 paycheck'), findsOneWidget);
+    expect(find.text('Until your income on 11.10'), findsOneWidget);
     expect(find.text('Lowest ₮1,392,250 on 10.01'), findsOneWidget);
     expect(
       find.text('After 11.10: runs out on 11.20 · ₮1,607,750 short'),
@@ -5573,7 +5573,7 @@ void main() {
     final db = await pumpLedger(tester);
     // The demo's salary on 10.10 ends the forecast; the title is the
     // dropdown, and names that choice by the date.
-    expect(find.text('Until your 10.10 paycheck'), findsOneWidget);
+    expect(find.text('Until your income on 10.10'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('forecast-span')));
     await tester.pumpAndSettle();
     expect(
@@ -5602,7 +5602,7 @@ void main() {
       tester,
       find.byKey(const ValueKey('forecast-span-payPeriod')),
     );
-    expect(find.text('Until your 10.10 paycheck'), findsOneWidget);
+    expect(find.text('Until your income on 10.10'), findsOneWidget);
     data = (await tester.runAsync(db.loadLedger))!;
     expect(data.prefs['forecast.span'], 'payPeriod');
     await tidy(tester, db);
@@ -6307,7 +6307,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(
           find.text(
-            '2 categories are budgeted per this pay: Groceries, Housing',
+            '2 categories are budgeted per this income: Groceries, Housing',
           ),
           findsOneWidget,
         );
@@ -6321,7 +6321,7 @@ void main() {
         await settle(tester);
         expect(
           find.text(
-            'Pay no longer scheduled · 2 categories now Every pay period · Jenny',
+            'Regular income no longer scheduled · 2 categories now Every pay period · Jenny',
           ),
           findsOneWidget,
         );
@@ -7993,7 +7993,7 @@ void main() {
       expect(find.text('new category'), findsOneWidget);
       expect(
         find.text(
-          'Money in counts as a refund to Returns. For pay, pick Income.',
+          'Money in counts as a refund to Returns. If it’s income, pick Income.',
         ),
         findsOneWidget,
       );
@@ -8668,7 +8668,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await tester.pumpAndSettle();
-      expect(find.text('Add your pay'), findsOneWidget);
+      expect(find.text('Add your regular income'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('pay-varies')));
       await tester.pumpAndSettle();
       expect(find.text('Expect at least'), findsOneWidget);
@@ -8685,7 +8685,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       // Clicking elsewhere closes the calendar.
-      await tester.tap(find.text('Add your pay'));
+      await tester.tap(find.text('Add your regular income'));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('pay-26')), findsOneWidget);
       expect(
@@ -8700,7 +8700,7 @@ void main() {
         matchesGoldenFile('goldens/pay_setup.png'),
       );
       await tapAndWait(tester, find.byKey(const ValueKey('pay-save')));
-      expect(find.text('Pay saved · next payday 2026.09.25'), findsOneWidget);
+      expect(find.text('Regular income saved · next payday 2026.09.25'), findsOneWidget);
       // The forecast runs through the period that paycheck starts, to the
       // one after it (every 2 weeks: 10.09).
       expect(find.byKey(const ValueKey('add-pay')), findsNothing);
@@ -8790,7 +8790,7 @@ void main() {
         );
       });
       await settle(tester);
-      expect(find.textContaining('paycheck'), findsOneWidget);
+      expect(find.textContaining('Until your income on'), findsOneWidget);
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/forecast_labeled.png'),
@@ -8825,7 +8825,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        find.text('Type how much you’re paid on the 25th'),
+        find.text('Type how much comes in on the 25th'),
         findsOneWidget,
       );
       await tester.enterText(
@@ -8894,7 +8894,7 @@ void main() {
         await tapAndWait(tester, find.byKey(const ValueKey('pay-none')));
         expect(
           find.text(
-            'No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this',
+            'No regular income · the app won’t ask for it · the Budget page’s Income tab changes this',
           ),
           findsOneWidget,
         );
@@ -8950,7 +8950,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
       await tester.pumpAndSettle();
       expect(find.text('Income: ₮2,500,000.00'), findsOneWidget);
-      expect(find.text('Pay not set up'), findsOneWidget);
+      expect(find.text('Regular income not set up'), findsOneWidget);
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/budget_income.png'),

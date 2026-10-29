@@ -309,7 +309,7 @@ void main() {
     final data = await ledger(tester, db);
     final visa = data.openAccounts.singleWhere((a) => a.name == 'Golomt Visa');
     expect(data.balanceOf(visa.id), -64020000);
-    expect(find.text('Your pay'), findsOneWidget);
+    expect(find.text('Your regular income'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -325,7 +325,7 @@ void main() {
     await toPay(tester);
     expect(find.text('“some” isn’t an amount'), findsOneWidget);
     expect(find.text('Your accounts'), findsOneWidget);
-    expect(find.text('Your pay'), findsNothing);
+    expect(find.text('Your regular income'), findsNothing);
     await tidy(tester, db);
   });
 
@@ -342,12 +342,12 @@ void main() {
     await toPay(tester);
     // Quit on the Pay step: that is the step it opens on.
     await open(tester, db);
-    expect(find.text('Your pay'), findsOneWidget);
+    expect(find.text('Your regular income'), findsOneWidget);
     expect(find.text('Your accounts'), findsNothing);
     await press(tester, 'pay-none');
     await tester.tap(find.byKey(const ValueKey('setup-done')));
     await settle(tester);
-    expect(find.text('Your pay'), findsNothing);
+    expect(find.text('Your regular income'), findsNothing);
     expect(find.text('Budget'), findsOneWidget);
     expect((await ledger(tester, db)).prefs[SetupKeys.done], '1');
     await open(tester, db);
@@ -366,9 +366,9 @@ void main() {
     await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
     await add(tester, 'setup-add-cash', 'Wallet', '80,000');
     await toPay(tester);
-    expect(find.text('Your pay'), findsOneWidget);
+    expect(find.text('Your regular income'), findsOneWidget);
     // The page has the heading; the form doesn't say it again.
-    expect(find.text('Add your pay'), findsNothing);
+    expect(find.text('Add your regular income'), findsNothing);
     // The bank, not the wallet, and take-home pay is asked for.
     expect(
       find.descendant(
@@ -469,7 +469,7 @@ void main() {
     await toPay(tester);
     await press(tester, 'pay-none');
     expect((await ledger(tester, db)).prefs['pay.none'], '1');
-    expect(find.text('No regular pay'), findsOneWidget);
+    expect(find.text('No regular income'), findsOneWidget);
     expect(find.text('Undo'), findsNothing);
     expect(find.byKey(const ValueKey('setup-done')), findsOneWidget);
     await expectLater(
@@ -496,7 +496,7 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('pay-amount')), '900,000');
     await tester.pumpAndSettle();
     expect(
-      find.text('Give this pay a name, like Jenny or Jeff’s job.'),
+      find.text('Give it a name, like Jenny’s job or Child support.'),
       findsOneWidget,
     );
     await press(tester, 'pay-save');
@@ -507,7 +507,7 @@ void main() {
     expect(find.byKey(const ValueKey('pay-day1')), findsNothing);
     expect(
       find.text(
-        'With no set day, the forecast doesn’t expect it. When pay comes, '
+        'With no set day, the forecast doesn’t expect it. When it comes, '
         'file it under Income.',
       ),
       findsOneWidget,
@@ -516,7 +516,7 @@ void main() {
     final data = await ledger(tester, db);
     expect(data.paySchedules, isEmpty);
     expect(data.prefs['pay.none'], '1');
-    expect(find.text('No regular pay'), findsOneWidget);
+    expect(find.text('No regular income'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -532,7 +532,7 @@ void main() {
     expect(find.text('TDB Checking'), findsNWidgets(2));
     expect((await ledger(tester, db)).prefs[SetupKeys.step], 'accounts');
     await press(tester, 'setup-step-pay');
-    expect(find.text('Your pay'), findsOneWidget);
+    expect(find.text('Your regular income'), findsOneWidget);
     await press(tester, 'setup-step-accounts');
     expect(find.text('Your accounts'), findsOneWidget);
     // The account undone from the Pay step: back to where one is added.

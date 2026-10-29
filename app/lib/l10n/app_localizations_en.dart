@@ -402,44 +402,44 @@ class WordsEn extends Words {
   String get ledgerAddBankAccountFirst => 'Add a bank account first';
 
   @override
-  String get ledgerPayStopped => 'Pay stopped';
+  String get ledgerPayStopped => 'Regular income stopped';
 
   @override
   String get ledgerPayStoppedToast =>
-      'Pay no longer scheduled · paydays already past stay';
+      'Regular income no longer scheduled · paydays already past stay';
 
   @override
   String ledgerPayStoppedMoved(int count, String how) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Pay no longer scheduled · $count categories now $how',
-      one: 'Pay no longer scheduled · 1 category now $how',
+      other: 'Regular income no longer scheduled · $count categories now $how',
+      one: 'Regular income no longer scheduled · 1 category now $how',
     );
     return '$_temp0';
   }
 
   @override
-  String get ledgerPaySaved => 'Pay saved';
+  String get ledgerPaySaved => 'Regular income saved';
 
   @override
   String ledgerPaySavedNext(String date) {
-    return 'Pay saved · next payday $date';
+    return 'Regular income saved · next payday $date';
   }
 
   @override
-  String get ledgerNoRegularPay => 'No regular pay';
+  String get ledgerNoRegularPay => 'No regular income';
 
   @override
-  String get ledgerAskingForPayAgain => 'Asking for pay again';
+  String get ledgerAskingForPayAgain => 'Asking for regular income again';
 
   @override
   String get ledgerNoRegularPayToast =>
-      'No regular pay · the app won’t ask for it · the Budget page’s Income tab changes this';
+      'No regular income · the app won’t ask for it · the Budget page’s Income tab changes this';
 
   @override
   String get ledgerAskForPayAgainToast =>
-      'The forecast will ask for your pay again';
+      'The forecast will ask for your regular income again';
 
   @override
   String get ledgerBudgetByMonth => 'Budget viewed by month';
@@ -536,7 +536,7 @@ class WordsEn extends Words {
   String get ledgerCouldntChangeAccount => 'Couldn’t change the account';
 
   @override
-  String get ledgerCouldntChangePay => 'Couldn’t change the pay';
+  String get ledgerCouldntChangePay => 'Couldn’t change the regular income';
 
   @override
   String get ledgerCouldntChangeBudgetPeriod =>
@@ -929,7 +929,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get ledgerYourPay => 'Your pay';
+  String get ledgerYourPay => 'Your regular income';
 
   @override
   String ledgerReconciles(int count) {
@@ -1057,7 +1057,7 @@ class WordsEn extends Words {
   String get ledgerDbNotSingleCategory => 'Not a single-category transaction';
 
   @override
-  String get ledgerDbPayIsIn => 'Pay is money in';
+  String get ledgerDbPayIsIn => 'Regular income is money in';
 
   @override
   String get ledgerDbNotCategory => 'Not a category';
@@ -1254,7 +1254,7 @@ class WordsEn extends Words {
 
   @override
   String planUntilPaycheck(String date) {
-    return 'Until your $date paycheck';
+    return 'Until your income on $date';
   }
 
   @override
@@ -1264,7 +1264,7 @@ class WordsEn extends Words {
 
   @override
   String planChartPay(String amount) {
-    return '+$amount pay';
+    return '+$amount income';
   }
 
   @override
@@ -1330,7 +1330,7 @@ class WordsEn extends Words {
   String get planSpanTip => 'How far ahead the forecast looks';
 
   @override
-  String get planAddPay => ' · no payday ahead · Add your pay →';
+  String get planAddPay => ' · no payday ahead · Add your regular income →';
 
   @override
   String planUntilDate(String date) {
@@ -1366,7 +1366,7 @@ class WordsEn extends Words {
 
   @override
   String get setupAddPayTip =>
-      'Set up a paycheck: how much, how often, and the account it goes into';
+      'Set up regular income: how much, how often, and the account it goes into';
 
   @override
   String planIncomeExpected(String received, String expected) {
@@ -1403,25 +1403,25 @@ class WordsEn extends Words {
   String get planShowInMenus => 'Show in menus';
 
   @override
-  String get planPaydayNoRegular => 'No regular pay';
+  String get planPaydayNoRegular => 'No regular income';
 
   @override
-  String get planPaydayNotSetUp => 'Pay not set up';
+  String get planPaydayNotSetUp => 'Regular income not set up';
 
   @override
   String planMorePay(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '+$count more pays',
-      one: '+1 more pay',
+      other: '+$count more',
+      one: '+1 more',
     );
     return ' · $_temp0';
   }
 
   @override
   String get planRaiseSplit =>
-      'Your last 6 pays were each more than 5% over the estimate · raise it?';
+      'The last 6 times it came, each was more than 5% over the estimate · raise it?';
 
   @override
   String planRaiseLowest(String amount) {
@@ -1430,22 +1430,22 @@ class WordsEn extends Words {
 
   @override
   String planLastTwoLess(String amount) {
-    return 'Your last 2 pays were $amount, less than planned · change the amount?';
+    return 'The last 2 times it came it was $amount, less than planned · change the amount?';
   }
 
   @override
   String planLastTwoMore(String amount) {
-    return 'Your last 2 pays were $amount · change the amount?';
+    return 'The last 2 times it came it was $amount · change the amount?';
   }
 
   @override
   String planPaydayPay(String pay) {
-    return 'Pay: $pay';
+    return 'Regular income: $pay';
   }
 
   @override
   String planPaydayPayNext(String pay, String date) {
-    return 'Pay: $pay · next $date';
+    return 'Regular income: $pay · next $date';
   }
 
   @override
@@ -2076,7 +2076,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get rowsIncomePaycheck => 'Income · paycheck';
+  String get rowsIncomePaycheck => 'Income · regular income';
 
   @override
   String get rowsTabUncategorized => 'Not categorized';
@@ -2833,20 +2833,20 @@ class WordsEn extends Words {
   String get setupShowEveryRow => 'Show every row · Esc';
 
   @override
-  String get setupAmountMissing => 'Type how much you’re paid';
+  String get setupAmountMissing => 'Type how much comes in';
 
   @override
   String setupAmountMissingOn(String day) {
-    return 'Type how much you’re paid on the $day';
+    return 'Type how much comes in on the $day';
   }
 
   @override
   String get setupAmountMissingFirst =>
-      'Type how much you’re paid on the first payday';
+      'Type how much comes in on the first payday';
 
   @override
   String get setupAmountMissingSecond =>
-      'Type how much you’re paid on the second payday';
+      'Type how much comes in on the second payday';
 
   @override
   String setupOnDay(String day) {
@@ -2888,10 +2888,10 @@ class WordsEn extends Words {
   }
 
   @override
-  String get setupAddYourPay => 'Add your pay';
+  String get setupAddYourPay => 'Add your regular income';
 
   @override
-  String get setupYourPay => 'Your pay';
+  String get setupYourPay => 'Your regular income';
 
   @override
   String get setupPaidInto => 'Paid into';
@@ -2900,13 +2900,13 @@ class WordsEn extends Words {
   String get setupFrom => 'From';
 
   @override
-  String get setupEmployerHint => 'Employer (optional)';
+  String get setupEmployerHint => 'Who it’s from (optional)';
 
   @override
-  String get setupNameHint => 'Jenny, or Jeff’s job';
+  String get setupNameHint => 'Jenny’s job, or Child support';
 
   @override
-  String get setupPayIs => 'Pay is';
+  String get setupPayIs => 'The amount is';
 
   @override
   String get setupPaySame => 'About the same each time';
@@ -2916,7 +2916,7 @@ class WordsEn extends Words {
 
   @override
   String get setupVariesHint =>
-      'Hourly, shifts, overtime: it changes each time. Leave bonuses out; they aren’t every payday.';
+      'Hourly work, shifts, sales: it changes each time. Leave out extras that don’t come every time, like bonuses.';
 
   @override
   String get setupExpectAtLeast => 'Expect at least';
@@ -2925,14 +2925,14 @@ class WordsEn extends Words {
   String get setupEachPayday => 'Each payday';
 
   @override
-  String get setupSameEachPaycheck => 'The same each paycheck';
+  String get setupSameEachPaycheck => 'The same each time';
 
   @override
-  String get setupDifferentEachPaycheck => 'A different amount each paycheck';
+  String get setupDifferentEachPaycheck => 'A different amount each time';
 
   @override
   String setupLastPaycheck(String amount) {
-    return 'Your last paycheck: $amount';
+    return 'The last time it came: $amount';
   }
 
   @override
@@ -2946,7 +2946,7 @@ class WordsEn extends Words {
 
   @override
   String setupHigherThan(int above, int count) {
-    return 'Higher than $above of your last $count paychecks: the forecast may look better than it’ll be.';
+    return 'Higher than $above of the last $count times it came: the forecast may look better than it’ll be.';
   }
 
   @override
@@ -3032,31 +3032,31 @@ class WordsEn extends Words {
 
   @override
   String get setupNameMissing =>
-      'Give this pay a name, like Jenny or Jeff’s job.';
+      'Give it a name, like Jenny’s job or Child support.';
 
   @override
   String get setupNoSetDay => 'No set day';
 
   @override
   String get setupNoSetDayMeans =>
-      'With no set day, the forecast doesn’t expect it. When pay comes, file it under Income.';
+      'With no set day, the forecast doesn’t expect it. When it comes, file it under Income.';
 
   @override
-  String get setupNoRegularPay => 'I don’t have regular pay';
+  String get setupNoRegularPay => 'I don’t have regular income';
 
   @override
-  String get setupStopPay => 'Stop scheduling pay';
+  String get setupStopPay => 'Stop scheduling this income';
 
   @override
-  String get stopPayTitle => 'Stop this pay?';
+  String get stopPayTitle => 'Stop this regular income?';
 
   @override
   String stopPayPerIt(int count, String names) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count categories are budgeted per this pay: $names',
-      one: '1 category is budgeted per this pay: $names',
+      other: '$count categories are budgeted per this income: $names',
+      one: '1 category is budgeted per this income: $names',
     );
     return '$_temp0';
   }
@@ -3070,7 +3070,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get setupSavePay => 'Save pay';
+  String get setupSavePay => 'Save';
 
   @override
   String setupNameArchived(String name) {
@@ -3083,7 +3083,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get setupPay => 'Pay';
+  String get setupPay => 'Regular income';
 
   @override
   String setupPayLine(String category, String amounts, String account) {
@@ -3095,13 +3095,13 @@ class WordsEn extends Words {
 
   @override
   String get setupSaidNoPay =>
-      'You said you don’t have regular pay, so the forecast doesn’t ask for it.';
+      'You said you don’t have regular income, so the forecast doesn’t ask for it.';
 
   @override
   String get setupAskAgain => 'Ask me again';
 
   @override
-  String get setupAddOtherPay => 'Add other pay';
+  String get setupAddOtherPay => 'Add other regular income';
 
   @override
   String get startKeyFileName => 'BetterBudget recovery key.txt';
@@ -3999,7 +3999,8 @@ class WordsEn extends Words {
   String get planViewMonth => 'Month';
 
   @override
-  String get planViewTip => 'View by month, or by one pay’s periods';
+  String get planViewTip =>
+      'View by month, or by the periods of one regular income';
 
   @override
   String planPeriodTitle(String name, String start, String end) {
@@ -5064,7 +5065,7 @@ class WordsEn extends Words {
 
   @override
   String rowsNewCategoryRefundNote(String category) {
-    return 'Money in counts as a refund to $category. For pay, pick Income.';
+    return 'Money in counts as a refund to $category. If it’s income, pick Income.';
   }
 
   @override
@@ -5137,7 +5138,7 @@ class WordsEn extends Words {
   String get setupStepAccounts => 'Accounts';
 
   @override
-  String get setupStepPay => 'Pay';
+  String get setupStepPay => 'Income';
 
   @override
   String get setupContinue => 'Continue';
@@ -5147,14 +5148,14 @@ class WordsEn extends Words {
 
   @override
   String get setupPayArrives =>
-      'The amount that lands in the account, not your salary before tax. A loan payment the bank takes afterwards is a bill.';
+      'The amount that lands in the account, not the amount before tax. A loan payment the bank takes afterwards is a bill.';
 
   @override
   String get setupPayNeedsAccount =>
-      'Pay goes into a bank account or Cash. Add one on Accounts to set up your pay.';
+      'Income goes into a bank account or Cash. Add one on Accounts to set up your regular income.';
 
   @override
-  String get setupNoRegularPayLine => 'No regular pay';
+  String get setupNoRegularPayLine => 'No regular income';
 
   @override
   String phoneLeftIn(String month) {
