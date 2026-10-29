@@ -312,6 +312,36 @@ void main() {
     expect(find.byKey(const ValueKey('waiting-link')), findsNothing);
   });
 
+  testWidgets('Save sits above Ledger and Budget on a 360 × 780 phone with '
+      'its status and button bars, and stays there when it says what is '
+      'missing', (tester) async {
+    // A Galaxy at its larger screen zoom: 1080 × 2340 at 3 to a point.
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    tester.view.padding = const FakeViewPadding(top: 129, bottom: 147);
+    tester.view.viewPadding = const FakeViewPadding(top: 129, bottom: 147);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      PhoneApp(
+        store: PhoneStore(previewSnapshot(DateTime(2026, 10, 7, 8, 10))),
+        now: () => _now,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final save = find.widgetWithText(FilledButton, 'Save');
+    double barTop() =>
+        tester.getTopLeft(find.byKey(const ValueKey('to-ledger'))).dy;
+    expect(tester.getBottomLeft(save).dy, lessThanOrEqualTo(barTop()));
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_short.png'),
+    );
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(find.text('Enter an amount'), findsOneWidget);
+    expect(tester.getBottomLeft(save).dy, lessThanOrEqualTo(barTop()));
+  });
+
   testWidgets('Budget lists what is left, with the cents where there is room', (
     tester,
   ) async {

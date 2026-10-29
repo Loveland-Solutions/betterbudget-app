@@ -1144,6 +1144,31 @@ class _EntryState extends State<_EntryScreen> {
   /// What Save found missing, said above it until the next key or choice.
   String? _missing;
 
+  /// The height the entry takes, through Save, with the pad's full keys.
+  static const double _tallEnough = 684;
+
+  /// Save, kept in sight when what it found missing is said above it.
+  final _saveKey = GlobalKey();
+
+  void _sayMissing(String missing) {
+    setState(() {
+      _missing = missing;
+      _saved = null;
+      _undo = null;
+    });
+    // The line pushes Save down; on a short phone that can be under
+    // Ledger and Budget.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final save = _saveKey.currentContext;
+      if (save != null && save.mounted) {
+        Scrollable.ensureVisible(
+          save,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        );
+      }
+    });
+  }
+
   static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
   PhoneStore get _store => widget.store;
@@ -1330,11 +1355,7 @@ class _EntryState extends State<_EntryScreen> {
         ? t.phoneChooseAccount
         : null;
     if (missing != null) {
-      setState(() {
-        _missing = missing;
-        _saved = null;
-        _undo = null;
-      });
+      _sayMissing(missing);
       return;
     }
     final typed = _draft.typed;
@@ -1495,11 +1516,7 @@ class _EntryState extends State<_EntryScreen> {
         ? t.rowsErrorSplitTooMuch(money(sum - amount))
         : null;
     if (missing != null) {
-      setState(() {
-        _missing = missing;
-        _saved = null;
-        _undo = null;
-      });
+      _sayMissing(missing);
       // Not adding up, or a line to choose again: the split page opens on
       // it, as the computer's card does.
       if (amount != 0 && payee != null && account != null) _openSplit();
@@ -1877,7 +1894,10 @@ class _EntryState extends State<_EntryScreen> {
           _draft.accountId == null &&
           _draft.date == null;
       // On a tall phone the pad and Save sit at the foot; on a short one
-      // the whole entry scrolls instead of running off the screen.
+      // the whole entry scrolls instead of running off the screen. Below
+      // [_tallEnough] the pad's keys and the gaps shrink first, so Save
+      // stays above Ledger and Budget on a 360 × 780 phone (a Galaxy at
+      // its larger screen zoom).
       return Stack(
         children: [
           LayoutBuilder(
@@ -2022,7 +2042,7 @@ class _EntryState extends State<_EntryScreen> {
                                   ),
                                 ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: box.maxHeight < _tallEnough ? 8 : 12),
                         Material(
                           color: Mid.card,
                           borderRadius: BorderRadius.circular(14),
@@ -2089,10 +2109,14 @@ class _EntryState extends State<_EntryScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: box.maxHeight < _tallEnough ? 8 : 12),
                         const Spacer(),
-                        _AmountPad(currency: _currency, onKey: _press),
-                        const SizedBox(height: 10),
+                        _AmountPad(
+                          currency: _currency,
+                          onKey: _press,
+                          short: box.maxHeight < _tallEnough,
+                        ),
+                        SizedBox(height: box.maxHeight < _tallEnough ? 6 : 10),
                         if (_missing != null)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8),
@@ -2103,6 +2127,7 @@ class _EntryState extends State<_EntryScreen> {
                             ),
                           ),
                         FilledButton(
+                          key: _saveKey,
                           onPressed: _save,
                           style: FilledButton.styleFrom(
                             minimumSize: const Size.fromHeight(52),
@@ -3043,9 +3068,18 @@ class _FieldRow extends StatelessWidget {
 
 /// Digits, a point for a currency with cents, and delete.
 class _AmountPad extends StatelessWidget {
-  const _AmountPad({required this.currency, required this.onKey});
+  const _AmountPad({
+    required this.currency,
+    required this.onKey,
+    this.short = false,
+  });
   final Currency currency;
   final ValueChanged<String> onKey;
+
+  /// Lower keys and gaps, for a phone where the full pad would push Save
+  /// under Ledger and Budget.
+  final bool short;
+  double get _height => short ? 44 : 52;
 
   @override
   Widget build(BuildContext context) {
@@ -3057,7 +3091,7 @@ class _AmountPad extends StatelessWidget {
       children: [
         for (var row = 0; row < 4; row++)
           Padding(
-            padding: EdgeInsets.only(top: row == 0 ? 0 : 8),
+            padding: EdgeInsets.only(top: row == 0 ? 0 : (short ? 6 : 8)),
             child: Row(
               children: [
                 for (var col = 0; col < 3; col++) ...[
@@ -3072,7 +3106,7 @@ class _AmountPad extends StatelessWidget {
   }
 
   Widget _key(BuildContext context, String key) {
-    if (key.isEmpty) return const SizedBox(height: 52);
+    if (key.isEmpty) return SizedBox(height: _height);
     return Material(
       color: Mid.panel,
       borderRadius: BorderRadius.circular(12),
@@ -3081,7 +3115,7 @@ class _AmountPad extends StatelessWidget {
         key: ValueKey('pad-$key'),
         onTap: () => onKey(key),
         child: SizedBox(
-          height: 52,
+          height: _height,
           child: Center(
             child: key == '<'
                 ? Icon(
