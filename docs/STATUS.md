@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-29** · version 0.66.1 · schema v23 · 960 tests pass
+**Last updated: 2026-10-29** · version 0.66.2 · schema v23 · 978 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -11,18 +11,20 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**On Play: 0.66.0 (553) on every track, 2026-10-28.** Internal testing; alpha (closed
-testing); and production at full rollout, with notes for people who never saw the test
-builds. Alpha and production were in Google's review that day. Play's App access check ("Missing sign in
-details") is answered: Sign in details holds the demo key (`DEMO-DEMO-DEMO-DEMO-DEMO`,
-#303; ADR 0005 "A demo key for Play's review"), which opens the phone on made-up figures.
-The upload key may now release to production too; a release there is still the owner's
-say each time.
+**On Play: 0.66.2 (562) on every track, 2026-10-29.** Internal testing; alpha (closed
+testing); and production at full rollout, sent to Google's review that day. Play's App
+access check ("Missing sign in details") is answered: Sign in details holds the demo key
+(`DEMO-DEMO-DEMO-DEMO-DEMO`, #303; ADR 0005 "A demo key for Play's review"), which opens
+the phone on made-up figures. The upload key may release to production too; a release
+there is still the owner's say each time.
 
-**Next: the phone build of 0.66.1 to Internal testing.** The ledger is v23 since 0.62.0
-(#314), and a phone on 0.61 can't open it from a fresh start (an open one keeps its
-figures and still sends entries), so the owner's wife needs it from Play. Every
-"Question:" issue on the board is answered.
+**Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+
+**Save stays in sight on every phone** (0.66.2, #331): on the owner's wife's Galaxy
+S26 (360 × 780 points) Save was under Ledger and Budget. The entry's Save and pad now
+sit at the foot (`_EntryLayout`), the keys go from 52 down to 44 before anything
+scrolls, and below 700 points the rows and gaps are lower. `phone_test.dart` checks
+nine common iPhones and Androids with their bars, text at 1 and 1.3.
 
 **Regular income, not pay** (0.66.1, #329; ADR 0004 "Income isn't always pay"): the
 pay form, its toasts and the Budget and forecast lines say regular income, who it's
@@ -178,8 +180,8 @@ Assigned and Spent, its Spent opening the period's rows. `UsedRing` and `usedCol
 out on the phone against what's left now (ADR 0005 "The phone's ring";
 `usedShareNow`).
 
-**Google Play's tracks all have 0.66.0 (build 553)**, from main on 2026-10-28
-(pay saved on the phone takes its payday's place); uploaded to Internal testing with
+**Google Play's tracks all have 0.66.2 (build 562)**, from main on 2026-10-29
+(Save stays in sight on every phone); uploaded to Internal testing with
 `app/tool/release_play.sh`, then moved to alpha and production. A phone
 change after it needs a new one. Before offering one, compare this line with
 `git log` on `app/lib/ui/phone/`, and rewrite this line after each upload.
