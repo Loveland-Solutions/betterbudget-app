@@ -1144,30 +1144,9 @@ class _EntryState extends State<_EntryScreen> {
   /// What Save found missing, said above it until the next key or choice.
   String? _missing;
 
-  /// The height the entry takes, through Save, with the pad's full keys.
-  static const double _tallEnough = 684;
-
-  /// Save, kept in sight when what it found missing is said above it.
-  final _saveKey = GlobalKey();
-
-  void _sayMissing(String missing) {
-    setState(() {
-      _missing = missing;
-      _saved = null;
-      _undo = null;
-    });
-    // The line pushes Save down; on a short phone that can be under
-    // Ledger and Budget.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final save = _saveKey.currentContext;
-      if (save != null && save.mounted) {
-        Scrollable.ensureVisible(
-          save,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-        );
-      }
-    });
-  }
+  /// Below this the entry is drawn lower (`low`): it fits a 360 × 780
+  /// phone without scrolling.
+  static const double _roomy = 700;
 
   static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -1355,7 +1334,11 @@ class _EntryState extends State<_EntryScreen> {
         ? t.phoneChooseAccount
         : null;
     if (missing != null) {
-      _sayMissing(missing);
+      setState(() {
+        _missing = missing;
+        _saved = null;
+        _undo = null;
+      });
       return;
     }
     final typed = _draft.typed;
@@ -1516,7 +1499,11 @@ class _EntryState extends State<_EntryScreen> {
         ? t.rowsErrorSplitTooMuch(money(sum - amount))
         : null;
     if (missing != null) {
-      _sayMissing(missing);
+      setState(() {
+        _missing = missing;
+        _saved = null;
+        _undo = null;
+      });
       // Not adding up, or a line to choose again: the split page opens on
       // it, as the computer's card does.
       if (amount != 0 && payee != null && account != null) _openSplit();
@@ -1893,309 +1880,341 @@ class _EntryState extends State<_EntryScreen> {
           category == null &&
           _draft.accountId == null &&
           _draft.date == null;
-      // On a tall phone the pad and Save sit at the foot; on a short one
-      // the whole entry scrolls instead of running off the screen. Below
-      // [_tallEnough] the pad's keys and the gaps shrink first, so Save
-      // stays above Ledger and Budget on a 360 × 780 phone (a Galaxy at
-      // its larger screen zoom).
-      return Stack(
-        children: [
-          LayoutBuilder(
-            builder: (context, box) => SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: box.maxHeight),
-                child: IntrinsicHeight(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Offered only while there is something to clear.
-                        // While a waiting entry is being changed, it says
-                        // so, and Cancel leaves that entry as it was.
-                        SizedBox(
-                          height: 44,
-                          child: nothing
-                              ? null
-                              : Row(
-                                  children: [
-                                    Expanded(
-                                      child: editing == null
-                                          ? const SizedBox.shrink()
-                                          : Text(
-                                              _store.wasTaken(editing) &&
-                                                      !_store.waiting.any(
-                                                        (e) => e.id == editing,
-                                                      )
-                                                  ? t.phoneFixingTaken
-                                                  : t.phoneFixing,
-                                              key: const ValueKey('fixing'),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: onest(13, color: Mid.ink2),
-                                            ),
+      // The pad and Save sit at the foot, above Ledger and Budget, on every
+      // phone. Where there isn't room, the pad's keys get lower first (down
+      // to [_AmountPad.lowestKey]); only then does what's above them scroll.
+      // On a short phone (below [_roomy]) the rows and gaps are lower and
+      // the amount smaller, so the rows above the pad needn't scroll.
+      return LayoutBuilder(
+        builder: (context, box) {
+          final low = box.maxHeight < _roomy;
+          return Stack(
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(20, low ? 0 : 4, 20, 4),
+                child: CustomMultiChildLayout(
+                  delegate: _EntryLayout(low: low),
+                  children: [
+                    LayoutId(
+                      id: _EntryPart.top,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Offered only while there is something to clear.
+                            // While a waiting entry is being changed, it says
+                            // so, and Cancel leaves that entry as it was.
+                            SizedBox(
+                              height: 44,
+                              child: nothing
+                                  ? null
+                                  : Row(
+                                      children: [
+                                        Expanded(
+                                          child: editing == null
+                                              ? const SizedBox.shrink()
+                                              : Text(
+                                                  _store.wasTaken(editing) &&
+                                                          !_store.waiting.any(
+                                                            (e) =>
+                                                                e.id == editing,
+                                                          )
+                                                      ? t.phoneFixingTaken
+                                                      : t.phoneFixing,
+                                                  key: const ValueKey('fixing'),
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: onest(
+                                                    13,
+                                                    color: Mid.ink2,
+                                                  ),
+                                                ),
+                                        ),
+                                        TextButton(
+                                          key: const ValueKey('clear'),
+                                          onPressed: () =>
+                                              _change(_draft.clear),
+                                          style: TextButton.styleFrom(
+                                            minimumSize: const Size(44, 44),
+                                            foregroundColor: Mid.blue,
+                                            textStyle: onest(16),
+                                          ),
+                                          child: Text(
+                                            editing == null
+                                                ? t.phoneClear
+                                                : t.ledgerCancel,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    TextButton(
-                                      key: const ValueKey('clear'),
-                                      onPressed: () => _change(_draft.clear),
-                                      style: TextButton.styleFrom(
-                                        minimumSize: const Size(44, 44),
-                                        foregroundColor: Mid.blue,
-                                        textStyle: onest(16),
+                            ),
+                            Row(
+                              children: [
+                                // Money moved is neither out nor in: no sign to
+                                // turn while an account is the "category".
+                                if (to == null)
+                                  _SignButton(
+                                    moneyIn: moneyIn,
+                                    onTap: _draft.flipSign,
+                                  )
+                                else
+                                  const SizedBox(width: _SignButton.size),
+                                Expanded(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '${to != null
+                                          ? ''
+                                          : moneyIn
+                                          ? '+'
+                                          : '−'}${typedAmountShown(_draft.typed, _currency)}',
+                                      maxLines: 1,
+                                      style: onest(
+                                        low ? 40 : 52,
+                                        weight: 600,
+                                        letterSpacing: -1,
+                                        // Money out is ordinary ink with its
+                                        // minus; red is for a shortfall.
+                                        color: _draft.typed.isEmpty
+                                            ? Mid.ink3
+                                            : moneyIn
+                                            ? Mid.green
+                                            : Mid.ink,
                                       ),
-                                      child: Text(
-                                        editing == null
-                                            ? t.phoneClear
-                                            : t.ledgerCancel,
+                                    ),
+                                  ),
+                                ),
+                                // As wide as the button, so the amount stays in
+                                // the middle of the screen.
+                                const SizedBox(width: _SignButton.size),
+                              ],
+                            ),
+                            SizedBox(height: low ? 2 : 6),
+                            // Its place is kept while no category is chosen, so the rows
+                            // under it don't move when one is.
+                            // A sentence with an amount wraps rather than cut
+                            // the amount (ADR 0004 "No overflow stripe").
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(minHeight: 22),
+                              child: split
+                                  // Each category's share, as the register
+                                  // shows a split.
+                                  ? Text(
+                                      [
+                                        for (final (i, l)
+                                            in _draft.lines.indexed)
+                                          '${_splitCategories.elementAtOrNull(i)?.name ?? ''} ${_lineShown(l, _draft.moneyIn, _currency)}',
+                                      ].join(' · '),
+                                      key: const ValueKey('split-line'),
+                                      textAlign: TextAlign.center,
+                                      style: onest(15, color: Mid.ink2),
+                                    )
+                                  : category == null ||
+                                        category.isIncome ||
+                                        (to != null && from == null)
+                                  ? null
+                                  : Text(
+                                      from != null
+                                          ? (from.owes
+                                                ? t.phoneTransferOwedAfter(
+                                                    from.name,
+                                                    formatMoney(
+                                                      fromAfter,
+                                                      currency: from.currency,
+                                                    ),
+                                                  )
+                                                : t.phoneTransferAfter(
+                                                    from.name,
+                                                    formatMoney(
+                                                      fromAfter,
+                                                      currency: from.currency,
+                                                    ),
+                                                  ))
+                                          : _leftLine(t, category, left, after),
+                                      key: const ValueKey('left-line'),
+                                      textAlign: TextAlign.center,
+                                      style: onest(
+                                        15,
+                                        color: over ? Mid.coral : Mid.ink2,
                                       ),
+                                    ),
+                            ),
+                            SizedBox(height: low ? 6 : 12),
+                            Material(
+                              color: Mid.card,
+                              borderRadius: BorderRadius.circular(14),
+                              clipBehavior: Clip.antiAlias,
+                              child: Column(
+                                children: [
+                                  // Between their own accounts nobody was paid.
+                                  if (to == null) ...[
+                                    _FieldRow(
+                                      low: low,
+                                      key: const ValueKey('payee-row'),
+                                      label: t.rowsColumnPayee,
+                                      value: _draft.payee ?? '',
+                                      onTap: _typePayee,
+                                    ),
+                                    Divider(
+                                      height: 1,
+                                      thickness: 1,
+                                      color: Mid.rule,
                                     ),
                                   ],
-                                ),
-                        ),
-                        Row(
-                          children: [
-                            // Money moved is neither out nor in: no sign to
-                            // turn while an account is the "category".
-                            if (to == null)
-                              _SignButton(
-                                moneyIn: moneyIn,
-                                onTap: _draft.flipSign,
-                              )
-                            else
-                              const SizedBox(width: _SignButton.size),
-                            Expanded(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  '${to != null
-                                      ? ''
-                                      : moneyIn
-                                      ? '+'
-                                      : '−'}${typedAmountShown(_draft.typed, _currency)}',
-                                  maxLines: 1,
-                                  style: onest(
-                                    52,
-                                    weight: 600,
-                                    letterSpacing: -1,
-                                    // Money out is ordinary ink with its
-                                    // minus; red is for a shortfall.
-                                    color: _draft.typed.isEmpty
-                                        ? Mid.ink3
-                                        : moneyIn
-                                        ? Mid.green
-                                        : Mid.ink,
+                                  _CategoryMenu(
+                                    store: _store,
+                                    // A category made here is in the currency
+                                    // being paid in.
+                                    currency: _currency,
+                                    split: true,
+                                    // Money in that isn't a refund is income;
+                                    // money out never is.
+                                    income: _draft.moneyIn ? _income : null,
+                                    pays: _draft.moneyIn
+                                        ? _payChoices(t, _store.snapshot)
+                                        : const [],
+                                    transfers: _transferChoices,
+                                    onPicked: _picked,
+                                    builder: (context, open) => _FieldRow(
+                                      low: low,
+                                      key: const ValueKey('category-row'),
+                                      label: t.rowsColumnCategory,
+                                      value: split
+                                          ? t.startSplitCategories(
+                                              _draft.lines.length,
+                                            )
+                                          : category?.name ?? '',
+                                      // A split opens on its lines.
+                                      onTap: split ? _openSplit : open,
+                                    ),
                                   ),
-                                ),
+                                  Divider(
+                                    height: 1,
+                                    thickness: 1,
+                                    color: Mid.rule,
+                                  ),
+                                  _FieldRow(
+                                    low: low,
+                                    key: const ValueKey('account-row'),
+                                    label: to != null
+                                        ? t.phoneFrom
+                                        : moneyIn
+                                        ? t.setupPaidInto
+                                        : t.planLabelPaidFrom,
+                                    value: _account?.name ?? '',
+                                    onTap: _pickAccount,
+                                  ),
+                                  Divider(
+                                    height: 1,
+                                    thickness: 1,
+                                    color: Mid.rule,
+                                  ),
+                                  _FieldRow(
+                                    low: low,
+                                    label: t.rowsColumnDate,
+                                    value: date == null
+                                        ? t.today
+                                        : fullDate(date),
+                                    onTap: _pickDate,
+                                  ),
+                                ],
                               ),
                             ),
-                            // As wide as the button, so the amount stays in
-                            // the middle of the screen.
-                            const SizedBox(width: _SignButton.size),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        // Its place is kept while no category is chosen, so the rows
-                        // under it don't move when one is.
-                        // A sentence with an amount wraps rather than cut
-                        // the amount (ADR 0004 "No overflow stripe").
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 22),
-                          child: split
-                              // Each category's share, as the register
-                              // shows a split.
-                              ? Text(
-                                  [
-                                    for (final (i, l) in _draft.lines.indexed)
-                                      '${_splitCategories.elementAtOrNull(i)?.name ?? ''} ${_lineShown(l, _draft.moneyIn, _currency)}',
-                                  ].join(' · '),
-                                  key: const ValueKey('split-line'),
-                                  textAlign: TextAlign.center,
-                                  style: onest(15, color: Mid.ink2),
-                                )
-                              : category == null ||
-                                    category.isIncome ||
-                                    (to != null && from == null)
-                              ? null
-                              : Text(
-                                  from != null
-                                      ? (from.owes
-                                            ? t.phoneTransferOwedAfter(
-                                                from.name,
-                                                formatMoney(
-                                                  fromAfter,
-                                                  currency: from.currency,
-                                                ),
-                                              )
-                                            : t.phoneTransferAfter(
-                                                from.name,
-                                                formatMoney(
-                                                  fromAfter,
-                                                  currency: from.currency,
-                                                ),
-                                              ))
-                                      : _leftLine(t, category, left, after),
-                                  key: const ValueKey('left-line'),
-                                  textAlign: TextAlign.center,
-                                  style: onest(
-                                    15,
-                                    color: over ? Mid.coral : Mid.ink2,
-                                  ),
-                                ),
-                        ),
-                        SizedBox(height: box.maxHeight < _tallEnough ? 8 : 12),
-                        Material(
-                          color: Mid.card,
-                          borderRadius: BorderRadius.circular(14),
-                          clipBehavior: Clip.antiAlias,
-                          child: Column(
-                            children: [
-                              // Between their own accounts nobody was paid.
-                              if (to == null) ...[
-                                _FieldRow(
-                                  key: const ValueKey('payee-row'),
-                                  label: t.rowsColumnPayee,
-                                  value: _draft.payee ?? '',
-                                  onTap: _typePayee,
-                                ),
-                                Divider(
-                                  height: 1,
-                                  thickness: 1,
-                                  color: Mid.rule,
-                                ),
-                              ],
-                              _CategoryMenu(
-                                store: _store,
-                                // A category made here is in the currency
-                                // being paid in.
-                                currency: _currency,
-                                split: true,
-                                // Money in that isn't a refund is income;
-                                // money out never is.
-                                income: _draft.moneyIn ? _income : null,
-                                pays: _draft.moneyIn
-                                    ? _payChoices(t, _store.snapshot)
-                                    : const [],
-                                transfers: _transferChoices,
-                                onPicked: _picked,
-                                builder: (context, open) => _FieldRow(
-                                  key: const ValueKey('category-row'),
-                                  label: t.rowsColumnCategory,
-                                  value: split
-                                      ? t.startSplitCategories(
-                                          _draft.lines.length,
-                                        )
-                                      : category?.name ?? '',
-                                  // A split opens on its lines.
-                                  onTap: split ? _openSplit : open,
+                      ),
+                    ),
+                    LayoutId(
+                      id: _EntryPart.pad,
+                      child: _AmountPad(currency: _currency, onKey: _press),
+                    ),
+                    LayoutId(
+                      id: _EntryPart.foot,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_missing != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                _missing!,
+                                textAlign: TextAlign.center,
+                                style: onest(15, color: Mid.gold),
+                              ),
+                            ),
+                          FilledButton(
+                            onPressed: _save,
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(52),
+                              backgroundColor: Mid.fill,
+                              foregroundColor: Mid.onFill,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              textStyle: onest(17, weight: 600),
+                            ),
+                            child: Text(t.rowsSave),
+                          ),
+                          // Offered only while there is something waiting.
+                          if (_store.waiting.isNotEmpty ||
+                              _store.made.isNotEmpty)
+                            TextButton(
+                              key: const ValueKey('waiting-link'),
+                              onPressed: _openWaiting,
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(44, 44),
+                                foregroundColor: Mid.ink2,
+                                textStyle: onest(14).copyWith(
+                                  decoration: TextDecoration.underline,
                                 ),
                               ),
-                              Divider(height: 1, thickness: 1, color: Mid.rule),
-                              _FieldRow(
-                                key: const ValueKey('account-row'),
-                                label: to != null
-                                    ? t.phoneFrom
-                                    : moneyIn
-                                    ? t.setupPaidInto
-                                    : t.planLabelPaidFrom,
-                                value: _account?.name ?? '',
-                                onTap: _pickAccount,
+                              child: Text(
+                                _waitingLine(t),
+                                textAlign: TextAlign.center,
                               ),
-                              Divider(height: 1, thickness: 1, color: Mid.rule),
-                              _FieldRow(
-                                label: t.rowsColumnDate,
-                                value: date == null ? t.today : fullDate(date),
-                                onTap: _pickDate,
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: box.maxHeight < _tallEnough ? 8 : 12),
-                        const Spacer(),
-                        _AmountPad(
-                          currency: _currency,
-                          onKey: _press,
-                          short: box.maxHeight < _tallEnough,
-                        ),
-                        SizedBox(height: box.maxHeight < _tallEnough ? 6 : 10),
-                        if (_missing != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text(
-                              _missing!,
-                              textAlign: TextAlign.center,
-                              style: onest(15, color: Mid.gold),
-                            ),
-                          ),
-                        FilledButton(
-                          key: _saveKey,
-                          onPressed: _save,
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(52),
-                            backgroundColor: Mid.fill,
-                            foregroundColor: Mid.onFill,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            textStyle: onest(17, weight: 600),
-                          ),
-                          child: Text(t.rowsSave),
-                        ),
-                        // Offered only while there is something waiting.
-                        if (_store.waiting.isNotEmpty || _store.made.isNotEmpty)
-                          TextButton(
-                            key: const ValueKey('waiting-link'),
-                            onPressed: _openWaiting,
-                            style: TextButton.styleFrom(
-                              minimumSize: const Size(44, 44),
-                              foregroundColor: Mid.ink2,
-                              textStyle: onest(
-                                14,
-                              ).copyWith(decoration: TextDecoration.underline),
-                            ),
-                            child: Text(
-                              _waitingLine(t),
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                        else
-                          const SizedBox(height: 8),
-                      ],
+                            )
+                          else
+                            const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // A toast (owner, 2026-10-08: "appeared and disappeared like a
+              // regular toast notification"): what went in and what it did to
+              // its category. At the top, where the emptied form has nothing; a
+              // toast at the foot covered Save and the way to Budget.
+              Positioned(
+                top: 8,
+                left: 20,
+                right: 20,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween(
+                        begin: const Offset(0, -0.4),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
                     ),
                   ),
+                  child: _saved == null
+                      ? const SizedBox.shrink()
+                      : _SavedToast(
+                          saved: _saved!,
+                          lines: _savedLines,
+                          onUndo: _undo,
+                        ),
                 ),
               ),
-            ),
-          ),
-          // A toast (owner, 2026-10-08: "appeared and disappeared like a
-          // regular toast notification"): what went in and what it did to
-          // its category. At the top, where the emptied form has nothing; a
-          // toast at the foot covered Save and the way to Budget.
-          Positioned(
-            top: 8,
-            left: 20,
-            right: 20,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween(
-                    begin: const Offset(0, -0.4),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
-                ),
-              ),
-              child: _saved == null
-                  ? const SizedBox.shrink()
-                  : _SavedToast(
-                      saved: _saved!,
-                      lines: _savedLines,
-                      onUndo: _undo,
-                    ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       );
     },
   );
@@ -3034,16 +3053,20 @@ class _FieldRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onTap,
+    this.low = false,
   });
   final String label;
   final String value;
   final VoidCallback onTap;
 
+  /// 44 high rather than 50, on a short phone.
+  final bool low;
+
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
     child: ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 50),
+      constraints: BoxConstraints(minHeight: low ? 44 : 50),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
@@ -3066,20 +3089,57 @@ class _FieldRow extends StatelessWidget {
   );
 }
 
+enum _EntryPart { top, pad, foot }
+
+/// The entry screen: what's typed and chosen at the top, Save at the foot,
+/// the pad just above it. The pad takes the room left, between its lowest
+/// and full height; what's above it scrolls only once the pad is at its
+/// lowest.
+class _EntryLayout extends MultiChildLayoutDelegate {
+  _EntryLayout({required this.low});
+  final bool low;
+  double get _aboveSave => low ? 6 : 10;
+  double get _abovePad => low ? 6 : 12;
+
+  @override
+  void performLayout(Size size) {
+    final wide = BoxConstraints.tightFor(width: size.width);
+    final foot = layoutChild(_EntryPart.foot, wide).height;
+    final room = size.height - foot - _aboveSave - _abovePad;
+    final lowest = _AmountPad.heightWith(_AmountPad.lowestKey);
+    final top = layoutChild(
+      _EntryPart.top,
+      wide.copyWith(maxHeight: max(0, room - lowest)),
+    ).height;
+    final pad = (room - top).clamp(
+      lowest,
+      _AmountPad.heightWith(_AmountPad.fullKey),
+    );
+    layoutChild(_EntryPart.pad, wide.copyWith(minHeight: pad, maxHeight: pad));
+    positionChild(_EntryPart.top, Offset.zero);
+    positionChild(
+      _EntryPart.pad,
+      Offset(0, size.height - foot - _aboveSave - pad),
+    );
+    positionChild(_EntryPart.foot, Offset(0, size.height - foot));
+  }
+
+  @override
+  bool shouldRelayout(_EntryLayout oldDelegate) => oldDelegate.low != low;
+}
+
 /// Digits, a point for a currency with cents, and delete.
 class _AmountPad extends StatelessWidget {
-  const _AmountPad({
-    required this.currency,
-    required this.onKey,
-    this.short = false,
-  });
+  const _AmountPad({required this.currency, required this.onKey});
   final Currency currency;
   final ValueChanged<String> onKey;
 
-  /// Lower keys and gaps, for a phone where the full pad would push Save
-  /// under Ledger and Budget.
-  final bool short;
-  double get _height => short ? 44 : 52;
+  /// A key's height where there is room, and the lowest it goes where there
+  /// isn't: Apple's smallest touch target.
+  static const double fullKey = 52;
+  static const double lowestKey = 44;
+  static const double _gap = 8;
+  static double heightWith(double key) => key * 4 + _gap * 3;
 
   @override
   Widget build(BuildContext context) {
@@ -3087,26 +3147,32 @@ class _AmountPad extends StatelessWidget {
       '1', '2', '3', '4', '5', '6', '7', '8', '9', //
       currency.decimals == 0 ? '' : '.', '0', '<',
     ];
-    return Column(
-      children: [
-        for (var row = 0; row < 4; row++)
-          Padding(
-            padding: EdgeInsets.only(top: row == 0 ? 0 : (short ? 6 : 8)),
-            child: Row(
-              children: [
-                for (var col = 0; col < 3; col++) ...[
-                  if (col > 0) const SizedBox(width: 8),
-                  Expanded(child: _key(context, keys[row * 3 + col])),
+    // Full height unless the entry's layout gives it less.
+    return SizedBox(
+      height: heightWith(fullKey),
+      child: Column(
+        children: [
+          for (var row = 0; row < 4; row++) ...[
+            if (row > 0) const SizedBox(height: _gap),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var col = 0; col < 3; col++) ...[
+                    if (col > 0) const SizedBox(width: 8),
+                    Expanded(child: _key(context, keys[row * 3 + col])),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-      ],
+          ],
+        ],
+      ),
     );
   }
 
   Widget _key(BuildContext context, String key) {
-    if (key.isEmpty) return SizedBox(height: _height);
+    if (key.isEmpty) return const SizedBox.shrink();
     return Material(
       color: Mid.panel,
       borderRadius: BorderRadius.circular(12),
@@ -3114,18 +3180,15 @@ class _AmountPad extends StatelessWidget {
       child: InkWell(
         key: ValueKey('pad-$key'),
         onTap: () => onKey(key),
-        child: SizedBox(
-          height: _height,
-          child: Center(
-            child: key == '<'
-                ? Icon(
-                    Icons.backspace_outlined,
-                    size: 24,
-                    color: Mid.ink,
-                    semanticLabel: context.t.phoneDeleteDigit,
-                  )
-                : Text(key, style: onest(22)),
-          ),
+        child: Center(
+          child: key == '<'
+              ? Icon(
+                  Icons.backspace_outlined,
+                  size: 24,
+                  color: Mid.ink,
+                  semanticLabel: context.t.phoneDeleteDigit,
+                )
+              : Text(key, style: onest(22)),
         ),
       ),
     );

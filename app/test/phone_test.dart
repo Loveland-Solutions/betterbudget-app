@@ -312,35 +312,70 @@ void main() {
     expect(find.byKey(const ValueKey('waiting-link')), findsNothing);
   });
 
-  testWidgets('Save sits above Ledger and Budget on a 360 × 780 phone with '
-      'its status and button bars, and stays there when it says what is '
-      'missing', (tester) async {
+  // Common phones, in points, with their status bar and the bar at the
+  // foot (Android's three buttons, the iPhone's home line): Save and the
+  // pad stay above Ledger and Budget on every one, with the text at its
+  // ordinary size and turned up. Only the smallest scroll the rows above.
+  const phones = <(String, Size, double, double, {bool scrolls})>[
+    ('iPhone SE', Size(375, 667), 20, 0, scrolls: false),
+    ('iPhone mini', Size(375, 812), 50, 34, scrolls: false),
+    ('iPhone 15', Size(393, 852), 59, 34, scrolls: false),
+    ('iPhone Pro Max', Size(440, 956), 62, 34, scrolls: false),
     // A Galaxy at its larger screen zoom: 1080 × 2340 at 3 to a point.
-    tester.view.physicalSize = const Size(1080, 2340);
-    tester.view.devicePixelRatio = 3;
-    tester.view.padding = const FakeViewPadding(top: 129, bottom: 147);
-    tester.view.viewPadding = const FakeViewPadding(top: 129, bottom: 147);
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      PhoneApp(
-        store: PhoneStore(previewSnapshot(DateTime(2026, 10, 7, 8, 10))),
-        now: () => _now,
-      ),
-    );
-    await tester.pumpAndSettle();
-    final save = find.widgetWithText(FilledButton, 'Save');
-    double barTop() =>
-        tester.getTopLeft(find.byKey(const ValueKey('to-ledger'))).dy;
-    expect(tester.getBottomLeft(save).dy, lessThanOrEqualTo(barTop()));
-    await expectLater(
-      find.byType(PhoneApp),
-      matchesGoldenFile('goldens/phone_short.png'),
-    );
-    await tester.tap(save);
-    await tester.pumpAndSettle();
-    expect(find.text('Enter an amount'), findsOneWidget);
-    expect(tester.getBottomLeft(save).dy, lessThanOrEqualTo(barTop()));
-  });
+    ('Galaxy S zoomed', Size(360, 780), 43, 49, scrolls: false),
+    ('Galaxy A', Size(360, 800), 24, 48, scrolls: false),
+    ('Pixel', Size(412, 915), 24, 48, scrolls: false),
+    ('small Android', Size(360, 720), 24, 48, scrolls: false),
+    ('old Android', Size(360, 640), 24, 48, scrolls: true),
+  ];
+  for (final (name, size, top, bottom, :scrolls) in phones) {
+    for (final text in [1.0, 1.3]) {
+      testWidgets('Save and the pad fit on $name (${size.width.toInt()} × '
+          '${size.height.toInt()}), text ×$text', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        tester.view.padding = FakeViewPadding(top: top, bottom: bottom);
+        tester.view.viewPadding = FakeViewPadding(top: top, bottom: bottom);
+        tester.platformDispatcher.textScaleFactorTestValue = text;
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await tester.pumpWidget(
+          PhoneApp(
+            store: PhoneStore(previewSnapshot(DateTime(2026, 10, 7, 8, 10))),
+            now: () => _now,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final save = find.widgetWithText(FilledButton, 'Save');
+        double barTop() =>
+            tester.getTopLeft(find.byKey(const ValueKey('to-ledger'))).dy;
+        expect(tester.getBottomLeft(save).dy, lessThanOrEqualTo(barTop()));
+        expect(
+          tester.getSize(find.byKey(const ValueKey('pad-1'))).height,
+          greaterThanOrEqualTo(44),
+        );
+        final rows = tester
+            .state<ScrollableState>(find.byType(Scrollable).first)
+            .position;
+        if (!scrolls && text == 1.0) expect(rows.maxScrollExtent, 0);
+        if (name == 'Galaxy S zoomed') {
+          if (text == 1.0) {
+            await expectLater(
+              find.byType(PhoneApp),
+              matchesGoldenFile('goldens/phone_short.png'),
+            );
+          }
+          // Her phone, text turned up: nothing above the pad scrolls.
+          expect(rows.maxScrollExtent, 0);
+        }
+        // What's missing is said above Save, which stays in sight.
+        await tester.tap(save);
+        await tester.pumpAndSettle();
+        expect(find.text('Enter an amount'), findsOneWidget);
+        expect(tester.getBottomLeft(save).dy, lessThanOrEqualTo(barTop()));
+      });
+    }
+  }
 
   testWidgets('Budget lists what is left, with the cents where there is room', (
     tester,
