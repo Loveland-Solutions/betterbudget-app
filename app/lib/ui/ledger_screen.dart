@@ -1835,7 +1835,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _entryProblemShown = message;
   }
 
-  /// Report a problem… (#92): the browser opens lls.mn's form, or the popup
+  /// Send feedback… (#92): the browser opens lls.mn's form, or the popup
   /// says where it is.
   Future<void> _reportProblem() async {
     final opened = await openReportProblem(
@@ -7687,7 +7687,7 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-/// Report a problem…, the last line under Net worth: opens lls.mn's contact
+/// Send feedback…, the last line under Net worth: opens lls.mn's contact
 /// form in the browser (#92). Quiet, like the backup reminder above it.
 class _ReportProblemLink extends StatelessWidget {
   const _ReportProblemLink({required this.onTap});
@@ -8205,7 +8205,7 @@ class _SettingsPage extends StatelessWidget {
 
 /// Settings → Recent problems (#294), only while the record holds any: the
 /// newest five, each with when, the line the person saw and the reason
-/// behind it, and Copy all for Report a problem…'s form. Next to the
+/// behind it, and Copy all for Send feedback…'s form. Next to the
 /// version it is sent with.
 class _RecentProblems extends StatefulWidget {
   const _RecentProblems({required this.log, required this.now});

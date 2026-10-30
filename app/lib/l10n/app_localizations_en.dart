@@ -754,7 +754,7 @@ class WordsEn extends Words {
   String get ledgerSettings => 'Settings';
 
   @override
-  String get reportProblem => 'Report a problem…';
+  String get reportProblem => 'Send feedback…';
 
   @override
   String get reportProblemFailed =>
@@ -771,11 +771,11 @@ class WordsEn extends Words {
 
   @override
   String get recentProblemsNote =>
-      'Kept on this computer only. To send them to us, choose Copy all, then paste them into the form that Report a problem… opens.';
+      'Kept on this computer only. To send them to us, choose Copy all, then paste them into the form that Send feedback… opens.';
 
   @override
   String get phoneRecentProblemsNote =>
-      'Kept on this phone only. To send them to us, choose Copy all, then paste them into the form that Report a problem… opens.';
+      'Kept on this phone only. To send them to us, choose Copy all, then Send feedback…, and paste them into the form it opens.';
 
   @override
   String get recentProblemsCopyAll => 'Copy all';
@@ -5177,14 +5177,14 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count entries aren’t in your ledger yet',
-      one: '1 entry isn’t in your ledger yet',
+      other: '$count entries aren’t on your computer yet',
+      one: '1 entry isn’t on your computer yet',
     );
     return '$_temp0';
   }
 
   @override
-  String get phoneWaitingTitle => 'Not in your ledger yet';
+  String get phoneWaitingTitle => 'Not on your computer yet';
 
   @override
   String phoneOwed(String amount) {
@@ -5407,8 +5407,8 @@ class WordsEn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new categories aren’t in your ledger yet',
-      one: '1 new category isn’t in your ledger yet',
+      other: '$count new categories aren’t on your computer yet',
+      one: '1 new category isn’t on your computer yet',
     );
     return '$_temp0';
   }
@@ -5427,7 +5427,7 @@ class WordsEn extends Words {
       other: '$categories new categories',
       one: '1 new category',
     );
-    return '$_temp0 and $_temp1 aren’t in your ledger yet';
+    return '$_temp0 and $_temp1 aren’t on your computer yet';
   }
 
   @override

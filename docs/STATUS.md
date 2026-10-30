@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-29** · version 0.66.2 · schema v23 · 978 tests pass
+**Last updated: 2026-10-29** · version 0.66.3 · schema v23 · 978 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -113,17 +113,18 @@ that says where the money really goes and what ends short. The cap was already
 Edit's **Up to**. The phone's Budget has the group headings, the one-month line and
 the note.
 
-**Report a problem… is in the app** (0.53.0, #92; ADR 0004 "Report a problem: at the
-foot of the sidebar, and on the phone"): a quiet line under Net worth, and the last
-line of the phone's Budget. It opens lls.mn's contact form in the browser with
+**Send feedback… is in the app** (0.53.0, #92; ADR 0004 "Report a problem: at the
+foot of the sidebar, and on the phone"; named Send feedback… and moved on the phone in
+0.66.3, ADR 0004 "The phone's feedback beside Accounts"): a quiet line under Net worth,
+and a speech-bubble button beside Accounts at the top of the phone's Budget. It opens lls.mn's contact form in the browser with
 `?from=betterbudget&version=…&platform=…&os=…` (`data/report_problem.dart`); the page
 names the report and shows what goes with the message (the website's README,
 "BetterBudget reports"); `PRIVACY.md` section 5 says so. It is also on the screens shown when the ledger won't open (0.54.0,
 #292): under Try again on the computer, and under the phone's problem steps. A failure's opened Details have
 **Copy** (0.55.0, #293; `ui/copy_details.dart`), on the popup and that screen. **Recent
 problems** (0.56.0, #294; `data/problem_log.dart`; ADR 0004 "Recent problems"): a card in
-Settings while there are any, and a line above Report a problem… on the phone's
-Budget, each with Copy all; a plain file on the device, no amounts. `PRIVACY.md` and
+Settings while there are any, and the last line of the phone's
+Budget, each with Copy all (the phone's page has Send feedback… beside it); a plain file on the device, no amounts. `PRIVACY.md` and
 lls.mn's copy say so (their PRs: Loveland-Solutions/betterbudget#1,
 lovelandsolutions-website#6, to merge first). The
 public repo's README points there too, and its Issues are off

@@ -1089,16 +1089,16 @@ abstract class Words {
   /// Sidebar item above Settings, and a line at the foot of the phone's Budget screen: opens lls.mn's contact form in the browser, with the app's version and the system filled in.
   ///
   /// In en, this message translates to:
-  /// **'Report a problem…'**
+  /// **'Send feedback…'**
   String get reportProblem;
 
-  /// Failure popup when Report a problem… couldn't open the browser; says where to find the form instead.
+  /// Failure popup when Send feedback… couldn't open the browser; says where to find the form instead.
   ///
   /// In en, this message translates to:
   /// **'The browser didn’t open. The form is at lls.mn/en/contact.'**
   String get reportProblemFailed;
 
-  /// Button beside a failure's opened Details (the popup's and the screen shown when the ledger won't open): copies the failure's line and the technical reason, to paste into the Report a problem… form.
+  /// Button beside a failure's opened Details (the popup's and the screen shown when the ledger won't open): copies the failure's line and the technical reason, to paste into the Send feedback… form.
   ///
   /// In en, this message translates to:
   /// **'Copy'**
@@ -1116,19 +1116,19 @@ abstract class Words {
   /// **'Recent problems'**
   String get recentProblemsTitle;
 
-  /// Settings → Recent problems, under the title. Copy all is the button below; Report a problem… is the line at the foot of the sidebar.
+  /// Settings → Recent problems, under the title. Copy all is the button below; Send feedback… is the line at the foot of the sidebar.
   ///
   /// In en, this message translates to:
-  /// **'Kept on this computer only. To send them to us, choose Copy all, then paste them into the form that Report a problem… opens.'**
+  /// **'Kept on this computer only. To send them to us, choose Copy all, then paste them into the form that Send feedback… opens.'**
   String get recentProblemsNote;
 
-  /// The phone's Recent problems page, under the title. Copy all is the button below; Report a problem… is the last line of Budget.
+  /// The phone's Recent problems page, under the title. Copy all and Send feedback… are the buttons below.
   ///
   /// In en, this message translates to:
-  /// **'Kept on this phone only. To send them to us, choose Copy all, then paste them into the form that Report a problem… opens.'**
+  /// **'Kept on this phone only. To send them to us, choose Copy all, then Send feedback…, and paste them into the form it opens.'**
   String get phoneRecentProblemsNote;
 
-  /// Recent problems: copies every problem kept (time, version, message, reason) to paste into the Report a problem… form. Reads Copied for two seconds after.
+  /// Recent problems: copies every problem kept (time, version, message, reason) to paste into the Send feedback… form. Reads Copied for two seconds after.
   ///
   /// In en, this message translates to:
   /// **'Copy all'**
@@ -7354,16 +7354,16 @@ abstract class Words {
   /// **'From your computer {date} {time}'**
   String phoneFromMacOn(String date, String time);
 
-  /// Phone app, a line under the categories: entries typed on this phone that the Mac hasn’t taken into the ledger yet. Tapping it lists them.
+  /// Phone app, a line under the categories: entries typed on this phone that the computer hasn’t taken in yet. Tapping it lists them. Not “ledger”: the phone’s Ledger tab already shows them (owner, 2026-10-30).
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 entry isn’t in your ledger yet} other{{count} entries aren’t in your ledger yet}}'**
+  /// **'{count, plural, =1{1 entry isn’t on your computer yet} other{{count} entries aren’t on your computer yet}}'**
   String phoneWaiting(int count);
 
   /// Phone app: heading of the list of this phone’s entries the Mac hasn’t taken in yet.
   ///
   /// In en, this message translates to:
-  /// **'Not in your ledger yet'**
+  /// **'Not on your computer yet'**
   String get phoneWaitingTitle;
 
   /// Phone app, Accounts list: a credit card’s or loan’s balance.
@@ -7699,13 +7699,13 @@ abstract class Words {
   /// Phone app, the line that opens the waiting list, when only categories made on this phone are waiting, with no entries.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 new category isn’t in your ledger yet} other{{count} new categories aren’t in your ledger yet}}'**
+  /// **'{count, plural, =1{1 new category isn’t on your computer yet} other{{count} new categories aren’t on your computer yet}}'**
   String phoneWaitingCategories(int count);
 
   /// Phone app, the line that opens the waiting list, when both entries and categories made on this phone are waiting.
   ///
   /// In en, this message translates to:
-  /// **'{entries, plural, =1{1 entry} other{{entries} entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} aren’t in your ledger yet'**
+  /// **'{entries, plural, =1{1 entry} other{{entries} entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} aren’t on your computer yet'**
   String phoneWaitingBoth(int entries, int categories);
 
   /// Phone app, waiting list: asked before a category made on this phone is deleted while entries are filed in it. {amount} is their total, like ₮18,000.00.

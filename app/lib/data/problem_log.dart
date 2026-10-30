@@ -81,7 +81,7 @@ String keptReason(Object error) {
 /// file beside the app's others so it can be read when the ledger can't.
 /// The newest [keep], none older than [days] days. Shown in Settings on a
 /// computer and at the foot of Budget on a phone, with Copy all, for the
-/// person to paste into Report a problem…'s form. What it holds is said in
+/// person to paste into Send feedback…'s form. What it holds is said in
 /// PRIVACY.md, section 3; change neither without the other.
 class ProblemLog extends ChangeNotifier {
   ProblemLog(this.file, {this.now = DateTime.now, this.version = appVersion}) {

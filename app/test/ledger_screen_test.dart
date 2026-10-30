@@ -11116,7 +11116,7 @@ void main() {
     await tidy(tester, db);
   });
 
-  testWidgets('Report a problem… opens the form, or says where it is', (
+  testWidgets('Send feedback… opens the form, or says where it is', (
     tester,
   ) async {
     final browser = _FakeBrowser();

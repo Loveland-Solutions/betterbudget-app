@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Report a problem… (#92): lls.mn's contact form, opened in the browser with
+/// Send feedback… (#92): lls.mn's contact form, opened in the browser with
 /// the app's version and the system it runs on in the link, and nothing else:
 /// never a figure from the ledger. The app makes no connection itself; the
 /// browser opens the page, and nothing is sent until the person sends the

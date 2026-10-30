@@ -750,7 +750,7 @@ class WordsMn extends Words {
   String get ledgerSettings => 'Тохиргоо';
 
   @override
-  String get reportProblem => 'Асуудал мэдэгдэх…';
+  String get reportProblem => 'Санал хүсэлт илгээх…';
 
   @override
   String get reportProblemFailed =>
@@ -767,11 +767,11 @@ class WordsMn extends Words {
 
   @override
   String get recentProblemsNote =>
-      'Зөвхөн энэ компьютерт хадгалагдана. Бидэнд мэдэгдэхийн тулд «Бүгдийг хуулах»-ыг дараад, «Асуудал мэдэгдэх…»-ийн нээх маягтад буулгана уу.';
+      'Зөвхөн энэ компьютерт хадгалагдана. Бидэнд мэдэгдэхийн тулд «Бүгдийг хуулах»-ыг дараад, «Санал хүсэлт илгээх…»-ийн нээх маягтад буулгана уу.';
 
   @override
   String get phoneRecentProblemsNote =>
-      'Зөвхөн энэ утсанд хадгалагдана. Бидэнд мэдэгдэхийн тулд «Бүгдийг хуулах»-ыг дараад, «Асуудал мэдэгдэх…»-ийн нээх маягтад буулгана уу.';
+      'Зөвхөн энэ утсанд хадгалагдана. Бидэнд илгээхийн тулд «Бүгдийг хуулах»-ыг дараад «Санал хүсэлт илгээх…»-ийг дарж, нээгдсэн маягтад буулгана уу.';
 
   @override
   String get recentProblemsCopyAll => 'Бүгдийг хуулах';
@@ -5005,13 +5005,13 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count гүйлгээ таны дэвтэрт хараахан ороогүй байна',
+      other: '$count гүйлгээ таны компьютерт хараахан ороогүй байна',
     );
     return '$_temp0';
   }
 
   @override
-  String get phoneWaitingTitle => 'Дэвтэрт хараахан ороогүй';
+  String get phoneWaitingTitle => 'Компьютерт хараахан ороогүй';
 
   @override
   String phoneOwed(String amount) {
@@ -5234,14 +5234,14 @@ class WordsMn extends Words {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count шинэ ангилал таны дэвтэрт хараахан ороогүй байна',
+      other: '$count шинэ ангилал таны компьютерт хараахан ороогүй байна',
     );
     return '$_temp0';
   }
 
   @override
   String phoneWaitingBoth(int entries, int categories) {
-    return '$entries гүйлгээ, $categories шинэ ангилал таны дэвтэрт хараахан ороогүй байна';
+    return '$entries гүйлгээ, $categories шинэ ангилал таны компьютерт хараахан ороогүй байна';
   }
 
   @override

@@ -103,7 +103,7 @@ class _CancelledDialogs extends FileSelectorPlatform {
   }
 }
 
-/// The browser Report a problem… opens; [opens] false is one that won't.
+/// The browser Send feedback… opens; [opens] false is one that won't.
 class _FakeBrowser extends UrlLauncherPlatform {
   final opened = <String>[];
   var opens = true;
@@ -405,7 +405,7 @@ void main() {
       "FileSystemException: The disk is busy, path = ''",
     );
 
-    // Report a problem… opens lls.mn's form; a browser that won't open it
+    // Send feedback… opens lls.mn's form; a browser that won't open it
     // leaves the address on the screen.
     final browser = _FakeBrowser()..opens = false;
     final before = UrlLauncherPlatform.instance;
