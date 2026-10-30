@@ -4973,3 +4973,31 @@ same each time" or "a different amount each time", not each paycheck. In Mongoli
 a pension or a benefit too. "Pay a bill", the debt steps' "pay off", and the retirement
 step's "from your pay" and employer match, which are about a job, stay. *Rejected:*
 "planned income" (the app's word, not the one people say).
+
+## The phone says what hasn't reached the computer (owner, 2026-10-30)
+
+On "1 entry isn't in your ledger yet" under the phone's Save: "ledger isn't a common
+word, second the language is confusing. Just say what has happened if you must in plain
+language." It also contradicted the screen: the entry is right there in the phone's
+Ledger tab. What hasn't happened is the computer taking it in, and the phone already
+says "From your computer today 9:40", so the line is **1 entry isn't on your computer
+yet** ("… new category isn't …", "1 entry and 1 new category aren't …"), and the list it
+opens is headed **Not on your computer yet**; in Mongolian компьютерт хараахан ороогүй.
+The line stays, since it is what opens the list to fix a waiting entry. The setup
+screens' "Where is your ledger?" and the recovery key's "to read your ledger" are left:
+they name the file the computer made, before the phone has a Ledger tab to confuse it
+with. *Rejected:* "1 entry will be added when BetterBudget is next open on your
+computer" (already turned down on 10-27, #185: longer, and a promise of when).
+
+## The phone's feedback beside Accounts, and Send feedback… (owner, 2026-10-30)
+
+"There is no feedback method in the phone app." There was one, Report a problem…, as
+the last line of Budget under every bill, where it went unseen. Asked where it should
+be, the owner chose **a speech-bubble button beside Accounts** at the top of Budget, in
+sight whenever Budget is open; the line at the foot goes, and Recent problems, while
+there are any, is the last line instead, its page with **Send feedback…** beside Copy
+all. Asked what it should say, they chose **Send feedback…**, on the phone and the
+computer alike (Санал хүсэлт илгээх…), since the form takes an idea or a question as
+well as a fault. The problem screens at the phone's start keep their line, with the new
+words. *Rejected:* a line under Save on the Ledger tab (that screen was just fitted to
+a 360 × 780 phone), both places, and keeping "Report a problem…".

@@ -466,7 +466,7 @@ void main() {
     );
   });
 
-  testWidgets('Report a problem… ends Budget and opens the form', (
+  testWidgets('Send feedback… sits beside Accounts and opens the form', (
     tester,
   ) async {
     final browser = _FakeBrowser();
@@ -475,13 +475,15 @@ void main() {
     addTearDown(() => UrlLauncherPlatform.instance = before);
     await _pump(tester);
     await _toBudget(tester);
-    final line = find.byKey(const ValueKey('report-problem'));
-    await tester.scrollUntilVisible(
-      line,
-      200,
-      scrollable: find.byType(Scrollable).last,
+    // In sight without scrolling, on the row Accounts is on.
+    final button = find.byKey(const ValueKey('report-problem'));
+    expect(button.hitTestable(), findsOneWidget);
+    expect(
+      tester.getCenter(button).dy,
+      closeTo(tester.getCenter(find.text('Accounts')).dy, 2),
     );
-    await tester.tap(line);
+    expect(find.byTooltip('Send feedback…'), findsOneWidget);
+    await tester.tap(button);
     // Until the browser is asked: the version is read first.
     await tester.runAsync(() async {
       for (var i = 0; i < 100 && browser.opened.isEmpty; i++) {
@@ -494,8 +496,8 @@ void main() {
     expect(link.queryParameters['from'], 'betterbudget');
   });
 
-  testWidgets('Recent problems sits above Report a problem… while there are '
-      'any, and Copy all copies them', (tester) async {
+  testWidgets('Recent problems ends Budget while there are any, and Copy '
+      'all copies them', (tester) async {
     final dir = _phoneDir();
     final problems = ProblemLog(
       File('${dir.path}/problems'),
@@ -504,12 +506,8 @@ void main() {
     );
     await _pump(tester, problems: problems);
     await _toBudget(tester);
-    final report = find.byKey(const ValueKey('report-problem'));
-    await tester.scrollUntilVisible(
-      report,
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -3000));
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('recent-problems')), findsNothing);
 
     await tester.runAsync(
@@ -552,6 +550,11 @@ void main() {
     expect(copied.single, startsWith('${_stamp(_now)} · 0.56.0\n'));
     expect(find.text('Copied'), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
+    // Send feedback… is beside Copy all, for the form to paste them into.
+    expect(
+      find.byKey(const ValueKey('problems-send-feedback')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a long name beside a large amount drops the cents', (
@@ -661,7 +664,7 @@ void main() {
     );
     expect(find.text('−₮0'), findsOneWidget);
     expect(find.text('Groceries'), findsNothing);
-    expect(find.text('1 entry isn’t in your ledger yet'), findsOneWidget);
+    expect(find.text('1 entry isn’t on your computer yet'), findsOneWidget);
     // The toast goes by itself.
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
@@ -794,7 +797,7 @@ void main() {
       expect(find.text('Cof'), findsOneWidget);
       expect(find.text('Nothing assigned yet'), findsOneWidget);
       expect(
-        find.text('1 new category isn’t in your ledger yet'),
+        find.text('1 new category isn’t on your computer yet'),
         findsOneWidget,
       );
 
@@ -807,7 +810,7 @@ void main() {
       expect(store.waiting.single.categoryId, made.id);
       expect(find.text('Cof · nothing assigned yet'), findsOneWidget);
       expect(
-        find.text('1 entry and 1 new category aren’t in your ledger yet'),
+        find.text('1 entry and 1 new category aren’t on your computer yet'),
         findsOneWidget,
       );
 
@@ -1245,7 +1248,7 @@ void main() {
     );
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
-    expect(find.text('Not in your ledger yet'), findsOneWidget);
+    expect(find.text('Not on your computer yet'), findsOneWidget);
     await tester.tap(row);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open'));
@@ -1424,7 +1427,7 @@ void main() {
     expect(find.text('₮53,500.00'), findsOneWidget);
     await _toLedger(tester);
 
-    await tester.tap(find.text('1 entry isn’t in your ledger yet'));
+    await tester.tap(find.text('1 entry isn’t on your computer yet'));
     await tester.pumpAndSettle();
     expect(find.text('UB Cab'), findsOneWidget);
     expect(find.text('−₮8,000.00'), findsOneWidget);
@@ -2265,7 +2268,7 @@ void main() {
     await tester.ensureVisible(find.byKey(const ValueKey('waiting-link')));
     await tester.pumpAndSettle();
     expect(
-      find.text('1 entry and 1 new category aren’t in your ledger yet'),
+      find.text('1 entry and 1 new category aren’t on your computer yet'),
       findsOneWidget,
     );
   });
@@ -3822,7 +3825,7 @@ void main() {
       expect(folder.forgotten, ['drive:Photos']);
     });
 
-    testWidgets('a problem screen ends with Report a problem…', (tester) async {
+    testWidgets('a problem screen ends with Send feedback…', (tester) async {
       final browser = _FakeBrowser();
       final before = UrlLauncherPlatform.instance;
       UrlLauncherPlatform.instance = browser;
@@ -3916,7 +3919,7 @@ void main() {
         dir: dir,
         taken: () => taken,
       );
-      expect(find.text('1 entry isn’t in your ledger yet'), findsOneWidget);
+      expect(find.text('1 entry isn’t on your computer yet'), findsOneWidget);
 
       // The computer's next ledger says it is in.
       taken = {
@@ -4047,7 +4050,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(s.read.length, 2);
       expect(s.folder.asked.toSet(), {ledgerFileName});
-      expect(find.text('1 entry isn’t in your ledger yet'), findsOneWidget);
+      expect(find.text('1 entry isn’t on your computer yet'), findsOneWidget);
       await _toBudget(tester);
       expect(find.text('₮53,500.00'), findsOneWidget);
     });

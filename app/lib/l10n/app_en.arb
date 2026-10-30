@@ -1143,17 +1143,17 @@
   "@ledgerSettings": {
     "description": "Sidebar item and title of the Settings page."
   },
-  "reportProblem": "Report a problem…",
+  "reportProblem": "Send feedback…",
   "@reportProblem": {
     "description": "Sidebar item above Settings, and a line at the foot of the phone's Budget screen: opens lls.mn's contact form in the browser, with the app's version and the system filled in."
   },
   "reportProblemFailed": "The browser didn’t open. The form is at lls.mn/en/contact.",
   "@reportProblemFailed": {
-    "description": "Failure popup when Report a problem… couldn't open the browser; says where to find the form instead."
+    "description": "Failure popup when Send feedback… couldn't open the browser; says where to find the form instead."
   },
   "detailsCopy": "Copy",
   "@detailsCopy": {
-    "description": "Button beside a failure's opened Details (the popup's and the screen shown when the ledger won't open): copies the failure's line and the technical reason, to paste into the Report a problem… form."
+    "description": "Button beside a failure's opened Details (the popup's and the screen shown when the ledger won't open): copies the failure's line and the technical reason, to paste into the Send feedback… form."
   },
   "detailsCopied": "Copied",
   "@detailsCopied": {
@@ -1163,17 +1163,17 @@
   "@recentProblemsTitle": {
     "description": "Settings on a computer, and a line and page title at the foot of the phone's Budget: the record of problems the app ran into on this device (#294), shown only while it holds something."
   },
-  "recentProblemsNote": "Kept on this computer only. To send them to us, choose Copy all, then paste them into the form that Report a problem… opens.",
+  "recentProblemsNote": "Kept on this computer only. To send them to us, choose Copy all, then paste them into the form that Send feedback… opens.",
   "@recentProblemsNote": {
-    "description": "Settings → Recent problems, under the title. Copy all is the button below; Report a problem… is the line at the foot of the sidebar."
+    "description": "Settings → Recent problems, under the title. Copy all is the button below; Send feedback… is the line at the foot of the sidebar."
   },
-  "phoneRecentProblemsNote": "Kept on this phone only. To send them to us, choose Copy all, then paste them into the form that Report a problem… opens.",
+  "phoneRecentProblemsNote": "Kept on this phone only. To send them to us, choose Copy all, then Send feedback…, and paste them into the form it opens.",
   "@phoneRecentProblemsNote": {
-    "description": "The phone's Recent problems page, under the title. Copy all is the button below; Report a problem… is the last line of Budget."
+    "description": "The phone's Recent problems page, under the title. Copy all and Send feedback… are the buttons below."
   },
   "recentProblemsCopyAll": "Copy all",
   "@recentProblemsCopyAll": {
-    "description": "Recent problems: copies every problem kept (time, version, message, reason) to paste into the Report a problem… form. Reads Copied for two seconds after."
+    "description": "Recent problems: copies every problem kept (time, version, message, reason) to paste into the Send feedback… form. Reads Copied for two seconds after."
   },
   "recentProblemsMore": "{count, plural, =1{1 earlier problem is in Copy all.} other{{count} earlier problems are in Copy all.}}",
   "@recentProblemsMore": {
@@ -7599,16 +7599,16 @@
       }
     }
   },
-  "phoneWaiting": "{count, plural, =1{1 entry isn’t in your ledger yet} other{{count} entries aren’t in your ledger yet}}",
+  "phoneWaiting": "{count, plural, =1{1 entry isn’t on your computer yet} other{{count} entries aren’t on your computer yet}}",
   "@phoneWaiting": {
-    "description": "Phone app, a line under the categories: entries typed on this phone that the Mac hasn’t taken into the ledger yet. Tapping it lists them.",
+    "description": "Phone app, a line under the categories: entries typed on this phone that the computer hasn’t taken in yet. Tapping it lists them. Not “ledger”: the phone’s Ledger tab already shows them (owner, 2026-10-30).",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
-  "phoneWaitingTitle": "Not in your ledger yet",
+  "phoneWaitingTitle": "Not on your computer yet",
   "@phoneWaitingTitle": {
     "description": "Phone app: heading of the list of this phone’s entries the Mac hasn’t taken in yet."
   },
@@ -7986,7 +7986,7 @@
       }
     }
   },
-  "phoneWaitingCategories": "{count, plural, =1{1 new category isn’t in your ledger yet} other{{count} new categories aren’t in your ledger yet}}",
+  "phoneWaitingCategories": "{count, plural, =1{1 new category isn’t on your computer yet} other{{count} new categories aren’t on your computer yet}}",
   "@phoneWaitingCategories": {
     "description": "Phone app, the line that opens the waiting list, when only categories made on this phone are waiting, with no entries.",
     "placeholders": {
@@ -7995,7 +7995,7 @@
       }
     }
   },
-  "phoneWaitingBoth": "{entries, plural, =1{1 entry} other{{entries} entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} aren’t in your ledger yet",
+  "phoneWaitingBoth": "{entries, plural, =1{1 entry} other{{entries} entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} aren’t on your computer yet",
   "@phoneWaitingBoth": {
     "description": "Phone app, the line that opens the waiting list, when both entries and categories made on this phone are waiting.",
     "placeholders": {

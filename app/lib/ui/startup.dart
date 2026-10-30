@@ -140,7 +140,7 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
   /// again doesn't put it in twice.
   _Failed? _recorded;
 
-  /// Whether the browser wouldn't open Report a problem…'s form; there is no
+  /// Whether the browser wouldn't open Send feedback…'s form; there is no
   /// popup here, so the screen says where the form is.
   bool _reportFailed = false;
 
@@ -460,7 +460,7 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
     unawaited(f.retry());
   }
 
-  /// Report a problem… (#292): lls.mn's form in the browser.
+  /// Send feedback… (#292): lls.mn's form in the browser.
   Future<void> _reportProblem(Words t) async {
     final opened = await openReportProblem(
       language: t.localeName.split('_').first,
@@ -535,7 +535,7 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
                     style: onest(13, color: Mid.ink3, height: 1.4),
                   ),
                   const SizedBox(height: 4),
-                  // Its left edge on the text's, as Report a problem… below.
+                  // Its left edge on the text's, as Send feedback… below.
                   Transform.translate(
                     offset: const Offset(-10, 0),
                     child: CopyDetails(

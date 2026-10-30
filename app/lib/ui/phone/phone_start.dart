@@ -415,7 +415,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
 
 /// One question on a screen: what is asked, why, an optional box, a button,
 /// and sometimes a second way out under it. A problem screen ends with
-/// Report a problem… (#292): the ledger not opening is when it's needed most.
+/// Send feedback… (#292): the ledger not opening is when it's needed most.
 class _Ask extends StatelessWidget {
   const _Ask({
     required this.title,

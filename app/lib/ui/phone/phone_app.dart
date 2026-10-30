@@ -731,6 +731,16 @@ class _BudgetScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                // Send feedback… (#92), in sight whenever Budget is open
+                // (owner, 2026-10-30: at the foot of the bills it went
+                // unseen).
+                IconButton(
+                  key: const ValueKey('report-problem'),
+                  onPressed: () => openFeedback(context),
+                  tooltip: t.reportProblem,
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 22),
+                  color: Mid.ink2,
+                ),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -756,19 +766,16 @@ class _BudgetScreen extends StatelessWidget {
                 child: ListView.separated(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 12),
-                  // The last line is Report a problem…, after the bills.
+                  // The last line is Recent problems, after the bills, while
+                  // the phone's record holds any.
                   itemCount: listed.length + 2,
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     if (i == listed.length + 1) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (problems case final log?)
-                            _RecentProblemsLine(log: log, now: now),
-                          const ReportProblemLine(),
-                        ],
-                      );
+                      return switch (problems) {
+                        final log? => _RecentProblemsLine(log: log, now: now),
+                        null => const SizedBox.shrink(),
+                      };
                     }
                     if (i == newAt) {
                       return Align(
@@ -807,31 +814,33 @@ class _BudgetScreen extends StatelessWidget {
   );
 }
 
-/// Report a problem…, the last line of Budget (#92) and of the start's
-/// problem screens (#292): lls.mn's form in the phone's browser, with the
-/// app's version and Android's filled in.
+/// Send feedback… (#92): lls.mn's form in the phone's browser, with the
+/// app's version and Android's filled in, or a popup saying where the form
+/// is when the browser won't open.
+Future<void> openFeedback(BuildContext context) async {
+  final t = context.t;
+  final opened = await openReportProblem(
+    language: Localizations.localeOf(context).languageCode,
+  );
+  if (opened || !context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      content: Text(t.reportProblemFailed),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).okButtonLabel),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Send feedback…, the last line of the start's problem screens (#292).
+/// Budget has it as a button beside Accounts.
 class ReportProblemLine extends StatelessWidget {
   const ReportProblemLine({super.key});
-
-  Future<void> _open(BuildContext context) async {
-    final t = context.t;
-    final opened = await openReportProblem(
-      language: Localizations.localeOf(context).languageCode,
-    );
-    if (opened || !context.mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Text(t.reportProblemFailed),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(MaterialLocalizations.of(context).okButtonLabel),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) => Align(
@@ -840,8 +849,8 @@ class ReportProblemLine extends StatelessWidget {
       padding: const EdgeInsets.only(top: 16),
       child: TextButton.icon(
         key: const ValueKey('report-problem'),
-        onPressed: () => _open(context),
-        icon: const Icon(Icons.feedback_outlined, size: 18),
+        onPressed: () => openFeedback(context),
+        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
         label: Text(context.t.reportProblem),
         style: TextButton.styleFrom(
           minimumSize: const Size(44, 44),
@@ -853,8 +862,8 @@ class ReportProblemLine extends StatelessWidget {
   );
 }
 
-/// Recent problems, just above Report a problem… (#294), only while the
-/// phone's record holds any: opens the page that lists them.
+/// Recent problems, the last line of Budget (#294), only while the phone's
+/// record holds any: opens the page that lists them.
 class _RecentProblemsLine extends StatelessWidget {
   const _RecentProblemsLine({required this.log, required this.now});
   final ProblemLog log;
@@ -891,8 +900,8 @@ class _RecentProblemsLine extends StatelessWidget {
 }
 
 /// The phone's Recent problems: each with when, the line it showed and the
-/// reason behind it, newest first, and Copy all for Report a problem…'s
-/// form.
+/// reason behind it, newest first, and Copy all and Send feedback… to put
+/// them in lls.mn's form.
 class _RecentProblemsPage extends StatefulWidget {
   const _RecentProblemsPage({required this.log, required this.now});
   final ProblemLog log;
@@ -955,20 +964,36 @@ class _RecentProblemsPageState extends State<_RecentProblemsPage> {
             style: onest(15, color: Mid.ink2, height: 1.4),
           ),
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonalIcon(
-              key: const ValueKey('copy-all-problems'),
-              onPressed: () => _copyAll(problemsToCopy(problems)),
-              icon: const Icon(Icons.content_copy_rounded, size: 18),
-              label: Text(_copied ? t.detailsCopied : t.recentProblemsCopyAll),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(44, 44),
-                backgroundColor: Mid.card,
-                foregroundColor: Mid.blue,
-                textStyle: onest(15, weight: 600),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                key: const ValueKey('copy-all-problems'),
+                onPressed: () => _copyAll(problemsToCopy(problems)),
+                icon: const Icon(Icons.content_copy_rounded, size: 18),
+                label: Text(
+                  _copied ? t.detailsCopied : t.recentProblemsCopyAll,
+                ),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(44, 44),
+                  backgroundColor: Mid.card,
+                  foregroundColor: Mid.blue,
+                  textStyle: onest(15, weight: 600),
+                ),
               ),
-            ),
+              TextButton.icon(
+                key: const ValueKey('problems-send-feedback'),
+                onPressed: () => openFeedback(context),
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                label: Text(t.reportProblem),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(44, 44),
+                  foregroundColor: Mid.blue,
+                  textStyle: onest(15),
+                ),
+              ),
+            ],
           ),
           for (final p in problems) ...[
             const SizedBox(height: 16),
