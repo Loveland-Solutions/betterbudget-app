@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-29** · version 0.66.3 · schema v23 · 978 tests pass
+**Last updated: 2026-10-30** · version 0.66.3 · schema v23 · 978 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -11,12 +11,15 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**On Play: 0.66.2 (562) on every track, 2026-10-29.** Internal testing; alpha (closed
+**On Play: 0.66.3 (566) on every track, 2026-10-30.** Internal testing; alpha (closed
 testing); and production at full rollout, sent to Google's review that day. Play's App
 access check ("Missing sign in details") is answered: Sign in details holds the demo key
 (`DEMO-DEMO-DEMO-DEMO-DEMO`, #303; ADR 0005 "A demo key for Play's review"), which opens
 the phone on made-up figures. The upload key may release to production too; a release
 there is still the owner's say each time.
+
+**Microsoft Store:** 0.66.3 hasn't gone: Submission 5 (0.66.0) was still in Partner
+Center at status Release on 2026-10-30, and `release_store.sh` refuses while one waits.
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
 
