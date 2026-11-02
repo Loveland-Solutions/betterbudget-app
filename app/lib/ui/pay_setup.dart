@@ -45,32 +45,6 @@ class PayNone extends PaySetupResult {
   const PayNone();
 }
 
-/// Stand-ins for the boxes in a sentence like "On the [25]": the words
-/// around a box come from one message, so each language puts them in its
-/// own order.
-const _fieldMarks = ['\uE000', '\uE001'];
-
-/// [text] as a row of words and [fields], each field where its mark is.
-List<Widget> _withFields(String text, List<Widget> fields) {
-  final out = <Widget>[];
-  var rest = text;
-  while (rest.isNotEmpty) {
-    var at = -1, which = -1;
-    for (var i = 0; i < fields.length; i++) {
-      final j = rest.indexOf(_fieldMarks[i]);
-      if (j >= 0 && (at < 0 || j < at)) (at, which) = (j, i);
-    }
-    if (at < 0) {
-      out.add(Text(rest, style: onest(13.5)));
-      break;
-    }
-    if (at > 0) out.add(Text(rest.substring(0, at), style: onest(13.5)));
-    out.add(fields[which]);
-    rest = rest.substring(at + 1);
-  }
-  return out;
-}
-
 /// The pay form in a dialog: from the forecast's "Add your pay", or the
 /// Budget page's Income tab. It closes with a [PaySetupResult], or null.
 class _PaySetupDialog extends StatelessWidget {
@@ -738,19 +712,19 @@ class _PayFormState extends State<_PayForm> {
                   if (!_noDay)
                     Row(
                       children: switch (_rule) {
-                        PayRule.monthly => _withFields(
-                          t.setupOnDayField(_fieldMarks[0]),
+                        PayRule.monthly => withFields(
+                          t.setupOnDayField(fieldMarks[0]),
                           [small(_day1, 'pay-day1')],
                         ),
-                        PayRule.twiceMonthly => _withFields(
-                          t.setupOnDaysField(_fieldMarks[0], _fieldMarks[1]),
+                        PayRule.twiceMonthly => withFields(
+                          t.setupOnDaysField(fieldMarks[0], fieldMarks[1]),
                           [small(_day2, 'pay-day2'), small(_day1, 'pay-day1')],
                         ),
-                        PayRule.everyWeeks => _withFields(
+                        PayRule.everyWeeks => withFields(
                           t.setupEveryWeeksField(
                             _weeksValue ?? 0,
-                            _fieldMarks[0],
-                            _fieldMarks[1],
+                            fieldMarks[0],
+                            fieldMarks[1],
                           ),
                           [
                             small(_weeks, 'pay-weeks-n', width: 44),

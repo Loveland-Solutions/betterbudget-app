@@ -2,7 +2,7 @@
 
 Where things are and what calls what. For what a file does, read its header comment.
 Paths are relative to `app/`. Checked against imports and class names on 2026-10-07
-(schema v23 since 2026-10-27). **Update this file when a file is added, moved or renamed.**
+(schema v24 since 2026-11-02). **Update this file when a file is added, moved or renamed.**
 
 Never open or list: `test/goldens/`, `test/failures/` (PNGs), `.dart_tool/`, `build/`,
 `android/`, `ios/`, `macos/`, `windows/`.
@@ -175,7 +175,7 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   are faked by `_FakeDialogs` there. A click that saves and is followed by a read
   of the database goes through `press` in `setup_test.dart` (the tap inside
   `runAsync`): tapped outside it, the write waits on pumps and the read hangs behind it.
-- **Goldens** come from `ledger_screen_test.dart` (73), `setup_test.dart` (6),
+- **Goldens** come from `ledger_screen_test.dart` (74), `setup_test.dart` (6),
   `language_test.dart` (4, Mongolian), `cloud_folder_test.dart` (8),
   `startup_test.dart` (2) and `recovery_key_screen_test.dart` (1). A dialog isn't inside `LedgerScreen`: to draw
   one, capture `find.byType(MaterialApp)`. `test/goldens/` is committed;

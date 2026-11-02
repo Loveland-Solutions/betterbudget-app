@@ -4151,7 +4151,7 @@ abstract class Words {
   /// **'On the {field}'**
   String setupOnDayField(String field);
 
-  /// Pay setup, twice a month: the words around the two day-of-month boxes. first and second are where the boxes go.
+  /// Pay setup and a bill's Edit, twice a month: the words around the two day-of-month boxes. first and second are where the boxes go.
   ///
   /// In en, this message translates to:
   /// **'On the {first}  and the {second}'**
@@ -6892,6 +6892,24 @@ abstract class Words {
   /// **'{amount} · ended {date}'**
   String planEnded(String amount, String date);
 
+  /// Budget page, Edit under a category's row (Yes): how often, on two days of every month
+  ///
+  /// In en, this message translates to:
+  /// **'Twice a month'**
+  String get planTwiceAMonth;
+
+  /// Phone, new category, twice a month: label of the field for the first day of the month
+  ///
+  /// In en, this message translates to:
+  /// **'First due day'**
+  String get planFirstDay;
+
+  /// Phone, new category, twice a month: label of the field for the second day of the month
+  ///
+  /// In en, this message translates to:
+  /// **'Second due day'**
+  String get planSecondDay;
+
   /// Budget page, Edit under a category's row (Yes): how often, fixed dates each year that aren't evenly spaced (taxes four times a year)
   ///
   /// In en, this message translates to:
@@ -6981,6 +6999,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Enter the date and the bill shows in {account}’s forecast.'**
   String planPaidFromHintNone(String account);
+
+  /// Category Edit, a bill twice a month: what Set aside each month says until the amount and both days are typed
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the amount and two different days'**
+  String get planEnterAmountDays;
 
   /// Budget page, Edit under a category's row (Yes): in place of the worked-out amount until both are typed
   ///

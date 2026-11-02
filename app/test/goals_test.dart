@@ -320,6 +320,59 @@ void main() {
     expect(read('01.05', DateTime(2026, 12, 28)), DateTime(2027, 1, 5));
   });
 
+  test('twice a month: two days, from this month, kept while they stay', () {
+    PlanAnswers on(DateTime day) =>
+        PlanAnswers(today: day, currency: Currency.mnt)..hasDate = true;
+
+    final a = on(DateTime(2026, 11, 20))
+      ..repeat = PlanRepeat.twice
+      ..amount.text = '50000';
+    expect(a.missing, PlanMissing.days);
+    a.day1.text = '15';
+    expect(a.missing, PlanMissing.days);
+    a.day2.text = '15';
+    expect(a.missing, PlanMissing.days, reason: 'one day, not two');
+    a.day2.text = '32';
+    expect(a.missing, PlanMissing.days, reason: 'not a day of a month');
+    // Either order; one gone by this month stays there, like a date.
+    a.day2.text = '1';
+    expect(a.missing, isNull);
+    final p = a.draft(categoryId: wedding)!;
+    expect(p.monthDays, [1, 15]);
+    expect(p.due, DateTime(2026, 11, 1));
+    a.dispose();
+
+    // Opened later and saved as it is: nothing about it changes.
+    final later = on(DateTime(2026, 12, 20))..show(p);
+    expect(later.repeat, PlanRepeat.twice);
+    expect((later.day1.text, later.day2.text), ('1', '15'));
+    expect(later.draft(categoryId: wedding, old: p), p);
+    // Other days come from today on: this month's bills were the old
+    // days'.
+    later.day2.text = '25';
+    final moved = later.draft(categoryId: wedding, old: p)!;
+    expect(moved.monthDays, [1, 25]);
+    expect(moved.due, DateTime(2026, 12, 25));
+    expect(moved.start, DateTime(2026, 12, 20));
+    later.day2.text = '10';
+    expect(later.draft(categoryId: wedding, old: p)!.due, DateTime(2027, 1, 1));
+    later.dispose();
+
+    // Ends is asked, as for every other repeat by the month.
+    final ending = on(DateTime(2027, 2, 2))
+      ..repeat = PlanRepeat.twice
+      ..amount.text = '50000'
+      ..day1.text = '30'
+      ..day2.text = '31'
+      ..ends = PlanEnds.count;
+    expect(ending.endsOn, isTrue);
+    final q = ending.draft(categoryId: wedding)!;
+    expect(q.endCount, 12);
+    // A day past the month's end: its last.
+    expect(q.due, DateTime(2027, 2, 28));
+    ending.dispose();
+  });
+
   test('a late goal marked done asks nothing more, and goes when spent', () {
     final late = DateTime(2027, 1, 10);
     final prefs = {

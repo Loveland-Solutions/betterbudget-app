@@ -354,6 +354,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     String on() => switch (a.repeat) {
       PlanRepeat.once => 'once',
       PlanRepeat.dates => 'dates',
+      PlanRepeat.twice => 'twice',
       PlanRepeat.payday => 'pay-${a.payScheduleId}',
       PlanRepeat.every when a.custom => 'custom',
       PlanRepeat.every => '${a.unit.name}-${a.typedEveryN}',
@@ -364,6 +365,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         ('once', t.planOnce),
         ('weeks-1', t.planRepeatWeeks(1)),
         ('weeks-2', t.planRepeatWeeks(2)),
+        ('twice', t.planTwiceAMonth),
         ('months-1', t.planRepeatMonths(1)),
         ('months-3', t.planRepeatMonths(3)),
         ('years-1', t.planRepeatYears(1)),
@@ -383,6 +385,8 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
           a.repeat = PlanRepeat.once;
         case ['dates']:
           a.repeat = PlanRepeat.dates;
+        case ['twice']:
+          a.repeat = PlanRepeat.twice;
         case ['custom']:
           a.repeat = PlanRepeat.every;
           a.custom = true;
@@ -659,6 +663,22 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         wrong: missing == PlanMissing.date,
       ),
     };
+    final dayRows = [
+      _fieldRow(
+        'plan-day1',
+        t.planFirstDay,
+        a.day1,
+        number: true,
+        wrong: missing == PlanMissing.days,
+      ),
+      _fieldRow(
+        'plan-day2',
+        t.planSecondDay,
+        a.day2,
+        number: true,
+        wrong: missing == PlanMissing.days,
+      ),
+    ];
     if (!a.hasDate) {
       return [
         _card([
@@ -714,7 +734,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       ];
     }
     final paidAccount = _data.accounts[_paidFrom];
-    final due = line?.plan?.due ?? a.typedDate;
+    final due = line?.plan?.due ?? draft?.due ?? a.typedDate;
     final dueText = due == null
         ? null
         : due.year == widget.today.year
@@ -722,7 +742,9 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         : sayFullDate(t, due);
     final String part;
     if (draft == null) {
-      part = t.planEnterAmountDate;
+      part = a.repeat == PlanRepeat.twice
+          ? t.planEnterAmountDays
+          : t.planEnterAmountDate;
     } else if ((line?.plan?.each ?? 0) > 0) {
       part = money(line!.plan!.each);
     } else {
@@ -751,7 +773,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
             _openCustom,
             wrong: missing == PlanMissing.everyN,
           ),
-        dueRow,
+        if (a.repeat == PlanRepeat.twice) ...dayRows else dueRow,
         // A weekend rule, for dates that can land on one (not chosen
         // weekdays: those are the days).
         if (a.repeat != PlanRepeat.once &&

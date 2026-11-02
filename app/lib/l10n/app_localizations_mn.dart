@@ -4686,6 +4686,15 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planTwiceAMonth => 'Сард хоёр удаа';
+
+  @override
+  String get planFirstDay => 'Эхний төлөх өдөр';
+
+  @override
+  String get planSecondDay => 'Хоёр дахь төлөх өдөр';
+
+  @override
   String get planOnDates => 'Эдгээр өдрүүдэд…';
 
   @override
@@ -4741,6 +4750,9 @@ class WordsMn extends Words {
   String planPaidFromHintNone(String account) {
     return 'Огноогоо оруулбал төлбөр $account дансны төсөөлөлд харагдана.';
   }
+
+  @override
+  String get planEnterAmountDays => 'Дүн болон хоёр өөр өдрөө оруулна уу';
 
   @override
   String get planEnterAmountDate => 'Дүн болон өдрөө оруулна уу';

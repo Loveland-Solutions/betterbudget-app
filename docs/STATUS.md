@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-02** · version 0.67.2 · schema v23 · 991 tests pass
+**Last updated: 2026-11-02** · version 0.70.0 · schema v24 · 1005 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -11,18 +11,26 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**On Play: 0.66.3 (566) on every track, 2026-10-30.** Internal testing; alpha (closed
+**On Play: 0.69.0 (580) on every track, 2026-11-02.** Internal testing; alpha (closed
 testing); and production at full rollout, sent to Google's review that day. Play's App
 access check ("Missing sign in details") is answered: Sign in details holds the demo key
 (`DEMO-DEMO-DEMO-DEMO-DEMO`, #303; ADR 0005 "A demo key for Play's review"), which opens
 the phone on made-up figures. The upload key may release to production too; a release
 there is still the owner's say each time.
 
-**Microsoft Store:** 0.66.3 in certification, 2026-10-30; when it passes, it waits for
+**Microsoft Store:** 0.69.0 in certification, 2026-11-02; when it passes, it waits for
 the owner's Publish now. `release_store.sh` now deletes a waiting submission rather
-than stopping; Submission 5 (0.66.0) went that way.
+than stopping; 0.66.3, passed and waiting for Publish now, went that way.
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+
+**A category with money shows green** (0.70.0, #326; ADR 0004 "A category with money
+shows green"): Left on the computer's Budget page is green above zero, gray at ₮0, coral
+when short. Apart from the bank, import's balance line says what the skipped rows come to.
+
+**A bill twice a month** (0.69.0, #351; ADR 0004 "A bill twice a month"): How often has
+Twice a month, with two days typed as pay's are, on the computer and the phone. Schema
+v24 adds `month_days`, empty on every plan already there.
 
 **Import says two counts** (0.67.2, #348; ADR 0004 "Rows before the opening balance"): the
 window shows how many rows it will import and how many it skips, and no list of rows.

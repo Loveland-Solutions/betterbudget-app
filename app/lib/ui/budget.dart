@@ -4389,6 +4389,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   final _dateFocus = FocusNode(debugLabel: 'plan-date');
   final _upToFocus = FocusNode(debugLabel: 'plan-up-to');
   final _datesFocus = FocusNode(debugLabel: 'plan-dates');
+  final _day1Focus = FocusNode(debugLabel: 'plan-day1');
   final _onceFocus = FocusNode(debugLabel: 'plan-once');
   final _noteFocus = FocusNode(debugLabel: 'category-note');
   final _newGroupFocus = FocusNode(debugLabel: 'category-new-group');
@@ -4591,6 +4592,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       _dateFocus,
       _upToFocus,
       _datesFocus,
+      _day1Focus,
       _onceFocus,
       _noteFocus,
       _newGroupFocus,
@@ -4638,6 +4640,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     _dateFocus.dispose();
     _upToFocus.dispose();
     _datesFocus.dispose();
+    _day1Focus.dispose();
     _onceFocus.dispose();
     _noteFocus.dispose();
     _newGroupFocus.dispose();
@@ -4698,6 +4701,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ? (_p.missing == PlanMissing.once ? _onceFocus : _upToFocus)
               : _p.repeat == PlanRepeat.dates
               ? _datesFocus
+              : _p.repeat == PlanRepeat.twice
+              ? _day1Focus
               : _dateFocus)
           .requestFocus();
       return;
@@ -4828,6 +4833,29 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         ),
       ),
     );
+    Widget dayBox(
+      TextEditingController controller,
+      String key, {
+      FocusNode? focus,
+    }) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: SizedBox(
+        width: 56,
+        height: 34,
+        child: TextField(
+          key: ValueKey(key),
+          controller: controller,
+          focusNode: focus,
+          textAlign: TextAlign.center,
+          style: onest(13.5, tabular: true),
+          onSubmitted: (_) => _save(),
+          decoration: _fieldDecoration(
+            wrong: _tried && _p.typedMonthDays == null,
+          ),
+        ),
+      ),
+    );
+
     Widget menu(
       MenuController controller, {
       required String key,
@@ -4881,13 +4909,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     // 2026-10-22: "Remove 'worked out from the date'").
     final String part;
     if (draft == null) {
-      part = t.planEnterAmountDate;
+      part = _p.repeat == PlanRepeat.twice
+          ? t.planEnterAmountDays
+          : t.planEnterAmountDate;
     } else if ((line?.plan?.each ?? 0) > 0) {
       part = money(line!.plan!.each);
     } else {
       part = t.planNothingMore;
     }
-    final due = line?.plan?.due ?? _p.typedDate;
+    final due = line?.plan?.due ?? draft?.due ?? _p.typedDate;
     final dueText = due == null
         ? null
         : due.year == widget.today.year
@@ -5045,6 +5075,24 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                       PlanUnit.weeks,
                       t.planRepeatWeeks(2),
                     ),
+                  ])
+                    item(
+                      key,
+                      label,
+                      on:
+                          _p.repeat == PlanRepeat.every &&
+                          !_p.custom &&
+                          _p.unit == unit &&
+                          _p.typedEveryN == n,
+                      onTap: () => _preset(n, unit),
+                    ),
+                  item(
+                    'plan-repeat-twice',
+                    t.planTwiceAMonth,
+                    on: _p.repeat == PlanRepeat.twice,
+                    onTap: () => setState(() => _p.repeat = PlanRepeat.twice),
+                  ),
+                  for (final (key, n, unit, label) in [
                     (
                       'plan-repeat-1',
                       1,
@@ -5158,6 +5206,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                             hintStyle: onest(13.5, color: Mid.ink3),
                           ),
                     ),
+                  )
+                else if (_p.repeat == PlanRepeat.twice)
+                  ...withFields(
+                    t.setupOnDaysField(fieldMarks[0], fieldMarks[1]),
+                    [
+                      dayBox(_p.day1, 'plan-day1', focus: _day1Focus),
+                      dayBox(_p.day2, 'plan-day2'),
+                    ],
                   )
                 else
                   SizedBox(
@@ -5764,6 +5820,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         _p.upTo,
         _p.everyN,
         _p.dates,
+        _p.day1,
+        _p.day2,
         _p.daysAfter,
         _p.endDate,
         _p.endCount,

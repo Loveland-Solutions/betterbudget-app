@@ -552,6 +552,7 @@ void main() {
       int? upTo,
       int? everyDays,
       List<(int, int)>? onDates,
+      List<int>? monthDays,
       int? payScheduleId,
       int daysAfterPay = 0,
       PayWeekend weekend = PayWeekend.keep,
@@ -570,6 +571,7 @@ void main() {
       everyMonths: every,
       everyDays: everyDays,
       onDates: onDates,
+      monthDays: monthDays,
       payScheduleId: payScheduleId,
       daysAfterPay: daysAfterPay,
       weekend: weekend,
@@ -1531,6 +1533,145 @@ void main() {
       final feb = (start: DateTime(2027, 2, 1), end: DateTime(2027, 2, 28));
       final f = of(d, feb).lines[xmas]!;
       expect((f.plan!.due, f.plan!.each), (DateTime(2027, 4, 15), 13333400));
+    });
+
+    test('twice a month: both bills asked for in the month', () {
+      final loan = plan(
+        xmas,
+        PlanKind.byDate,
+        10000000,
+        due: DateTime(2026, 10, 1),
+        monthDays: [1, 15],
+      );
+      expect(loan.repeats, isTrue);
+      expect(
+        [for (var n = 0; n < 7; n++) Budget.dueAfter(loan, n)],
+        [
+          DateTime(2026, 10, 1),
+          DateTime(2026, 10, 15),
+          DateTime(2026, 11, 1),
+          DateTime(2026, 11, 15),
+          DateTime(2026, 12, 1),
+          DateTime(2026, 12, 15),
+          // Over the year's end.
+          DateTime(2027, 1, 1),
+        ],
+      );
+      expect(
+        of(ledger(plans: [loan]), oct).lines[xmas]!.plan!.planned,
+        20000000,
+      );
+    });
+
+    test('twice a month: from its first date, and through short months', () {
+      // Made after the 1st: the 15th is the first.
+      final fromThe15th = plan(
+        xmas,
+        PlanKind.byDate,
+        10000000,
+        due: DateTime(2026, 10, 15),
+        monthDays: [1, 15],
+      );
+      expect(Budget.dueAfter(fromThe15th, 0), DateTime(2026, 10, 15));
+      expect(Budget.dueAfter(fromThe15th, 1), DateTime(2026, 11, 1));
+      // A day February doesn't have lands on its last.
+      final to31st = plan(
+        xmas,
+        PlanKind.byDate,
+        10000000,
+        due: DateTime(2027, 2, 15),
+        monthDays: [15, 31],
+      );
+      expect(
+        [for (var n = 0; n < 4; n++) Budget.dueAfter(to31st, n)],
+        [
+          DateTime(2027, 2, 15),
+          DateTime(2027, 2, 28),
+          DateTime(2027, 3, 15),
+          DateTime(2027, 3, 31),
+        ],
+      );
+      // Both past it meet there: one bill that month, as with pay.
+      final meeting = plan(
+        xmas,
+        PlanKind.byDate,
+        10000000,
+        due: DateTime(2027, 1, 30),
+        monthDays: [30, 31],
+      );
+      expect(
+        [for (var n = 0; n < 4; n++) Budget.dueAfter(meeting, n)],
+        [
+          DateTime(2027, 1, 30),
+          DateTime(2027, 1, 31),
+          DateTime(2027, 2, 28),
+          DateTime(2027, 3, 30),
+        ],
+      );
+    });
+
+    test('twice a month: a weekend rule and an end', () {
+      // 2026.11.01 is a Sunday; the 15th too.
+      final loan = plan(
+        xmas,
+        PlanKind.byDate,
+        10000000,
+        due: DateTime(2026, 11, 1),
+        monthDays: [1, 15],
+        weekend: PayWeekend.before,
+        endCount: 3,
+      );
+      expect(Budget.dueAfter(loan, 0), DateTime(2026, 10, 30));
+      expect(Budget.dueAfter(loan, 1), DateTime(2026, 11, 13));
+      expect(Budget.lastDue(loan), DateTime(2026, 12, 1));
+    });
+
+    test('twice a month: two a weekend rule brings together are one bill', () {
+      // 2026.08.01 and 02 are a Saturday and a Sunday.
+      final loan = plan(
+        xmas,
+        PlanKind.byDate,
+        10000000,
+        due: DateTime(2026, 8, 1),
+        monthDays: [1, 2],
+        weekend: PayWeekend.after,
+      );
+      expect(
+        [for (var n = 0; n < 3; n++) Budget.dueAfter(loan, n)],
+        [DateTime(2026, 8, 3), DateTime(2026, 9, 1), DateTime(2026, 9, 2)],
+      );
+    });
+
+    test('twice a month: the row names the bill still to pay, and says paid '
+        'when both are', () {
+      final loan = plan(
+        housing,
+        PlanKind.byDate,
+        10000000,
+        due: DateTime(2026, 10, 1),
+        monthDays: [1, 15],
+      );
+      TxnData paid(int day) => move(
+        DateTime(2026, 10, day),
+        checking,
+        housing,
+        10000000,
+        plan: housing,
+      );
+      final one = of(
+        ledger(plans: [loan], rows: [paid(1)]),
+        oct,
+      ).lines[housing]!;
+      expect((one.plan!.due, one.paidOn), (DateTime(2026, 10, 15), null));
+      expect(one.plan!.planned, 20000000);
+      final both = of(
+        ledger(plans: [loan], rows: [paid(1), paid(15)]),
+        oct,
+      ).lines[housing]!;
+      expect(
+        (both.plan!.due, both.paidOn),
+        (DateTime(2026, 10, 15), DateTime(2026, 10, 15)),
+      );
     });
 
     test('Custom…: every 2 weeks on Mondays and Thursdays', () {
@@ -2568,6 +2709,99 @@ void main() {
         expect(await dates(), isEmpty);
         await db.redoPlanChange(fee, plan(), change);
         expect(await dates(), [due, next]);
+      });
+
+      test(
+        'twice a month: every day gone by this month has its bill',
+        () async {
+          final twice = CategoryPlan(
+            categoryId: fee,
+            kind: PlanKind.byDate,
+            amount: 5000000,
+            start: today,
+            due: DateTime(today.year, today.month, 1),
+            monthDays: [1, today.day - 1],
+            paidFrom: bank,
+          );
+          final change = await db.changeCategoryPlan(fee, twice, today);
+          expect(await dates(), [
+            DateTime(today.year, today.month, 1),
+            DateTime(today.year, today.month, today.day - 1),
+            DateTime(today.year, today.month + 1, 1),
+          ]);
+          await db.undoPlanChange(fee, change);
+          expect(await dates(), isEmpty);
+          await db.redoPlanChange(fee, twice, change);
+          expect(await dates(), hasLength(3));
+        },
+      );
+
+      test('paid ahead in the same month, both bills are still asked for; '
+          'a bill that won\'t come isn\'t', () async {
+        final first = DateTime(today.year, today.month, 1);
+        final twice = CategoryPlan(
+          categoryId: fee,
+          kind: PlanKind.byDate,
+          amount: 50000000,
+          start: first,
+          due: first,
+          monthDays: const [1, 15],
+          paidFrom: bank,
+        );
+        await db.changeCategoryPlan(fee, twice, today);
+        final month = (
+          start: first,
+          end: DateTime(today.year, today.month + 1, 0),
+        );
+        final nextMonth = (
+          start: DateTime(today.year, today.month + 1, 1),
+          end: DateTime(today.year, today.month + 2, 0),
+        );
+        EnvelopeLine line(LedgerData d, ({DateTime start, DateTime end}) p) =>
+            of(d, p).lines[fee]!;
+        final bill = (await bills()).first;
+        expect(line(await db.loadLedger(), month).plan!.planned, 100000000);
+
+        // ₮1,000,000 in one payment, taken as both.
+        final row = await db.postSimple(
+          date: first,
+          today: today,
+          payee: 'School',
+          accountId: bank,
+          counterAccountId: fee,
+          amount: -100000000,
+        );
+        final paid = await db.payBill(
+          billId: bill.id,
+          billAccountId: bank,
+          foundId: row,
+          today: today,
+          planCategoryId: fee,
+          bills: 2,
+        );
+        expect(paid.skipped, hasLength(1));
+        var data = await db.loadLedger();
+        final both = line(data, month);
+        expect(both.plan!.planned, 100000000);
+        // And the line says it's paid, with nothing still to pay.
+        expect(both.plan!.billsLeft, isFalse);
+        expect(both.paidOn, first);
+        // Assigned what it asked, the next month is an ordinary one.
+        await db.setBudgetAmount(fee, month.start, month.end, 100000000);
+        data = await db.loadLedger();
+        expect(line(data, month).left, 0);
+        expect(line(data, nextMonth).plan!.planned, 100000000);
+
+        // "No bill this time" on a bill: that one isn't asked for.
+        final ledger = await db.loadLedger();
+        expect(Budget.skippedBills(ledger, twice), {
+          DateTime(today.year, today.month, 15),
+        });
+        await db.setPreference(
+          billSkippedKey(999),
+          '$fee;${dateKey(DateTime(today.year, today.month + 1, 15))}',
+        );
+        expect(line(await db.loadLedger(), nextMonth).plan!.planned, 50000000);
       });
 
       test('replaces the bill the old date had scheduled', () async {

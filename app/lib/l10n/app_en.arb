@@ -4399,7 +4399,7 @@
   },
   "setupOnDaysField": "On the {first}  and the {second}",
   "@setupOnDaysField": {
-    "description": "Pay setup, twice a month: the words around the two day-of-month boxes. first and second are where the boxes go.",
+    "description": "Pay setup and a bill's Edit, twice a month: the words around the two day-of-month boxes. first and second are where the boxes go.",
     "placeholders": {
       "first": {
         "type": "String"
@@ -7136,6 +7136,18 @@
       }
     }
   },
+  "planTwiceAMonth": "Twice a month",
+  "@planTwiceAMonth": {
+    "description": "Budget page, Edit under a category's row (Yes): how often, on two days of every month"
+  },
+  "planFirstDay": "First due day",
+  "@planFirstDay": {
+    "description": "Phone, new category, twice a month: label of the field for the first day of the month"
+  },
+  "planSecondDay": "Second due day",
+  "@planSecondDay": {
+    "description": "Phone, new category, twice a month: label of the field for the second day of the month"
+  },
   "planOnDates": "On these dates…",
   "@planOnDates": {
     "description": "Budget page, Edit under a category's row (Yes): how often, fixed dates each year that aren't evenly spaced (taxes four times a year)"
@@ -7216,6 +7228,10 @@
         "type": "String"
       }
     }
+  },
+  "planEnterAmountDays": "Enter the amount and two different days",
+  "@planEnterAmountDays": {
+    "description": "Category Edit, a bill twice a month: what Set aside each month says until the amount and both days are typed"
   },
   "planEnterAmountDate": "Enter the amount and the date",
   "@planEnterAmountDate": {

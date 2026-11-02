@@ -1362,7 +1362,8 @@ What's known so far:
       is stopped the plan keeps the one date it was made on. Every other
       repeating pattern gets a weekend rule beside its date, **On the
       day** by default, or **Before a weekend** / **After a weekend**,
-      the same rule pay has. Twice a month is "On these dates: 01, 15".
+      the same rule pay has. Twice a month has its own choice (below,
+      "A bill twice a month"; "On these dates: 01, 15" never worked).
       Tuition and Tsagaan Sar (amounts or dates that change each time)
       stay a once-plan that will offer "set the next" when its date
       passes (left for later). *Rejected:* the pay schedule's radio rows
@@ -5078,3 +5079,45 @@ On 11.02 the owner put a monthly bill on 11.01 and the app moved it to 12.01 ("I
 - **On these dates** keeps a date gone by this month; one from an earlier month is next
   year's, or a list typed in November would schedule May's.
 - The row says all its last period has to find; **Set aside each month** says the usual.
+
+## A bill twice a month (owner, 2026-11-02, #351)
+
+The owner asked why a payday could come twice a month when a bill couldn't. There was no
+good reason: this ADR said "On these dates: 01, 15" covered it, but that field needs a
+month and a day, and its dates come once a year, so the only way was to type 24 dates.
+
+- **How often has Twice a month**, between Every 2 weeks and Every month, on the computer
+  and the phone. Chosen over fixing On these dates: a thing people do every month
+  shouldn't be typed as a list.
+- **Two boxes in the words pay already uses**: "On the [1] and the [15]", in place of the
+  date, empty until typed. The phone asks **First day** and **Second day**. Either order;
+  the same day twice, or a number that isn't a day of a month, isn't a bill twice a month,
+  so Save asks again.
+- **Amount due is each bill's.** ₮500,000 on the 1st and the 15th is ₮1,000,000 a month.
+- **A day a short month doesn't have** lands on its last day, and two that meet there are
+  one bill that month, as with pay.
+- **Its first bill is the first of the days this month**, so a day gone by stays there,
+  overdue (see "A date stays where it's typed"), and with both gone by both do: made on
+  the 20th, the 1st and the 15th are each scheduled. Opened again with the same days, it
+  keeps that first date and the day it was made. Other days typed on a bill already twice
+  a month come from today on, since this month's bills were the old days'.
+- **A row names the bill still to pay.** With the 1st paid and the 15th not, it reads
+  "due 11.15", with no "paid"; "paid" comes when both are. Any period holding several bills
+  reads this way, a weekly bill's too, and so does the phone's Bills list.
+- **A bill paid well ahead is recognised.** The bills are close, so nearest-date matching
+  stops about a week out. Once the bill before is settled, a row in the category since then
+  is this one's (the owner's rule of 2026-10-21), so paying the 15th on the 5th's payday is
+  asked about as usual. Twice a month only, so other bills match as they always have.
+- **The weekend rule and Ends** work as for Every month.
+- **One payment for both still asks for both.** ₮1,000,000 paid on the 1st and taken as two
+  bills is ₮1,000,000 out of October, so October asks for ₮1,000,000 and the row says paid.
+  It asked for ₮500,000, and assigning that left Left at −₮500,000 (owner, 2026-11-02:
+  "let's fix it"). A bill paid ahead inside the period stays in the period's ask, for any
+  repeat; "No bill this time" still leaves it. Nothing new is saved: a row taken as a
+  bill paid already lists the bills that went with it ([billPaidKey]), so marks already in
+  a ledger read the same way. A bill paid ahead into a later period is as it was.
+- Two a weekend rule brings together are one bill too.
+- Schema v24 adds `month_days`, empty on every plan already there. A computer not yet
+  updated writes rows without a column added since; those are read as empty, for any
+  column, so it can't look as if both computers changed a row (code review).
+
