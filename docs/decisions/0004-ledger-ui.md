@@ -5121,3 +5121,31 @@ month and a day, and its dates come once a year, so the only way was to type 24 
   updated writes rows without a column added since; those are read as empty, for any
   column, so it can't look as if both computers changed a row (code review).
 
+
+## A paycheck filed elsewhere stops being one (2026-11-03, #358)
+
+Owner, 2026-11-02: "After I initially choose a category, I can't later choose new category
+for that transaction." Filing a row under a pay ties the row to that pay, and the row reads
+by the pay's name while it's tied. Nothing untied it, so a new category was saved, the
+popup said so, and the row still read "Income · Loveland Solutions".
+
+- **Any category picked for a paycheck lets the pay go**, by the row's Category list, the
+  bar's Categorize or Edit, reconciled or not. Plain Income counts: it's the same category
+  and a different row. One undo for all of it.
+- **A payday the row stood for that's still ahead is expected again**, or the forecast
+  would stay a paycheck short. One gone by stays gone: it's what Undo is for, and nothing
+  waits on it.
+- A payday still scheduled stays its pay's: it is the pay, and letting go would schedule a
+  second one.
+- A choice that fails now says so. It used to fail without a word.
+
+### New category in a row's own list (owner, 2026-11-03, #358)
+
+"I can change the category, but I can't create a new category from the dropdown." The rule
+from 2026-10-22, that **New category** is always at the top of the list, reached the entry
+row and not the list on a row already in. It's there now, in the row's Category list and
+the bar's Categorize, over a line, with a plus. It opens the same window as from the entry
+row, with the row's currency and Paid from the row's account, and Add files the row in it.
+The category and the filing are one undo each, as from the entry row. The keys start on the
+first choice under it. Move to's list has none. Split stays out of these lists: a row
+becomes a split in Edit.

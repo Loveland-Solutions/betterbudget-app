@@ -137,6 +137,7 @@ class RegisterActions {
     required this.onToggleCleared,
     required this.onConfirm,
     required this.onSetCategory,
+    required this.onNewCategory,
     required this.onDelete,
     required this.onClearSelection,
     required this.onEdit,
@@ -190,6 +191,9 @@ class RegisterActions {
   final ValueChanged<RegisterRow> onToggleCleared;
   final ValueChanged<RegisterRow> onConfirm;
   final void Function(RegisterRow row, AccountInfo category) onSetCategory;
+
+  /// New category in a row's list: the window, then the row is filed in it.
+  final ValueChanged<RegisterRow> onNewCategory;
   final ValueChanged<RegisterRow> onDelete;
   final VoidCallback onClearSelection;
   final ValueChanged<RegisterRow> onEdit;
@@ -558,6 +562,7 @@ class RegisterPanel extends StatelessWidget {
       onToggleCleared: () => actions.onToggleCleared(r),
       categories: categoriesFor(r, categories),
       onSetCategory: (c) => actions.onSetCategory(r, c),
+      onNewCategory: () => actions.onNewCategory(r),
       pays: paysFor(r, actions),
       onSetPay: (id) => actions.onSetPay?.call(r, id),
       categoryShown: categoryShown(r, actions),
@@ -922,6 +927,7 @@ class _RowActions extends StatelessWidget {
         ? CategoryMenu(
             categories: categoriesFor(r, categories),
             onPicked: (c) => actions.onSetCategory(r, c),
+            onNew: () => actions.onNewCategory(r),
             leading: [
               for (final p in paysFor(r, actions))
                 (label: p.label, onTap: () => actions.onSetPay!(r, p.id)),
@@ -1216,6 +1222,7 @@ class _PostedRow extends StatelessWidget {
     required this.onToggleCleared,
     required this.categories,
     required this.onSetCategory,
+    required this.onNewCategory,
     this.pays = const [],
     this.onSetPay,
     this.categoryShown,
@@ -1258,6 +1265,7 @@ class _PostedRow extends StatelessWidget {
   final VoidCallback onToggleCleared;
   final List<AccountInfo> categories;
   final ValueChanged<AccountInfo> onSetCategory;
+  final VoidCallback onNewCategory;
   final ValueNotifier<Cleared?> hoveredStatus;
 
   @override
@@ -1496,6 +1504,7 @@ class _PostedRow extends StatelessWidget {
                                   categories: categories,
                                   current: categoryShown ?? r.categoryLabel,
                                   onPicked: onSetCategory,
+                                  onNew: onNewCategory,
                                   leading: [
                                     for (final p in pays)
                                       (
@@ -2055,9 +2064,14 @@ class CategoryMenu extends StatelessWidget {
     required this.builder,
     this.current,
     this.leading = const [],
+    this.onNew,
     this.controller,
     this.consumeOutsideTap = false,
   });
+
+  /// New category at the top, over a line, as in the entry row's list
+  /// (owner, 2026-10-22). The keys start on the first choice under it.
+  final VoidCallback? onNew;
 
   /// For a panel that wants to close the list itself (Esc closes a dropdown
   /// before it closes the panel).
@@ -2091,38 +2105,58 @@ class CategoryMenu extends StatelessWidget {
         maximumSize: const WidgetStatePropertyAll(Size(260, 360)),
       ),
       alignmentOffset: const Offset(0, 4),
-      menuChildren: focusFirstOnKeys([
-        for (final l in leading)
+      menuChildren: [
+        if (onNew != null) ...[
           MenuItemButton(
-            onPressed: l.onTap,
+            onPressed: onNew,
             style: ButtonStyle(
               minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
               overlayColor: WidgetStatePropertyAll(Mid.blueWash),
             ),
-            trailingIcon: l.label == current
-                ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
-                : null,
+            leadingIcon: Icon(Icons.add_rounded, size: 14, color: Mid.ink2),
             child: Text(
-              l.label,
-              style: onest(13, color: l.label == current ? Mid.ink : Mid.ink2),
+              context.t.rowsNewCategoryBlank,
+              style: onest(13, color: Mid.ink2),
             ),
           ),
-        for (final c in categories.where((c) => !c.archived))
-          MenuItemButton(
-            onPressed: () => onPicked(c),
-            style: ButtonStyle(
-              minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
-              overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+          Divider(height: 1, color: Mid.rule),
+        ],
+        ...focusFirstOnKeys([
+          for (final l in leading)
+            MenuItemButton(
+              onPressed: l.onTap,
+              style: ButtonStyle(
+                minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
+                overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+              ),
+              trailingIcon: l.label == current
+                  ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
+                  : null,
+              child: Text(
+                l.label,
+                style: onest(
+                  13,
+                  color: l.label == current ? Mid.ink : Mid.ink2,
+                ),
+              ),
             ),
-            trailingIcon: c.name == current
-                ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
-                : null,
-            child: Text(
-              c.name,
-              style: onest(13, color: c.name == current ? Mid.ink : Mid.ink2),
+          for (final c in categories.where((c) => !c.archived))
+            MenuItemButton(
+              onPressed: () => onPicked(c),
+              style: ButtonStyle(
+                minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
+                overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+              ),
+              trailingIcon: c.name == current
+                  ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
+                  : null,
+              child: Text(
+                c.name,
+                style: onest(13, color: c.name == current ? Mid.ink : Mid.ink2),
+              ),
             ),
-          ),
-      ]),
+        ]),
+      ],
       builder: (context, menu, _) =>
           builder(menu.isOpen, () => menu.isOpen ? menu.close() : menu.open()),
     );

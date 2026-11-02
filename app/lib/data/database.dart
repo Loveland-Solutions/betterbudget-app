@@ -568,6 +568,24 @@ class PayTaken {
   final List<int> created;
 }
 
+/// What [AppDatabase.leavePay] did, for undo.
+class PayLeft {
+  const PayLeft({
+    required this.transactionId,
+    required this.scheduleId,
+    required this.removed,
+    required this.created,
+  });
+  final int transactionId;
+
+  /// The pay the row was the paycheck of.
+  final int scheduleId;
+
+  /// The paydays that were coming, and what took their place.
+  final List<int> removed;
+  final List<int> created;
+}
+
 /// What [AppDatabase.deleteCategory] did: the category, and which entries
 /// moved to [into], so undo can move them back.
 class DeletedCategory {
@@ -4795,6 +4813,62 @@ class AppDatabase extends _$AppDatabase {
       categoryId: r.categoryId,
     );
     await _retakePayday(r);
+  });
+
+  /// A paycheck filed under something else stops being one (#358): the row
+  /// lets go of its pay. A payday it stood for that's still ahead is expected
+  /// again, so the forecast isn't a paycheck short; one gone by isn't, as
+  /// nothing waits on it. The category is the caller's to change.
+  Future<PayLeft> leavePay({
+    required int transactionId,
+    required int accountId,
+    required int scheduleId,
+    required DateTime today,
+  }) => transaction(() async {
+    final txn = await (select(
+      transactions,
+    )..where((t) => t.id.equals(transactionId))).getSingle();
+    final mine =
+        await (select(entries)..where(
+              (e) =>
+                  e.transactionId.equals(transactionId) &
+                  e.accountId.equals(accountId),
+            ))
+            .getSingleOrNull();
+    await (update(transactions)..where((t) => t.id.equals(transactionId)))
+        .write(const TransactionsCompanion(payScheduleId: Value(null)));
+    final p = await _livePaySchedule(scheduleId);
+    final ahead =
+        p != null &&
+        !p
+            .plannedFor(parseDateKey(txn.date), paid: mine?.amountMinor)
+            .isBefore(dateOnly(today));
+    final removed = ahead
+        ? await _removeComing(scheduleId, today)
+        : const <int>[];
+    final created = ahead
+        ? await ensurePaydays(today, only: scheduleId)
+        : const <int>[];
+    return PayLeft(
+      transactionId: transactionId,
+      scheduleId: scheduleId,
+      removed: removed,
+      created: created,
+    );
+  });
+
+  Future<void> undoLeavePay(PayLeft r) => transaction(() async {
+    await _dropPaydays(r.created);
+    await _bringBackPaydays(r.removed, r.scheduleId);
+    await (update(transactions)..where((t) => t.id.equals(r.transactionId)))
+        .write(TransactionsCompanion(payScheduleId: Value(r.scheduleId)));
+  });
+
+  Future<void> redoLeavePay(PayLeft r) => transaction(() async {
+    await (update(transactions)..where((t) => t.id.equals(r.transactionId)))
+        .write(const TransactionsCompanion(payScheduleId: Value(null)));
+    await _dropPaydays(r.removed);
+    await _bringBackPaydays(r.created, r.scheduleId);
   });
 
   Future<void> _untakePayday(PayTaken r) async {
