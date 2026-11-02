@@ -9334,10 +9334,22 @@ List<String> phonePlanNotes(
       today,
       pay: data.payScheduleById(plan.payScheduleId),
     );
+    // A monthly bill dated a day gone by is overdue there, not at its next.
+    final first = Budget.dueAfter(
+      plan,
+      0,
+      pay: data.payScheduleById(plan.payScheduleId),
+    );
     notes.add(
       next.passed
           ? t.ledgerPhoneBillPassed(category.name, amount, shortDate(next.date))
-          : t.ledgerPhoneBill(category.name, amount, shortDate(next.date)),
+          : t.ledgerPhoneBill(
+              category.name,
+              amount,
+              shortDate(
+                plan.due != null && first.isBefore(today) ? first : next.date,
+              ),
+            ),
     );
   }
   return notes;

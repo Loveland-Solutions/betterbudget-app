@@ -311,16 +311,17 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     ),
   );
 
-  /// A due date or an end is ahead: the calendar starts today, as a date
-  /// typed on the computer is rolled to its next time round.
-  Future<DateTime?> _pickDay(DateTime? from) => showDatePicker(
-    context: context,
-    initialDate: from == null || from.isBefore(widget.today)
-        ? widget.today
-        : from,
-    firstDate: widget.today,
-    lastDate: DateTime(widget.today.year + 30),
-  );
+  /// A due date or an end: a day gone by can be picked, as one typed on
+  /// the computer stays where it's typed.
+  Future<DateTime?> _pickDay(DateTime? from) {
+    final first = DateTime(widget.today.year - 1);
+    return showDatePicker(
+      context: context,
+      initialDate: from == null || from.isBefore(first) ? widget.today : from,
+      firstDate: first,
+      lastDate: DateTime(widget.today.year + 30),
+    );
+  }
 
   Future<void> _pickCurrency(Words t) async {
     final picked = await _pick(t.planMoneyCurrency, [

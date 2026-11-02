@@ -228,31 +228,20 @@ class PlanAnswers {
       onceAmount.text.trim().isNotEmpty &&
       typedOnce == null;
 
-  /// A bill or goal is ahead: `03.15` typed in October is next March's,
-  /// and a bill that repeats is its next time round (`10.10` typed on
-  /// 10.15 for a monthly bill is 11.10).
+  /// A date stays where it's typed, gone by or not (owner, 2026-11-02: "If
+  /// I say 11/01 and it's in the past, I still want it there"). With no
+  /// year it's this year's, unless that is more than nine months back, as
+  /// on a row ([parseRowDate]): `01.05` typed on 12.28 is next week.
   DateTime? get typedDate {
     final text = date.text.trim();
-    var d = parseEntryDate(text, today);
+    final d = parseEntryDate(text, today);
     // A year far off is a slip of the hand, not a date.
     if (d == null || d.year > today.year + 100) return null;
     final pieces = text.split(RegExp(r'[.\-/]')).where((p) => p.isNotEmpty);
-    if (pieces.length > 2 || !d.isBefore(today)) return d;
-    final months = hasDate ? everyMonthsNow : null;
-    final days = hasDate ? everyDaysNow : null;
-    if (months == null && days == null) {
-      return DateTime(d.year + 1, d.month, d.day);
-    }
-    final day = d.day;
-    while (d!.isBefore(today)) {
-      if (days != null) {
-        d = DateTime(d.year, d.month, d.day + days);
-      } else {
-        final last = DateTime(d.year, d.month + months! + 1, 0).day;
-        d = DateTime(d.year, d.month + months, day < last ? day : last);
-      }
-    }
-    return d;
+    if (pieces.length > 2 || today.difference(d).inDays <= 274) return d;
+    final next = DateTime(d.year + 1, d.month, d.day);
+    // 02.29 has no other year to fall in.
+    return next.day == d.day ? next : d;
   }
 
   static String monthDay(int m, int d) =>
@@ -335,12 +324,13 @@ class PlanAnswers {
     return out;
   }
 
-  /// The first of the typed dates from today on.
+  /// The first of the typed dates from this month on: one gone by this
+  /// month stays there, like a single date (#342).
   DateTime? firstOfDates(List<(int, int)> dates) {
     DateTime? first;
     for (final (m, d) in dates) {
       var on = DateTime(today.year, m, d);
-      if (on.isBefore(today)) on = DateTime(today.year + 1, m, d);
+      if (m < today.month) on = DateTime(today.year + 1, m, d);
       if (first == null || on.isBefore(first)) first = on;
     }
     return first;
@@ -681,7 +671,9 @@ PlanNote planNote(
         t.planWasDue(money(p.plan.amount), date(due))
       else
         t.planBy(money(p.plan.amount), date(due)),
-      if (wants) each(p.each),
+      // Its last period says all it has to find, a bill before this one's
+      // pay included.
+      if (wants) each(p.lastPeriod ? p.planned : p.each),
     ],
   };
   final String? state;
