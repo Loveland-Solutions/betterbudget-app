@@ -802,11 +802,16 @@ class OpeningBalance {
   const OpeningBalance({
     required this.transactionId,
     required this.date,
+    required this.asOf,
     required this.amount,
     required this.locked,
   });
   final int transactionId;
   final DateTime date;
+
+  /// The day it was true for, which a move earlier leaves behind: it holds
+  /// the rows up to here.
+  final DateTime asOf;
 
   /// On the account's side.
   final int amount;
@@ -6431,7 +6436,7 @@ class AppDatabase extends _$AppDatabase {
       for (var i = 0; i < plan.length; i++) {
         final p = plan[i];
         if (p.fate == ImportFate.add &&
-            !dateOnly(p.row.date).isAfter(opening.date)) {
+            !dateOnly(p.row.date).isAfter(opening.asOf)) {
           plan[i] = ImportPlanRow(
             row: p.row,
             key: p.key,
@@ -6707,9 +6712,12 @@ class AppDatabase extends _$AppDatabase {
       readsFrom: {entries, transactions, accounts},
     ).getSingleOrNull();
     if (row == null) return null;
+    final id = row.read<int>('txn_id');
+    final date = parseDateKey(row.read<String>('date'));
     return OpeningBalance(
-      transactionId: row.read<int>('txn_id'),
-      date: parseDateKey(row.read<String>('date')),
+      transactionId: id,
+      date: date,
+      asOf: openingAsOf(await preference(openingAsOfKey(accountId)), id, date),
       amount: row.read<int>('amount'),
       locked: row.read<int>('cleared') == Cleared.reconciled.index,
     );

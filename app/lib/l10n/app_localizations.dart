@@ -5023,6 +5023,12 @@ abstract class Words {
   /// **'{count} skipped'**
   String importCountSkipped(int count);
 
+  /// Import window, after the line saying the balance is apart from the bank: what the rows skipped for the opening balance add up to.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{The 1 row the opening balance already counts comes to {amount}.} other{The {count} rows the opening balance already counts come to {amount}.}}'**
+  String importHeldCome(int count, Object amount);
+
   /// Import window warning: the balance column doesn't agree with the amounts.
   ///
   /// In en, this message translates to:

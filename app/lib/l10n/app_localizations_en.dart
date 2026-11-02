@@ -3560,6 +3560,18 @@ class WordsEn extends Words {
   }
 
   @override
+  String importHeldCome(int count, Object amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'The $count rows the opening balance already counts come to $amount.',
+      one: 'The 1 row the opening balance already counts comes to $amount.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String importBalanceOff(int row, Object found, Object expected) {
     return 'Row $row of the file: the bank’s balance is $found, but the amounts before it come to $expected. A column may be set wrong. You can still import.';
   }

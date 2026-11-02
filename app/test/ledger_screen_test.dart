@@ -6701,6 +6701,7 @@ void main() {
         find.byKey(ValueKey('left-$groceries')),
       );
       expect(left.minor, 90000000 - 27665050);
+      expect(left.color, Mid.green);
       expect(notAssigned(), isNot(before));
       // Quiet: no toast for an amount.
       expect(find.textContaining('Put ₮'), findsNothing);
@@ -10944,6 +10945,32 @@ void main() {
     await run(find.byKey(const ValueKey('import-do')));
     final data = (await tester.runAsync(db.loadLedger))!;
     expect(data.balanceOf(id), 102300000);
+
+    // Apart from the bank, what's skipped is said, since it may be why.
+    await tester.runAsync(
+      () => File(file).writeAsBytes(
+        buildXls({
+          (1, 0): DateTime(2026, 9, 14, 9, 5),
+          (1, 2): 0.0,
+          (1, 3): 5000.0,
+          (1, 6): 1018000.0,
+          (1, 7): 'Дэлгүүр',
+          (2, 0): DateTime(2026, 9, 21, 9, 5),
+          (2, 2): 0.0,
+          (2, 3): 1000.0,
+          (2, 6): 1017000.0,
+          (2, 7): 'Автобус',
+        }),
+      ),
+    );
+    await run(find.byKey(const ValueKey('import')));
+    expect(
+      find.textContaining(
+        'The 1 row the opening balance already counts comes to −₮5,000.00.',
+      ),
+      findsOneWidget,
+    );
+    await run(find.byKey(const ValueKey('import-cancel')));
     await tidy(tester, db);
   });
 

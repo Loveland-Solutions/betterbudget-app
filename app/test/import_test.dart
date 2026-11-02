@@ -935,8 +935,7 @@ void main() {
       },
     );
 
-    test('rows a reconciled opening balance holds are skipped, and can be '
-        'brought in', () async {
+    test('rows a reconciled opening balance holds are skipped', () async {
       await db.postOpeningBalance(
         accountId: bank,
         date: DateTime(2026, 9, 5),
@@ -964,13 +963,34 @@ void main() {
       // Only the row after it is in the file's dates to look at.
       expect(p.firstDay, DateTime(2026, 9, 6));
       expect(p.lastDay, DateTime(2026, 9, 6));
-      // Its tag still brings one in.
       final r = await db.applyImport(
         accountId: bank,
-        plan: [p.rows.first.withFate(ImportFate.add), ...p.rows.skip(1)],
+        plan: p.rows,
         uncategorizedNames: ['Not categorized'],
       );
-      expect(r.added.length, 2);
+      expect(r.added.length, 1);
+    });
+
+    test('an opening balance moved earlier still holds rows up to the day it '
+        'was true for', () async {
+      final opening = await db.postOpeningBalance(
+        accountId: bank,
+        date: DateTime(2026, 9, 3),
+        balance: 500000,
+      );
+      await db.setPreference(
+        openingAsOfKey(bank),
+        openingAsOfValue(opening, DateTime(2026, 9, 7)),
+      );
+      await db.reconcile(
+        accountId: bank,
+        statementDate: DateTime(2026, 9, 3),
+        today: DateTime(2026, 9, 30),
+        balance: 500000,
+      );
+      final rows = [row(5, -1000, 'Held'), row(8, -2000, 'After')];
+      final p = await db.planImport(bank, rows, importKeys(bank, rows));
+      expect(p.rows.map((x) => x.held), [true, false]);
     });
 
     test('a repeat is one imported row for one bank row, deleted or not, and '
