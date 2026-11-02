@@ -2,8 +2,8 @@ part of 'ledger_screen.dart';
 
 // Importing a bank file (ADR 0002, ADR 0004 "Import"). The file's own
 // columns are shown with a choice over each (option A, owner 2026-09-30);
-// below them, the rows as they'll come in. A file shaped like the last one
-// into this account skips the columns and opens on the preview.
+// below them, how many rows come in and how many are skipped. A file shaped
+// like the last one into this account skips the columns.
 
 /// What the import window hands back: the columns as set, and what each row
 /// will do.
@@ -190,16 +190,17 @@ class _ImportDialogState extends State<_ImportDialog> {
     final rows = [
       for (final p in plan.rows)
         if (p.fate == ImportFate.add &&
-            !dateOnly(p.row.date).isAfter(opening.date))
+            !dateOnly(p.row.date).isAfter(opening.asOf))
           p,
     ];
     if (rows.isEmpty) return null;
     final first = rows
         .map((p) => dateOnly(p.row.date))
         .reduce((a, b) => a.isBefore(b) ? a : b);
+    final before = first.subtract(const Duration(days: 1));
     return (
       rows: rows,
-      date: first.subtract(const Duration(days: 1)),
+      date: before.isBefore(opening.date) ? before : opening.date,
       amount: opening.amount - rows.fold(0, (s, p) => s + p.row.amount),
     );
   }
@@ -698,7 +699,7 @@ class _ImportDialogState extends State<_ImportDialog> {
               t.importBeforeOpening(
                 before.rows.length,
                 _money(_shown(opening.amount)),
-                sayFullDate(t, opening.date),
+                sayFullDate(t, opening.asOf),
               ),
               big: true,
             ),
@@ -806,6 +807,15 @@ class _ImportDialogState extends State<_ImportDialog> {
         bank = -bank;
       }
       final day = check == null ? read.closingDay : null;
+      // Apart from the bank, what's skipped may be why: a row the same day
+      // as the opening balance, after it was true, is new money.
+      final held = [
+        for (final p in plan.rows)
+          if (p.held && p.fate == ImportFate.leftOut) p.row.amount,
+      ];
+      final heldWords = ours == bank || held.isEmpty
+          ? ''
+          : ' ${t.importHeldCome(held.length, _money(_shown(held.fold(0, (s, v) => s + v))))}';
       notes.add(
         ours == bank
             ? _note(
@@ -821,18 +831,19 @@ class _ImportDialogState extends State<_ImportDialog> {
             : _note(
                 Icons.info_outline_rounded,
                 Mid.note,
-                day == null
-                    ? t.importClearedDiffers(
-                        _money(_shown(ours)),
-                        _money(_shown(bank)),
-                        _money((ours - bank).abs()),
-                      )
-                    : t.importClearedDiffersOn(
-                        _money(_shown(ours)),
-                        _money(_shown(bank)),
-                        sayFullDate(t, day),
-                        _money((ours - bank).abs()),
-                      ),
+                (day == null
+                        ? t.importClearedDiffers(
+                            _money(_shown(ours)),
+                            _money(_shown(bank)),
+                            _money((ours - bank).abs()),
+                          )
+                        : t.importClearedDiffersOn(
+                            _money(_shown(ours)),
+                            _money(_shown(bank)),
+                            sayFullDate(t, day),
+                            _money((ours - bank).abs()),
+                          )) +
+                    heldWords,
               ),
       );
     }

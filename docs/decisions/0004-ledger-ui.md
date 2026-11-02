@@ -2273,6 +2273,9 @@ account. Design in [ADR 0002](0002-tdb-import-format.md), "Any bank's file".
   same call took out the line that the bank's running balance adds up (it's said only
   when it doesn't) and the count of lines without a date. The line that this account
   already has imported rows in the file's dates no longer counts this file's own rows.
+  Apart from the bank, the line adds what the skipped rows come to, since a row the
+  same day as the balance, after it was true, is new money (budget review). An opening
+  balance holds rows up to the day it was true for, wherever a move has put its date.
   **The rows are gone from the window (owner, 2026-11-02: "I don't need to see the
   transactions. Just show me how many were imported and how many were skipped"):** it
   says "3 rows to import · 12 skipped", with the balance line under it, and fits what
@@ -4396,6 +4399,16 @@ The Budget page's words (comb, 2026-10-24), through the UX writer:
 - **An empty amount** is said once, by the note beside it ("you choose each
   month how much to assign"), not also by a hint in the field.
 - **Add category's tooltip** is its shortcut, ⌘N, not its own label again.
+
+## A category with money shows green (owner, 2026-11-02, #326)
+
+The owner: "I would like a better visual when the categories are populated with money.
+Something should be green." **Left is green above zero (option A)**, on the computer's
+Budget page: the column reads coral for short, gray at ₮0, green for money there, and a
+bill's Left keeps its lighter weight. The ring keeps its job, so a nearly used category
+can show a coral ring beside a green Left. *Rejected:* B, the ring's unused part green
+(it changes the ring chosen below, and it's a small mark); C, a green tint on the row
+(it competes with the stripes and the hover).
 
 ## How used up a category is: a ring before the name (2026-10-26)
 

@@ -815,6 +815,7 @@
   "importPlusOut": "нэмэх тэмдэг нь зарлага",
   "importCountToImport": "{count} мөр оруулна",
   "importCountSkipped": "{count} мөр алгасна",
+  "importHeldCome": "Эхний үлдэгдэлд аль хэдийн орсон {count} мөрийн нийт дүн {amount}.",
   "importBalanceOff": "Файлын {row}-р мөр: банкны үлдэгдэл {found}, харин өмнөх дүнгүүдээр {expected} гарч байна. Аль нэг багана буруу сонгогдсон байж магадгүй. Гэсэн ч оруулж болно.",
   "importBalanceOffCount": "Нийт {count} мөр таарахгүй байна.",
   "importClearedMatches": "Үүний дараа баталгаажсан үлдэгдэл банкныхтай таарна: {amount}.",

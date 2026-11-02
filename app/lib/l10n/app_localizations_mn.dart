@@ -3464,6 +3464,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String importHeldCome(int count, Object amount) {
+    return 'Эхний үлдэгдэлд аль хэдийн орсон $count мөрийн нийт дүн $amount.';
+  }
+
+  @override
   String importBalanceOff(int row, Object found, Object expected) {
     return 'Файлын $row-р мөр: банкны үлдэгдэл $found, харин өмнөх дүнгүүдээр $expected гарч байна. Аль нэг багана буруу сонгогдсон байж магадгүй. Гэсэн ч оруулж болно.';
   }

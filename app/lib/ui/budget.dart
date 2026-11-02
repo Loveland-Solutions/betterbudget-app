@@ -2468,13 +2468,12 @@ class _CategoryRowState extends State<_CategoryRow> {
                               // A bill's money is spoken for: quieter.
                               weight: widget.bill ? 400 : 600,
                               currency: widget.currency,
+                              // Green has money, coral is short (#326).
                               color: line.left < 0
                                   ? Mid.coral
                                   : line.left == 0
                                   ? Mid.ink3
-                                  : widget.bill
-                                  ? Mid.ink2
-                                  : Mid.ink,
+                                  : Mid.green,
                             ),
                           ),
                           if (widget.fromBefore case final before?)

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-02** · version 0.69.0 · schema v24 · 991 tests pass
+**Last updated: 2026-11-02** · version 0.70.0 · schema v24 · 1005 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -23,6 +23,10 @@ the owner's Publish now. `release_store.sh` now deletes a waiting submission rat
 than stopping; 0.66.3, passed and waiting for Publish now, went that way.
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+
+**A category with money shows green** (0.70.0, #326; ADR 0004 "A category with money
+shows green"): Left on the computer's Budget page is green above zero, gray at ₮0, coral
+when short. Apart from the bank, import's balance line says what the skipped rows come to.
 
 **A bill twice a month** (0.69.0, #351; ADR 0004 "A bill twice a month"): How often has
 Twice a month, with two days typed as pay's are, on the computer and the phone. Schema
