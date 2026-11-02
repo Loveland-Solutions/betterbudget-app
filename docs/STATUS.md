@@ -11,16 +11,16 @@ under about 20,000 characters. Everything this file said up to 2026-10-07 is in
 
 ## Next step
 
-**On Play: 0.66.3 (566) on every track, 2026-10-30.** Internal testing; alpha (closed
+**On Play: 0.69.0 (580) on every track, 2026-11-02.** Internal testing; alpha (closed
 testing); and production at full rollout, sent to Google's review that day. Play's App
 access check ("Missing sign in details") is answered: Sign in details holds the demo key
 (`DEMO-DEMO-DEMO-DEMO-DEMO`, #303; ADR 0005 "A demo key for Play's review"), which opens
 the phone on made-up figures. The upload key may release to production too; a release
 there is still the owner's say each time.
 
-**Microsoft Store:** 0.66.3 in certification, 2026-10-30; when it passes, it waits for
+**Microsoft Store:** 0.69.0 in certification, 2026-11-02; when it passes, it waits for
 the owner's Publish now. `release_store.sh` now deletes a waiting submission rather
-than stopping; Submission 5 (0.66.0) went that way.
+than stopping; 0.66.3, passed and waiting for Publish now, went that way.
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
 
