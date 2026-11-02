@@ -275,6 +275,51 @@ void main() {
     p.dispose();
   });
 
+  test('a date stays where it\'s typed (#342)', () {
+    final today = DateTime(2026, 11, 2);
+    final old = CategoryPlan(
+      categoryId: wedding,
+      kind: PlanKind.byDate,
+      amount: 4000000,
+      start: DateTime(2026, 9, 1),
+      due: DateTime(2026, 9, 15),
+      everyMonths: 1,
+    );
+    final p = PlanAnswers(today: today, currency: Currency.mnt)..show(old);
+
+    // A monthly bill, typed for yesterday, with or without the year.
+    for (final text in ['11.01', '2026.11.01', '11/01']) {
+      p.date.text = text;
+      expect(p.typedDate, DateTime(2026, 11, 1));
+      final plan = p.draft(categoryId: wedding, old: old)!;
+      expect(plan.due, DateTime(2026, 11, 1));
+      expect(plan.start, today);
+    }
+    p.dispose();
+
+    DateTime? read(String text, DateTime on) {
+      final a = PlanAnswers(today: on, currency: Currency.mnt)
+        ..hasDate = true
+        ..date.text = text;
+      final d = a.typedDate;
+      a.dispose();
+      return d;
+    }
+
+    // On these dates: one gone by this month stays; last month's is next
+    // year's.
+    final a = PlanAnswers(today: today, currency: Currency.mnt);
+    expect(a.firstOfDates(const [(11, 1), (5, 1)]), DateTime(2026, 11, 1));
+    expect(a.firstOfDates(const [(5, 1)]), DateTime(2027, 5, 1));
+    a.dispose();
+
+    // Once-only too, and with no year, this year's while that's near.
+    expect(read('03.15', DateTime(2026, 10, 2)), DateTime(2026, 3, 15));
+    expect(read('12.31', DateTime(2026, 1, 2)), DateTime(2026, 12, 31));
+    // A new year's date typed in December is the one coming.
+    expect(read('01.05', DateTime(2026, 12, 28)), DateTime(2027, 1, 5));
+  });
+
   test('a late goal marked done asks nothing more, and goes when spent', () {
     final late = DateTime(2027, 1, 10);
     final prefs = {

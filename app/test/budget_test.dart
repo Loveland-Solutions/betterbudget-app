@@ -1021,6 +1021,142 @@ void main() {
       expect(of(none, oct).lines[xmas]!.plan!.planned, lessThan(180000000));
     });
 
+    test(
+      'a bill dated before the plan was made stays that month\'s (#342)',
+      () {
+        final today = DateTime(2026, 11, 2);
+        PaySchedule payOn(int day, PayWeekend weekend) => PaySchedule(
+          id: 1,
+          categoryId: salary,
+          accountId: checking,
+          amount: 100,
+          rule: PayRule.monthly,
+          day1: day,
+          weekend: weekend,
+        );
+        PlanLine line(LedgerData d, int y, int m) => Budget.of(
+          d,
+          start: DateTime(y, m),
+          end: DateTime(y, m + 1, 0),
+          today: today,
+        ).lines[xmas]!.plan!;
+        LedgerData bill(DateTime due, PaySchedule pay) => ledger(
+          pay: [pay],
+          plans: [
+            plan(
+              xmas,
+              PlanKind.byDate,
+              4000000,
+              due: due,
+              every: 1,
+              start: today,
+            ),
+          ],
+        );
+
+        // Paid on the 1st, a Sunday in November, so on Friday 10.30: the pay
+        // before 11.01 is older than the plan, and the bill is still its own.
+        final first = bill(DateTime(2026, 11, 1), payOn(1, PayWeekend.before));
+        var november = line(first, 2026, 11);
+        expect(november.due, DateTime(2026, 11, 1));
+        expect(november.each, 4000000);
+        expect(november.planned, 4000000);
+        expect(line(first, 2026, 12).due, DateTime(2026, 12, 1));
+        expect(line(first, 2026, 12).planned, 4000000);
+
+        // Paid on the 25th, November's pay also covers 12.01: two bills to
+        // find, and a month's amount is still one.
+        final twice = bill(DateTime(2026, 11, 1), payOn(25, PayWeekend.keep));
+        november = line(twice, 2026, 11);
+        expect(november.due, DateTime(2026, 11, 1));
+        expect(november.each, 4000000);
+        expect(november.planned, 8000000);
+
+        // Weekly: a month's amount is the month's bills, not one.
+        final weekly = ledger(
+          pay: [payOn(25, PayWeekend.keep)],
+          plans: [
+            plan(
+              xmas,
+              PlanKind.byDate,
+              1000000,
+              due: DateTime(2026, 11, 6),
+              everyDays: 7,
+              start: today,
+            ),
+          ],
+        );
+        november = line(weekly, 2026, 11);
+        expect(november.each, 4000000);
+        expect(november.planned, 7000000);
+
+        // A plan edited late, its old date kept: 11.15 went by before it was
+        // made and isn't asked for; the next is.
+        final kept = ledger(
+          pay: [payOn(25, PayWeekend.keep)],
+          plans: [
+            plan(
+              xmas,
+              PlanKind.byDate,
+              4000000,
+              due: DateTime(2026, 3, 15),
+              every: 1,
+              start: DateTime(2026, 11, 20),
+            ),
+          ],
+        );
+        november = line(kept, 2026, 11);
+        expect(november.due, DateTime(2026, 12, 15));
+        expect(november.planned, 4000000);
+
+        // A weekend rule on the bill, 11.01 being a Sunday: paid Friday 10.30,
+        // still November's bill, with or without a pay.
+        final moved = ledger(
+          plans: [
+            plan(
+              xmas,
+              PlanKind.byDate,
+              4000000,
+              due: DateTime(2026, 11, 1),
+              every: 1,
+              start: today,
+              weekend: PayWeekend.before,
+            ),
+          ],
+        );
+        november = line(moved, 2026, 11);
+        expect(november.due, DateTime(2026, 10, 30));
+        expect(november.each, 4000000);
+
+        // A bill dated last month: this month asks for the next, 11.15.
+        final last = bill(DateTime(2026, 10, 15), payOn(25, PayWeekend.keep));
+        november = line(last, 2026, 11);
+        expect(november.due, DateTime(2026, 11, 15));
+        expect(november.each, 4000000);
+
+        // Once only, dated last month and paid on its date: one bill to find.
+        final once = ledger(
+          rows: [move(DateTime(2026, 10, 15), checking, xmas, 4000000)],
+          plans: [
+            plan(
+              xmas,
+              PlanKind.byDate,
+              4000000,
+              due: DateTime(2026, 10, 15),
+              start: today,
+            ),
+          ],
+        );
+        expect(line(once, 2026, 11).planned, 4000000);
+
+        // Still ahead, with this month's pay after it: this month's bill too.
+        final ahead = bill(DateTime(2026, 11, 15), payOn(25, PayWeekend.keep));
+        november = line(ahead, 2026, 11);
+        expect(november.due, DateTime(2026, 11, 15));
+        expect(november.each, 4000000);
+      },
+    );
+
     test('paid weekly, a date years ahead is still quick', () {
       final pay = PaySchedule(
         id: 1,
@@ -2388,6 +2524,144 @@ void main() {
         );
       },
     );
+
+    group('a bill typed for a day gone by (#342)', () {
+      late int fee, bank;
+      final due = DateTime(today.year, today.month, today.day - 1);
+      final next = DateTime(due.year, due.month + 1, due.day);
+      CategoryPlan plan({
+        DateTime? first,
+        int amount = 4000000,
+        int? every = 1,
+        DateTime? start,
+      }) => CategoryPlan(
+        categoryId: fee,
+        kind: PlanKind.byDate,
+        amount: amount,
+        start: start ?? today,
+        due: first ?? due,
+        everyMonths: every,
+        paidFrom: bank,
+      );
+      Future<List<TxnData>> bills() async =>
+          (await db.loadLedger()).txns
+              .where((x) => x.planCategoryId == fee)
+              .toList()
+            ..sort((a, b) => a.date.compareTo(b.date));
+      Future<List<DateTime>> dates() async => [
+        for (final x in await bills()) x.date,
+      ];
+
+      setUp(() async {
+        fee = await db.createCategory('Utilities');
+        bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+      });
+
+      test('is scheduled there, with the next beside it, once', () async {
+        final change = await db.changeCategoryPlan(fee, plan(), today);
+        expect(await dates(), [due, next]);
+        expect(change.made, hasLength(2));
+        // Later sweeps add nothing.
+        expect(await db.ensurePlanBills(today), isEmpty);
+        // Undo takes both away; redo brings both back.
+        await db.undoPlanChange(fee, change);
+        expect(await dates(), isEmpty);
+        await db.redoPlanChange(fee, plan(), change);
+        expect(await dates(), [due, next]);
+      });
+
+      test('replaces the bill the old date had scheduled', () async {
+        await db.changeCategoryPlan(fee, plan(first: next), today);
+        expect(await dates(), [next]);
+        await db.changeCategoryPlan(fee, plan(), today);
+        expect(await dates(), [due, next]);
+      });
+
+      test('a new amount keeps the overdue bill, at the amount', () async {
+        await db.changeCategoryPlan(fee, plan(), today);
+        await db.changeCategoryPlan(fee, plan(amount: 5000000), today);
+        expect(await dates(), [due, next]);
+        final bill = (await bills()).first;
+        expect(
+          bill.entries.singleWhere((e) => e.accountId == bank).amount,
+          -5000000,
+        );
+        // Once only: it would otherwise go altogether.
+        await db.changeCategoryPlan(fee, null, today);
+        await db.changeCategoryPlan(fee, plan(every: null), today);
+        expect(await dates(), [due]);
+        await db.changeCategoryPlan(
+          fee,
+          plan(every: null, amount: 6000000),
+          today,
+        );
+        expect(await dates(), [due]);
+      });
+
+      test('deleted or confirmed, it does not come back', () async {
+        await db.changeCategoryPlan(fee, plan(every: null), today);
+        final bill = (await bills()).single;
+        // Paid a day before its date.
+        final paid = DateTime(due.year, due.month, due.day - 1);
+        await db.editTransaction(
+          transactionId: bill.id,
+          accountId: bank,
+          date: paid,
+          today: today,
+          confirm: true,
+        );
+        expect(await db.ensurePlanBills(today), isEmpty);
+        expect((await bills()).single.date, paid);
+        expect((await bills()).single.scheduled, isFalse);
+      });
+
+      test('paid early, a date moved onto it isn\'t a second bill', () async {
+        final ahead = DateTime(today.year, today.month, today.day + 3);
+        await db.changeCategoryPlan(fee, plan(first: ahead), today);
+        final bill = (await bills()).single;
+        await db.editTransaction(
+          transactionId: bill.id,
+          accountId: bank,
+          date: DateTime(today.year, today.month, today.day - 4),
+          today: today,
+          confirm: true,
+        );
+        await db.changeCategoryPlan(fee, plan(), today);
+        expect(
+          (await bills()).where((x) => x.scheduled && x.date == due),
+          isEmpty,
+        );
+      });
+
+      test('a date only kept schedules nothing from before', () async {
+        // An old plan, its date long gone, given a new amount or an account.
+        final old = DateTime(today.year, today.month - 3, 10);
+        await db.setCategoryPlan(fee, plan(first: old, start: old));
+        await db.changeCategoryPlan(
+          fee,
+          plan(first: old, amount: 5000000),
+          today,
+        );
+        final d = await dates();
+        expect(d, hasLength(1));
+        expect(d.single.isBefore(today), isFalse);
+      });
+
+      test('a date past the plan\'s end schedules nothing', () async {
+        final ended = CategoryPlan(
+          categoryId: fee,
+          kind: PlanKind.byDate,
+          amount: 4000000,
+          start: today,
+          due: due,
+          everyMonths: 1,
+          endDate: DateTime(due.year, due.month, due.day - 1),
+          paidFrom: bank,
+        );
+        await db.changeCategoryPlan(fee, ended, today);
+        expect(await dates(), isEmpty);
+      });
+    });
 
     test(
       'a dated plan paid from an account keeps its bill scheduled',

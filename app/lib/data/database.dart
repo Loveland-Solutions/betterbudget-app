@@ -3353,9 +3353,48 @@ class AppDatabase extends _$AppDatabase {
     DateTime today,
   ) => transaction(() async {
     final c = await _changePlan(categoryId, plan);
-    final made = await ensurePlanBills(today, only: categoryId);
+    final made = await ensurePlanBills(
+      today,
+      only: categoryId,
+      gone: await _billsGoneBy(plan, c.before, c.removed, today),
+    );
     return (before: c.before, removed: c.removed, made: made);
   });
+
+  /// The days gone by [plan] has a bill on as it's saved, which only a save
+  /// can know: the date typed, when it's a new one ("If I say 11/01 and
+  /// it's in the past, I still want it there"), and each overdue bill in
+  /// [removed] that is still one of its dates, so a new amount doesn't lose
+  /// it. A date merely kept isn't typed: nothing from before it is asked.
+  Future<Set<DateTime>> _billsGoneBy(
+    CategoryPlan? plan,
+    CategoryPlan? before,
+    List<int> removed,
+    DateTime today,
+  ) async {
+    if (plan == null || plan.kind != PlanKind.byDate) return const {};
+    final t = dateOnly(today);
+    final pay = plan.payScheduleId == null
+        ? null
+        : await _livePaySchedule(plan.payScheduleId!);
+    final out = <DateTime>{};
+    if (plan.due != null && plan.due != before?.due) {
+      final first = Budget.dueAfter(plan, 0, pay: pay);
+      if (first.isBefore(t)) out.add(first);
+    }
+    if (removed.isNotEmpty) {
+      final rows = await (select(
+        transactions,
+      )..where((x) => x.id.isIn(removed))).get();
+      for (final x in rows) {
+        final d = parseDateKey(x.date);
+        if (d.isBefore(t) && Budget.billDate(plan, d, pay: pay) == d) {
+          out.add(d);
+        }
+      }
+    }
+    return out;
+  }
 
   /// Puts back the plan [change] replaced, and the very bills it took
   /// away (with whatever the user had typed on them), and takes away the
@@ -3764,9 +3803,13 @@ class AppDatabase extends _$AppDatabase {
     return null;
   }
 
+  /// Schedules the next bill of each plan paid from an account, or of the
+  /// one plan [only]. [gone] is the days gone by that plan has a bill on
+  /// too ([changeCategoryPlan]); they go on those dates, already overdue.
   Future<List<int>> ensurePlanBills(
     DateTime today, {
     int? only,
+    Set<DateTime> gone = const {},
   }) => transaction(() async {
     final created = <int>[];
     final t = dateOnly(today);
@@ -3806,6 +3849,48 @@ class AppDatabase extends _$AppDatabase {
           category.archivedAt != null ||
           account.archivedAt != null) {
         continue;
+      }
+      Future<void> schedule(DateTime date) async => created.add(
+        await postTransaction(
+          date: date,
+          scheduled: true,
+          planCategoryId: plan.categoryId,
+          // The same bill on every computer that schedules it.
+          shared: SharedKey('bill', '${plan.categoryId}|${dateKey(date)}'),
+          how: MadeHow.scheduled,
+          lines: [
+            (
+              accountId: paidFrom,
+              amount: -plan.amount,
+              cleared: Cleared.uncleared,
+            ),
+            (
+              // A card's or loan's payment goes to it: confirmed, it pays
+              // down what's owed, and the budget counts it in the category.
+              accountId:
+                  await _loanPaidThrough(plan.categoryId, account.currency) ??
+                  plan.categoryId,
+              amount: plan.amount,
+              cleared: Cleared.uncleared,
+            ),
+          ],
+        ),
+      );
+      for (final d in gone) {
+        if (Budget.over(plan, d, pay: pay)) continue;
+        // A row already there for that bill, paid early perhaps.
+        final tied =
+            await (select(transactions)..where(
+                  (x) =>
+                      x.planCategoryId.equals(plan.categoryId) &
+                      x.deletedAt.isNull(),
+                ))
+                .get();
+        final there = tied.any((x) {
+          final on = parseDateKey(x.date);
+          return on == d || Budget.billDate(plan, on, pay: pay) == d;
+        });
+        if (!there) await schedule(d);
       }
       // The plan's own rows: from the day it was made (a changed
       // amount or date is a new plan, and the old one's confirmed
@@ -3859,32 +3944,7 @@ class AppDatabase extends _$AppDatabase {
         // Past its last bill (Custom…'s Ends): nothing more to schedule.
         if (Budget.over(plan, date, pay: pay)) continue;
       }
-      created.add(
-        await postTransaction(
-          date: date,
-          scheduled: true,
-          planCategoryId: plan.categoryId,
-          // The same bill on every computer that schedules it.
-          shared: SharedKey('bill', '${plan.categoryId}|${dateKey(date)}'),
-          how: MadeHow.scheduled,
-          lines: [
-            (
-              accountId: paidFrom,
-              amount: -plan.amount,
-              cleared: Cleared.uncleared,
-            ),
-            (
-              // A card's or loan's payment goes to it: confirmed, it pays
-              // down what's owed, and the budget counts it in the category.
-              accountId:
-                  await _loanPaidThrough(plan.categoryId, account.currency) ??
-                  plan.categoryId,
-              amount: plan.amount,
-              cleared: Cleared.uncleared,
-            ),
-          ],
-        ),
-      );
+      await schedule(date);
     }
     return created;
   });

@@ -24,6 +24,10 @@ than stopping; Submission 5 (0.66.0) went that way.
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
 
+**A date stays where it's typed** (0.67.1, #342; ADR 0004 "A date stays where it's
+typed"): a bill typed for a day gone by stays there, overdue in the forecast with the
+next one beside it, and Budget counts it in that month whichever pay came before it.
+
 **A row's memo is whole** (0.67.0, #340; ADR 0004 "A row's memo is whole"): the gray
 line under the payee wraps, and a row is 52 tall until a memo needs more.
 

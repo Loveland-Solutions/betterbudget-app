@@ -6862,15 +6862,14 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(find.byKey(ValueKey('plan-assign-$groceries')), findsNothing);
 
-      // Tuition, a bill due on a date: 01.15 typed in September is next
-      // January's. September to January is five parts.
+      // Tuition, a bill due on a date. September to January is five parts.
       await editCategory(tester, 'Tuition');
       await pick('plan-dated-yes');
       await type('plan-amount', '2000000');
       // The date is still missing: Save outlines it and stays.
       await save();
       expect(find.byKey(ValueKey('category-editor-$tuition')), findsOneWidget);
-      await type('plan-date', '01.15');
+      await type('plan-date', '2027.01.15');
       expect(preview(), '₮2,000,000 by 2027.01.15 · ₮400,000 a month');
       await tester.tap(find.byKey(const ValueKey('plan-repeat')));
       await tester.pumpAndSettle();
@@ -7193,7 +7192,7 @@ void main() {
       await editCategory(tester, 'Tuition');
       await pick('plan-dated-yes');
       await type('plan-amount', '2000000');
-      await type('plan-date', '01.15');
+      await type('plan-date', '2027.01.15');
       // Opened low in the list, the panel's lower rows can sit under the
       // window's edge until it scrolls.
       await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));

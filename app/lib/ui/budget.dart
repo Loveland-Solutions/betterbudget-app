@@ -681,30 +681,44 @@ class _BudgetPageState extends State<_BudgetPage> {
         List<Widget> figures,
         List<Widget> notes, {
         bool big = false,
-      }) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(width: 150, child: lab),
-            // Wide enough for a tugrik sum with cents at the big size;
-            // narrower with many currencies, so four fit at 1360 × 760
-            // (#163). The figures shrink rather than cut.
-            for (final f in figures) ...[
-              SizedBox(width: figureWidth, child: f),
-              const SizedBox(width: 28),
-            ],
-            Expanded(
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: notes,
+      }) {
+        final beside = Wrap(
+          spacing: 12,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: notes,
+        );
+        // Three currencies or more leave no room beside the figures.
+        final under = figures.length > 2;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(width: 150, child: lab),
+                  // Wide enough for a tugrik sum with cents at the big size;
+                  // narrower with many currencies, so four fit at 1360 × 760
+                  // (#163). The figures shrink rather than cut.
+                  for (final f in figures) ...[
+                    SizedBox(width: figureWidth, child: f),
+                    const SizedBox(width: 28),
+                  ],
+                  if (!under) Expanded(child: beside),
+                ],
               ),
-            ),
-          ],
-        ),
-      );
+              if (under && notes.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 150, top: 4),
+                  child: beside,
+                ),
+            ],
+          ),
+        );
+      }
+
       // Notes on "Assigned": one click for everything planned, and what
       // that would overdraw, said before it's done.
       final assignedNotes = <Widget>[];

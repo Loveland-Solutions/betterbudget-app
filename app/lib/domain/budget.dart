@@ -1287,6 +1287,23 @@ class Budget {
       began != null && began.isAfter(planStart) ? began : planStart,
       by,
     );
+    // The day a bill is counted in, for the plan: with the pay before it
+    // earlier than the plan, a bill that's the plan's own stays in the
+    // plan's first period, since no earlier one can be asked for it (#342).
+    // Its own: its first date, as typed, or one on or after the day it was
+    // made; one between them was some earlier plan's.
+    final firstStart = begins.start;
+    final firstDue = dueOf(0);
+    DateTime counted(DateTime due) {
+      final day = asked(due);
+      // The first as typed: a weekend rule may have moved it back a month.
+      final on = due == firstDue ? dateOnly(plan.due ?? due) : due;
+      final own = due == firstDue || !due.isBefore(planStart);
+      return day.isBefore(firstStart) && !on.isBefore(firstStart) && own
+          ? firstStart
+          : day;
+    }
+
     // Made late in a period whose money was already assigned elsewhere:
     // with nothing put in that period (and something still to save), the
     // parts start with the next, so a new plan isn't "short" through no
@@ -1312,18 +1329,21 @@ class Budget {
     // first due in its first period or later.
     var n0 = 0;
     if (repeats) {
-      while (asked(dueOf(n0)).isBefore(begins.start) && n0 < _mostPeriods) {
+      while (counted(dueOf(n0)).isBefore(begins.start) && n0 < _mostPeriods) {
         n0++;
       }
     }
-    final firstNeed = atLeast0(bill - base);
+    // A once-only bill from before the plan, paid on its date: its own
+    // payment isn't a minus to find on top of it.
+    final paidBefore = !repeats && base < 0 && first.isBefore(planStart);
+    final firstNeed = atLeast0(bill - (paidBefore ? 0 : base));
     // Once: the part it asks when kept up with, from its first period.
     final usual = repeats
         ? 0
-        : ceilDiv(firstNeed, _periodsThrough(begins, asked(first), by));
+        : ceilDiv(firstNeed, _periodsThrough(begins, counted(first), by));
     // Once, its date gone: whatever is still missing is wanted now. A goal
     // can keep asking its usual part instead, the person's choice.
-    if (!repeats && asked(first).isBefore(p.start)) {
+    if (!repeats && counted(first).isBefore(p.start)) {
       final put = assignedIn(begins.start, p.start);
       final missing = atLeast0(firstNeed - put);
       final toward = base + put + assigned;
@@ -1369,7 +1389,7 @@ class Budget {
     // starts.
     var n = n0;
     if (repeats) {
-      while (asked(dueOf(n)).isBefore(p.start) && n - n0 < _mostPeriods) {
+      while (counted(dueOf(n)).isBefore(p.start) && n - n0 < _mostPeriods) {
         n++;
       }
       // A bill there won't be ("No bill this time", or paid ahead with
@@ -1402,7 +1422,7 @@ class Budget {
     }
     final from = kept < n0
         ? begins
-        : nextBudgetPeriod(budgetPeriod(asked(dueOf(kept)), by), by);
+        : nextBudgetPeriod(budgetPeriod(counted(dueOf(kept)), by), by);
     final int need;
     if (kept < n0) {
       need = firstNeed;
@@ -1431,11 +1451,11 @@ class Budget {
     // thin period spreads over the rest instead of being asked for all
     // at once. With one period left, that is the rest.
     int partIn(BudgetSpan span, int missing) {
-      final part = ceilDiv(missing, _periodsThrough(span, asked(due), by));
+      final part = ceilDiv(missing, _periodsThrough(span, counted(due), by));
       return part > missing ? missing : part;
     }
 
-    final lastPeriod = _periodsThrough(p, asked(due), by) == 1;
+    final lastPeriod = _periodsThrough(p, counted(due), by) == 1;
 
     var each = partIn(p, missing);
     // Behind by what last period asked for and didn't get: how far the
@@ -1450,23 +1470,31 @@ class Budget {
     }
     // More bills due before this period ends (a monthly bill just before
     // a payday that a weekend moved): each is wanted whole.
+    var wanted = each;
     if (repeats) {
       var more = 0;
+      var moved = counted(due).isAfter(asked(due)) ? 1 : 0;
       for (
         var k = n + 1;
-        !asked(dueOf(k)).isAfter(p.end) &&
+        !counted(dueOf(k)).isAfter(p.end) &&
             !over(plan, dueOf(k), pay: pay) &&
             k - n < _mostPeriods;
         k++
       ) {
-        if (!skipped.contains(dueOf(k))) more++;
+        if (skipped.contains(dueOf(k))) continue;
+        more++;
+        if (counted(dueOf(k)).isAfter(asked(dueOf(k)))) moved++;
       }
-      each += bill * more;
+      wanted += bill * more;
+      // Bills their pay came too early for: this period has them to find
+      // as well, and what a period sets aside doesn't count them.
+      final usual = wanted - bill * moved;
+      if (usual > each) each = usual;
     }
     return PlanLine(
       plan: plan,
       each: each,
-      planned: each,
+      planned: wanted,
       overdue: behind,
       due: due,
       // Once: it had all of it already, or this period's amount

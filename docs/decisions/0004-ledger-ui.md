@@ -4078,7 +4078,8 @@ is set before it's made, so nothing opens after Add.
   computer already has (made there meanwhile, or archived where the phone can't see
   it) takes the phone's bill when it has no plan, and an archived one comes back; one
   with a plan keeps the computer's, and its own Paid from either way (budget review).
-  A due date is picked from today on, as a date typed on the computer rolls ahead. A
+  A due date can be a day gone by, as on the computer ("A date stays where it's
+  typed", below). A
   computer on an older version takes the category in bare.
 - **A phone's category still waiting can be changed** (#243, budget review): tapped on
   the phone's Waiting list, it opens on the same page filled in, titled "Edit
@@ -5017,3 +5018,37 @@ amount on the same line as its name. A row with no gray line has no memo: when t
 gives one description it goes in Payee, which still ends in "…". *Rejected:*
 a Memo column in Settings, like Source (it takes room from Payee on every row and still
 cuts long ones), and the whole memo only once a row is clicked.
+
+## A date stays where it's typed (owner, 2026-11-02, #342)
+
+On 11.02 the owner put a monthly bill on 11.01 and the app moved it to 12.01 ("If I say
+11/01 and it's in the past, I still want it there").
+
+- **In the form.** A due date is never moved on. With no year it's this year's, unless
+  that is more than nine months back, the rule a row's date already follows: `01.05`
+  typed on 12.28 is next week. Rejected: moving a monthly bill to its next time round,
+  and a once-only one to next year, which is what the form did. So `01.15` typed in
+  September is last January's, and the row says so; a coming January is typed with
+  its year. The phone's calendar can pick a day gone by too.
+- **On Budget.** A plan's first bill, or one on or after the day it was made, stays in the
+  plan's first period, whichever pay came before it. The 2026-10-24 rule stays for the rest: a bill counts in the month
+  of the last payday on or before it. Without this, a bill was skipped when that payday
+  came before the plan's first month, including one still ahead this month.
+- **A month's amount stays what a month sets aside.** With a pay on the 25th, a bill typed
+  for 11.01 has November find two bills, since November's pay also covers 12.01. **Assign
+  what's planned** asks for both, and **Set aside each month** still says one.
+- **In the forecast.** The bill is scheduled on the date typed, already overdue, with the
+  next one beside it, as for any bill not yet confirmed, and Undo takes both. Only saving
+  does this, where the date is known to be typed: the bill sweep never makes a bill from
+  a day gone by, and a plan's start stays the day it was made. Rejected, by the code
+  review: starting the plan on that date and having the sweep infer it, which brought back
+  paid bills and made stale ones. A date kept through a new amount wasn't typed, so nothing
+  from before it is asked for; an overdue bill a new amount replaces stays on its date, at
+  the new amount.
+- A bill dated in a month before this one is scheduled on its date, overdue, and only that
+  bill: nothing between it and the next. That month's page doesn't ask for it, since the
+  plan begins this month, and this month asks for the next bill. Once it's paid there, a
+  repeating bill's minus is added to the bill after it; a once-only one is asked for once.
+- **On these dates** keeps a date gone by this month; one from an earlier month is next
+  year's, or a list typed in November would schedule May's.
+- The row says all its last period has to find; **Set aside each month** says the usual.
