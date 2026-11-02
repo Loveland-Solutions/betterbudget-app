@@ -919,6 +919,60 @@ void main() {
       expect(p.unmatched.single.amount, -1200000);
     });
 
+    test(
+      'importing the same file again is not another file\'s overlap',
+      () async {
+        final first = [row(3, -1000, 'A'), row(8, -2000, 'B')];
+        await db.applyImport(
+          accountId: bank,
+          plan: await plan(first),
+          uncategorizedNames: ['Not categorized'],
+        );
+        final again = [...first, row(5, -700, 'C')];
+        final p = await db.planImport(bank, again, importKeys(bank, again));
+        expect(p.rows.where((x) => x.fate == ImportFate.add), hasLength(1));
+        expect(p.importedBefore, 0);
+      },
+    );
+
+    test('rows a reconciled opening balance holds are skipped, and can be '
+        'brought in', () async {
+      await db.postOpeningBalance(
+        accountId: bank,
+        date: DateTime(2026, 9, 5),
+        balance: 500000,
+      );
+      await db.reconcile(
+        accountId: bank,
+        statementDate: DateTime(2026, 9, 5),
+        today: DateTime(2026, 9, 30),
+        balance: 500000,
+      );
+      final rows = [
+        row(4, -1000, 'Before'),
+        row(5, -2000, 'Its day'),
+        row(6, -3000, 'After'),
+      ];
+      final p = await db.planImport(bank, rows, importKeys(bank, rows));
+      expect(p.opening!.locked, isTrue);
+      expect(p.rows.map((x) => x.fate), [
+        ImportFate.leftOut,
+        ImportFate.leftOut,
+        ImportFate.add,
+      ]);
+      expect(p.rows.map((x) => x.held), [true, true, false]);
+      // Only the row after it is in the file's dates to look at.
+      expect(p.firstDay, DateTime(2026, 9, 6));
+      expect(p.lastDay, DateTime(2026, 9, 6));
+      // Its tag still brings one in.
+      final r = await db.applyImport(
+        accountId: bank,
+        plan: [p.rows.first.withFate(ImportFate.add), ...p.rows.skip(1)],
+        uncategorizedNames: ['Not categorized'],
+      );
+      expect(r.added.length, 2);
+    });
+
     test('a repeat is one imported row for one bank row, deleted or not, and '
         'can be brought in', () async {
       final first = [row(3, -1000, 'Coffee'), row(4, -2500, 'Lunch')];

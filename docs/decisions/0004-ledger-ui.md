@@ -2264,8 +2264,21 @@ account. Design in [ADR 0002](0002-tdb-import-format.md), "Any bank's file".
   (₮1,023,000.00 on 2026.09.16), which already counts them"), and by default **Move
   the opening balance to 2026.09.09 at ₮1,000,000.00**: the day before the file, less
   what its rows add, so today's balance doesn't change. "Leave it (those rows count
-  twice)" is the other choice; ⌘Z undoes either. A reconciled opening balance stays,
-  with Leave those rows out. *Rejected (b):* importing only rows after it by default.
+  twice)" is the other choice; ⌘Z undoes either. *Rejected (b):* importing only rows
+  after it by default.
+  **A reconciled opening balance (owner, 2026-11-02: "We don't need that much
+  information. It's too much. Just skip them"):** the rows it holds are skipped, with no
+  warning and no choice. *Rejected:* three layouts that explained the choice (groups, two outcomes, a side panel). The
+  same call took out the line that the bank's running balance adds up (it's said only
+  when it doesn't) and the count of lines without a date. The line that this account
+  already has imported rows in the file's dates no longer counts this file's own rows.
+  **The rows are gone from the window (owner, 2026-11-02: "I don't need to see the
+  transactions. Just show me how many were imported and how many were skipped"):** it
+  says "3 rows to import · 12 skipped", with the balance line under it, and fits what
+  it holds. This replaces the summary, the preview, and each row's clickable tag
+  described above: a row can't be turned in or out by hand any more. What's left is
+  said only when something needs it: the balance apart from the bank, a file that
+  doesn't add up, another currency, typed rows the file lacks, a same purchase.
   **Rows on its own day count too (2026-10-15, version 0.34.3):** the owner typed a
   balance in setup, which dates it today, then imported the bank's last 15 days, and
   the balance came out off by today's rows: the line only caught rows dated *before*

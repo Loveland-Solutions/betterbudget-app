@@ -9694,10 +9694,10 @@ void main() {
     await run(find.byKey(const ValueKey('import')));
     expect(find.text('Import into TDB Checking'), findsOneWidget);
     expect(find.byKey(const ValueKey('import-role-3')), findsOneWidget);
-    expect(find.textContaining('3 new rows'), findsOneWidget);
+    expect(find.textContaining('3 rows to import'), findsOneWidget);
     expect(
       find.textContaining('The bank’s running balance adds up on every row'),
-      findsOneWidget,
+      findsNothing,
     );
     await expectLater(
       find.byType(Dialog),
@@ -9735,7 +9735,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('import-role-3')), findsNothing);
-    expect(find.textContaining('3 new rows'), findsOneWidget);
+    expect(find.textContaining('3 rows to import'), findsOneWidget);
     await run(find.byKey(const ValueKey('import-cancel')));
     expect(find.byType(Dialog), findsNothing);
     await tidy(tester, db);
@@ -9800,10 +9800,9 @@ void main() {
     dialogs.openPath = file;
     await run(find.byKey(const ValueKey('import')));
     expect(find.text('Import into TDB Checking'), findsOneWidget);
-    expect(find.textContaining('2 new rows'), findsOneWidget);
+    expect(find.textContaining('2 rows to import'), findsOneWidget);
     // The file's one balance, with its day, against the cleared balance.
     expect(find.textContaining('the bank’s was ₮123.00 on '), findsOneWidget);
-    expect(find.byKey(const ValueKey('import-repeats')), findsNothing);
     await run(find.byKey(const ValueKey('import-do')));
     expect(find.textContaining('Imported 2 rows'), findsOneWidget);
     expect(find.text('Test Corner Shop'), findsOneWidget);
@@ -9819,21 +9818,14 @@ void main() {
 
     // The bank's ids say both rows are already in.
     await run(find.byKey(const ValueKey('import')));
-    expect(find.text('0 new rows · 2 already in the ledger'), findsOneWidget);
-    expect(find.byKey(const ValueKey('import-repeats')), findsNothing);
+    expect(find.text('0 rows to import · 2 skipped'), findsOneWidget);
     await run(find.byKey(const ValueKey('import-cancel')));
     expect(find.byType(Dialog), findsNothing);
 
     // The table has no ids, but the days and amounts say the same.
     dialogs.openPath = table;
     await run(find.byKey(const ValueKey('import')));
-    expect(find.text('0 new rows · 2 already in the ledger'), findsOneWidget);
-    expect(find.byKey(const ValueKey('import-repeats')), findsOneWidget);
-    expect(find.text('Already in · same day and amount'), findsNWidgets(2));
-    // One of them is wanted after all.
-    await tester.tap(find.text('Already in · same day and amount').first);
-    await tester.pumpAndSettle();
-    expect(find.text('1 new row · 1 already in the ledger'), findsOneWidget);
+    expect(find.text('0 rows to import · 2 skipped'), findsOneWidget);
     await run(find.byKey(const ValueKey('import-cancel')));
     expect(find.byType(Dialog), findsNothing);
     await tidy(tester, db);
@@ -9957,7 +9949,7 @@ void main() {
     // the earlier rows stay out and the balance is the one for that day.
     dialogs.openPath = long;
     await run(find.byKey(const ValueKey('start-import')));
-    expect(find.textContaining('2 new rows'), findsOneWidget);
+    expect(find.textContaining('2 rows to import'), findsOneWidget);
     expect(
       find.text('2 earlier rows in this file are left out'),
       findsOneWidget,
@@ -9969,7 +9961,7 @@ void main() {
     expect(find.text('Test Bus'), findsNothing);
     // The whole file, with one click.
     await run(find.byKey(const ValueKey('import-whole-file')));
-    expect(find.textContaining('4 new rows'), findsOneWidget);
+    expect(find.textContaining('4 rows to import'), findsOneWidget);
     expect(
       find.textContaining('This file starts at ₮2,000.00 on '),
       findsOneWidget,
@@ -9981,7 +9973,7 @@ void main() {
       '2026.09.01',
     );
     await run(find.byKey(const ValueKey('import-from')));
-    expect(find.textContaining('2 new rows'), findsOneWidget);
+    expect(find.textContaining('2 rows to import'), findsOneWidget);
     await run(find.byKey(const ValueKey('import-do')));
     expect(find.textContaining('Imported 2 rows'), findsOneWidget);
     expect(await held('Union'), 216000);
@@ -10610,17 +10602,6 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    Money previewOf(String payee) => tester.widget<Money>(
-      find.descendant(
-        of: find.ancestor(
-          of: find.text(payee, findRichText: true),
-          matching: find.byWidgetPredicate(
-            (w) => '${w.runtimeType}' == '_PlanLine',
-          ),
-        ),
-        matching: find.byType(Money),
-      ),
-    );
     Money rowOf(String payee) => tester.widget<Money>(
       find
           .descendant(
@@ -10638,20 +10619,14 @@ void main() {
     dialogs.openPath = file;
     await run(find.byKey(const ValueKey('import')));
     expect(find.text('Import into Golomt Visa'), findsOneWidget);
-    final bought = previewOf('Test Corner Shop');
-    final paid = previewOf('Test Card Payment');
-    // A purchase is money out here as anywhere: plain, with a minus.
-    expect(bought.minor, -1250000);
-    expect(bought.color, Mid.ink);
-    expect(paid.minor, 25000000);
-    expect(paid.color, Mid.green);
 
     await run(find.byKey(const ValueKey('import-do')));
     expect(find.textContaining('Imported 2 rows'), findsOneWidget);
-    expect(rowOf('Test Corner Shop').minor, bought.minor);
-    expect(rowOf('Test Corner Shop').color, bought.color);
-    expect(rowOf('Test Card Payment').minor, paid.minor);
-    expect(rowOf('Test Card Payment').color, paid.color);
+    // A purchase is money out here as anywhere: plain, with a minus.
+    expect(rowOf('Test Corner Shop').minor, -1250000);
+    expect(rowOf('Test Corner Shop').color, Mid.ink);
+    expect(rowOf('Test Card Payment').minor, 25000000);
+    expect(rowOf('Test Card Payment').color, Mid.green);
     await tidy(tester, db);
   });
 
@@ -10881,6 +10856,97 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('import: rows a reconciled opening balance holds are skipped, '
+      'with nothing to read about them', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final dialogs = _FakeDialogs();
+    final before = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = dialogs;
+    addTearDown(() => FileSelectorPlatform.instance = before);
+    final dir = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('bb-import-held'),
+    ))!;
+    final file = '${dir.path}/ST_TEST.XLS';
+    await tester.runAsync(
+      () => File(file).writeAsBytes(
+        buildXls({
+          (1, 0): DateTime(2026, 9, 10, 9, 5),
+          (1, 2): 0.0,
+          (1, 3): 20000.0,
+          (1, 6): 980000.0,
+          (1, 7): 'Кофе',
+          (2, 0): DateTime(2026, 9, 12, 13, 30),
+          (2, 2): 50000.0,
+          (2, 3): 0.0,
+          (2, 6): 1030000.0,
+          (2, 7): 'Буцаалт',
+          (3, 0): DateTime(2026, 9, 20, 18, 0),
+          (3, 2): 0.0,
+          (3, 3): 7000.0,
+          (3, 6): 1023000.0,
+          (3, 7): 'Такси',
+        }),
+      ),
+    );
+    final db = await pumpLedger(tester);
+    final id = (await tester.runAsync(() async {
+      final id = await db.createAccount(
+        name: 'State Bank',
+        type: AccountType.asset,
+      );
+      await db.postOpeningBalance(
+        accountId: id,
+        date: DateTime(2026, 9, 16),
+        balance: 103000000,
+      );
+      await db.reconcile(
+        accountId: id,
+        statementDate: DateTime(2026, 9, 16),
+        today: DateTime(2026, 9, 30),
+        balance: 103000000,
+      );
+      return id;
+    }))!;
+    await settle(tester);
+    await tester.tap(find.text('State Bank'));
+    await tester.pumpAndSettle();
+
+    Future<void> run(Finder f) async {
+      await tester.runAsync(() async {
+        await tester.tap(f);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    dialogs.openPath = file;
+    await run(find.byKey(const ValueKey('import')));
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('import-summary'))).data,
+      '1 row to import · 2 skipped',
+    );
+    expect(find.textContaining('opening balance'), findsNothing);
+    expect(find.text('Leave the new rows out'), findsNothing);
+    expect(
+      find.textContaining(
+        'the cleared balance matches the bank: ₮1,023,000.00',
+      ),
+      findsOneWidget,
+    );
+    await run(find.byKey(const ValueKey('import-do')));
+    final data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.balanceOf(id), 102300000);
+    await tidy(tester, db);
+  });
+
   testWidgets('import: a typed row at another amount is offered as the same '
       'purchase; taken, it gets the bank\'s amount', (tester) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -10960,7 +11026,7 @@ void main() {
       matchesGoldenFile('goldens/import_same_purchase.png'),
     );
     await run(find.byKey(const ValueKey('import-same-0')));
-    expect(find.textContaining('takes ₮7,000'), findsOneWidget);
+    expect(find.byKey(const ValueKey('import-same-0')), findsNothing);
     await run(find.byKey(const ValueKey('import-do')));
     final row = (await tester.runAsync(() => db.snapshot(typed)))!.entries
         .singleWhere((e) => e.accountId == id);

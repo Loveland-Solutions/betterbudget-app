@@ -287,26 +287,6 @@ class _ImportDialogState extends State<_ImportDialog> {
     ));
   }
 
-  /// A row's tag, clicked: a match becomes its own row, then left out, then
-  /// a match again; a new row is left out and back.
-  void _cycle(int i) {
-    final plan = _plan;
-    if (plan == null) return;
-    final p = plan.rows[i];
-    final next = switch (p.fate) {
-      ImportFate.match => ImportFate.add,
-      ImportFate.add when p.match != null => ImportFate.leftOut,
-      ImportFate.add => ImportFate.leftOut,
-      ImportFate.leftOut when p.match != null => ImportFate.match,
-      ImportFate.leftOut => ImportFate.add,
-      ImportFate.already => ImportFate.already,
-    };
-    if (next == p.fate) return;
-    setState(
-      () => _plan = plan.withRows([...plan.rows]..[i] = p.withFate(next)),
-    );
-  }
-
   void _leaveNewOut() {
     final plan = _plan;
     if (plan == null) return;
@@ -334,95 +314,103 @@ class _ImportDialogState extends State<_ImportDialog> {
         child: Focus(
           autofocus: true,
           child: SizedBox(
-            width: (size.width - 64).clamp(600, 1180),
-            height: (size.height - 64).clamp(420, 860),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    t.importTitle(widget.accountName),
-                    style: onest(17, weight: 600, letterSpacing: -0.2),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(widget.fileName, style: onest(12.5, color: Mid.ink3)),
-                  const SizedBox(height: 16),
-                  if (_showColumns) ...[
+            // The file's columns need the width; two counts don't.
+            width: _showColumns ? (size.width - 64).clamp(600.0, 1180.0) : 600,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: (size.height - 64).clamp(420, 860),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                     Text(
-                      t.importColumnsHint,
-                      style: onest(13, color: Mid.ink2),
+                      t.importTitle(widget.accountName),
+                      style: onest(17, weight: 600, letterSpacing: -0.2),
                     ),
-                    const SizedBox(height: 10),
-                    _Columns(
-                      sheet: widget.sheet,
-                      mapping: _mapping,
-                      skipped: {
-                        for (final s in _read?.skipped ?? const <SkippedRow>[])
-                          s.sourceRow,
-                      },
-                      onRole: (col, role) => _set(_mapping.withRole(col, role)),
-                    ),
-                    ..._choices(t),
-                  ] else
-                    Row(
-                      children: [
-                        Icon(Icons.check_rounded, size: 16, color: Mid.green),
-                        const SizedBox(width: 6),
-                        Text(
-                          t.importSavedColumns,
-                          style: onest(13, color: Mid.ink2),
-                        ),
-                        const SizedBox(width: 12),
-                        BarButton(
-                          key: const ValueKey('import-change-columns'),
-                          label: t.importChangeColumns,
-                          onTap: () => setState(() => _showColumns = true),
-                        ),
-                      ],
-                    ),
-                  const SizedBox(height: 16),
-                  Container(height: 1, color: Mid.rule),
-                  const SizedBox(height: 12),
-                  Expanded(child: _preview(t)),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      const Spacer(),
-                      BarButton(
-                        key: const ValueKey('import-cancel'),
-                        label: t.importCancel,
-                        onTap: () => Navigator.of(context).pop(),
+                    const SizedBox(height: 2),
+                    Text(widget.fileName, style: onest(12.5, color: Mid.ink3)),
+                    const SizedBox(height: 16),
+                    if (_showColumns) ...[
+                      Text(
+                        t.importColumnsHint,
+                        style: onest(13, color: Mid.ink2),
                       ),
-                      if (_plan != null && _toWrite == 0)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Text(
-                            t.importNothingNew,
+                      const SizedBox(height: 10),
+                      _Columns(
+                        sheet: widget.sheet,
+                        mapping: _mapping,
+                        skipped: {
+                          for (final s
+                              in _read?.skipped ?? const <SkippedRow>[])
+                            s.sourceRow,
+                        },
+                        onRole: (col, role) =>
+                            _set(_mapping.withRole(col, role)),
+                      ),
+                      ..._choices(t),
+                    ] else
+                      Row(
+                        children: [
+                          Icon(Icons.check_rounded, size: 16, color: Mid.green),
+                          const SizedBox(width: 6),
+                          Text(
+                            t.importSavedColumns,
                             style: onest(13, color: Mid.ink2),
                           ),
-                        )
-                      else
-                        Opacity(
-                          opacity: _plan == null ? 0.5 : 1,
-                          child: _PrimaryButton(
-                            key: const ValueKey('import-do'),
-                            label: switch ((
-                              _count(ImportFate.add),
-                              _count(ImportFate.match),
-                            )) {
-                              (final n, 0) => t.importDo(n),
-                              (0, final c) => t.importDoOnlyClear(c),
-                              (final n, final c) => t.importDoClear(n, c),
-                            },
-                            icon: Icons.download_rounded,
-                            tooltip: 'Enter',
-                            onTap: _import,
+                          const SizedBox(width: 12),
+                          BarButton(
+                            key: const ValueKey('import-change-columns'),
+                            label: t.importChangeColumns,
+                            onTap: () => setState(() => _showColumns = true),
                           ),
+                        ],
+                      ),
+                    const SizedBox(height: 16),
+                    Container(height: 1, color: Mid.rule),
+                    const SizedBox(height: 12),
+                    Flexible(child: SingleChildScrollView(child: _preview(t))),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        const Spacer(),
+                        BarButton(
+                          key: const ValueKey('import-cancel'),
+                          label: t.importCancel,
+                          onTap: () => Navigator.of(context).pop(),
                         ),
-                    ],
-                  ),
-                ],
+                        if (_plan != null && _toWrite == 0)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Text(
+                              t.importNothingNew,
+                              style: onest(13, color: Mid.ink2),
+                            ),
+                          )
+                        else
+                          Opacity(
+                            opacity: _plan == null ? 0.5 : 1,
+                            child: _PrimaryButton(
+                              key: const ValueKey('import-do'),
+                              label: switch ((
+                                _count(ImportFate.add),
+                                _count(ImportFate.match),
+                              )) {
+                                (final n, 0) => t.importDo(n),
+                                (0, final c) => t.importDoOnlyClear(c),
+                                (final n, final c) => t.importDoClear(n, c),
+                              },
+                              icon: Icons.download_rounded,
+                              tooltip: 'Enter',
+                              onTap: _import,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -685,33 +673,21 @@ class _ImportDialogState extends State<_ImportDialog> {
       );
     }
     final added = _count(ImportFate.add);
-    final matched = _count(ImportFate.match);
-    // A repeat still left out is already in, not something the person
-    // left out.
-    final repeats = plan.rows.where((p) => p.repeat).length;
-    final repeatsOut = plan.rows
-        .where((p) => p.repeat && p.fate == ImportFate.leftOut)
-        .length;
-    final already = _count(ImportFate.already) + repeatsOut;
-    final leftOut = _count(ImportFate.leftOut) - repeatsOut;
-    final noDate = read.skipped
-        .where((s) => s.reason == SkipReason.noDate)
-        .length;
+    final skipped = plan.rows.length - _toWrite;
     final noAmount = [
       for (final s in read.skipped)
         if (s.reason == SkipReason.noAmount) s.sourceRow + 1,
     ];
     final summary = [
-      t.importCountNew(added),
-      if (matched > 0) t.importCountMatch(matched),
-      if (already > 0) t.importCountAlready(already),
-      if (leftOut > 0) t.importCountLeftOut(leftOut),
+      t.importCountToImport(_toWrite),
+      if (skipped > 0) t.importCountSkipped(skipped),
     ].join(' · ');
 
     final notes = <Widget>[];
     final before = _beforeOpening;
     final opening = plan.opening;
-    if (before != null && opening != null) {
+    // A reconciled one can't move: planImport skips the rows it holds.
+    if (before != null && opening != null && !opening.locked) {
       notes.add(
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -719,54 +695,32 @@ class _ImportDialogState extends State<_ImportDialog> {
             _note(
               Icons.warning_amber_rounded,
               Mid.coral,
-              opening.locked
-                  ? t.importBeforeOpeningLocked(
-                      before.rows.length,
-                      _money(_shown(opening.amount)),
-                      sayFullDate(t, opening.date),
-                    )
-                  : t.importBeforeOpening(
-                      before.rows.length,
-                      _money(_shown(opening.amount)),
-                      sayFullDate(t, opening.date),
-                    ),
+              t.importBeforeOpening(
+                before.rows.length,
+                _money(_shown(opening.amount)),
+                sayFullDate(t, opening.date),
+              ),
               big: true,
             ),
             Padding(
               padding: const EdgeInsets.only(left: 18),
-              child: opening.locked
-                  ? Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: BarButton(
-                        key: const ValueKey('import-leave-before-out'),
-                        label: t.importLeaveBeforeOut,
-                        onTap: () => setState(
-                          () => _plan = plan.withRows([
-                            for (final p in plan.rows)
-                              before.rows.contains(p)
-                                  ? p.withFate(ImportFate.leftOut)
-                                  : p,
-                          ]),
-                        ),
-                      ),
-                    )
-                  : _choiceRow('', [
-                      (
-                        t.importMoveOpening(
-                          sayFullDate(t, before.date),
-                          _money(_shown(before.amount)),
-                        ),
-                        _moveOpening,
-                        () => setState(() => _moveOpening = true),
-                        'import-move-opening',
-                      ),
-                      (
-                        t.importKeepOpening,
-                        !_moveOpening,
-                        () => setState(() => _moveOpening = false),
-                        'import-keep-opening',
-                      ),
-                    ]),
+              child: _choiceRow('', [
+                (
+                  t.importMoveOpening(
+                    sayFullDate(t, before.date),
+                    _money(_shown(before.amount)),
+                  ),
+                  _moveOpening,
+                  () => setState(() => _moveOpening = true),
+                  'import-move-opening',
+                ),
+                (
+                  t.importKeepOpening,
+                  !_moveOpening,
+                  () => setState(() => _moveOpening = false),
+                  'import-keep-opening',
+                ),
+              ]),
             ),
           ],
         ),
@@ -796,11 +750,6 @@ class _ImportDialogState extends State<_ImportDialog> {
         ),
       );
     }
-    if (noDate > 0) {
-      notes.add(
-        Text(t.importCountNoDate(noDate), style: onest(12.5, color: Mid.ink3)),
-      );
-    }
     if (noAmount.isNotEmpty) {
       notes.add(
         _note(
@@ -818,39 +767,24 @@ class _ImportDialogState extends State<_ImportDialog> {
         ..add(_fromLine(t))
         ..add(_startNote(t, start));
     }
+    // Said only when it doesn't add up: the line below answers the rest.
     final check = read.check;
-    if (check != null) {
-      if (check.ok && start != null) {
-        // Said above, with its days.
-      } else if (check.ok) {
-        notes.add(
-          _note(
-            Icons.check_rounded,
-            Mid.green,
-            t.importBalanceOk(
-              _money(_shown(check.opening)),
-              _money(_shown(check.closing)),
+    if (check != null && !check.ok) {
+      notes.add(
+        _note(
+          Icons.warning_amber_rounded,
+          Mid.coral,
+          [
+            t.importBalanceOff(
+              check.firstMismatchRow! + 1,
+              _money(_shown(check.found!)),
+              _money(_shown(check.expected!)),
             ),
-          ),
-        );
-      } else {
-        notes.add(
-          _note(
-            Icons.warning_amber_rounded,
-            Mid.coral,
-            [
-              t.importBalanceOff(
-                check.firstMismatchRow! + 1,
-                _money(_shown(check.found!)),
-                _money(_shown(check.expected!)),
-              ),
-              if (check.mismatches > 1)
-                t.importBalanceOffCount(check.mismatches),
-            ].join(' '),
-            big: true,
-          ),
-        );
-      }
+            if (check.mismatches > 1) t.importBalanceOffCount(check.mismatches),
+          ].join(' '),
+          big: true,
+        ),
+      );
     }
     // What the account's cleared balance will be, against the bank's: the
     // balance on the file's last row, or the one balance an OFX file gives.
@@ -900,19 +834,6 @@ class _ImportDialogState extends State<_ImportDialog> {
                         _money((ours - bank).abs()),
                       ),
               ),
-      );
-    }
-
-    if (repeats > 0) {
-      notes.add(
-        KeyedSubtree(
-          key: const ValueKey('import-repeats'),
-          child: _note(
-            Icons.info_outline_rounded,
-            Mid.note,
-            t.importRepeats(repeats),
-          ),
-        ),
       );
     }
 
@@ -1026,23 +947,9 @@ class _ImportDialogState extends State<_ImportDialog> {
         Text(
           summary,
           key: const ValueKey('import-summary'),
-          style: onest(14, weight: 500),
+          style: onest(17, weight: 600),
         ),
-        for (final n in notes) ...[const SizedBox(height: 6), n],
-        const SizedBox(height: 10),
-        Text(t.importTagHint, style: onest(12, color: Mid.ink3)),
-        const SizedBox(height: 4),
-        Expanded(
-          child: ListView.builder(
-            itemCount: plan.rows.length,
-            itemExtent: 30,
-            itemBuilder: (context, i) => _PlanLine(
-              plan.rows[i],
-              onTap: () => _cycle(i),
-              key: ValueKey('import-row-$i'),
-            ),
-          ),
-        ),
+        for (final n in notes) ...[const SizedBox(height: 8), n],
       ],
     );
   }
@@ -1066,122 +973,6 @@ class _ImportDialogState extends State<_ImportDialog> {
           ),
         ],
       );
-}
-
-/// One row of the preview: date, payee and memo, amount, and what happens.
-class _PlanLine extends StatelessWidget {
-  const _PlanLine(this.p, {super.key, required this.onTap});
-  final ImportPlanRow p;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final r = p.row;
-    final dim = p.fate == ImportFate.already || p.fate == ImportFate.leftOut;
-    final ink = dim ? Mid.ink3 : Mid.ink;
-    // As the register will show it, on a credit card too: a purchase is
-    // red with a minus, a payment green with a plus (ADR 0004 rule 3).
-    final shown = r.amount;
-    final (tag, tagColor) = switch (p.fate) {
-      ImportFate.add => (t.importFateNew, Mid.blue),
-      ImportFate.match => (
-        [
-          p.match!.payee.isEmpty
-              ? t.importFateMatchDate(sayDate(t, p.match!.date))
-              : t.importFateMatch(p.match!.payee, sayDate(t, p.match!.date)),
-          // Another month: it takes the bank's date.
-          if (matchedDate(p.match!, r.date) != p.match!.date)
-            t.importFateRedated(sayDate(t, dateOnly(r.date))),
-          // A same purchase: it takes the bank's amount.
-          if (p.match!.amount case final a? when a != r.amount)
-            t.importFateTakesAmount(
-              formatShort(r.amount.abs(), currency: CurrencyScope.of(context)),
-            ),
-        ].join(' · '),
-        Mid.green,
-      ),
-      ImportFate.already => (t.importFateAlready, Mid.ink3),
-      ImportFate.leftOut when p.repeat => (t.importFateRepeat, Mid.ink3),
-      ImportFate.leftOut => (t.importFateLeftOut, Mid.ink3),
-    };
-    return Row(
-      children: [
-        SizedBox(
-          width: 96,
-          child: Text(
-            fullDate(r.date),
-            style: onest(13, color: dim ? Mid.ink3 : Mid.ink2, tabular: true),
-          ),
-        ),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: r.payee,
-                  style: onest(13.5, color: ink),
-                ),
-                if (r.memo != null)
-                  TextSpan(
-                    text: '   ${r.memo}',
-                    style: onest(12.5, color: Mid.ink3),
-                  ),
-              ],
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        const SizedBox(width: 12),
-        SizedBox(
-          width: 150,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Money(
-              shown,
-              size: 13.5,
-              sign: MoneySign.plusForPositive,
-              color: dim ? Mid.ink3 : (shown > 0 ? Mid.green : Mid.ink),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        SizedBox(
-          width: 260,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: p.fate == ImportFate.already
-                ? Text(
-                    tag,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: onest(12.5, weight: 500, color: tagColor),
-                  )
-                : Hoverable(
-                    onTap: onTap,
-                    builder: (hover) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: hover ? Mid.raised : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        tag,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: onest(12.5, weight: 500, color: tagColor),
-                      ),
-                    ),
-                  ),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 /// The file's own columns, a choice over each, and its first rows as read.

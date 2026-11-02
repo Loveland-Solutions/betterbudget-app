@@ -5011,29 +5011,17 @@ abstract class Words {
   /// **'plus is money out'**
   String get importPlusOut;
 
-  /// Import window summary, first clause; clauses are joined with " · ".
+  /// Import window: how many of the file's rows the import will write or clear.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 new row} other{{count} new rows}}'**
-  String importCountNew(int count);
+  /// **'{count, plural, =1{1 row to import} other{{count} rows to import}}'**
+  String importCountToImport(int count);
 
-  /// Import window summary clause.
+  /// Import window: how many of the file's rows won't come in, because they're already in the ledger or the opening balance.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 matches a row you typed, which becomes cleared} other{{count} match rows you typed, which become cleared}}'**
-  String importCountMatch(int count);
-
-  /// Import window summary clause: rows imported before (by their key), skipped.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} already in the ledger'**
-  String importCountAlready(int count);
-
-  /// Import window: the file's own balance column agrees with the amounts read.
-  ///
-  /// In en, this message translates to:
-  /// **'The bank’s running balance adds up on every row, {opening} to {closing}.'**
-  String importBalanceOk(Object opening, Object closing);
+  /// **'{count} skipped'**
+  String importCountSkipped(int count);
 
   /// Import window warning: the balance column doesn't agree with the amounts.
   ///
@@ -5075,18 +5063,6 @@ abstract class Words {
     Object date,
     Object diff,
   );
-
-  /// Import window, preview row tag: a row imported before from the bank's other kind of file has this row's day and amount, so it starts left out. Clicking it brings the row in.
-  ///
-  /// In en, this message translates to:
-  /// **'Already in · same day and amount'**
-  String get importFateRepeat;
-
-  /// Import window note: rows that repeat ones imported earlier under another key (the bank's table once, its OFX file the next time).
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 row has the day and amount of a row already imported from another kind of file, so it’s left out. Click its tag to bring it in.} other{{count} rows have the day and amount of rows already imported from another kind of file, so they’re left out. Click a row’s tag to bring it in.}}'**
-  String importRepeats(int count);
 
   /// Import window for a new account: the balance before the file's first row and after its last, which the account's opening balance is made from. from/to in words.
   ///
@@ -5141,24 +5117,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Empty starts the account at {zero} before the file’s first row'**
   String importNoBalanceHint(Object zero);
-
-  /// Import window, preview row tag: this row will be added.
-  ///
-  /// In en, this message translates to:
-  /// **'New'**
-  String get importFateNew;
-
-  /// Import window, preview row tag: a row the user typed that becomes cleared. date in words.
-  ///
-  /// In en, this message translates to:
-  /// **'Matches {payee}, {date}'**
-  String importFateMatch(Object payee, Object date);
-
-  /// Import window, preview row tag: imported before, left out.
-  ///
-  /// In en, this message translates to:
-  /// **'Already in'**
-  String get importFateAlready;
 
   /// Import window, main button. count is new rows plus matched ones.
   ///
@@ -5226,41 +5184,11 @@ abstract class Words {
   /// **'{count, plural, =1{Clear 1 typed row} other{Clear {count} typed rows}}'**
   String importDoOnlyClear(int count);
 
-  /// Import window summary clause, quiet: lines that aren't transactions.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 line without a date (a heading or total) left out} other{{count} lines without a date (headings, totals) left out}}'**
-  String importCountNoDate(int count);
-
   /// Import window warning. rows is a list of row numbers, like 12, 15, 40.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{Row {rows} of the file has a date but no amount this can read, so it’s left out.} other{Rows {rows} of the file have a date but no amount this can read, so they’re left out.}}'**
   String importNoAmountRows(int count, Object rows);
-
-  /// Import window summary clause: rows the person clicked to leave out.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} left out by you'**
-  String importCountLeftOut(int count);
-
-  /// Import window, above the rows.
-  ///
-  /// In en, this message translates to:
-  /// **'Click a row’s New or Matches to add it as its own row or leave it out.'**
-  String get importTagHint;
-
-  /// Import window, preview row tag, when the typed row has no payee. date in words.
-  ///
-  /// In en, this message translates to:
-  /// **'Matches your row of {date}'**
-  String importFateMatchDate(Object date);
-
-  /// Import window, preview row tag: the person chose not to bring this row in.
-  ///
-  /// In en, this message translates to:
-  /// **'Left out'**
-  String get importFateLeftOut;
 
   /// Import window warning: new rows overlap dates already imported. from/to in words.
   ///
@@ -5291,12 +5219,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Same purchase: take the bank’s {amount}'**
   String importSamePurchase(String amount);
-
-  /// Import preview, a row's tag after Same purchase, after " · ": the typed row takes the bank's amount.
-  ///
-  /// In en, this message translates to:
-  /// **'takes {amount}'**
-  String importFateTakesAmount(String amount);
 
   /// Import window note: typed rows the bank file doesn't have (another amount, or not posted).
   ///
@@ -5423,12 +5345,6 @@ abstract class Words {
   /// **'{count, plural, =1{1 row is dated on or before this account’s opening balance ({amount} on {date}), which already counts it.} other{{count} rows are dated on or before this account’s opening balance ({amount} on {date}), which already counts them.}}'**
   String importBeforeOpening(int count, Object amount, Object date);
 
-  /// Import window warning, when the opening balance is reconciled and can't move.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 row is dated on or before this account’s opening balance ({amount} on {date}), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.} other{{count} rows are dated on or before this account’s opening balance ({amount} on {date}), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.}}'**
-  String importBeforeOpeningLocked(int count, Object amount, Object date);
-
   /// Import window choice (the default): move the opening balance before the file's rows, at the amount that keeps today's balance.
   ///
   /// In en, this message translates to:
@@ -5440,18 +5356,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Leave it (those rows count twice)'**
   String get importKeepOpening;
-
-  /// Import window button: leave out the rows dated before a reconciled opening balance.
-  ///
-  /// In en, this message translates to:
-  /// **'Leave those rows out'**
-  String get importLeaveBeforeOut;
-
-  /// Import window, preview tag after a match: the typed row takes the bank's date, which is in another month.
-  ///
-  /// In en, this message translates to:
-  /// **'dated {date}, the bank’s'**
-  String importFateRedated(Object date);
 
   /// Part of the import toast, after " · ": the opening balance moved before the file's rows.
   ///

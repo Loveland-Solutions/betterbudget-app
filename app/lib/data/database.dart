@@ -706,6 +706,7 @@ class ImportPlanRow {
     this.match,
     this.near,
     this.repeat = false,
+    this.held = false,
   });
   final ImportRow row;
   final String key;
@@ -720,6 +721,10 @@ class ImportPlanRow {
   /// of file) has this one's day and amount: it starts left out.
   final bool repeat;
 
+  /// A reconciled opening balance already counts this row: it starts left
+  /// out (owner, 2026-11-02: "Just skip them").
+  final bool held;
+
   /// Kept when the person turns the match off, so it can be turned back on.
   final TypedMatch? match;
 
@@ -730,6 +735,7 @@ class ImportPlanRow {
     match: match,
     near: near,
     repeat: repeat,
+    held: held,
   );
 
   /// The person said [near] is the same purchase: it matches, and takes the
@@ -741,6 +747,7 @@ class ImportPlanRow {
     match: near,
     near: near,
     repeat: repeat,
+    held: held,
   );
 }
 
@@ -6418,8 +6425,24 @@ class AppDatabase extends _$AppDatabase {
     }
 
     final opening = await _openingOf(accountId);
+    // A reconciled opening balance can't move, so the new rows it already
+    // counts are skipped: brought in, they'd count twice.
+    if (opening != null && opening.locked) {
+      for (var i = 0; i < plan.length; i++) {
+        final p = plan[i];
+        if (p.fate == ImportFate.add &&
+            !dateOnly(p.row.date).isAfter(opening.date)) {
+          plan[i] = ImportPlanRow(
+            row: p.row,
+            key: p.key,
+            fate: ImportFate.leftOut,
+            held: true,
+          );
+        }
+      }
+    }
     final fresh = plan
-        .where((p) => p.fate != ImportFate.already && !p.repeat)
+        .where((p) => p.fate != ImportFate.already && !p.repeat && !p.held)
         .toList();
     if (fresh.isEmpty) return ImportPlan(rows: plan, opening: opening);
     var first = dateOnly(fresh.first.row.date);
@@ -6517,8 +6540,9 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
     }
+    // Rows this file's own keys name are its "already in", not another file.
     final before = await customSelect(
-      'SELECT COUNT(*) AS n FROM entries e '
+      'SELECT e.import_key AS key FROM entries e '
       'JOIN transactions t ON t.id = e.transaction_id '
       'WHERE e.account_id = ? AND e.import_key IS NOT NULL '
       'AND t.deleted_at IS NULL AND t.date BETWEEN ? AND ?',
@@ -6528,11 +6552,13 @@ class AppDatabase extends _$AppDatabase {
         Variable.withString(dateKey(last)),
       ],
       readsFrom: {entries, transactions},
-    ).getSingle();
+    ).get();
     return ImportPlan(
       rows: plan,
       unmatched: unmatched,
-      importedBefore: before.read<int>('n'),
+      importedBefore: before
+          .where((r) => !mine.contains(r.read<String>('key')))
+          .length,
       firstDay: first,
       lastDay: last,
       opening: opening,
