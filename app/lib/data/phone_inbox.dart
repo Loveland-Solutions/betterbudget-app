@@ -247,6 +247,7 @@ Map<String, Object?> planToJson(CategoryPlan plan) {
         : [
             for (final (m, d) in plan.onDates!) [m, d],
           ],
+    'monthDays': ?plan.monthDays,
     'payScheduleId': plan.payScheduleId,
     'daysAfterPay': plan.daysAfterPay,
     'weekend': plan.weekend.name,
@@ -260,6 +261,11 @@ Map<String, Object?> planToJson(CategoryPlan plan) {
     'paidFrom': plan.paidFrom,
   };
 }
+
+/// [days] are as the form saves them: none, or two days of a month in order.
+bool _twoDays(List<int>? days) =>
+    days == null ||
+    (days.length == 2 && days[0] >= 1 && days[0] < days[1] && days[1] <= 31);
 
 /// The plan [text] holds, for no category yet (0); null when it can't be
 /// read as one.
@@ -285,6 +291,7 @@ CategoryPlan? planFromJson(String text) {
         ],
         _ => null,
       },
+      monthDays: (j['monthDays'] as List<Object?>?)?.cast<int>(),
       payScheduleId: j['payScheduleId'] as int?,
       daysAfterPay: j['daysAfterPay'] as int? ?? 0,
       weekend: weekend,
@@ -305,6 +312,7 @@ CategoryPlan? planFromJson(String text) {
         !above(plan.everyMonths) ||
         !above(plan.endCount) ||
         !above(plan.upTo) ||
+        !_twoDays(plan.monthDays) ||
         (plan.kind == PlanKind.byDate &&
             plan.due == null &&
             plan.payScheduleId == null)) {

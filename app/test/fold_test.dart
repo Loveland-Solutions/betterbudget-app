@@ -45,6 +45,31 @@ void main() {
     expect(find(out.theirs, 1)!['memo'], 'b');
   });
 
+  test('a plan changed on a computer not yet updated: the column it doesn’t '
+      'have is empty, so nothing crossed', () {
+    // As that computer writes it, and as it is here since the upgrade.
+    Row old(int amount) => {'category_id': 5, 'amount': amount};
+    Row here(int amount) => {...old(amount), 'month_days': null};
+    final mine = {
+      'accounts': <Row>[
+        {'id': 5},
+      ],
+      'category_plans': [here(100)],
+    };
+    final out = foldChanges(mine, [
+      FoldChange(
+        tbl: 'category_plans',
+        pk: {'category_id': 5},
+        op: 'update',
+        before: old(100),
+        after: old(200),
+      ),
+    ]);
+    final both = combine(base: out.base, mine: mine, theirs: out.theirs);
+    expect(both.conflict, isNull);
+    expect(both.ops, hasLength(1));
+  });
+
   test('several changes to one row: the first before, the last after', () {
     final mine = {
       'transactions': [txn(1, 'a')],

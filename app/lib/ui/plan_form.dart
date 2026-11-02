@@ -13,10 +13,10 @@ import '../domain/pay.dart';
 import 'data_words.dart' show payTitle;
 import 'entry_row.dart' show parseEntryDate;
 import 'language.dart';
-import 'theme.dart' show fullDate;
+import 'theme.dart' show fullDate, onest;
 
 /// How a dated plan comes again, as How often asks it.
-enum PlanRepeat { once, every, dates, payday }
+enum PlanRepeat { once, every, twice, dates, payday }
 
 enum PlanEnds { never, date, count }
 
@@ -37,6 +37,8 @@ class PlanAnswers {
   final upTo = TextEditingController();
   final everyN = TextEditingController(text: '1');
   final dates = TextEditingController();
+  final day1 = TextEditingController();
+  final day2 = TextEditingController();
   final daysAfter = TextEditingController();
   final endDate = TextEditingController();
   final endCount = TextEditingController(text: '12');
@@ -57,6 +59,8 @@ class PlanAnswers {
     upTo,
     everyN,
     dates,
+    day1,
+    day2,
     daysAfter,
     endDate,
     endCount,
@@ -70,6 +74,8 @@ class PlanAnswers {
       upTo,
       everyN,
       dates,
+      day1,
+      day2,
       daysAfter,
       endDate,
       endCount,
@@ -83,8 +89,8 @@ class PlanAnswers {
   bool hasDate = false;
 
   /// How often it comes, as the question is asked: once, every so many
-  /// days, weeks, months or years, on fixed dates each year, or every
-  /// payday. [custom] shows the number and unit for "Every…".
+  /// days, weeks, months or years, twice a month, on fixed dates each year,
+  /// or every payday. [custom] shows the number and unit for "Every…".
   PlanRepeat repeat = PlanRepeat.once;
   bool custom = false;
   PlanUnit unit = PlanUnit.months;
@@ -125,11 +131,16 @@ class PlanAnswers {
     dates.text = p?.onDates == null
         ? ''
         : [for (final (m, d) in p!.onDates!) monthDay(m, d)].join(', ');
+    final days = p?.monthDays;
+    day1.text = days == null ? '' : '${days.first}';
+    day2.text = days == null ? '' : '${days.last}';
     var n = 1;
     if (p?.payScheduleId != null) {
       repeat = PlanRepeat.payday;
     } else if (p?.onDates != null) {
       repeat = PlanRepeat.dates;
+    } else if (days != null) {
+      repeat = PlanRepeat.twice;
     } else if (p?.everyDays case final days?) {
       repeat = PlanRepeat.every;
       unit = days % 7 == 0 ? PlanUnit.weeks : PlanUnit.days;
@@ -300,9 +311,9 @@ class PlanAnswers {
   };
 
   /// Ends applies to any repeat typed as every so many (a preset or
-  /// Custom…): "Every month, 12 times" is an installment plan (budget
-  /// review, 2026-10-05).
-  bool get endsOn => repeat == PlanRepeat.every;
+  /// Custom…), and to twice a month: "Every month, 12 times" is an
+  /// installment plan (budget review, 2026-10-05).
+  bool get endsOn => repeat == PlanRepeat.every || repeat == PlanRepeat.twice;
   DateTime? get endDateNow =>
       endsOn && ends == PlanEnds.date ? typedEndDate : null;
   int? get endCountNow =>
@@ -322,6 +333,37 @@ class PlanAnswers {
       out.add((d.month, d.day));
     }
     return out;
+  }
+
+  /// The two days of "Twice a month", earlier first; null until both are
+  /// days of a month, and not the same one.
+  List<int>? get typedMonthDays {
+    int? day(TextEditingController c) => switch (int.tryParse(c.text.trim())) {
+      final n? when n >= 1 && n <= 31 => n,
+      _ => null,
+    };
+    final (a, b) = (day(day1), day(day2));
+    if (a == null || b == null || a == b) return null;
+    return a < b ? [a, b] : [b, a];
+  }
+
+  /// The first of [days] this month: one gone by stays there, like a
+  /// single date (#342). Past the month's end, its last day.
+  DateTime firstOfMonthDays(List<int> days) {
+    final end = DateTime(today.year, today.month + 1, 0).day;
+    final d = days.first;
+    return DateTime(today.year, today.month, d < end ? d : end);
+  }
+
+  /// The first of [days] from today on.
+  DateTime nextOfMonthDays(List<int> days) {
+    for (var month = today.month; ; month++) {
+      final end = DateTime(today.year, month + 1, 0).day;
+      for (final d in days) {
+        final on = DateTime(today.year, month, d < end ? d : end);
+        if (!on.isBefore(today)) return on;
+      }
+    }
   }
 
   /// The first of the typed dates from this month on: one gone by this
@@ -360,19 +402,25 @@ class PlanAnswers {
       case PlanRepeat.dates:
         final d = typedDates;
         return d == null || d.isEmpty ? PlanMissing.dates : null;
+      case PlanRepeat.twice:
+        return typedMonthDays == null ? PlanMissing.days : _missingEnd;
       case PlanRepeat.every:
         if (typedEveryN == null) return PlanMissing.everyN;
         if (typedDate == null) return PlanMissing.date;
-        if (ends == PlanEnds.date && typedEndDate == null) {
-          return PlanMissing.endDate;
-        }
-        if (ends == PlanEnds.count && typedEndCount == null) {
-          return PlanMissing.endCount;
-        }
-        return null;
+        return _missingEnd;
       case PlanRepeat.once:
         return typedDate == null ? PlanMissing.date : null;
     }
+  }
+
+  PlanMissing? get _missingEnd {
+    if (ends == PlanEnds.date && typedEndDate == null) {
+      return PlanMissing.endDate;
+    }
+    if (ends == PlanEnds.count && typedEndCount == null) {
+      return PlanMissing.endCount;
+    }
+    return null;
   }
 
   /// The plan as typed, for [categoryId], its bill paid from [paidFrom].
@@ -392,6 +440,7 @@ class PlanAnswers {
     // How it comes again, and from when.
     DateTime? due;
     List<(int, int)>? onDates;
+    List<int>? monthDays;
     int? payId;
     if (hasDate) {
       switch (repeat) {
@@ -400,6 +449,16 @@ class PlanAnswers {
         case PlanRepeat.dates:
           onDates = typedDates;
           due = firstOfDates(onDates!);
+        case PlanRepeat.twice:
+          monthDays = typedMonthDays;
+          // The same days keep the first date they were given; other days
+          // of a bill already twice a month come from here on, since this
+          // month's bills are the old days'.
+          due = old?.monthDays == null
+              ? firstOfMonthDays(monthDays!)
+              : old!.monthDays!.join(',') == monthDays!.join(',')
+              ? old.due
+              : nextOfMonthDays(monthDays);
         case PlanRepeat.every:
         case PlanRepeat.once:
           due = typedDate;
@@ -414,6 +473,7 @@ class PlanAnswers {
       everyMonths: hasDate ? everyMonthsNow : null,
       everyDays: hasDate ? everyDaysNow : null,
       onDates: onDates,
+      monthDays: monthDays,
       payScheduleId: hasDate ? payId : eachPayId,
       daysAfterPay: payId == null ? 0 : daysAfterNow,
       // Chosen weekdays are the days; a weekend rule would move a
@@ -478,9 +538,45 @@ class PlanAnswers {
 }
 
 /// The answer a form asks for again when Add or Save finds it missing.
-enum PlanMissing { amount, upTo, once, date, dates, everyN, endDate, endCount }
+enum PlanMissing {
+  amount,
+  upTo,
+  once,
+  date,
+  dates,
+  days,
+  everyN,
+  endDate,
+  endCount,
+}
 
 // ---------- the words both forms use ----------
+
+/// Stand-ins for the boxes in a sentence like "On the [25]": the words
+/// around a box come from one message, so each language puts them in its
+/// own order.
+const fieldMarks = ['\uE000', '\uE001'];
+
+/// [text] as a row of words and [fields], each field where its mark is.
+List<Widget> withFields(String text, List<Widget> fields) {
+  final out = <Widget>[];
+  var rest = text;
+  while (rest.isNotEmpty) {
+    var at = -1, which = -1;
+    for (var i = 0; i < fields.length; i++) {
+      final j = rest.indexOf(fieldMarks[i]);
+      if (j >= 0 && (at < 0 || j < at)) (at, which) = (j, i);
+    }
+    if (at < 0) {
+      out.add(Text(rest, style: onest(13.5)));
+      break;
+    }
+    if (at > 0) out.add(Text(rest.substring(0, at), style: onest(13.5)));
+    out.add(fields[which]);
+    rest = rest.substring(at + 1);
+  }
+  return out;
+}
 
 String planEveryLabel(Words t, int n, PlanUnit unit) => switch (unit) {
   PlanUnit.days => t.planRepeatDays(n),
@@ -535,6 +631,7 @@ String planRepeatLabel(Words t, LedgerData data, PlanAnswers a) =>
       // Custom… open: the block under it says the pattern.
       PlanRepeat.every when a.custom => t.planCustomOn,
       PlanRepeat.every => planEveryLabel(t, a.typedEveryN ?? 1, a.unit),
+      PlanRepeat.twice => t.planTwiceAMonth,
       PlanRepeat.dates => t.planDatesAYear(a.typedDates?.length ?? 0),
       PlanRepeat.payday => switch (data.payScheduleById(a.payScheduleId)) {
         final s? => planPaydayLabel(t, data, s),

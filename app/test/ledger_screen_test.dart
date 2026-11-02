@@ -7136,6 +7136,91 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('a bill twice a month: both days asked for, and shown again', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      var data = (await tester.runAsync(db.loadLedger))!;
+      final tuition = data.categories.firstWhere((c) => c.name == 'Tuition').id;
+      final checking = data.openAccounts
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      Future<void> pick(String key) async {
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(ValueKey(key)));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> type(String key, String text) async {
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(EditableText),
+            matchRoot: true,
+          ),
+          text,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> save() async {
+        await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+        await tester.pumpAndSettle();
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(const ValueKey('edit-save')));
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pumpAndSettle();
+      }
+
+      await editCategory(tester, 'Tuition');
+      await pick('plan-dated-yes');
+      await type('plan-amount', '500000');
+      await pick('money-accounts');
+      await pick('money-account-$checking');
+      await pick('plan-repeat');
+      await pick('plan-repeat-twice');
+      // The days replace the date, and there's nothing in them to begin
+      // with.
+      expect(find.byKey(const ValueKey('plan-date')), findsNothing);
+      expect(find.text('Twice a month'), findsOneWidget);
+      await save();
+      // Without them Save doesn't save.
+      expect(find.byKey(const ValueKey('edit-save')), findsOneWidget);
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(data.plans[tuition], isNull);
+      await type('plan-day1', '1');
+      await type('plan-day2', '15');
+      // The window keeps up as they're typed.
+      expect(find.text('Enter the amount and the date'), findsNothing);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_plan_twice.png'),
+      );
+      await save();
+      data = (await tester.runAsync(db.loadLedger))!;
+      final plan = data.plans[tuition]!;
+      expect(plan.monthDays, [1, 15]);
+      expect(plan.everyMonths, isNull);
+      expect(plan.due!.day, 1);
+      expect(plan.paidFrom, checking);
+      // Open again: the same days, under the same choice.
+      await editCategory(tester, 'Tuition');
+      expect(find.text('Twice a month'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('plan-day2')))
+            .controller!
+            .text,
+        '15',
+      );
+      await tidy(tester, db);
+    });
+
     testWidgets('a plan paid from an account schedules its bill; a cap; ⌘Z', (
       tester,
     ) async {

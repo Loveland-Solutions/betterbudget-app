@@ -374,21 +374,28 @@ const _mostAsks = 25;
 /// The v21 columns, no part of what a transaction holds.
 const _madeBy = {'made_how', 'made_on'};
 
-/// [of] with the v21 columns on every transaction, empty where it had none.
-LedgerRows _withMadeBy(LedgerRows of) {
-  final rows = of['transactions'];
-  if (rows == null ||
-      rows.every(
-        (r) => r.containsKey('made_how') && r.containsKey('made_on'),
-      )) {
-    return of;
+/// [ledgers] with every row of a table holding the same columns, empty where
+/// it had none: a computer not yet updated writes rows without the columns
+/// added since, which aren't changes of its.
+List<LedgerRows> _sameColumns(List<LedgerRows> ledgers) {
+  final columns = <String, Set<String>>{};
+  for (final of in ledgers) {
+    for (final MapEntry(key: table, value: rows) in of.entries) {
+      (columns[table] ??= {}).addAll(rows.expand((r) => r.keys));
+    }
   }
-  return {
-    ...of,
-    'transactions': [
-      for (final r in rows) {'made_how': null, 'made_on': null, ...r},
-    ],
-  };
+  return [
+    for (final of in ledgers)
+      {
+        for (final MapEntry(key: table, value: rows) in of.entries)
+          table: [
+            for (final r in rows)
+              r.length == columns[table]!.length
+                  ? r
+                  : {for (final c in columns[table]!) c: null, ...r},
+          ],
+      },
+  ];
 }
 
 /// What to change in [mine] so that it also holds everything [theirs]
@@ -412,9 +419,7 @@ Combined combine({
 }) {
   // A row from a computer before v21 has no `made_how` or `made_on`: it is
   // the same row with them empty.
-  base = _withMadeBy(base);
-  mine = _withMadeBy(mine);
-  theirs = _withMadeBy(theirs);
+  [base, mine, theirs] = _sameColumns([base, mine, theirs]);
   // What was already chosen is left out of the comparison from the start:
   // this computer's ledger holds the choice, and the other's version of it
   // mustn't come in again over it.

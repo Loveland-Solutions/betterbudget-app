@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-02** · version 0.67.2 · schema v23 · 991 tests pass
+**Last updated: 2026-11-02** · version 0.69.0 · schema v24 · 991 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -23,6 +23,10 @@ the owner's Publish now. `release_store.sh` now deletes a waiting submission rat
 than stopping; Submission 5 (0.66.0) went that way.
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+
+**A bill twice a month** (0.69.0, #351; ADR 0004 "A bill twice a month"): How often has
+Twice a month, with two days typed as pay's are, on the computer and the phone. Schema
+v24 adds `month_days`, empty on every plan already there.
 
 **Import says two counts** (0.67.2, #348; ADR 0004 "Rows before the opening balance"): the
 window shows how many rows it will import and how many it skips, and no list of rows.

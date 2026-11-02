@@ -879,8 +879,9 @@ class Readiness {
 
   /// What goes into [a] each month: typed on its line, else the plan of
   /// the category its payments come out of, when it's due every so many
-  /// months (a payment is a bill): its amount spread over them. A plan by
-  /// pay period isn't a month's figure (code review), so it is typed.
+  /// months (a payment is a bill): its amount spread over them, or on days
+  /// of each month, once for each. A plan by pay period isn't a month's
+  /// figure (code review), so it is typed.
   static DebtPayment? _payment(LedgerData data, AccountInfo a) {
     final typed = int.tryParse(data.prefs[ReadyKeys.pay(a.id)] ?? '');
     if (typed != null && typed > 0) return (amount: typed, from: null);
@@ -888,6 +889,9 @@ class Readiness {
     final category = c == null ? null : data.accounts[c];
     final plan = c == null ? null : data.plans[c];
     if (category == null || category.deleted || plan == null) return null;
+    if (plan.kind == PlanKind.byDate && plan.monthDays != null) {
+      return (amount: plan.amount * plan.monthDays!.length, from: category);
+    }
     final every = plan.everyMonths;
     if (plan.kind != PlanKind.byDate || every == null || every < 1) {
       return null;
