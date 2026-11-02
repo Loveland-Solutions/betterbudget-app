@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-10-30** · version 0.66.3 · schema v23 · 978 tests pass
+**Last updated: 2026-11-02** · version 0.67.0 · schema v23 · 978 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -23,6 +23,9 @@ the owner's Publish now. `release_store.sh` now deletes a waiting submission rat
 than stopping; Submission 5 (0.66.0) went that way.
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+
+**A row's memo is whole** (0.67.0, #340; ADR 0004 "A row's memo is whole"): the gray
+line under the payee wraps, and a row is 52 tall until a memo needs more.
 
 **Save stays in sight on every phone** (0.66.2, #331): on the owner's wife's Galaxy
 S26 (360 × 780 points) Save was under Ledger and Budget. The entry's Save and pad now
