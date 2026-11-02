@@ -1,6 +1,7 @@
 // The phone screens (ADR 0005; ADR 0004 "Phone screens"): Ledger, where a
 // transaction is typed and its category picked or made, and Budget, what is
 // left in each category. Drawn on a 390 × 844 phone.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:betterbudget/data/database.dart';
@@ -864,6 +865,39 @@ void main() {
     // It lands with the money to spend, above the bills.
     await tester.scrollUntilVisible(find.text('Vet'), 100);
     expect(find.text('Vet'), findsOneWidget);
+  });
+
+  testWidgets('a bill twice a month on the phone: two days, no date', (
+    tester,
+  ) async {
+    final store = await _pump(tester);
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('budget-new-category')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'Mobicom',
+    );
+    await tester.tap(find.byKey(const ValueKey('plan-dated-yes')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('plan-amount')), '45000');
+    await tester.tap(find.byKey(const ValueKey('plan-repeat')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Twice a month'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('plan-date')), findsNothing);
+    expect(find.text('First due day'), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('plan-day2')), '1');
+    await tester.enterText(find.byKey(const ValueKey('plan-day1')), '15');
+    await tester.pumpAndSettle();
+    await _paidFrom(tester);
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await tester.pumpAndSettle();
+    final made = store.made.single;
+    expect(made.plan!.monthDays, [1, 15]);
+    expect(made.plan!.everyMonths, isNull);
+    expect(made.plan!.due!.day, 1);
+    expect(made.due, made.plan!.due);
   });
 
   testWidgets('New category on the phone asks everything the computer\'s '
@@ -2748,6 +2782,7 @@ void main() {
         endCount: 12,
         weekdays: const [1, 3],
         onDates: const [(4, 15), (10, 15)],
+        monthDays: const [1, 15],
         paidFrom: 3,
       );
       writePhoneInbox(
@@ -2780,8 +2815,36 @@ void main() {
       expect(p.endCount, 12);
       expect(p.weekdays, [1, 3]);
       expect(p.onDates, [(4, 15), (10, 15)]);
+      expect(p.monthDays, [1, 15]);
       expect(p.paidFrom, 3);
       expect(p.rollover, isTrue);
+
+      // A plan with no days says nothing of them, so one saved before there
+      // were any reads the same.
+      expect(
+        planToJson(
+          CategoryPlan(
+            categoryId: 0,
+            kind: PlanKind.byDate,
+            amount: 4500000,
+            start: DateTime(2026, 9, 16),
+            due: DateTime(2026, 10, 15),
+          ),
+        ).containsKey('monthDays'),
+        isFalse,
+      );
+      // Days the form couldn't have saved aren't a plan.
+      for (final days in [
+        <int>[],
+        [15, 1],
+        [1, 1],
+        [1, 15, 20],
+        [0, 15],
+        [15, 32],
+      ]) {
+        final j = planToJson(plan)..['monthDays'] = days;
+        expect(planFromJson(jsonEncode(j)), isNull, reason: '$days');
+      }
 
       // A plan this computer can't read: the category still comes.
       var db = sqlite3.open(file.path);

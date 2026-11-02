@@ -4389,6 +4389,17 @@ class $CategoryPlansTable extends CategoryPlans
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _monthDaysMeta = const VerificationMeta(
+    'monthDays',
+  );
+  @override
+  late final GeneratedColumn<String> monthDays = GeneratedColumn<String>(
+    'month_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _payScheduleIdMeta = const VerificationMeta(
     'payScheduleId',
   );
@@ -4537,6 +4548,7 @@ class $CategoryPlansTable extends CategoryPlans
     everyMonths,
     everyDays,
     onDates,
+    monthDays,
     payScheduleId,
     daysAfterPay,
     weekend,
@@ -4612,6 +4624,12 @@ class $CategoryPlansTable extends CategoryPlans
       context.handle(
         _onDatesMeta,
         onDates.isAcceptableOrUnknown(data['on_dates']!, _onDatesMeta),
+      );
+    }
+    if (data.containsKey('month_days')) {
+      context.handle(
+        _monthDaysMeta,
+        monthDays.isAcceptableOrUnknown(data['month_days']!, _monthDaysMeta),
       );
     }
     if (data.containsKey('pay_schedule_id')) {
@@ -4732,6 +4750,10 @@ class $CategoryPlansTable extends CategoryPlans
         DriftSqlType.string,
         data['${effectivePrefix}on_dates'],
       ),
+      monthDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}month_days'],
+      ),
       payScheduleId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}pay_schedule_id'],
@@ -4818,6 +4840,9 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
   /// On these dates each year, `MM-DD,MM-DD`; null unless so (v15).
   final String? onDates;
 
+  /// Each month on these days, `1,15`; null unless so (v24).
+  final String? monthDays;
+
   /// A bill: every payday of this schedule, [daysAfterPay] days after
   /// (v15). A set amount: per this schedule's pay period, not per month
   /// (v17).
@@ -4862,6 +4887,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     this.everyMonths,
     this.everyDays,
     this.onDates,
+    this.monthDays,
     this.payScheduleId,
     required this.daysAfterPay,
     required this.weekend,
@@ -4897,6 +4923,9 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     }
     if (!nullToAbsent || onDates != null) {
       map['on_dates'] = Variable<String>(onDates);
+    }
+    if (!nullToAbsent || monthDays != null) {
+      map['month_days'] = Variable<String>(monthDays);
     }
     if (!nullToAbsent || payScheduleId != null) {
       map['pay_schedule_id'] = Variable<int>(payScheduleId);
@@ -4951,6 +4980,9 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       onDates: onDates == null && nullToAbsent
           ? const Value.absent()
           : Value(onDates),
+      monthDays: monthDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(monthDays),
       payScheduleId: payScheduleId == null && nullToAbsent
           ? const Value.absent()
           : Value(payScheduleId),
@@ -4996,6 +5028,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       everyMonths: serializer.fromJson<int?>(json['everyMonths']),
       everyDays: serializer.fromJson<int?>(json['everyDays']),
       onDates: serializer.fromJson<String?>(json['onDates']),
+      monthDays: serializer.fromJson<String?>(json['monthDays']),
       payScheduleId: serializer.fromJson<int?>(json['payScheduleId']),
       daysAfterPay: serializer.fromJson<int>(json['daysAfterPay']),
       weekend: $CategoryPlansTable.$converterweekend.fromJson(
@@ -5026,6 +5059,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       'everyMonths': serializer.toJson<int?>(everyMonths),
       'everyDays': serializer.toJson<int?>(everyDays),
       'onDates': serializer.toJson<String?>(onDates),
+      'monthDays': serializer.toJson<String?>(monthDays),
       'payScheduleId': serializer.toJson<int?>(payScheduleId),
       'daysAfterPay': serializer.toJson<int>(daysAfterPay),
       'weekend': serializer.toJson<String>(
@@ -5052,6 +5086,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     Value<int?> everyMonths = const Value.absent(),
     Value<int?> everyDays = const Value.absent(),
     Value<String?> onDates = const Value.absent(),
+    Value<String?> monthDays = const Value.absent(),
     Value<int?> payScheduleId = const Value.absent(),
     int? daysAfterPay,
     PayWeekend? weekend,
@@ -5073,6 +5108,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     everyMonths: everyMonths.present ? everyMonths.value : this.everyMonths,
     everyDays: everyDays.present ? everyDays.value : this.everyDays,
     onDates: onDates.present ? onDates.value : this.onDates,
+    monthDays: monthDays.present ? monthDays.value : this.monthDays,
     payScheduleId: payScheduleId.present
         ? payScheduleId.value
         : this.payScheduleId,
@@ -5104,6 +5140,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           : this.everyMonths,
       everyDays: data.everyDays.present ? data.everyDays.value : this.everyDays,
       onDates: data.onDates.present ? data.onDates.value : this.onDates,
+      monthDays: data.monthDays.present ? data.monthDays.value : this.monthDays,
       payScheduleId: data.payScheduleId.present
           ? data.payScheduleId.value
           : this.payScheduleId,
@@ -5138,6 +5175,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           ..write('everyMonths: $everyMonths, ')
           ..write('everyDays: $everyDays, ')
           ..write('onDates: $onDates, ')
+          ..write('monthDays: $monthDays, ')
           ..write('payScheduleId: $payScheduleId, ')
           ..write('daysAfterPay: $daysAfterPay, ')
           ..write('weekend: $weekend, ')
@@ -5155,7 +5193,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     categoryId,
     kind,
     amountMinor,
@@ -5164,6 +5202,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     everyMonths,
     everyDays,
     onDates,
+    monthDays,
     payScheduleId,
     daysAfterPay,
     weekend,
@@ -5176,7 +5215,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     upToMinor,
     paidFromId,
     once,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5189,6 +5228,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           other.everyMonths == this.everyMonths &&
           other.everyDays == this.everyDays &&
           other.onDates == this.onDates &&
+          other.monthDays == this.monthDays &&
           other.payScheduleId == this.payScheduleId &&
           other.daysAfterPay == this.daysAfterPay &&
           other.weekend == this.weekend &&
@@ -5212,6 +5252,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
   final Value<int?> everyMonths;
   final Value<int?> everyDays;
   final Value<String?> onDates;
+  final Value<String?> monthDays;
   final Value<int?> payScheduleId;
   final Value<int> daysAfterPay;
   final Value<PayWeekend> weekend;
@@ -5233,6 +5274,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     this.everyMonths = const Value.absent(),
     this.everyDays = const Value.absent(),
     this.onDates = const Value.absent(),
+    this.monthDays = const Value.absent(),
     this.payScheduleId = const Value.absent(),
     this.daysAfterPay = const Value.absent(),
     this.weekend = const Value.absent(),
@@ -5255,6 +5297,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     this.everyMonths = const Value.absent(),
     this.everyDays = const Value.absent(),
     this.onDates = const Value.absent(),
+    this.monthDays = const Value.absent(),
     this.payScheduleId = const Value.absent(),
     this.daysAfterPay = const Value.absent(),
     this.weekend = const Value.absent(),
@@ -5279,6 +5322,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     Expression<int>? everyMonths,
     Expression<int>? everyDays,
     Expression<String>? onDates,
+    Expression<String>? monthDays,
     Expression<int>? payScheduleId,
     Expression<int>? daysAfterPay,
     Expression<String>? weekend,
@@ -5301,6 +5345,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
       if (everyMonths != null) 'every_months': everyMonths,
       if (everyDays != null) 'every_days': everyDays,
       if (onDates != null) 'on_dates': onDates,
+      if (monthDays != null) 'month_days': monthDays,
       if (payScheduleId != null) 'pay_schedule_id': payScheduleId,
       if (daysAfterPay != null) 'days_after_pay': daysAfterPay,
       if (weekend != null) 'weekend': weekend,
@@ -5325,6 +5370,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     Value<int?>? everyMonths,
     Value<int?>? everyDays,
     Value<String?>? onDates,
+    Value<String?>? monthDays,
     Value<int?>? payScheduleId,
     Value<int>? daysAfterPay,
     Value<PayWeekend>? weekend,
@@ -5347,6 +5393,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
       everyMonths: everyMonths ?? this.everyMonths,
       everyDays: everyDays ?? this.everyDays,
       onDates: onDates ?? this.onDates,
+      monthDays: monthDays ?? this.monthDays,
       payScheduleId: payScheduleId ?? this.payScheduleId,
       daysAfterPay: daysAfterPay ?? this.daysAfterPay,
       weekend: weekend ?? this.weekend,
@@ -5390,6 +5437,9 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     }
     if (onDates.present) {
       map['on_dates'] = Variable<String>(onDates.value);
+    }
+    if (monthDays.present) {
+      map['month_days'] = Variable<String>(monthDays.value);
     }
     if (payScheduleId.present) {
       map['pay_schedule_id'] = Variable<int>(payScheduleId.value);
@@ -5443,6 +5493,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
           ..write('everyMonths: $everyMonths, ')
           ..write('everyDays: $everyDays, ')
           ..write('onDates: $onDates, ')
+          ..write('monthDays: $monthDays, ')
           ..write('payScheduleId: $payScheduleId, ')
           ..write('daysAfterPay: $daysAfterPay, ')
           ..write('weekend: $weekend, ')
@@ -11507,6 +11558,7 @@ typedef $$CategoryPlansTableCreateCompanionBuilder =
       Value<int?> everyMonths,
       Value<int?> everyDays,
       Value<String?> onDates,
+      Value<String?> monthDays,
       Value<int?> payScheduleId,
       Value<int> daysAfterPay,
       Value<PayWeekend> weekend,
@@ -11530,6 +11582,7 @@ typedef $$CategoryPlansTableUpdateCompanionBuilder =
       Value<int?> everyMonths,
       Value<int?> everyDays,
       Value<String?> onDates,
+      Value<String?> monthDays,
       Value<int?> payScheduleId,
       Value<int> daysAfterPay,
       Value<PayWeekend> weekend,
@@ -11648,6 +11701,11 @@ class $$CategoryPlansTableFilterComposer
 
   ColumnFilters<String> get onDates => $composableBuilder(
     column: $table.onDates,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get monthDays => $composableBuilder(
+    column: $table.monthDays,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11816,6 +11874,11 @@ class $$CategoryPlansTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get monthDays => $composableBuilder(
+    column: $table.monthDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get daysAfterPay => $composableBuilder(
     column: $table.daysAfterPay,
     builder: (column) => ColumnOrderings(column),
@@ -11970,6 +12033,9 @@ class $$CategoryPlansTableAnnotationComposer
   GeneratedColumn<String> get onDates =>
       $composableBuilder(column: $table.onDates, builder: (column) => column);
 
+  GeneratedColumn<String> get monthDays =>
+      $composableBuilder(column: $table.monthDays, builder: (column) => column);
+
   GeneratedColumn<int> get daysAfterPay => $composableBuilder(
     column: $table.daysAfterPay,
     builder: (column) => column,
@@ -12114,6 +12180,7 @@ class $$CategoryPlansTableTableManager
                 Value<int?> everyMonths = const Value.absent(),
                 Value<int?> everyDays = const Value.absent(),
                 Value<String?> onDates = const Value.absent(),
+                Value<String?> monthDays = const Value.absent(),
                 Value<int?> payScheduleId = const Value.absent(),
                 Value<int> daysAfterPay = const Value.absent(),
                 Value<PayWeekend> weekend = const Value.absent(),
@@ -12135,6 +12202,7 @@ class $$CategoryPlansTableTableManager
                 everyMonths: everyMonths,
                 everyDays: everyDays,
                 onDates: onDates,
+                monthDays: monthDays,
                 payScheduleId: payScheduleId,
                 daysAfterPay: daysAfterPay,
                 weekend: weekend,
@@ -12158,6 +12226,7 @@ class $$CategoryPlansTableTableManager
                 Value<int?> everyMonths = const Value.absent(),
                 Value<int?> everyDays = const Value.absent(),
                 Value<String?> onDates = const Value.absent(),
+                Value<String?> monthDays = const Value.absent(),
                 Value<int?> payScheduleId = const Value.absent(),
                 Value<int> daysAfterPay = const Value.absent(),
                 Value<PayWeekend> weekend = const Value.absent(),
@@ -12179,6 +12248,7 @@ class $$CategoryPlansTableTableManager
                 everyMonths: everyMonths,
                 everyDays: everyDays,
                 onDates: onDates,
+                monthDays: monthDays,
                 payScheduleId: payScheduleId,
                 daysAfterPay: daysAfterPay,
                 weekend: weekend,

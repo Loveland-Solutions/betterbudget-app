@@ -1240,6 +1240,55 @@ void main() {
     },
   );
 
+  test('twice a month: once the bill before is settled, a row since pays '
+      'the next, however early', () {
+    const phone = 3;
+    AccountInfo account(int id, AccountType type) =>
+        AccountInfo(id: id, name: 'A$id', type: type);
+    TxnData txn(int id, int day, {bool scheduled = false, int? plan}) =>
+        TxnData(
+          id: id,
+          date: DateTime(2026, 11, day),
+          payee: scheduled ? null : 'МОБИКОМ',
+          scheduled: scheduled,
+          planCategoryId: plan,
+          entries: [
+            EntryData(id: id * 10, accountId: 1, amount: -4150000),
+            EntryData(id: id * 10 + 1, accountId: phone, amount: 4150000),
+          ],
+        );
+    Iterable<int> paid(List<TxnData> txns) => billPayments(
+      LedgerData(
+        accounts: [
+          account(1, AccountType.asset),
+          account(phone, AccountType.expense),
+        ],
+        txns: txns,
+        plans: [
+          CategoryPlan(
+            categoryId: phone,
+            kind: PlanKind.byDate,
+            amount: 4150000,
+            start: DateTime(2026, 10, 20),
+            due: DateTime(2026, 11, 1),
+            monthDays: const [1, 15],
+            paidFrom: 1,
+          ),
+        ],
+      ),
+      DateTime(2026, 11, 6),
+    ).keys;
+
+    final fifteenth = txn(2, 15, scheduled: true, plan: phone);
+    // The 1st paid, the 15th's on payday, ten days ahead.
+    expect(paid([txn(1, 1, plan: phone), fifteenth, txn(5, 5)]), [2]);
+    // The 1st still waiting: the row is the 1st's.
+    expect(
+      paid([txn(1, 1, scheduled: true, plan: phone), fifteenth, txn(5, 5)]),
+      [1],
+    );
+  });
+
   test('within a day money in comes first, so the balance never dips', () {
     AccountInfo account(int id, AccountType type) =>
         AccountInfo(id: id, name: 'A$id', type: type);

@@ -217,6 +217,9 @@ class CategoryPlans extends Table {
   /// On these dates each year, `MM-DD,MM-DD`; null unless so (v15).
   TextColumn get onDates => text().nullable()();
 
+  /// Each month on these days, `1,15`; null unless so (v24).
+  TextColumn get monthDays => text().nullable()();
+
   /// A bill: every payday of this schedule, [daysAfterPay] days after
   /// (v15). A set amount: per this schedule's pay period, not per month
   /// (v17).
@@ -1037,7 +1040,7 @@ class AppDatabase extends _$AppDatabase {
   String? thisComputer;
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1236,6 +1239,10 @@ class AppDatabase extends _$AppDatabase {
           // every category, plan and row kept.
           await _createTableOnce(m, categoryPaidFrom);
           await fillPaidFrom();
+        }
+        if (from < 24) {
+          // A bill twice a month: empty for every plan already here.
+          await _addColumnOnce(m, categoryPlans, categoryPlans.monthDays);
         }
         // Each trigger names its table's columns: made afresh after every
         // upgrade, whatever it changed.
@@ -3388,6 +3395,14 @@ class AppDatabase extends _$AppDatabase {
     if (plan.due != null && plan.due != before?.due) {
       final first = Budget.dueAfter(plan, 0, pay: pay);
       if (first.isBefore(t)) out.add(first);
+      // Twice a month: the other day can have gone by as well.
+      if (plan.monthDays != null) {
+        for (var n = 1; ; n++) {
+          final d = Budget.dueAfter(plan, n, pay: pay);
+          if (!d.isBefore(t)) break;
+          out.add(d);
+        }
+      }
     }
     if (removed.isNotEmpty) {
       final rows = await (select(
@@ -3470,6 +3485,7 @@ class AppDatabase extends _$AppDatabase {
                       '${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}',
                   ].join(','),
           ),
+          monthDays: Value(plan.monthDays?.join(',')),
           payScheduleId: Value(plan.payScheduleId),
           daysAfterPay: Value(plan.daysAfterPay),
           weekend: Value(plan.weekend),
@@ -4164,6 +4180,9 @@ class AppDatabase extends _$AppDatabase {
             for (final piece in p.onDates!.split(','))
               (int.parse(piece.split('-')[0]), int.parse(piece.split('-')[1])),
           ],
+    monthDays: p.monthDays == null || p.monthDays!.isEmpty
+        ? null
+        : [for (final piece in p.monthDays!.split(',')) int.parse(piece)],
     payScheduleId: p.payScheduleId,
     daysAfterPay: p.daysAfterPay,
     weekend: p.weekend,
@@ -5999,6 +6018,7 @@ class AppDatabase extends _$AppDatabase {
       everyMonths: p.everyMonths,
       everyDays: p.everyDays,
       onDates: p.onDates,
+      monthDays: p.monthDays,
       payScheduleId: p.payScheduleId,
       daysAfterPay: p.daysAfterPay,
       weekend: p.weekend,

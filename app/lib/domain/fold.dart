@@ -255,12 +255,7 @@ bool _same(Row? a, Row? b) {
   for (final c in columns) {
     // When a computer wrote it is no part of it (as in the digest).
     if (c == 'created_at' || c == 'updated_at') continue;
-    // A row written before v21 has no where-it-came-from: it is empty.
-    if ((!a.containsKey(c) || !b.containsKey(c)) &&
-        c != 'made_how' &&
-        c != 'made_on') {
-      return false;
-    }
+    // A column added since a row was written: empty there.
     final x = a[c], y = b[c];
     if (x == y) continue;
     // JSON gives a whole number back as an int, SQLite may hold a REAL.

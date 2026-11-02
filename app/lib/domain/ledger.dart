@@ -622,6 +622,9 @@ const billSkippedPrefix = 'bill.skipped.';
 /// bill" puts back exactly that.
 String billPaidKey(int rowTxnId) => 'bill.paid.$rowTxnId';
 
+/// What every [billPaidKey] starts with.
+const billPaidPrefix = 'bill.paid.';
+
 /// A [billPaidKey]'s value: the bill, its date (the budget counts the row
 /// on it, however late it was paid), what it was for before a part
 /// payment, and the bills skipped with it.
@@ -914,6 +917,7 @@ class CategoryPlan {
     this.everyMonths,
     this.everyDays,
     this.onDates,
+    this.monthDays,
     this.payScheduleId,
     this.daysAfterPay = 0,
     this.weekend = PayWeekend.keep,
@@ -944,7 +948,7 @@ class CategoryPlan {
   final DateTime? due;
 
   /// [PlanKind.byDate]: it comes again every this many months (12 a
-  /// year, 3 a quarter). One of the four ways to repeat, or none: once.
+  /// year, 3 a quarter). One of the five ways to repeat, or none: once.
   final int? everyMonths;
 
   /// [PlanKind.byDate]: every this many days (7 a week, 14 every two).
@@ -953,6 +957,11 @@ class CategoryPlan {
   /// [PlanKind.byDate]: on these dates each year, as (month, day), when
   /// the gaps aren't even (taxes four times a year).
   final List<(int, int)>? onDates;
+
+  /// [PlanKind.byDate]: each month on these days, earliest first (twice a
+  /// month, the 1st and the 15th). Days past a month's end land on its
+  /// last day.
+  final List<int>? monthDays;
 
   /// [PlanKind.byDate]: every payday of this pay schedule, [daysAfterPay]
   /// days after it (0: on the day).
@@ -1002,6 +1011,7 @@ class CategoryPlan {
       everyMonths: monthly ? 1 : everyMonths,
       everyDays: everyDays,
       onDates: onDates,
+      monthDays: monthDays,
       payScheduleId: payScheduleId == null ? null : payId,
       daysAfterPay: monthly ? 0 : daysAfterPay,
       weekend: weekend,
@@ -1026,6 +1036,7 @@ class CategoryPlan {
     everyMonths: everyMonths,
     everyDays: everyDays,
     onDates: onDates,
+    monthDays: monthDays,
     payScheduleId: payScheduleId,
     daysAfterPay: daysAfterPay,
     weekend: weekend,
@@ -1044,6 +1055,7 @@ class CategoryPlan {
       everyMonths != null ||
       everyDays != null ||
       onDates != null ||
+      monthDays != null ||
       payScheduleId != null;
 
   /// The same dates as [o]: how often, from where, and the weekend rule.
@@ -1052,6 +1064,7 @@ class CategoryPlan {
       everyMonths == o.everyMonths &&
       everyDays == o.everyDays &&
       _sameDates(onDates, o.onDates) &&
+      _sameInts(monthDays, o.monthDays) &&
       payScheduleId == o.payScheduleId &&
       daysAfterPay == o.daysAfterPay &&
       weekend == o.weekend &&
@@ -1126,6 +1139,7 @@ class CategoryPlan {
     everyMonths,
     everyDays,
     onDates?.length,
+    monthDays?.length,
     payScheduleId,
     daysAfterPay,
     weekend,

@@ -4832,6 +4832,15 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planTwiceAMonth => 'Twice a month';
+
+  @override
+  String get planFirstDay => 'First due day';
+
+  @override
+  String get planSecondDay => 'Second due day';
+
+  @override
   String get planOnDates => 'On these dates…';
 
   @override
@@ -4888,6 +4897,9 @@ class WordsEn extends Words {
   String planPaidFromHintNone(String account) {
     return 'Enter the date and the bill shows in $account’s forecast.';
   }
+
+  @override
+  String get planEnterAmountDays => 'Enter the amount and two different days';
 
   @override
   String get planEnterAmountDate => 'Enter the amount and the date';

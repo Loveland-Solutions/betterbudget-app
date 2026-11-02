@@ -675,6 +675,20 @@ void main() {
       ).payments[mortgage]!.amount,
       10000000,
     );
+    // Twice a month: both of a month's payments.
+    expect(
+      withPlan(
+        CategoryPlan(
+          categoryId: payment,
+          kind: PlanKind.byDate,
+          amount: 30000000,
+          start: DateTime(2026, 9, 1),
+          due: DateTime(2026, 9, 15),
+          monthDays: const [1, 15],
+        ),
+      ).payments[mortgage]!.amount,
+      60000000,
+    );
   });
 
   test('progress: the most each owed, and the debts paid off', () {
