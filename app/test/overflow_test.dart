@@ -478,11 +478,8 @@ List<String> _cutText(WidgetTester tester) {
       // An amount or a date on two lines.
       final number = RegExp(r'^\S*\d\S*( [A-Z]{3}| owed| өр)?$')
           .hasMatch(text.trim());
-      // An amount cut off with "…". Not in a row's memo: a split's shares
-      // there are whole once the row opens.
-      final memo = o.debugCreator.toString().contains("'row-memo'");
+      // An amount cut off with "…".
       final amountCut =
-          !memo &&
           ends &&
           ((oneLine && wide) || o.didExceedMaxLines) &&
           RegExp(r'\d\.\d\d\b|\d,\d{3}').hasMatch(text);

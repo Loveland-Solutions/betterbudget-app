@@ -4009,7 +4009,7 @@ cents, ran past its box (issue #127).
   reviews): the phone's "… left after this" and a split's shares over the pad, the
   forecast's "runs out on … · … short", the reconcile hint. One exception: a row's
   memo line in the register, which holds a split's shares, stays one line and ends in
-  "…"; the row opens to every share whole.
+  "…"; the row opens to every share whole. (Replaced on 2026-11-02: it wraps; see "A row's memo is whole".)
 - **Two names that start the same may read the same once cut**, and that stays (owner,
   2026-10-20, on the review's offer of a hover or a cut in the middle: "Life is
   rough. This isn't an issue, this is just the nature of space on the screen").
@@ -5001,3 +5001,19 @@ computer alike (Санал хүсэлт илгээх…), since the form takes a
 well as a fault. The problem screens at the phone's start keep their line, with the new
 words. *Rejected:* a line under Save on the Ledger tab (that screen was just fitted to
 a 360 × 780 phone), both places, and keeping "Report a problem…".
+
+## A row's memo is whole (owner, 2026-11-02, #340)
+
+On the ledger page: "I don't know how to show the memo. I want to be able to show the
+memo on this screen." A memo was already the gray line under the payee, but one line, cut
+with "…" at the end of the Payee column, and only Edit showed the rest. Offered three
+ways, the owner chose **wrapping under the payee**: the gray line takes as many lines as
+it needs, with no click and no setting, and a row is 52 tall until a memo needs more. A
+split's shares and an exchange's note are on that line, so they wrap too. The date,
+amount and balance stay level with the payee, at the top of a taller row. From the budget
+review: a "not cleared" note follows the memo's last word rather than sitting beside it,
+where it had squeezed a long memo to a few letters a line, and a split's share keeps its
+amount on the same line as its name. A row with no gray line has no memo: when the bank
+gives one description it goes in Payee, which still ends in "…". *Rejected:*
+a Memo column in Settings, like Source (it takes room from Payee on every row and still
+cuts long ones), and the whole memo only once a row is clicked.
