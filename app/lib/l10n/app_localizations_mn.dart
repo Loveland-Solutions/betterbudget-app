@@ -6028,6 +6028,27 @@ class WordsMn extends Words {
   }
 
   @override
+  String ledgerNoBillNext(String name, String date, String next) {
+    return '$name төлбөр ирээгүй, огноо: $date. Дараагийн төлөх өдөр: $next.';
+  }
+
+  @override
+  String ledgerBillBack(String name, String date) {
+    return '$name төлбөр буцаж нэмэгдлээ, огноо: $date.';
+  }
+
+  @override
+  String get planSkipBill => 'Энэ төлбөрийг алгасах';
+
+  @override
+  String planNoBillOn(String date) {
+    return '$date-нд төлбөргүй';
+  }
+
+  @override
+  String get planBringBackBill => 'Буцааж нэмэх';
+
+  @override
   String ledgerBillsPaidCount(int count) {
     return '$count төлбөр төлөгдлөө.';
   }

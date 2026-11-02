@@ -181,9 +181,15 @@ class PlanLine {
     this.toward = 0,
     this.pastDate = false,
     this.finished = false,
+    this.noBills = const [],
   });
 
   final CategoryPlan plan;
+
+  /// The bills that fell in this period and won't come, soonest first
+  /// (#357): said on the line, each with Bring it back. Not one paid ahead
+  /// with the bill before it: that one did come.
+  final List<DateTime> noBills;
 
   /// A once-only amount by a date: the part each period asks while it's
   /// kept up with, from the plan's first period to its date.
@@ -807,15 +813,27 @@ class Budget {
       if (!e.key.startsWith(billSkippedPrefix)) continue;
       final id = int.tryParse(e.key.substring(billSkippedPrefix.length));
       if (only != null && !only.contains(id)) continue;
-      final parts = e.value.split(';');
-      if (parts.length != 2 || int.tryParse(parts[0]) != plan.categoryId) {
-        continue;
-      }
-      try {
-        out.add(parseDateKey(parts[1]));
-      } catch (_) {}
+      final skip = decodeBillSkipped(e.value);
+      if (skip?.category == plan.categoryId) out.add(skip!.date);
     }
     return out;
+  }
+
+  /// [plan]'s first bill after [after] that isn't one of [skipped]; null
+  /// past its last.
+  static DateTime? nextBill(
+    CategoryPlan plan,
+    DateTime after, {
+    Set<DateTime> skipped = const {},
+    PaySchedule? pay,
+  }) {
+    if (!plan.repeats) return null;
+    for (var n = 0; n < _mostPeriods; n++) {
+      final d = dueAfter(plan, n, pay: pay);
+      if (over(plan, d, pay: pay)) return null;
+      if (d.isAfter(after) && !skipped.contains(d)) return d;
+    }
+    return null;
   }
 
   /// An each-period category that doesn't carry over.
@@ -1432,6 +1450,18 @@ class Budget {
         pastDate: true,
       );
     }
+    // Bills there won't be that fell here. A date the plan no longer has
+    // (its day was changed since) is nothing to say.
+    final noBills = !repeats
+        ? const <DateTime>[]
+        : ([
+            for (final d in skipped)
+              if (!paidAhead.contains(d) &&
+                  !counted(d).isBefore(p.start) &&
+                  !counted(d).isAfter(p.end) &&
+                  billDate(plan, d, pay: pay) == d)
+                d,
+          ]..sort());
     // The bill this period saves for: the first due on or after it
     // starts.
     var n = n0;
@@ -1455,6 +1485,7 @@ class Budget {
         due: lastDue(plan, pay: pay),
         done: true,
         ended: true,
+        noBills: noBills,
       );
     }
     // Each bill is counted on its own, from the plan's first period or
@@ -1563,6 +1594,7 @@ class Budget {
       lastPeriod: lastPeriod,
       usual: usual,
       toward: repeats ? 0 : base + before + assigned,
+      noBills: noBills,
     );
   }
 }

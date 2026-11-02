@@ -3860,6 +3860,7 @@ class AppDatabase extends _$AppDatabase {
     final created = <int>[];
     final t = dateOnly(today);
     final todayKey = dateKey(t);
+    final skippedBills = await _skippedBills();
     final rows =
         await (select(categoryPlans)..where(
               (p) =>
@@ -3922,8 +3923,9 @@ class AppDatabase extends _$AppDatabase {
           ],
         ),
       );
+      final skipped = skippedBills[plan.categoryId] ?? const <DateTime>{};
       for (final d in gone) {
-        if (Budget.over(plan, d, pay: pay)) continue;
+        if (Budget.over(plan, d, pay: pay) || skipped.contains(d)) continue;
         // A row already there for that bill, paid early perhaps.
         final tied =
             await (select(transactions)..where(
@@ -3983,7 +3985,8 @@ class AppDatabase extends _$AppDatabase {
         date = first;
       } else {
         var n = 0;
-        while (!Budget.dueAfter(plan, n, pay: pay).isAfter(from) && n < 5200) {
+        bool passed(DateTime d) => !d.isAfter(from) || skipped.contains(d);
+        while (passed(Budget.dueAfter(plan, n, pay: pay)) && n < 5200) {
           n++;
         }
         date = Budget.dueAfter(plan, n, pay: pay);
@@ -3994,6 +3997,63 @@ class AppDatabase extends _$AppDatabase {
     }
     return created;
   });
+
+  /// Each plan's bills there won't be, by category.
+  Future<Map<int, Set<DateTime>>> _skippedBills() async {
+    final out = <int, Set<DateTime>>{};
+    final rows = await (select(
+      preferences,
+    )..where((p) => p.key.like('$billSkippedPrefix%'))).get();
+    for (final row in rows) {
+      if (decodeBillSkipped(row.value) case final skip?) {
+        out.putIfAbsent(skip.category, () => {}).add(skip.date);
+      }
+    }
+    return out;
+  }
+
+  /// Bring it back, on a bill skipped (#357): the settings that skipped
+  /// it go, and its row comes back; one that never had a row is scheduled
+  /// on its date when a later bill has taken the next place or the date
+  /// has gone by. Returns what was changed, for undo.
+  Future<({Map<String, String> settings, List<int> restored, List<int> made})>
+  bringBackBill(int categoryId, DateTime date, DateTime today) =>
+      transaction(() async {
+        final value = billSkippedValue(categoryId, date);
+        final rows =
+            await (select(preferences)..where(
+                  (p) =>
+                      p.key.like('$billSkippedPrefix%') & p.value.equals(value),
+                ))
+                .get();
+        final settings = {for (final r in rows) r.key: r.value};
+        final restored = [
+          for (final k in settings.keys)
+            ?int.tryParse(k.substring(billSkippedPrefix.length)),
+        ];
+        for (final k in settings.keys) {
+          await setPreference(k, null);
+        }
+        if (restored.isNotEmpty) await restoreMany(restored);
+        final later =
+            await (select(transactions)..where(
+                  (x) =>
+                      x.planCategoryId.equals(categoryId) &
+                      x.scheduled.equals(true) &
+                      x.deletedAt.isNull() &
+                      x.date.isBiggerThanValue(dateKey(date)),
+                ))
+                .get();
+        final schedule =
+            restored.isEmpty &&
+            (later.isNotEmpty || date.isBefore(dateOnly(today)));
+        final made = await ensurePlanBills(
+          today,
+          only: categoryId,
+          gone: schedule ? {date} : const {},
+        );
+        return (settings: settings, restored: restored, made: made);
+      });
 
   /// A category's group on the Budget page and its note (#100); empty
   /// text is none. Returns what it had, for undo.

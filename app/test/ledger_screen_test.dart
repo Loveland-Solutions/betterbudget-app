@@ -5392,6 +5392,89 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('Skip this bill on the Budget page, this month and further '
+      'ahead, and Bring it back (#357)', (tester) async {
+    final db = await pumpLedger(tester);
+    final plan = await billPlan(
+      tester,
+      db,
+      'Netflix',
+      2000000,
+      DateTime(2026, 9, 20),
+    );
+    final id = plan.category;
+    Future<List<DateTime>> coming() async {
+      final ledger = (await tester.runAsync(db.loadLedger))!;
+      return [
+        for (final x in ledger.txns)
+          if (x.planCategoryId == id && x.scheduled) x.date,
+      ]..sort();
+    }
+
+    await settle(tester);
+    await tester.tap(find.text('Budget'));
+    await settle(tester);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    Future<void> point() async {
+      final row = find.byKey(ValueKey('category-$id'));
+      await tester.scrollUntilVisible(
+        row,
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.pumpAndSettle();
+      await mouse.moveTo(tester.getTopLeft(row) + const Offset(60, 20));
+      await tester.pumpAndSettle();
+    }
+
+    // The row the pointer is on says it.
+    expect(find.text('Skip this bill'), findsNothing);
+    await point();
+    expect(find.text('Skip this bill'), findsOneWidget);
+
+    // This month's has a row: No bill this time. Nothing was set aside, so
+    // the popup doesn't say any stays.
+    await tapAndWrite(tester, find.text('Skip this bill'));
+    expect(
+      find.text('No Netflix bill on 09.20. The next one is due 10.20.'),
+      findsOneWidget,
+    );
+    expect(await coming(), [DateTime(2026, 10, 20)]);
+    await tapAndWait(tester, find.text('Undo'));
+    expect(await coming(), [DateTime(2026, 9, 20)]);
+
+    // November's has no row yet.
+    for (var i = 0; i < 2; i++) {
+      await tester.tap(find.byKey(const ValueKey('period-next')));
+      await tester.pumpAndSettle();
+    }
+    await point();
+    await tapAndWrite(tester, find.text('Skip this bill'));
+    expect(
+      find.text('No Netflix bill on 11.20. The next one is due 12.20.'),
+      findsOneWidget,
+    );
+    await settle(tester);
+    expect(find.textContaining('No bill on 11.20'), findsOneWidget);
+    expect(find.text('Skip this bill'), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/budget_bill_skipped.png'),
+    );
+    expect(await coming(), [DateTime(2026, 9, 20)]);
+    final ledger = (await tester.runAsync(db.loadLedger))!;
+    expect(Budget.skippedBills(ledger, ledger.plans[id]!), {
+      DateTime(2026, 11, 20),
+    });
+
+    await tapAndWrite(tester, find.byKey(ValueKey('plan-back-$id-0')));
+    expect(find.text('The Netflix bill on 11.20 is back.'), findsOneWidget);
+    await settle(tester);
+    expect(find.textContaining('No bill on 11.20'), findsNothing);
+    await tidy(tester, db);
+  });
+
   testWidgets('a row filed under a bill’s category pays it, with no question', (
     tester,
   ) async {

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-03** · version 0.71.0 · schema v24 · 1007 tests pass
+**Last updated: 2026-11-03** · version 0.72.0 · schema v24 · 1007 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -23,6 +23,12 @@ it passes (the owner asked me to publish it; `msstore` has no Publish now). `rel
 than stopping; 0.66.3, passed and waiting for Publish now, and then 0.69.0 went that way.
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+
+**Skip a bill from the Budget page** (0.72.0, #357; ADR 0004 "Skip a bill from the Budget
+page"): the row the pointer is on says **Skip this bill**, and the period arrows reach any
+bill ahead; a bill with no row yet is kept by its date (`billSkippedDayKey`), which
+scheduling and the forecast pass over. The month says "No bill on 11.20 · Bring it back".
+The computer only. No schema change.
 
 **A row's category changes, and can be a new one** (0.71.0, #358; ADR 0004 "A paycheck
 filed elsewhere stops being one"): a new category on a row filed under a pay was saved, but

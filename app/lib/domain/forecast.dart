@@ -44,6 +44,7 @@ List<RegisterRow> projectScheduled(
   required DateTime until,
   required PaySchedule? Function(int? id) payById,
   required CategoryPlan? Function(int categoryId) planOf,
+  Set<DateTime> Function(CategoryPlan plan)? skipped,
 }) {
   const atMost = 400;
   // From the latest scheduled one of each: an overdue payday beside the
@@ -76,10 +77,12 @@ List<RegisterRow> projectScheduled(
     final pay = payById(plan.payScheduleId);
     if (plan.payScheduleId != null && pay == null) continue;
     final last = Budget.lastDue(plan, pay: pay);
+    // A bill further ahead that was skipped (#357) won't come.
+    final skip = skipped?.call(plan) ?? const <DateTime>{};
     for (var n = 0; n < atMost; n++) {
       final d = Budget.dueAfter(plan, n, pay: pay);
       if (d.isAfter(until) || (last != null && d.isAfter(last))) break;
-      if (!d.isAfter(r.date)) continue;
+      if (!d.isAfter(r.date) || skip.contains(d)) continue;
       out.add(r.copyWith(date: d, projected: true));
     }
   }

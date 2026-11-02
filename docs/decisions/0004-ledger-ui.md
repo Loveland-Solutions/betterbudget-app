@@ -5149,3 +5149,30 @@ row, with the row's currency and Paid from the row's account, and Add files the 
 The category and the filing are one undo each, as from the entry row. The keys start on the
 first choice under it. Move to's list has none. Split stays out of these lists: a row
 becomes a split in Edit.
+
+## Skip a bill from the Budget page (owner, 2026-11-03, #357)
+
+Owner, 2026-11-02: "I need to be able to skip a bill if needed." The only way was **No bill
+this time** on a bill's scheduled row in the ledger: nothing on the Budget page, and a bill
+further ahead has no row to click. Of three sketches the owner picked the first, and any
+bill ahead, on the computer only.
+
+- **Skip this bill on the bill's Budget line**, on the row the pointer is on, as a row says
+  Move money beside its Left. It's a repeating bill's, while this period's isn't paid and
+  the period on screen isn't over. Rejected: a button in the bill's Edit (a click further,
+  though nothing new on the page), and each line of the forecast's bill list (only on an
+  account's page, away from the budget).
+- **Any bill ahead, by the period arrows.** Go to January and skip January's. A bill that far
+  off has no row, so its date is kept as a setting (`bill.skipped.day.<category>.<date>`), and
+  scheduling, the forecast and Budget all pass over it. Rejected: only the bill due next.
+- **The month says so, and it can be undone later:** "No bill on 11.20 · Bring it back" on a
+  line of its own under the plan, so a twice-a-month bill can have two. Undo goes when the
+  app closes and a skip may be months away, so this lasts. A bill brought back comes on its
+  own date: overdue if that has passed, beside a later bill if one has taken its place. It
+  also shows for one skipped in the ledger.
+- **The popup says only what's there.** "Its ₮41,500 stays for the one due 12.15" takes what
+  the category has left; with nothing set aside, or further ahead, "No Mobicom bill on 11.15.
+  The next one is due 12.15."
+- **The phone stays as it is:** it records and checks, and shows the new date once the
+  computer has saved it.
+
