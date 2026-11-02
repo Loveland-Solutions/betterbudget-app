@@ -875,6 +875,16 @@ class _Tab extends StatelessWidget {
   );
 }
 
+/// A row's cells keep to its first 52 points, so a long memo grows downward
+/// and the date and amount stay level with the payee. The payee, which is
+/// [Expanded], is the cell that grows.
+List<Widget> _onFirstLine(List<Widget> cells) => [
+  for (final c in cells)
+    c is Expanded
+        ? c
+        : SizedBox(height: 52, child: Center(widthFactor: 1, child: c)),
+];
+
 /// The clicked row's actions, attached under it. Only what applies to this
 /// row shows: one of Mark cleared / Mark uncleared, no Categorize on splits
 /// and transfers. Reconciled rows keep Edit and Categorize (payee, memo and
@@ -1269,8 +1279,9 @@ class _PostedRow extends StatelessWidget {
         ? [
             for (final l in r.splitLines)
               // A line the other way from the row (a return on the same
-              // receipt) carries its sign, as an amount does.
-              '${splitLineName(t, l)} ${(l.amount > 0) != (r.amount > 0) ? (l.amount > 0 ? '+' : '−') : ''}${formatShort(l.amount.abs(), currency: r.currency)}',
+              // receipt) carries its sign, as an amount does. Its amount
+              // stays beside its name when the line wraps.
+              '${splitLineName(t, l)}\u00A0${(l.amount > 0) != (r.amount > 0) ? (l.amount > 0 ? '+' : '−') : ''}${formatShort(l.amount.abs(), currency: r.currency)}',
             if (r.memo.isNotEmpty) r.memo,
           ].join(' · ')
         : r.otherAmount != null
@@ -1325,220 +1336,239 @@ class _PostedRow extends StatelessWidget {
               children: [
                 // The row's line is chosen with ↑ ↓; only its bar takes Tab.
                 ExcludeFocus(
-                  child: SizedBox(
-                    height: 52,
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: Cols.status,
-                          child: MouseRegion(
-                            onEnter: (_) => hoveredStatus.value = r.cleared,
-                            onExit: (_) {
-                              if (hoveredStatus.value == r.cleared) {
-                                hoveredStatus.value = null;
-                              }
-                            },
-                            child: Tooltip(
-                              message: statusTip,
-                              child: Hoverable(
-                                onTap: r.cleared == Cleared.reconciled
-                                    ? null
-                                    : onToggleCleared,
-                                builder: (h) => Container(
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: h && r.cleared != Cleared.reconciled
-                                        ? Mid.raised
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Center(child: StatusGlyph(r.cleared)),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _onFirstLine([
+                      SizedBox(
+                        width: Cols.status,
+                        child: MouseRegion(
+                          onEnter: (_) => hoveredStatus.value = r.cleared,
+                          onExit: (_) {
+                            if (hoveredStatus.value == r.cleared) {
+                              hoveredStatus.value = null;
+                            }
+                          },
+                          child: Tooltip(
+                            message: statusTip,
+                            child: Hoverable(
+                              onTap: r.cleared == Cleared.reconciled
+                                  ? null
+                                  : onToggleCleared,
+                              builder: (h) => Container(
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: h && r.cleared != Cleared.reconciled
+                                      ? Mid.raised
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
+                                child: Center(child: StatusGlyph(r.cleared)),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: Cols.gap),
-                        _Cell(
-                          width: Cols.date,
-                          onTap: () => onTap(EditField.date),
-                          child: Text(
-                            fullDate(r.date),
-                            style: onest(13, color: Mid.ink3, tabular: true),
-                          ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      _Cell(
+                        width: Cols.date,
+                        onTap: () => onTap(EditField.date),
+                        child: Text(
+                          fullDate(r.date),
+                          style: onest(13, color: Mid.ink3, tabular: true),
                         ),
-                        const SizedBox(width: Cols.gap),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  // The direction word goes before or after
-                                  // the account's name, as the language has it.
-                                  if (r.kind == RowKind.transfer &&
-                                      toBefore.isNotEmpty) ...[
-                                    Text(
-                                      toBefore,
-                                      style: onest(14.5, color: Mid.ink3),
-                                    ),
-                                    const SizedBox(width: 6),
-                                  ],
-                                  Flexible(
-                                    child: Text(
-                                      rowPayee(t, r),
-                                      style: onest(14.5, weight: 500),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (r.kind == RowKind.transfer &&
-                                      toAfter.isNotEmpty) ...[
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        toAfter,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: onest(14.5, color: Mid.ink3),
-                                      ),
-                                    ),
-                                  ],
-                                  if (r.kind == RowKind.transfer ||
-                                      r.kind == RowKind.split) ...[
-                                    const SizedBox(width: 8),
-                                    Icon(
-                                      r.kind == RowKind.transfer
-                                          ? Icons.swap_horiz_rounded
-                                          : Icons.call_split_rounded,
-                                      size: 14,
-                                      color: Mid.ink3,
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              if (memo.isNotEmpty || stale != null) ...[
-                                const SizedBox(height: 2),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      Expanded(
+                        // 52 tall until a long memo needs more.
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 52),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 5),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Row(
                                   children: [
-                                    if (memo.isNotEmpty)
+                                    // The direction word goes before or after
+                                    // the account's name, as the language has it.
+                                    if (r.kind == RowKind.transfer &&
+                                        toBefore.isNotEmpty) ...[
+                                      Text(
+                                        toBefore,
+                                        style: onest(14.5, color: Mid.ink3),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    Flexible(
+                                      child: Text(
+                                        rowPayee(t, r),
+                                        style: onest(14.5, weight: 500),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (r.kind == RowKind.transfer &&
+                                        toAfter.isNotEmpty) ...[
+                                      const SizedBox(width: 6),
                                       Flexible(
-                                        child: GestureDetector(
-                                          onTap: () => onTap(EditField.memo),
-                                          // Cut with "…" in the row, a split's
-                                          // shares too: the row opens to them
-                                          // whole.
-                                          child: Text(
-                                            memo,
-                                            key: const ValueKey('row-memo'),
-                                            style: onest(12.5, color: Mid.ink3),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
+                                        child: Text(
+                                          toAfter,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: onest(14.5, color: Mid.ink3),
                                         ),
                                       ),
-                                    // Brighter than the memo: it's why Working
-                                    // may be lower than it should be.
-                                    // Whole, with the memo shrinking first; it's
-                                    // short enough to fit any payee column.
-                                    if (stale != null)
-                                      Text(
-                                        '${memo.isEmpty ? '' : ' · '}$stale',
-                                        key: const ValueKey('stale-note'),
-                                        style: onest(12.5, color: Mid.ink2),
-                                        maxLines: 1,
+                                    ],
+                                    if (r.kind == RowKind.transfer ||
+                                        r.kind == RowKind.split) ...[
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        r.kind == RowKind.transfer
+                                            ? Icons.swap_horiz_rounded
+                                            : Icons.call_split_rounded,
+                                        size: 14,
+                                        color: Mid.ink3,
                                       ),
+                                    ],
                                   ],
                                 ),
+                                if (memo.isNotEmpty || stale != null) ...[
+                                  const SizedBox(height: 2),
+                                  if (memo.isEmpty)
+                                    // Brighter than the memo: it's why Working
+                                    // may be lower than it should be.
+                                    Text(
+                                      stale!,
+                                      key: const ValueKey('stale-note'),
+                                      style: onest(12.5, color: Mid.ink2),
+                                      maxLines: 1,
+                                    )
+                                  else
+                                    GestureDetector(
+                                      onTap: () => onTap(EditField.memo),
+                                      // Whole, a split's shares too, on as many
+                                      // lines as it takes; the note follows its
+                                      // last word, so it never squeezes the memo.
+                                      child: stale == null
+                                          ? Text(
+                                              memo,
+                                              key: const ValueKey('row-memo'),
+                                              style: onest(
+                                                12.5,
+                                                color: Mid.ink3,
+                                              ),
+                                            )
+                                          : Text.rich(
+                                              TextSpan(
+                                                text: memo,
+                                                children: [
+                                                  TextSpan(
+                                                    text: ' · $stale',
+                                                    style: onest(
+                                                      12.5,
+                                                      color: Mid.ink2,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              key: const ValueKey('row-memo'),
+                                              style: onest(
+                                                12.5,
+                                                color: Mid.ink3,
+                                              ),
+                                            ),
+                                    ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
-                        const SizedBox(width: Cols.gap),
-                        SizedBox(
-                          width: Cols.category,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: r.kind == RowKind.simple
-                                ? CategoryMenu(
-                                    categories: categories,
-                                    current: categoryShown ?? r.categoryLabel,
-                                    onPicked: onSetCategory,
-                                    leading: [
-                                      for (final p in pays)
-                                        (
-                                          label: p.label,
-                                          onTap: () => onSetPay?.call(p.id),
-                                        ),
-                                    ],
-                                    builder: (open, toggle) => CategoryChip(
-                                      label: categoryShown ?? r.categoryLabel,
-                                      open: open,
-                                      onTap: toggle,
-                                    ),
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                    ),
-                                    child: Text(
-                                      rowCategory(t, r),
-                                      style: onest(12.5, color: Mid.ink3),
-                                    ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      SizedBox(
+                        width: Cols.category,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: r.kind == RowKind.simple
+                              ? CategoryMenu(
+                                  categories: categories,
+                                  current: categoryShown ?? r.categoryLabel,
+                                  onPicked: onSetCategory,
+                                  leading: [
+                                    for (final p in pays)
+                                      (
+                                        label: p.label,
+                                        onTap: () => onSetPay?.call(p.id),
+                                      ),
+                                  ],
+                                  builder: (open, toggle) => CategoryChip(
+                                    label: categoryShown ?? r.categoryLabel,
+                                    open: open,
+                                    onTap: toggle,
                                   ),
-                          ),
-                        ),
-                        const SizedBox(width: Cols.gap),
-                        if (SourceColumn.showing(context)) ...[
-                          _SourceCell(r),
-                          const SizedBox(width: Cols.gap),
-                        ],
-                        _Cell(
-                          width: Cols.amount,
-                          onTap: () => onTap(EditField.amount),
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: _Amount(r.amount, lit: hover || selected),
-                          ),
-                        ),
-                        const SizedBox(width: Cols.gap),
-                        SizedBox(
-                          width: Cols.balance,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: accountName != null
-                                ? Text(
-                                    accountName!,
-                                    style: onest(13, color: Mid.ink2),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  )
-                                : reconciling && r.cleared == Cleared.uncleared
-                                ? null
-                                : Builder(
-                                    builder: (context) {
-                                      final raw = reconciling
-                                          ? r.clearedBalance
-                                          : r.balance;
-                                      final b = owed ? -raw : raw;
-                                      return Money(
-                                        b,
-                                        centsColor: hover || selected
-                                            ? Mid.ink2
-                                            : null,
-                                        color: !owed && b < 0
-                                            ? Mid.coral
-                                            : (r.cleared == Cleared.uncleared
-                                                  ? Mid.ink2
-                                                  : Mid.ink),
-                                      );
-                                    },
+                                )
+                              : Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
                                   ),
-                          ),
+                                  child: Text(
+                                    rowCategory(t, r),
+                                    style: onest(12.5, color: Mid.ink3),
+                                  ),
+                                ),
                         ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      if (SourceColumn.showing(context)) ...[
+                        _SourceCell(r),
+                        const SizedBox(width: Cols.gap),
                       ],
-                    ),
+                      _Cell(
+                        width: Cols.amount,
+                        onTap: () => onTap(EditField.amount),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _Amount(r.amount, lit: hover || selected),
+                        ),
+                      ),
+                      const SizedBox(width: Cols.gap),
+                      SizedBox(
+                        width: Cols.balance,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: accountName != null
+                              ? Text(
+                                  accountName!,
+                                  style: onest(13, color: Mid.ink2),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                              : reconciling && r.cleared == Cleared.uncleared
+                              ? null
+                              : Builder(
+                                  builder: (context) {
+                                    final raw = reconciling
+                                        ? r.clearedBalance
+                                        : r.balance;
+                                    final b = owed ? -raw : raw;
+                                    return Money(
+                                      b,
+                                      centsColor: hover || selected
+                                          ? Mid.ink2
+                                          : null,
+                                      color: !owed && b < 0
+                                          ? Mid.coral
+                                          : (r.cleared == Cleared.uncleared
+                                                ? Mid.ink2
+                                                : Mid.ink),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ),
+                    ]),
                   ),
                 ),
                 ?bar,

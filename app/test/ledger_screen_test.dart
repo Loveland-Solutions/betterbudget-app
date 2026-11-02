@@ -27,6 +27,7 @@ import 'package:file_selector_platform_interface/file_selector_platform_interfac
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -2373,6 +2374,33 @@ void main() {
       expect(find.text('Lunch with Bat'), findsOneWidget); // saved, row reset
       await tidy(tester, db);
     });
+
+    testWidgets('a long memo is whole on the row, which grows to hold it', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.enterText(field('Category'), 'Dining out');
+      await tester.enterText(field('New transaction — payee'), 'Modern Nomads');
+      await tester.enterText(field('₮0.00'), '42000');
+      await tester.pump();
+      final memo = List.filled(12, 'Lunch with the whole team').join(' ');
+      await tester.enterText(field('Memo'), memo);
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.tap(find.widgetWithText(GestureDetector, 'Add').last);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      final line = find.text(memo);
+      expect(line, findsOneWidget);
+      expect(
+        tester.renderObject<RenderParagraph>(line).didExceedMaxLines,
+        false,
+      );
+      expect(tester.getSize(line).height, greaterThan(40));
+      await tidy(tester, db);
+    });
   });
 
   group('editing an existing transaction', () {
@@ -3917,7 +3945,7 @@ void main() {
     });
     await tester.pumpAndSettle();
     expect(
-      find.text('Groceries ₮98,000.50 · Clothing ₮37,500 · birthday'),
+      find.text('Groceries\u00A0₮98,000.50 · Clothing\u00A0₮37,500 · birthday'),
       findsOneWidget,
     );
     await tester.enterText(
@@ -4467,8 +4495,10 @@ void main() {
     await tester.ensureVisible(skytel);
     await tester.pumpAndSettle();
     // The 09.10 reconcile passed over it: that, not its age, is the doubt.
-    expect(find.text(' · not on the 09.10 statement'), findsOneWidget);
-    expect(find.byKey(const ValueKey('stale-note')), findsOneWidget);
+    expect(
+      find.textContaining(' · not on the 09.10 statement', findRichText: true),
+      findsOneWidget,
+    );
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/stale_rows.png'),
@@ -4957,6 +4987,8 @@ void main() {
     // Not this bill on the half puts the whole bill back, and undo the rest.
     await tapAndWait(tester, find.text('All').first);
     await tapAndWait(tester, find.text('Univision').first);
+    await tester.ensureVisible(find.byKey(const ValueKey('not-this-bill')));
+    await tester.pumpAndSettle();
     await tapAndWrite(tester, find.byKey(const ValueKey('not-this-bill')));
     expect(await coming(), [
       (DateTime(2026, 9, 12), -12000000),
@@ -4981,6 +5013,11 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Paid on 09.15? Univision, −₮60,000.00'),
+      -200,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('Paid on 09.15? Univision, −₮60,000.00'), findsOneWidget);
     await tapAndWrite(tester, find.byKey(const ValueKey('looks-paid-yes')));
     expect(find.text('Интернэт bill paid. Next due 10.12.'), findsOneWidget);
@@ -9673,6 +9710,11 @@ void main() {
     // A bill typed by hand isn't paid by itself: its row asks.
     expect(find.text('Paid on 09.14? Номин ХХК, −₮12,500.00'), findsOneWidget);
     expect(await imported(), 1);
+    await tester.scrollUntilVisible(
+      find.text('Номин ХХК'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('Номин ХХК'), findsOneWidget);
 
     // ⌘Z takes the whole import back.
