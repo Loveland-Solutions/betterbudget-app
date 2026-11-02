@@ -3269,6 +3269,43 @@ void main() {
       expect(await coming(), [DateTime(2026, 10, 23)]);
       await db.undoTakeAsPay(taken);
 
+      // Filed elsewhere, it lets the pay go; 09.25 is ahead, so it's back.
+      final again = await db.takeAsPay(
+        transactionId: id,
+        accountId: checking,
+        scheduleId: pay.id,
+        today: today,
+      );
+      final left = await db.leavePay(
+        transactionId: id,
+        accountId: checking,
+        scheduleId: pay.id,
+        today: today,
+      );
+      expect((await row()).payScheduleId, isNull);
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+      await db.undoLeavePay(left);
+      expect((await row()).payScheduleId, pay.id);
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+      await db.redoLeavePay(left);
+      expect((await row()).payScheduleId, isNull);
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+      await db.undoLeavePay(left);
+
+      // Once 09.25 has gone by, it stays gone: only the row lets go.
+      final later = await db.leavePay(
+        transactionId: id,
+        accountId: checking,
+        scheduleId: pay.id,
+        today: DateTime(2026, 10, 1),
+      );
+      expect((await row()).payScheduleId, isNull);
+      expect(later.removed, isEmpty);
+      expect(later.created, isEmpty);
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+      await db.undoLeavePay(later);
+      await db.undoTakeAsPay(again);
+
       // "Always file LoveSol under Income · Loveland Solutions": the next
       // file's paycheck is the pay's without being asked.
       await db.softDelete(id);

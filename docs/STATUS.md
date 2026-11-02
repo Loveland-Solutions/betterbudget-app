@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-02** · version 0.70.0 · schema v24 · 1005 tests pass
+**Last updated: 2026-11-03** · version 0.71.0 · schema v24 · 1007 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -23,6 +23,12 @@ the owner's Publish now. `release_store.sh` now deletes a waiting submission rat
 than stopping; 0.66.3, passed and waiting for Publish now, went that way.
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+
+**A row's category changes, and can be a new one** (0.71.0, #358; ADR 0004 "A paycheck
+filed elsewhere stops being one"): a new category on a row filed under a pay was saved, but
+the row went on reading by the pay's name. It now lets the pay go (`leavePay`), and a
+payday still ahead is expected again. **New category** is at the top of a row's Category
+list and Categorize (`CategoryMenu.onNew`, `_newCategoryOnRow`).
 
 **A category with money shows green** (0.70.0, #326; ADR 0004 "A category with money
 shows green"): Left on the computer's Budget page is green above zero, gray at ₮0, coral

@@ -2808,6 +2808,14 @@ void main() {
   /// A tap whose handler writes to the database. Menu items act a frame
   /// after the tap, so pump before letting the write run.
   Future<void> tapAndWait(WidgetTester tester, Finder f) async {
+    // A long list scrolls: a choice in it may be under its foot.
+    if (find
+        .ancestor(of: f, matching: find.byType(MenuItemButton))
+        .evaluate()
+        .isNotEmpty) {
+      await tester.ensureVisible(f);
+      await tester.pumpAndSettle();
+    }
     await tester.tap(f);
     await tester.pump();
     await tester.pump();
@@ -3098,7 +3106,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Categorize'));
       await tester.pumpAndSettle();
-      expect(menu().take(2), ['Income · Loveland Solutions', 'Income']);
+      expect(menu().take(3), [
+        'New category',
+        'Income · Loveland Solutions',
+        'Income',
+      ]);
       await tapAndWait(tester, find.text('Income · Loveland Solutions'));
       expect(
         find.text('Filed under Income · Loveland Solutions'),
@@ -3142,9 +3154,237 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Categorize'));
       await tester.pumpAndSettle();
-      expect(menu().first, isNot(contains('Income')));
+      expect(menu()[1], isNot(contains('Income')));
       expect(menu().last, 'Income');
       expect(menu(), isNot(contains('Income · Loveland Solutions')));
+      await tidy(tester, db);
+    });
+
+    testWidgets('New category is at the top of a row\'s list, by the chip and '
+        'by Categorize; the row is filed in what it makes; ⌘Z (#358)', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      Future<RegisterRow> unitel() async {
+        final d = (await tester.runAsync(() => db.loadLedger()))!;
+        return d
+            .registerFor(
+              d.balanceSheetAccounts
+                  .singleWhere((a) => a.name == 'TDB Checking')
+                  .id,
+            )
+            .posted
+            .firstWhere((r) => r.payee == 'Unitel');
+      }
+
+      final was = (await unitel()).categoryLabel;
+      final chip = find.descendant(
+        of: find.byKey(ValueKey('row-${(await unitel()).txnId}')),
+        matching: find.text(was),
+      );
+      Future<void> add(String name) async {
+        final item = find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text('New category'),
+        );
+        expect(item, findsOneWidget);
+        final others = find.byType(MenuItemButton);
+        expect(
+          tester.getTopLeft(item).dy,
+          lessThan(tester.getTopLeft(others.at(1)).dy),
+        );
+        await tester.tap(item);
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byKey(const ValueKey('edit-name')), name);
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('new-category-add')));
+        await settle(tester);
+      }
+
+      // The row's own list.
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+      await add('Phone');
+      expect((await unitel()).categoryLabel, 'Phone');
+      expect(find.text('Filed under Phone'), findsOneWidget);
+
+      // ⌘Z: the row goes back; the category stays until a second one.
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect((await unitel()).categoryLabel, was);
+      final d = (await tester.runAsync(() => db.loadLedger()))!;
+      expect(d.categories.where((c) => c.name == 'Phone'), hasLength(1));
+
+      // The bar's Categorize; Cancel files nothing.
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text('New category'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel').last);
+      await tester.pumpAndSettle();
+      expect((await unitel()).categoryLabel, was);
+
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await add('Mobile');
+      expect((await unitel()).categoryLabel, 'Mobile');
+
+      // Move to's list isn't a category's: it has none.
+      await tester.tap(find.text('Move to'));
+      await tester.pumpAndSettle();
+      expect(find.text('New category'), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tidy(tester, db);
+    });
+
+    testWidgets('a paycheck filed elsewhere stops being one, by the Category '
+        'list and by Edit, reconciled or not; ⌘Z (#358)', (tester) async {
+      final db = await pumpLedger(tester);
+      late int checking, txn, pay;
+      await tester.runAsync(() async {
+        checking = (await db.loadLedger()).balanceSheetAccounts.first.id;
+        await db.savePaySchedule(
+          accountId: checking,
+          amount: 210000000,
+          rule: PayRule.monthly,
+          day1: 25,
+          name: 'Loveland Solutions',
+          today: DateTime(2026, 9, 16),
+        );
+        final data = await db.loadLedger();
+        pay = data.paySchedules.single.id;
+        txn = await db.postSimple(
+          accountId: checking,
+          date: DateTime(2026, 9, 15),
+          today: DateTime(2026, 9, 16),
+          payee: 'LoveSol',
+          counterAccountId: data.income!.id,
+          amount: 205000000,
+        );
+        await db.takeAsPay(
+          transactionId: txn,
+          accountId: checking,
+          scheduleId: pay,
+          today: DateTime(2026, 9, 16),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      Future<RegisterRow> row() async =>
+          (await tester.runAsync(() => db.loadLedger()))!
+              .registerFor(checking)
+              .posted
+              .firstWhere((r) => r.txnId == txn);
+      Future<List<DateTime>> coming() async => [
+        for (final r in (await tester.runAsync(
+          () => db.loadLedger(),
+        ))!.registerFor(checking).scheduled)
+          if (r.payScheduleId != null) r.date,
+      ];
+      Future<void> pick(Finder opener, String name) async {
+        await tester.tap(opener);
+        await tester.pumpAndSettle();
+        final item = find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text(name),
+        );
+        await tester.ensureVisible(item);
+        await tester.pumpAndSettle();
+        await tapAndWait(tester, item);
+      }
+
+      const paycheck = 'Income · Loveland Solutions';
+      final chip = find.byKey(ValueKey('row-$txn'));
+      final chipLabel = find.descendant(
+        of: chip,
+        matching: find.text(paycheck),
+      );
+      expect(chipLabel, findsOneWidget);
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+
+      // The row's own Category list.
+      await pick(chipLabel, 'Groceries');
+      expect(find.text('Filed under Groceries'), findsOneWidget);
+      expect(chipLabel, findsNothing);
+      expect(
+        find.descendant(of: chip, matching: find.text('Groceries')),
+        findsOneWidget,
+      );
+      expect((await row()).payScheduleId, isNull);
+      // The 09.25 payday it stood for hasn't come: it's expected again.
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect((await row()).categoryLabel, 'Income');
+      expect((await row()).payScheduleId, pay);
+      expect(chipLabel, findsOneWidget);
+      expect(await coming(), [DateTime(2026, 10, 23)]);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect((await row()).categoryLabel, 'Groceries');
+      expect((await row()).payScheduleId, isNull);
+      expect(await coming(), [DateTime(2026, 9, 25)]);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+
+      // Plain Income is a choice too, though the category doesn't change.
+      await pick(chipLabel, 'Income');
+      expect(find.text('Filed under Income'), findsOneWidget);
+      expect((await row()).payScheduleId, isNull);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect((await row()).payScheduleId, pay);
+
+      // Reconciled, by the bar's Categorize: the lock is on date and amount.
+      final entry = (await row()).entryId;
+      await tester.runAsync(() async {
+        await db.toggleCleared(entry);
+        await db.reconcile(
+          accountId: checking,
+          statementDate: DateTime(2026, 9, 15),
+          today: DateTime(2026, 9, 16),
+          balance: (await db.loadLedger()).summaryFor(checking).cleared,
+          adjust: true,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('LoveSol'));
+      await tester.pumpAndSettle();
+      await pick(find.text('Categorize'), 'Groceries');
+      expect((await row()).cleared, Cleared.reconciled);
+      expect((await row()).categoryLabel, 'Groceries');
+      expect((await row()).payScheduleId, isNull);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect((await row()).payScheduleId, pay);
+
+      // Edit: only a new category lets the pay go.
+      final edit = find.widgetWithText(TextField, 'Category');
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      await tester.enterText(edit, 'Groceries');
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect((await row()).categoryLabel, 'Groceries');
+      expect((await row()).payScheduleId, isNull);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect((await row()).categoryLabel, 'Income');
+      expect((await row()).payScheduleId, pay);
       await tidy(tester, db);
     });
 

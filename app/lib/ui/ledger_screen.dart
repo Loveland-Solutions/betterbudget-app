@@ -2656,6 +2656,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     int? made;
     var lineMade = const <({int id, String name})>[];
     Remembered? remembered;
+    PayLeft? left;
     // Change the amount… on a reconciled row: the reconciles it takes back,
     // newest first, in the same write as the edit.
     var takenBack = const <ReconcileRecord>[];
@@ -2681,8 +2682,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
           keepOwed: d.keepOwed,
           splits: split.parts,
         );
-        // The box under the row: the category remembered for the payee.
+        // Filed under something else, a paycheck stops being one.
         final category = made ?? d.counter?.id;
+        if (row.payScheduleId case final pay?
+            when !row.scheduled &&
+                category != null &&
+                category != row.categoryId) {
+          left = await db.leavePay(
+            transactionId: row.txnId,
+            accountId: row.accountId,
+            scheduleId: pay,
+            today: today,
+          );
+        }
+        // The box under the row: the category remembered for the payee.
         if (d.remember && category != null && d.payee.trim().isNotEmpty) {
           remembered = await db.rememberPayee(
             accountId: row.accountId,
@@ -2789,11 +2802,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     final nowScheduled = !row.scheduled && d.date.isAfter(today);
     final taken = takenBack;
+    final gone = left;
     final rowPair = _alsoCategory(
       [?made, for (final m in lineMade) m.id],
       // The row as it was, then its statements locked again, oldest first.
       () => db.transaction(() async {
         await db.restoreSnapshot(before);
+        if (gone != null) await db.undoLeavePay(gone);
         for (final r in taken.reversed) {
           await db.relock(r);
         }
@@ -2803,6 +2818,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           await db.unreconcile(r);
         }
         await db.restoreSnapshot(after);
+        if (gone != null) await db.redoLeavePay(gone);
       }),
     );
     final pair = _alsoRemember(remembered, rowPair.undo, rowPair.redo);
@@ -4035,6 +4051,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onPoint: _pointTo,
                 onShowRow: (r) => _showIn(r.accountId, r.txnId),
                 onSetCategory: (r, c) => _setCategory(r, c),
+                onNewCategory: _newCategoryOnRow,
                 onDelete: _delete,
                 onClearSelection: _clearSelection,
                 onEdit: (r) => _startEdit(r.txnId, EditField.payee),
@@ -4106,35 +4123,69 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   /// A row's category from its inline menu, in whichever account it's in.
+  /// A paycheck stops being one; a payday still scheduled stays its pay's.
   Future<void> _setCategory(RegisterRow r, AccountInfo c) async {
     final t = context.t;
     final over = _loaded;
     final which = _rowLine(t, r);
-    final previous = await db.setCategoryMany(
-      transactionIds: [r.txnId],
-      accountId: r.accountId,
-      categoryId: c.id,
-    );
-    if (previous.isEmpty) return;
+    final pay = r.scheduled ? null : r.payScheduleId;
+    var previous = const <int, int>{};
+    PayLeft? left;
+    try {
+      await db.transaction(() async {
+        previous = await db.setCategoryMany(
+          transactionIds: [r.txnId],
+          accountId: r.accountId,
+          categoryId: c.id,
+        );
+        if (pay != null) {
+          left = await db.leavePay(
+            transactionId: r.txnId,
+            accountId: r.accountId,
+            scheduleId: pay,
+            today: today,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('Filing a row failed: $e');
+      if (mounted) _showFailure(t.ledgerCouldntChangeCategory, error: e);
+      return;
+    }
+    final gone = left;
+    if (!mounted || (previous.isEmpty && gone == null)) return;
     _did(
       t.ledgerFiledUnder(c.name),
       detail: which,
       more: _alwaysOffer(r, c),
-      undo: () async => _expect(
-        (await db.restoreCategories(previous, r.accountId)).length ==
-            previous.length,
-      ),
-      redo: () async => _expect(
-        (await db.setCategoryMany(
-              transactionIds: [r.txnId],
-              accountId: r.accountId,
-              categoryId: c.id,
-            )).length ==
-            1,
-      ),
+      undo: () => db.transaction(() async {
+        _expect(
+          (await db.restoreCategories(previous, r.accountId)).length ==
+              previous.length,
+        );
+        if (gone != null) await db.undoLeavePay(gone);
+      }),
+      redo: () => db.transaction(() async {
+        _expect(
+          (await db.setCategoryMany(
+                transactionIds: [r.txnId],
+                accountId: r.accountId,
+                categoryId: c.id,
+              )).length ==
+              previous.length,
+        );
+        if (gone != null) await db.redoLeavePay(gone);
+      }),
     );
     // Filed under a bill's category: it pays the bill.
     if (!r.scheduled) _settleTyped({r.txnId}, over);
+  }
+
+  /// New category in a row's list: the window, as from the entry row, and
+  /// the row filed in what it makes. Each has its own undo, as there.
+  Future<void> _newCategoryOnRow(RegisterRow r) async {
+    final c = await _newCategoryForRow('', r.currency, r.accountId);
+    if (c != null && mounted) await _setCategory(r, c);
   }
 
   /// Each pay as the category dropdown names it.
@@ -7294,6 +7345,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   onPoint: _pointTo,
                   onShowRow: (r) => _showIn(r.accountId, r.txnId),
                   onSetCategory: _setCategory,
+                  onNewCategory: _newCategoryOnRow,
                   onDelete: _delete,
                   onClearSelection: _clearSelection,
                   onEdit: (r) => _startEdit(r.txnId, EditField.payee),
