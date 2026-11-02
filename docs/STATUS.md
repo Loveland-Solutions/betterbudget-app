@@ -18,8 +18,8 @@ access check ("Missing sign in details") is answered: Sign in details holds the 
 the phone on made-up figures. The upload key may release to production too; a release
 there is still the owner's say each time.
 
-**Microsoft Store:** 0.70.0 in certification, 2026-11-03; when it passes, it waits for
-the owner's Publish now. `release_store.sh` now deletes a waiting submission rather
+**Microsoft Store:** 0.70.0 in certification, 2026-11-03, set to publish by itself when
+it passes (the owner asked me to publish it; `msstore` has no Publish now). `release_store.sh` now deletes a waiting submission rather
 than stopping; 0.66.3, passed and waiting for Publish now, and then 0.69.0 went that way.
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
