@@ -3544,35 +3544,19 @@ class WordsEn extends Words {
   String get importPlusOut => 'plus is money out';
 
   @override
-  String importCountNew(int count) {
+  String importCountToImport(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new rows',
-      one: '1 new row',
+      other: '$count rows to import',
+      one: '1 row to import',
     );
     return '$_temp0';
   }
 
   @override
-  String importCountMatch(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count match rows you typed, which become cleared',
-      one: '1 matches a row you typed, which becomes cleared',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String importCountAlready(int count) {
-    return '$count already in the ledger';
-  }
-
-  @override
-  String importBalanceOk(Object opening, Object closing) {
-    return 'The bank’s running balance adds up on every row, $opening to $closing.';
+  String importCountSkipped(int count) {
+    return '$count skipped';
   }
 
   @override
@@ -3608,21 +3592,6 @@ class WordsEn extends Words {
     Object diff,
   ) {
     return '$diff apart from the bank. After this, the cleared balance is $ours; the bank’s was $bank on $date. Rows after that day, rows from before this file, or ones not cleared, can make the difference.';
-  }
-
-  @override
-  String get importFateRepeat => 'Already in · same day and amount';
-
-  @override
-  String importRepeats(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other:
-          '$count rows have the day and amount of rows already imported from another kind of file, so they’re left out. Click a row’s tag to bring it in.',
-      one: '1 row has the day and amount of a row already imported from another kind of file, so it’s left out. Click its tag to bring it in.',
-    );
-    return '$_temp0';
   }
 
   @override
@@ -3676,17 +3645,6 @@ class WordsEn extends Words {
   String importNoBalanceHint(Object zero) {
     return 'Empty starts the account at $zero before the file’s first row';
   }
-
-  @override
-  String get importFateNew => 'New';
-
-  @override
-  String importFateMatch(Object payee, Object date) {
-    return 'Matches $payee, $date';
-  }
-
-  @override
-  String get importFateAlready => 'Already in';
 
   @override
   String importDo(int count) {
@@ -3760,17 +3718,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String importCountNoDate(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count lines without a date (headings, totals) left out',
-      one: '1 line without a date (a heading or total) left out',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String importNoAmountRows(int count, Object rows) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -3782,23 +3729,6 @@ class WordsEn extends Words {
     );
     return '$_temp0';
   }
-
-  @override
-  String importCountLeftOut(int count) {
-    return '$count left out by you';
-  }
-
-  @override
-  String get importTagHint =>
-      'Click a row’s New or Matches to add it as its own row or leave it out.';
-
-  @override
-  String importFateMatchDate(Object date) {
-    return 'Matches your row of $date';
-  }
-
-  @override
-  String get importFateLeftOut => 'Left out';
 
   @override
   String importOverlap(Object from, Object to, int count) {
@@ -3822,11 +3752,6 @@ class WordsEn extends Words {
   @override
   String importSamePurchase(String amount) {
     return 'Same purchase: take the bank’s $amount';
-  }
-
-  @override
-  String importFateTakesAmount(String amount) {
-    return 'takes $amount';
   }
 
   @override
@@ -3945,33 +3870,12 @@ class WordsEn extends Words {
   }
 
   @override
-  String importBeforeOpeningLocked(int count, Object amount, Object date) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other:
-          '$count rows are dated on or before this account’s opening balance ($amount on $date), which already counts them. The opening balance is reconciled, so it stays; imported, they count twice.',
-      one:
-          '1 row is dated on or before this account’s opening balance ($amount on $date), which already counts it. The opening balance is reconciled, so it stays; imported, the row counts twice.',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String importMoveOpening(Object date, Object amount) {
     return 'Move the opening balance to $date at $amount';
   }
 
   @override
   String get importKeepOpening => 'Leave it (those rows count twice)';
-
-  @override
-  String get importLeaveBeforeOut => 'Leave those rows out';
-
-  @override
-  String importFateRedated(Object date) {
-    return 'dated $date, the bank’s';
-  }
 
   @override
   String importOpeningMovedToast(Object date, Object amount) {

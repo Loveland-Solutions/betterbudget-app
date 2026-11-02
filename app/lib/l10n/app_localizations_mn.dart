@@ -3454,23 +3454,13 @@ class WordsMn extends Words {
   String get importPlusOut => 'нэмэх тэмдэг нь зарлага';
 
   @override
-  String importCountNew(int count) {
-    return '$count шинэ мөр';
+  String importCountToImport(int count) {
+    return '$count мөр оруулна';
   }
 
   @override
-  String importCountMatch(int count) {
-    return '$count нь таны бичсэн мөртэй таарч, баталгаажна';
-  }
-
-  @override
-  String importCountAlready(int count) {
-    return '$count нь дэвтэрт аль хэдийн бий';
-  }
-
-  @override
-  String importBalanceOk(Object opening, Object closing) {
-    return 'Банкны үлдэгдэл мөр бүрт таарч байна: $opening → $closing.';
+  String importCountSkipped(int count) {
+    return '$count мөр алгасна';
   }
 
   @override
@@ -3506,21 +3496,6 @@ class WordsMn extends Words {
     Object diff,
   ) {
     return 'Банкнаас $diff зөрүүтэй. Үүний дараа баталгаажсан үлдэгдэл $ours, банкны үлдэгдэл ($date) $bank байсан. Тэр өдрөөс хойших, энэ файлаас өмнөх эсвэл баталгаажаагүй мөрүүдээс зөрүү гарч болно.';
-  }
-
-  @override
-  String get importFateRepeat => 'Аль хэдийн бий · өдөр, дүн ижил';
-
-  @override
-  String importRepeats(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other:
-          '$count мөрийн өдөр, дүн нь өөр төрлийн файлаас өмнө оруулсан мөрүүдтэй ижил тул орхилоо. Оруулах бол мөрийн тэмдэглэгээг дарна уу.',
-      one: '1 мөрийн өдөр, дүн нь өөр төрлийн файлаас өмнө оруулсан мөртэй ижил тул орхилоо. Оруулах бол тэмдэглэгээг нь дарна уу.',
-    );
-    return '$_temp0';
   }
 
   @override
@@ -3575,17 +3550,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String get importFateNew => 'Шинэ';
-
-  @override
-  String importFateMatch(Object payee, Object date) {
-    return 'Таны бичсэн: $payee, $date';
-  }
-
-  @override
-  String get importFateAlready => 'Аль хэдийн бий';
-
-  @override
   String importDo(int count) {
     return '$count мөр оруулах';
   }
@@ -3633,31 +3597,9 @@ class WordsMn extends Words {
   }
 
   @override
-  String importCountNoDate(int count) {
-    return 'огноогүй $count мөр (гарчиг, дүн) орхисон';
-  }
-
-  @override
   String importNoAmountRows(int count, Object rows) {
     return 'Файлын $count мөрөнд ($rows-р мөр) огноо байгаа ч уншигдах дүн алга тул орхисон.';
   }
-
-  @override
-  String importCountLeftOut(int count) {
-    return '$count-г та орхисон';
-  }
-
-  @override
-  String get importTagHint =>
-      'Мөрийн «Шинэ» эсвэл «Таарсан»-ыг дарж тусдаа мөр болгох эсвэл орхиж болно.';
-
-  @override
-  String importFateMatchDate(Object date) {
-    return 'Таны $date-ны мөртэй таарсан';
-  }
-
-  @override
-  String get importFateLeftOut => 'Орхино';
 
   @override
   String importOverlap(Object from, Object to, int count) {
@@ -3681,11 +3623,6 @@ class WordsMn extends Words {
   @override
   String importSamePurchase(String amount) {
     return 'Нэг худалдан авалт: банкны дүнг авах ($amount)';
-  }
-
-  @override
-  String importFateTakesAmount(String amount) {
-    return 'дүн: $amount';
   }
 
   @override
@@ -3788,11 +3725,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String importBeforeOpeningLocked(int count, Object amount, Object date) {
-    return '$count мөр энэ дансны эхний үлдэгдлийн ($date, $amount) өдөр эсвэл түүнээс өмнөх огноотой бөгөөд эхний үлдэгдэлд аль хэдийн орсон. Эхний үлдэгдэл тулгагдсан тул өөрчлөгдөхгүй; оруулбал давхар тооцогдоно.';
-  }
-
-  @override
   String importMoveOpening(Object date, Object amount) {
     return 'Эхний үлдэгдлийг $date-нд $amount болгох';
   }
@@ -3800,14 +3732,6 @@ class WordsMn extends Words {
   @override
   String get importKeepOpening =>
       'Хэвээр үлдээх (тэдгээр мөр давхар тооцогдоно)';
-
-  @override
-  String get importLeaveBeforeOut => 'Тэдгээр мөрийг орхих';
-
-  @override
-  String importFateRedated(Object date) {
-    return 'банкны огноо $date-г авна';
-  }
 
   @override
   String importOpeningMovedToast(Object date, Object amount) {
