@@ -507,12 +507,14 @@ class _BudgetPageState extends State<_BudgetPage> {
               ),
         assignPlanned: toAssign == 0 ? null : planMoney(toAssign, currency),
         onAssignPlanned: () => widget.onSetAmount(c, period, planLine!.planned),
-        // A bill that comes again, not paid this period, in a period not
-        // over: a bill further ahead is skipped from its own period's page.
+        // A bill that comes again, due in this period and not paid yet,
+        // in a period not over: a bill further ahead is skipped from its
+        // own period's page.
         onSkipBill: switch ((planLine, planLine?.due)) {
           (final p?, final due?)
               when p.plan.kind == PlanKind.byDate &&
                   p.plan.repeats &&
+                  p.dueHere &&
                   !p.ended &&
                   !p.waiting &&
                   line?.paidOn == null &&
@@ -4097,7 +4099,7 @@ class _PlanNoteLine extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('${b.words} · ', style: words),
+                Flexible(child: Text('${b.words} · ', style: words)),
                 Hoverable(
                   key: ValueKey('plan-back-$id-$i'),
                   onTap: b.onBringBack,

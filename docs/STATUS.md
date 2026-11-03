@@ -27,8 +27,9 @@ than stopping; 0.66.3, passed and waiting for Publish now, and then 0.69.0 went 
 **Skip a bill from the Budget page** (0.72.0, #357; ADR 0004 "Skip a bill from the Budget
 page"): the row the pointer is on says **Skip this bill**, and the period arrows reach any
 bill ahead; a bill with no row yet is kept by its date (`billSkippedDayKey`), which
-scheduling and the forecast pass over. The month says "No bill on 11.20 · Bring it back".
-The computer only. No schema change.
+scheduling and the forecast pass over. The month says "No bill on 11.20 · Bring it back" and asks nothing
+for that bill; the next is saved for from the month after. A payment in the category ends
+a skip. The computer only. No schema change. Review leftovers: #363.
 
 **A row's category changes, and can be a new one** (0.71.0, #358; ADR 0004 "A paycheck
 filed elsewhere stops being one"): a new category on a row filed under a pay was saved, but

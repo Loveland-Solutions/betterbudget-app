@@ -5175,4 +5175,26 @@ bill ahead, on the computer only.
   The next one is due 12.15."
 - **The phone stays as it is:** it records and checks, and shows the new date once the
   computer has saved it.
+- **A skipped month asks nothing** (owner, 2026-11-03, asked after the budget review: "You
+  skip November's ₮20,000 Netflix… Should November ask for nothing instead?" Yes). The next
+  bill is saved for from the period after the skipped one, so it asks its usual amount and
+  isn't "short"; what was already set aside still counts toward it. Rejected: November and
+  December each asking half, as a new bill spreads, which freed only half of the tight month.
+  On that month the line says no "on track": there's nothing to be on track with.
+
+Settled in the two reviews:
+
+- **Skipped, then paid after all:** a payment in the bill's category nearest a skipped bill,
+  tied to no bill, is that bill, and the skip is over (the owner's rule that any payment in
+  a bill's category pays it). Otherwise the next bill counted the money that had left.
+- **Money waiting for a bill not yet paid is that bill's**, not the next one's: skipping
+  December while November's bill is still to pay doesn't make January look covered.
+- **Skip this bill is offered only on the bill's own period**, so it can't be clicked twice
+  into skipping the next one too, and a bill due later is skipped from its page.
+- **Bring it back schedules the bill anew**, at the plan's amount and account as they are
+  now, rather than bringing back a row that may hold old ones.
+- Skip finds the bill's row by the bill it was scheduled for, so a row whose date was moved
+  is still that bill, and the setting keeps the bill's own date. A later bill confirmed
+  early, across a skipped one, is the later one. "Did this pay 2 bills?" names the bills it
+  really pays. The ledger's No bill this time says money stays only when some is there.
 

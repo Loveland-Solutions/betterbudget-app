@@ -1423,7 +1423,7 @@
   "ledgerNotTheBill": "{name} төлбөр биш. Төлөх өдөр хэвээр: {date}.",
   "ledgerNoBill": "{name} төлбөр ирээгүй, огноо: {date}. {amount} нь дараагийн төлбөрт үлдэнэ, төлөх өдөр: {next}.",
   "ledgerNoBillLast": "{name} төлбөр ирээгүй, огноо: {date}.",
-  "ledgerNoBillNext": "{name} төлбөр ирээгүй, огноо: {date}. Дараагийн төлөх өдөр: {next}.",
+  "ledgerNoBillNext": "{date}-нд {name} төлбөр байхгүй. Дараагийн төлөх өдөр: {next}.",
   "ledgerBillBack": "{name} төлбөр буцаж нэмэгдлээ, огноо: {date}.",
   "planSkipBill": "Энэ төлбөрийг алгасах",
   "planNoBillOn": "{date}-нд төлбөргүй",

@@ -5381,9 +5381,7 @@ void main() {
     expect(find.byKey(const ValueKey('no-bill')), findsOneWidget);
     await tapAndWrite(tester, find.byKey(const ValueKey('no-bill')));
     expect(
-      find.text(
-        'No Netflix bill on 09.20. Its ₮20,000 stays for the one due 10.20.',
-      ),
+      find.text('No Netflix bill on 09.20. The next one is due 10.20.'),
       findsOneWidget,
     );
     expect(await coming(), [DateTime(2026, 10, 20)]);
@@ -5457,7 +5455,10 @@ void main() {
     );
     await settle(tester);
     expect(find.textContaining('No bill on 11.20'), findsOneWidget);
-    expect(find.text('Skip this bill'), findsOneWidget);
+    // November asks nothing now, and December's bill is skipped from
+    // December's page.
+    expect(find.text('Skip this bill'), findsNothing);
+    expect(find.byKey(ValueKey('plan-assign-$id')), findsNothing);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/budget_bill_skipped.png'),

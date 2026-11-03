@@ -182,6 +182,7 @@ class PlanLine {
     this.pastDate = false,
     this.finished = false,
     this.noBills = const [],
+    this.dueHere = false,
   });
 
   final CategoryPlan plan;
@@ -190,6 +191,10 @@ class PlanLine {
   /// (#357): said on the line, each with Bring it back. Not one paid ahead
   /// with the bill before it: that one did come.
   final List<DateTime> noBills;
+
+  /// The bill [due] counts in the period on screen: the one Skip this bill
+  /// would skip there.
+  final bool dueHere;
 
   /// A once-only amount by a date: the part each period asks while it's
   /// kept up with, from the plan's first period to its date.
@@ -504,14 +509,29 @@ class Budget {
         if (e.key.startsWith(billPaidPrefix))
           ...?decodeBillPaid(e.value)?.skipped,
     };
+    // Each bill plan's bills there won't be (#357): all of them, and those
+    // the person skipped (not paid ahead with the bill before).
+    final skippedOf = <int, Set<DateTime>>{}, absentOf = <int, Set<DateTime>>{};
+    for (final MapEntry(key: id, value: p) in plans.entries) {
+      if (p.kind != PlanKind.byDate) continue;
+      final all = skippedBills(data, p);
+      if (all.isEmpty) continue;
+      skippedOf[id] = all;
+      absentOf[id] = all.difference(skippedBills(data, p, only: paidAhead));
+    }
     // By category, the day of the last payment of a bill that counts in
     // this period, for "paid 10.30" on its line (#274).
     final paidOn = <int, DateTime>{};
-    // And which of its bills those were.
-    final billsPaid = <int, Set<DateTime>>{};
+    // And which of its bills those were; and every bill paid, in any
+    // period.
+    final billsPaid = <int, Set<DateTime>>{}, paidEver = <int, Set<DateTime>>{};
+    // Skipped, then paid after all: a payment in its category nearest it
+    // ends the skip (owner, 2026-10-21: any payment in a bill's category
+    // pays that bill).
+    final paidAfterAll = <int, Set<DateTime>>{};
     // The bill a row tied to [category] paid, dated as its spending is
     // counted: the bill it was taken as paid for, else the plan's bill
-    // nearest the row.
+    // nearest the row, one there won't be passed over.
     DateTime? billDateOf(TxnData t, int category, DateTime d) =>
         decodeBillPaid(data.prefs[billPaidKey(t.id)])?.date ??
         switch (plans[category]) {
@@ -519,14 +539,26 @@ class Budget {
             p,
             d,
             pay: data.payScheduleById(p.payScheduleId),
+            skipped: absentOf[category] ?? const {},
           ),
           _ => null,
         };
+    // The skipped bill a payment not tied to any bill is nearest, if any.
+    DateTime? skippedPaid(int category, DateTime d) {
+      final absent = absentOf[category];
+      final p = plans[category];
+      if (absent == null || p == null) return null;
+      final bill = billDate(p, d, pay: data.payScheduleById(p.payScheduleId));
+      return absent.contains(bill) ? bill : null;
+    }
+
     // A bill paid: kept on the line of the period the bill counts in
     // (rent for 11.01 paid 10.30 is November's), said by the day it was
     // paid; the latest when there are two.
     void notePaid(int category, DateTime d, DateTime? bill, {DateTime? of}) {
-      if (bill == null || !within(bill)) return;
+      if (bill == null) return;
+      (paidEver[category] ??= {}).add(of ?? bill);
+      if (!within(bill)) return;
       (billsPaid[category] ??= {}).add(of ?? bill);
       final was = paidOn[category];
       if (was == null || d.isAfter(was)) paidOn[category] = d;
@@ -576,9 +608,15 @@ class Budget {
           // month's bill, not an extra one the month before.
           // A row taken as a bill paid counts on that bill's date, however
           // late ([billPaidKey]).
-          final planned = t.planCategoryId == a.id
+          var planned = t.planCategoryId == a.id
               ? billDateOf(t, a.id, d)
               : null;
+          if (planned == null && t.planCategoryId == null && x.amount > 0) {
+            if (skippedPaid(a.id, d) case final bill?) {
+              planned = bill;
+              (paidAfterAll[a.id] ??= {}).add(bill);
+            }
+          }
           spend(a.id, d, x.amount, counted, on: planned);
           notePaid(a.id, d, planned);
         } else if (loans[a.id] case final c?
@@ -668,8 +706,13 @@ class Budget {
               spent: counted,
               wentBack: wentBack,
               wentBackOn: wentBackOn,
-              skipped: skippedBills(data, plan),
-              paidAhead: skippedBills(data, plan, only: paidAhead),
+              skipped: (skippedOf[id] ?? const {}).difference(
+                paidAfterAll[id] ?? const {},
+              ),
+              paidAhead: (skippedOf[id] ?? const {}).difference(
+                absentOf[id] ?? const {},
+              ),
+              paidEver: paidEver[id] ?? const {},
               pays: data.paySchedules,
               lateWay: isGoal(data, id)
                   ? data.prefs[ReadyKeys.goalLate(id)] ?? 'keep'
@@ -847,13 +890,34 @@ class Budget {
   /// its dates. Null when [d] is more than half a gap before the first,
   /// which was some earlier plan's bill, not this one's. A plan that
   /// doesn't repeat has one date.
-  static DateTime? billDate(CategoryPlan plan, DateTime d, {PaySchedule? pay}) {
+  /// With [skipped], a bill there won't be isn't one: the nearest that
+  /// is (a later bill confirmed early, across a skipped one, #357).
+  static DateTime? billDate(
+    CategoryPlan plan,
+    DateTime d, {
+    PaySchedule? pay,
+    Set<DateTime> skipped = const {},
+  }) {
     if (plan.due == null && plan.payScheduleId == null) return null;
     final first = dueAfter(plan, 0, pay: pay);
     if (!plan.repeats) return first;
     var n = 0;
     while (dueAfter(plan, n, pay: pay).isBefore(d) && n < _mostPeriods) {
       n++;
+    }
+    if (skipped.isNotEmpty) {
+      DateTime? before, after;
+      for (var k = n - 1; k >= 0 && before == null; k--) {
+        final x = dueAfter(plan, k, pay: pay);
+        if (!skipped.contains(x)) before = x;
+      }
+      for (var k = n; k - n < _mostPeriods && after == null; k++) {
+        final x = dueAfter(plan, k, pay: pay);
+        if (over(plan, x, pay: pay)) break;
+        if (!skipped.contains(x)) after = x;
+      }
+      if (before == null || after == null) return before ?? after;
+      return d.difference(before) < after.difference(d) ? before : after;
     }
     final after = dueAfter(plan, n, pay: pay);
     if (n == 0) {
@@ -1217,6 +1281,7 @@ class Budget {
     List<PaySchedule> pays = const [],
     String lateWay = 'all',
     Set<DateTime> paid = const {},
+    Set<DateTime> paidEver = const {},
   }) {
     // The day a bill is counted in: the last payday on or before it is
     // due, since that pay is what has to cover it (owner, 2026-10-24).
@@ -1450,14 +1515,16 @@ class Budget {
         pastDate: true,
       );
     }
-    // Bills there won't be that fell here. A date the plan no longer has
-    // (its day was changed since) is nothing to say.
+    // Bills there won't be, as the person said; one paid ahead with the
+    // bill before it did come.
+    final absent = skipped.difference(paidAhead);
+    // Those that fell here. A date the plan no longer has (its day was
+    // changed since) is nothing to say.
     final noBills = !repeats
         ? const <DateTime>[]
         : ([
-            for (final d in skipped)
-              if (!paidAhead.contains(d) &&
-                  !counted(d).isBefore(p.start) &&
+            for (final d in absent)
+              if (!counted(d).isBefore(p.start) &&
                   !counted(d).isAfter(p.end) &&
                   billDate(plan, d, pay: pay) == d)
                 d,
@@ -1488,6 +1555,17 @@ class Budget {
         noBills: noBills,
       );
     }
+    // A period whose bill won't come asks nothing for the next one, which
+    // is saved for from the period after (owner, 2026-11-03, #357).
+    if (noBills.isNotEmpty && counted(due).isAfter(p.end)) {
+      return PlanLine(
+        plan: plan,
+        each: 0,
+        planned: 0,
+        due: due,
+        noBills: noBills,
+      );
+    }
     // Each bill is counted on its own, from the plan's first period or
     // from the period after the one before it was due. So a bill skipped
     // and never owed isn't asked for again, and "short" never grows past
@@ -1498,18 +1576,33 @@ class Budget {
     while (kept >= n0 && skipped.contains(dueOf(kept))) {
       kept--;
     }
-    final from = kept < n0
+    // Saving for it starts after the last bill before it: one there was,
+    // or one that won't come, whose period asked nothing.
+    var since = kept;
+    for (var k = n - 1; k > kept; k--) {
+      if (absent.contains(dueOf(k))) {
+        since = k;
+        break;
+      }
+    }
+    final from = since < n0
         ? begins
-        : nextBudgetPeriod(budgetPeriod(counted(dueOf(kept)), by), by);
+        : nextBudgetPeriod(budgetPeriod(counted(dueOf(since)), by), by);
+    // What it held then, less a whole bill while the one before is still
+    // to pay: that money is the earlier bill's (budget review, #357).
+    int free(int held) =>
+        kept < n0 || held <= 0 || paidEver.contains(dueOf(kept))
+        ? held
+        : atLeast0(held - bill);
     final int need;
-    if (kept < n0) {
+    if (kept < n0 && since == kept) {
       need = firstNeed;
     } else if (kept < n - 1) {
       // Bills skipped since: what the category holds is all toward this
       // one. Left from a bill that didn't come counts for the next (owner,
       // 2026-10-21); a minus from paying ahead is made up by the periods
       // up to it, a bill's worth each.
-      need = atLeast0(bill - heldBefore(from.start));
+      need = atLeast0(bill - free(heldBefore(from.start)));
     } else {
       // What a later bill starts from. A minus (the last one cost more
       // than was saved) is added to this one. What's left over isn't
@@ -1595,6 +1688,7 @@ class Budget {
       usual: usual,
       toward: repeats ? 0 : base + before + assigned,
       noBills: noBills,
+      dueHere: !counted(due).isAfter(p.end),
     );
   }
 }

@@ -6029,7 +6029,7 @@ class WordsMn extends Words {
 
   @override
   String ledgerNoBillNext(String name, String date, String next) {
-    return '$name төлбөр ирээгүй, огноо: $date. Дараагийн төлөх өдөр: $next.';
+    return '$date-нд $name төлбөр байхгүй. Дараагийн төлөх өдөр: $next.';
   }
 
   @override

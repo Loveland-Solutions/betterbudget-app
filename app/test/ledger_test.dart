@@ -2768,7 +2768,6 @@ void main() {
         await skipRow();
         final back = await db.bringBackBill(water, november, today);
         expect(await coming(), [november, december]);
-        expect(back.restored, isEmpty);
         expect(back.settings.keys, [billSkippedDayKey(water, november)]);
         expect(await db.ensurePlanBills(today), isEmpty);
         await db.dropPlanBills(back.made);
@@ -2783,6 +2782,7 @@ void main() {
           final back = await db.bringBackBill(water, november, today);
           expect(back.made, isEmpty);
           expect(await coming(), [october]);
+          expect(await db.ensurePlanBills(today), isEmpty);
           expect(
             (await db.loadLedger()).prefs,
             isNot(contains(billSkippedDayKey(water, november))),
@@ -2790,13 +2790,99 @@ void main() {
         },
       );
 
-      test('Bring it back returns the row a skipped bill had', () async {
-        final row = await skipRow();
+      test('Bring it back schedules the bill a row was skipped for anew, '
+          'at the plan as it is now', () async {
+        await skipRow();
         expect(await coming(), [november]);
-        final back = await db.bringBackBill(water, october, today);
-        expect(back.restored, [row]);
+        final plan = (await db.loadLedger()).plans[water]!;
+        await db.changeCategoryPlan(
+          water,
+          CategoryPlan(
+            categoryId: water,
+            kind: PlanKind.byDate,
+            amount: 7000000,
+            start: plan.start,
+            due: october,
+            everyMonths: 1,
+            paidFrom: checking,
+          ),
+          today,
+        );
+        await db.bringBackBill(water, october, today);
         expect(await coming(), [october, november]);
+        expect(
+          (await db.loadLedger())
+              .registerFor(checking)
+              .scheduled
+              .where((r) => r.planCategoryId == water)
+              .map((r) => r.amount),
+          [-7000000, -7000000],
+        );
       });
+
+      PlanLine lineIn(LedgerData ledger, int month) => Budget.of(
+        ledger,
+        start: DateTime(2026, month),
+        end: DateTime(2026, month + 1, 0),
+        today: today,
+      ).lines[water]!.plan!;
+      Future<void> assign(int month, int amount) => db.setBudgetAmount(
+        water,
+        DateTime(2026, month),
+        DateTime(2026, month + 1, 0),
+        amount,
+      );
+
+      test('a skipped month asks nothing, and the next asks its bill, '
+          'not short (owner, 2026-11-03)', () async {
+        await skipAhead(november);
+        final ledger = await db.loadLedger();
+        expect(lineIn(ledger, 11).planned, 0);
+        expect(lineIn(ledger, 11).dueHere, isFalse);
+        expect(lineIn(ledger, 12).planned, 5000000);
+        expect(lineIn(ledger, 12).overdue, 0);
+        expect(lineIn(ledger, 12).dueHere, isTrue);
+      });
+
+      test(
+        'skipped, then paid after all: the next is saved for again',
+        () async {
+          await assign(11, 5000000);
+          await skipAhead(november);
+          await db.postSimple(
+            accountId: checking,
+            date: DateTime(2026, 11, 2),
+            today: DateTime(2026, 11, 2),
+            payee: 'Water',
+            counterAccountId: water,
+            amount: -5000000,
+          );
+          final ledger = await db.loadLedger();
+          expect(lineIn(ledger, 11).noBills, isEmpty);
+          expect(lineIn(ledger, 12).planned, 5000000);
+        },
+      );
+
+      test(
+        'money waiting for a bill not yet paid isn\'t the next one\'s',
+        () async {
+          await assign(10, 5000000);
+          await skipAhead(november);
+          expect(lineIn(await db.loadLedger(), 12).planned, 5000000);
+        },
+      );
+
+      test(
+        'a bill confirmed early, across a skipped one, is the later one',
+        () async {
+          final plan = (await db.loadLedger()).plans[water]!;
+          expect(
+            Budget.billDate(plan, DateTime(2026, 11, 3), skipped: {november}),
+            december,
+          );
+          expect(Budget.billDate(plan, DateTime(2026, 11, 3)), november);
+        },
+      );
 
       test('Bring it back on a date gone by is overdue there', () async {
         await skipAhead(november);
