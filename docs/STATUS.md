@@ -22,6 +22,12 @@ there is still the owner's say each time.
 it passes (the owner asked me to publish it; `msstore` has no Publish now). `release_store.sh` now deletes a waiting submission rather
 than stopping; 0.66.3, passed and waiting for Publish now, and then 0.69.0 went that way.
 
+**Mac App Store (#108):** the paid team "Loveland Solutions, LLC" (`44H5SLX8KR`)
+is signed in to Xcode (2026-11-03) and the Mac app moved to it (0.72.1);
+`tool/release_mac.sh` builds, checks and uploads. The listing, the privacy label and
+Apple's encryption question are filled in App Store Connect. The iPhone app waits on
+#112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
+
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
 
 **Skip a bill from the Budget page** (0.72.0, #357; ADR 0004 "Skip a bill from the Budget
@@ -325,10 +331,7 @@ files, applied markers, shared ids and locks stay; the told-after code (the sett
 rule, the popup that stayed, a version picked afterwards) is gone (0.41.1, #218), and
 the popup's saved setting is cleared at launch. A folder file from a build before
 change files can't be asked about: a crossing there is the whole-ledger question.
-Step 5 waits until after beta. Test builds signed
-"Apple Development" carry a provisioning profile that lasts 7 days: a build that
-"can't be opened", with no Open Anyway in Privacy & Security, has an expired profile,
-and a rebuild renews it.
+Step 5 waits until after beta.
 
 **Open source (owner, 2026-10-16):** the repo is public under GPL-3.0 or later, with its
 whole history (ROADMAP "Decided (owner, 2026-10-16)"), and free in every store.
@@ -385,9 +388,6 @@ page, and on their PC it stopped at "MSVCP140.dll was not found". **Version 0.35
 (fix, #194)** puts Microsoft's C++ runtime DLLs beside `BetterBudget.exe` and gives it the Mac's
 icon (the logo's night form on a navy tile, filling the square); whether
 it then runs on that PC is #154.
-`app/tool/release_mac.sh` signs, notarizes and drafts a release on the public repo;
-it is unused since the owner chose stores only, with no GitHub downloads
-(2026-10-20, ROADMAP; #94 and #152 closed).
 
 **Version 0.34.3 (fix, found by the owner on 2026-10-15):** a balance typed in
 setup, then the bank's last days imported, came out off by the rows dated on the
@@ -666,11 +666,17 @@ session loses the statement balance.
   /Applications/Xcode.app/Contents/Developer`, license accepted). If the macOS build fails
   with `tapi error … MacOSX27.0.sdk`, `xcode-select` is pointing at the Command Line Tools
   again, and the native build hook for `objective_c` is picking up the wrong SDK.
-- **Signing:** the Mac and iOS apps sign with the owner's Apple developer team
-  `5FJUXAJX9P` ("Apple Development", automatic), needed for the Keychain entitlement.
-  This Mac needed Apple's WWDR G3 intermediate installed (done 2026-09-28). If Xcode
-  asks for a new provisioning profile, run once from `app/macos`: `xcodebuild -workspace
-  Runner.xcworkspace -scheme Runner -configuration Debug -allowProvisioningUpdates build`.
+- **Signing:** the Mac app signs with the paid team "Loveland Solutions, LLC"
+  `44H5SLX8KR` (automatic; since 0.72.1, 2026-11-03), needed for the Keychain
+  entitlement and the App Store; the iOS project still carries the free personal team
+  `5FJUXAJX9P`, whose profiles last 7 days. Moving the Mac to the paid team
+  moved the Keychain group the ledger's key is kept in (ADR 0001), so the first
+  build on the new team asks for the recovery key once. This Mac is registered with
+  the paid team (a build for it with `-allowProvisioningDeviceRegistration`; one
+  aimed at "Any Mac" doesn't register). This Mac needed Apple's WWDR G3 intermediate
+  installed (done 2026-09-28). If Xcode asks for a new provisioning profile, run once
+  from `app/macos`: `xcodebuild -workspace Runner.xcworkspace -scheme Runner
+  -configuration Debug -allowProvisioningUpdates build`.
   Android: the package is `mn.lls.betterbudget` (registered in Play Console,
   2026-10-14; the Mac stays `com.lovelandsolutions.betterbudget`). Release builds sign
   with the upload key `~/betterbudget-upload.jks` (alias `upload`) when the git-ignored

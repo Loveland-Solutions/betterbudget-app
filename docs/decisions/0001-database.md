@@ -223,6 +223,11 @@ restores, and the result is encrypted.
   not synchronizable, and a key written by one build is read by the next. Unsigned
   (ad hoc) builds fail there with −34018. The login keychain worked unsigned, but it
   isn't used, so there's nothing to migrate. The iOS project carries the same team.
+- **The paid team (2026-11-03, 0.72.1):** for the Mac App Store the Mac app moved to
+  "Loveland Solutions, LLC" (`44H5SLX8KR`). The access group's prefix is the team's,
+  so a key kept by a build of the old team can't be read by one of the new: the first
+  launch finds an encrypted ledger and no key, asks for the recovery key, and keeps
+  the key under the new team. Nothing in the ledger changes.
 - **Signing setup notes:** this Mac lacked Apple's "WWDR G3" intermediate certificate
   (only the one that expired in 2023 was installed), so the new certificate showed as
   not valid. Installing `AppleWWDRCAG3.cer` from apple.com/certificateauthority fixed
