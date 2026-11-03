@@ -115,6 +115,11 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   sandboxed and asks for no network, then uploads it to App Store Connect through
   Xcode's sign-in (no key file); `--check` uploads nothing. Submitting for review is
   the owner's click.
+- **App Store, iPhone.** `tool/release_ios.sh` archives the iPhone app unsigned (a
+  signed archive needs a registered iPhone) with the commit count as its build number,
+  signs a copy for the App Store, checks its version, build number and privacy
+  manifest, then uploads it; `--check` uploads nothing. Giving a build to testers and
+  submitting it are the owner's clicks.
 - **Downloads** (none since 2026-10-20: stores only; ROADMAP). The Windows app is built on GitHub by
   `.github/workflows/windows.yml` (repo root) on a `v*` tag or by hand from the
   Actions tab, and downloads from the run's Artifacts. Microsoft's C++ runtime DLLs
