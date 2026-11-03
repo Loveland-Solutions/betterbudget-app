@@ -666,10 +666,10 @@ session loses the statement balance.
   /Applications/Xcode.app/Contents/Developer`, license accepted). If the macOS build fails
   with `tapi error … MacOSX27.0.sdk`, `xcode-select` is pointing at the Command Line Tools
   again, and the native build hook for `objective_c` is picking up the wrong SDK.
-- **Signing:** the Mac app signs with the paid team "Loveland Solutions, LLC"
-  `44H5SLX8KR` (automatic; since 0.72.1, 2026-11-03), needed for the Keychain
-  entitlement and the App Store; the iOS project still carries the free personal team
-  `5FJUXAJX9P`, whose profiles last 7 days. Moving the Mac to the paid team
+- **Signing:** the Mac and iPhone apps sign with the paid team "Loveland Solutions,
+  LLC" `44H5SLX8KR` (automatic; the Mac since 0.72.1, the iPhone since 0.73.1,
+  2026-11-03), needed for the Keychain entitlement and the App Store. The team has no
+  iPhone registered, so an iPhone build reaches a phone only through TestFlight. Moving the Mac to the paid team
   moved the Keychain group the ledger's key is kept in (ADR 0001), so the first
   build on the new team asks for the recovery key once. This Mac is registered with
   the paid team (a build for it with `-allowProvisioningDeviceRegistration`; one
