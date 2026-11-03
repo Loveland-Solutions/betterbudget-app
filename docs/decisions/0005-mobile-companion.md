@@ -175,7 +175,14 @@ the same channel as Android's: the folder is picked in Files, kept as a
 security-scoped bookmark, and every read and write goes through a file
 coordinator, which is what makes a cloud provider fetch a file not yet on the
 phone. Tested in the simulator on a local folder; Google Drive and OneDrive in
-Files wait for a real iPhone through TestFlight. **Transfers (2026-10-09):**
+Files wait for a real iPhone through TestFlight. As on Android, nothing the
+phone keeps goes into a backup (Application Support is kept out of iCloud's),
+and a phone the app was deleted from asks for the recovery key again: the
+first launch of an install clears a key the Keychain kept. **Opened with no
+signal** (both phones, the same review): the folder is given 8 seconds, and
+when it fails or doesn't answer before any figures are up, the ledger last read
+on the phone opens instead, its "From your computer …" line saying how old it
+is, and entries are made as usual. **Transfers (2026-10-09):**
 money moved between two of the ledger's own accounts is an entry whose category id is
 the account it went to (the ledger keeps categories and accounts in one list, so an id
 names one or the other), with the amount negative and no payee. The phone's file didn't

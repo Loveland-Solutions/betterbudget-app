@@ -1,6 +1,7 @@
 // The phone screens (ADR 0005; ADR 0004 "Phone screens"): Ledger, where a
 // transaction is typed and its category picked or made, and Budget, what is
 // left in each category. Drawn on a 390 × 844 phone.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -179,11 +180,23 @@ class _FakeFolder extends PhoneFolder {
   final forgotten = <String>[];
   final asked = <String>[];
 
+  /// The kept folder's bookmark no longer opens.
+  bool keptFails = false;
+
+  /// No signal: the folder's provider answers with an error, or never.
+  bool readFails = false;
+  bool readHangs = false;
+
   @override
   Future<String?> pick() async => picked = willPick ?? picked;
 
   @override
-  Future<String?> kept() async => picked;
+  Future<String?> kept() async {
+    if (keptFails) {
+      throw PlatformException(code: 'NSCocoaErrorDomain');
+    }
+    return picked;
+  }
 
   @override
   Future<({Uint8List bytes, DateTime? changed})?> read(
@@ -191,6 +204,8 @@ class _FakeFolder extends PhoneFolder {
     String name,
   ) async {
     asked.add(name);
+    if (readHangs) return Completer<Never>().future;
+    if (readFails) throw PlatformException(code: 'NSURLErrorDomain');
     final bytes = ledger;
     return bytes == null ? null : (bytes: bytes, changed: changedAt);
   }
@@ -3953,6 +3968,89 @@ void main() {
       expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
       expect(find.textContaining('doesn’t open'), findsNothing);
       expect(_same(keys.kept!, right), isTrue);
+    });
+
+    testWidgets('a kept folder that no longer opens leaves the figures up, '
+        'and asks for the folder only before there are any', (tester) async {
+      final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+      final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+      final dir = _phoneDir();
+      await start(tester, keys: keys, folder: folder, dir: dir);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+
+      folder.keptFails = true;
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+      expect(find.text('Where is your ledger?'), findsNothing);
+
+      // Opened again: nothing up yet, so the folder is asked for.
+      await tester.pumpWidget(const SizedBox());
+      await start(tester, keys: keys, folder: folder, dir: dir);
+      expect(find.text('Where is your ledger?'), findsOneWidget);
+    });
+
+    group('opened with no signal', () {
+      // Each test's first launch reads the folder's ledger, changed at
+      // 13:30; the next can't reach the folder.
+      Future<void> expectLastRead(WidgetTester tester) async {
+        expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+        expect(
+          find.text('The ledger in this folder couldn’t be read'),
+          findsNothing,
+        );
+        await _toBudget(tester);
+        // The ledger last read, with its own time.
+        expect(find.text('From your computer today 13:30'), findsOneWidget);
+      }
+
+      testWidgets('a folder that fails opens the ledger last read', (
+        tester,
+      ) async {
+        final dir = _phoneDir();
+        final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+        final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+        await start(tester, keys: keys, folder: folder, dir: dir);
+        await tester.pumpWidget(const SizedBox());
+        folder.readFails = true;
+        await start(tester, keys: keys, folder: folder, dir: dir);
+        await expectLastRead(tester);
+
+        // An entry can still be made, and is written for the computer.
+        await _toLedger(tester);
+        await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+        expect(isPhoneInboxName(folder.written.keys.single), isTrue);
+      });
+
+      testWidgets('a folder that never answers opens it after a wait', (
+        tester,
+      ) async {
+        final dir = _phoneDir();
+        final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+        final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+        await start(tester, keys: keys, folder: folder, dir: dir);
+        await tester.pumpWidget(const SizedBox());
+        folder.readHangs = true;
+        await start(tester, keys: keys, folder: folder, dir: dir);
+        expect(find.byKey(const ValueKey('to-budget')), findsNothing);
+        await tester.pump(phoneFolderPatience + const Duration(seconds: 1));
+        await tester.pumpAndSettle();
+        await expectLastRead(tester);
+      });
+
+      testWidgets('with nothing read before, it says the ledger couldn’t be '
+          'read', (tester) async {
+        final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+        final folder = _FakeFolder()
+          ..picked = 'drive:BetterBudget'
+          ..readFails = true;
+        await start(tester, keys: keys, folder: folder);
+        expect(
+          find.text('The ledger in this folder couldn’t be read'),
+          findsOneWidget,
+        );
+      });
     });
 
     testWidgets('an entry is written to the folder, is still there after '

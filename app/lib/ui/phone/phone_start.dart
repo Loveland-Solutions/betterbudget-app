@@ -32,6 +32,10 @@ typedef ReadPhoneLedger = Future<PhoneSnapshot> Function(
 
 enum _Step { loading, key, folder, noLedger, wrongKey, cantRead, ready }
 
+/// How long the folder is given to answer before the phone stops waiting:
+/// with no signal a cloud provider may never answer at all.
+const phoneFolderPatience = Duration(seconds: 8);
+
 class PhoneStart extends StatefulWidget {
   const PhoneStart({
     super.key,
@@ -151,8 +155,12 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       folder = await widget.folder.kept();
     } catch (e) {
       debugPrint('Asking for the kept folder failed: $e');
-      _record((t) => t.phoneProblemFolderLost, e);
-      return _go(_Step.folder);
+      // Figures already up stay up: they say how old they are.
+      if (_step != _Step.ready) {
+        _record((t) => t.phoneProblemFolderLost, e);
+        _go(_Step.folder);
+      }
+      return;
     }
     if (folder == null) return _go(_Step.folder);
     try {
@@ -160,14 +168,18 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       // Pixel, Drive went on giving the old time for minutes after the
       // computer had written a newer ledger (2026-10-08).
       if (onlyIfNewer && ++_quietLooks % 4 != 0) {
-        final at = await widget.folder.changed(folder, ledgerFileName);
+        final at = await widget.folder
+            .changed(folder, ledgerFileName)
+            .timeout(phoneFolderPatience);
         if (at != null && at == _ledgerChanged) {
           // Still a chance to send what an earlier write couldn't.
           _keep();
           return;
         }
       }
-      final found = await widget.folder.read(folder, ledgerFileName);
+      final found = await widget.folder
+          .read(folder, ledgerFileName)
+          .timeout(phoneFolderPatience);
       if (found == null) {
         // Not there on a later read (the folder is still arriving): what is
         // up, and an entry half typed, stay.
@@ -186,41 +198,13 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         await widget.keys.writeDataKey(key);
         _typedKey = null;
       }
-      if (!mounted) return;
-      _ledgerChanged = found.changed;
-      _folder = folder;
-      final store = _store;
-      if (store == null) {
-        // What was waiting when the app was last closed comes back.
-        final outbox = _outbox = PhoneOutbox(
-          Directory('${widget.dir.path}/waiting'),
-          key,
-        );
-        final kept = outbox.load();
-        _store = PhoneStore(
-          snapshot,
-          device: kept.device,
-          waiting: kept.entries,
-          made: kept.categories,
-        )..addListener(_keep);
-        // Only while something is waiting: that is all there is to wait
-        // for. Coming back to the front always reads.
-        _again ??= Timer.periodic(widget.every, (_) {
-          final store = _store;
-          if (_step != _Step.ready || store == null) return;
-          if (store.waiting.isEmpty && store.made.isEmpty) return;
-          _load(onlyIfNewer: true);
-        });
-      } else {
-        store.snapshot = snapshot;
-      }
-      _keep();
-      setState(() => _step = _Step.ready);
+      _keepLastGood(found.bytes, found.changed ?? now);
+      _show(snapshot, key, folder, changed: found.changed);
     } on WrongKeyException catch (e) {
       if (_typedKey == null) {
         // The key kept here has opened this ledger before, so it is the
         // file that is wrong: half-arrived, or another ledger in the folder.
-        if (_step != _Step.ready) {
+        if (_step != _Step.ready && !await _openLastGood(key, folder)) {
           _record((t) => t.phoneCantRead, e);
           _go(_Step.cantRead);
         }
@@ -231,12 +215,98 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('Reading the ledger from the folder failed: $e');
       // A read that fails once the figures are up leaves them up: they say
-      // how old they are. Only what was shown goes in the record.
-      if (_step != _Step.ready) {
+      // how old they are. Before that, the ledger last read here opens (no
+      // signal); only what was shown goes in the record.
+      if (_step != _Step.ready &&
+          (_typedKey != null || !await _openLastGood(key, folder))) {
         _record((t) => t.phoneCantRead, e);
         _go(_Step.cantRead);
       }
     }
+  }
+
+  /// The folder's ledger as last read and opened here, with when it was
+  /// changed: what the phone opens when the folder can't be read (no
+  /// signal). Apart from the private copy, which a read that fails has
+  /// already written over.
+  Directory get _lastGood => Directory('${widget.dir.path}/phone-last');
+
+  void _keepLastGood(Uint8List bytes, DateTime changed) {
+    try {
+      final dir = _lastGood..createSync(recursive: true);
+      final part = File('${dir.path}/$ledgerFileName.part')
+        ..writeAsBytesSync(bytes, flush: true);
+      part.renameSync('${dir.path}/$ledgerFileName');
+      File('${dir.path}/changed')
+          .writeAsStringSync('${changed.millisecondsSinceEpoch}', flush: true);
+    } catch (e) {
+      // Only the fallback is lost: the figures are up.
+      debugPrint('Keeping the last ledger read failed: $e');
+    }
+  }
+
+  /// Opens the ledger last read here; false when there is none or it won't.
+  Future<bool> _openLastGood(Uint8List key, String folder) async {
+    try {
+      final file = File('${_lastGood.path}/$ledgerFileName');
+      if (!file.existsSync()) return false;
+      final changed = DateTime.fromMillisecondsSinceEpoch(
+        int.parse(File('${_lastGood.path}/changed').readAsStringSync().trim()),
+      );
+      final snapshot = await widget.read(
+        file.readAsBytesSync(),
+        key,
+        dir: Directory('${widget.dir.path}/phone'),
+        today: widget.now(),
+        madeAt: changed,
+      );
+      // Unknown, so the next look fetches the folder's ledger whatever it says.
+      _show(snapshot, key, folder, changed: null);
+      return true;
+    } catch (e) {
+      debugPrint('Opening the last ledger read failed: $e');
+      return false;
+    }
+  }
+
+  /// Puts [snapshot] up, the waiting entries and the half-minute look with
+  /// it the first time.
+  void _show(
+    PhoneSnapshot snapshot,
+    Uint8List key,
+    String folder, {
+    required DateTime? changed,
+  }) {
+    if (!mounted) return;
+    _ledgerChanged = changed;
+    _folder = folder;
+    final store = _store;
+    if (store == null) {
+      // What was waiting when the app was last closed comes back.
+      final outbox = _outbox = PhoneOutbox(
+        Directory('${widget.dir.path}/waiting'),
+        key,
+      );
+      final kept = outbox.load();
+      _store = PhoneStore(
+        snapshot,
+        device: kept.device,
+        waiting: kept.entries,
+        made: kept.categories,
+      )..addListener(_keep);
+      // Only while something is waiting: that is all there is to wait
+      // for. Coming back to the front always reads.
+      _again ??= Timer.periodic(widget.every, (_) {
+        final store = _store;
+        if (_step != _Step.ready || store == null) return;
+        if (store.waiting.isEmpty && store.made.isEmpty) return;
+        _load(onlyIfNewer: true);
+      });
+    } else {
+      store.snapshot = snapshot;
+    }
+    _keep();
+    setState(() => _step = _Step.ready);
   }
 
   /// Keeps what is waiting on the phone and writes it to the folder, one
