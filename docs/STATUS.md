@@ -22,11 +22,17 @@ there is still the owner's say each time.
 it passes (the owner asked me to publish it; `msstore` has no Publish now). `release_store.sh` now deletes a waiting submission rather
 than stopping; 0.66.3, passed and waiting for Publish now, and then 0.69.0 went that way.
 
-**Mac App Store (#108):** the paid team "Loveland Solutions, LLC" (`44H5SLX8KR`)
-is signed in to Xcode (2026-11-03) and the Mac app moved to it (0.72.1);
-`tool/release_mac.sh` builds, checks and uploads. The listing, the privacy label and
-Apple's encryption question are filled in App Store Connect. The iPhone app waits on
-#112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
+**Mac App Store (#108):** 0.72.1 (598) sent to Apple's review on 2026-11-03. The App Store name is **"The BetterBudget"** ("BetterBudget"
+was taken; the app is still BetterBudget on the device), one record for macOS and iOS,
+seller "Loveland Solutions". Every country but **France**, which waits on the French
+encryption declaration (the ledger's AES-256 is a standard algorithm not from Apple);
+the build's encryption answer is asked again for each upload. The EU's Digital Services
+Act trader details are the owner's to give; until then the EU may not get it. The
+listing leads with building wealth (ADR 0004). The paid team "Loveland Solutions, LLC"
+(`44H5SLX8KR`) signs the Mac app; `tool/release_mac.sh` builds, checks and uploads.
+**Installing the App Store copy on the owner's Mac asks for the recovery key once**
+(ADR 0001). The iPhone app waits on #367 (#112) and a check with Google Drive on a real
+iPhone (the owner's son's, by TestFlight; the list is on #114).
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
 
