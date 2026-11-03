@@ -47,6 +47,8 @@ class _BudgetPage extends StatefulWidget {
     required this.onAssignPlanned,
     required this.onClearAssigned,
     required this.onMove,
+    required this.onSkipBill,
+    required this.onBringBackBill,
     required this.onEditOpens,
     required this.keep,
   });
@@ -63,6 +65,13 @@ class _BudgetPage extends StatefulWidget {
   final void Function(AccountInfo, _CategoryEdit) onSave;
   final ValueChanged<AccountInfo> onArchive;
   final ValueChanged<AccountInfo> onDelete;
+
+  /// Skip this bill, on a category's line: the bill's date and what the
+  /// category has left (#357).
+  final void Function(AccountInfo category, DateTime due, int left) onSkipBill;
+
+  /// Bring it back, on a line that says there's no bill on a date.
+  final void Function(AccountInfo category, DateTime date) onBringBackBill;
 
   /// Income tab: a pay's Edit, or Add pay (null).
   final ValueChanged<PaySchedule?> onPay;
@@ -498,6 +507,30 @@ class _BudgetPageState extends State<_BudgetPage> {
               ),
         assignPlanned: toAssign == 0 ? null : planMoney(toAssign, currency),
         onAssignPlanned: () => widget.onSetAmount(c, period, planLine!.planned),
+        // A bill that comes again, due in this period and not paid yet,
+        // in a period not over: a bill further ahead is skipped from its
+        // own period's page.
+        onSkipBill: switch ((planLine, planLine?.due)) {
+          (final p?, final due?)
+              when p.plan.kind == PlanKind.byDate &&
+                  p.plan.repeats &&
+                  p.dueHere &&
+                  !p.ended &&
+                  !p.waiting &&
+                  line?.paidOn == null &&
+                  !period.end.isBefore(widget.today) =>
+            () => widget.onSkipBill(c, due, line?.left ?? 0),
+          _ => null,
+        },
+        noBills: [
+          for (final d in planLine?.noBills ?? const <DateTime>[])
+            (
+              words: t.planNoBillOn(
+                d.year == widget.today.year ? sayDate(t, d) : sayFullDate(t, d),
+              ),
+              onBringBack: () => widget.onBringBackBill(c, d),
+            ),
+        ],
         open: _open == c.id,
         onOpen: () => open(c.id),
         onClose: () => open(null),
@@ -2177,6 +2210,8 @@ class _CategoryRow extends StatefulWidget {
     this.planNote,
     this.assignPlanned,
     this.onAssignPlanned,
+    this.onSkipBill,
+    this.noBills = const [],
     this.flags = const [],
     this.moveChoices = const [],
     this.onMove,
@@ -2222,6 +2257,12 @@ class _CategoryRow extends StatefulWidget {
   /// clicking it assigns that.
   final String? assignPlanned;
   final VoidCallback? onAssignPlanned;
+
+  /// Skip this bill, while there's a bill on the line to skip.
+  final VoidCallback? onSkipBill;
+
+  /// The bills of this period there won't be.
+  final List<_NoBill> noBills;
 
   /// The plan's note was clicked: Edit, at the plan.
   final VoidCallback onPlan;
@@ -2358,6 +2399,9 @@ class _CategoryRowState extends State<_CategoryRow> {
                               assign: widget.assignPlanned,
                               onAssign: widget.onAssignPlanned,
                               onPlan: widget.onPlan,
+                              onSkipBill: widget.onSkipBill,
+                              rowHover: _hover,
+                              noBills: widget.noBills,
                             ),
                           ),
                         // What they wrote about it (#100): one line, the
@@ -3953,8 +3997,13 @@ class _StartOffer extends StatelessWidget {
   );
 }
 
+/// A bill that won't come: "No bill on 11.15", and what brings it back.
+typedef _NoBill = ({String words, VoidCallback onBringBack});
+
 /// The plan under a category's name. Clicking it opens Edit at the plan; "Assign
-/// ₮200,000" at its end assigns what the plan wants this period.
+/// ₮200,000" at its end assigns what the plan wants this period. A bill's
+/// line says **Skip this bill** on the row the pointer is on, as a row says
+/// Move money beside its Left, and a bill there won't be has a line of its own.
 class _PlanNoteLine extends StatelessWidget {
   const _PlanNoteLine({
     required this.id,
@@ -3962,65 +4011,103 @@ class _PlanNoteLine extends StatelessWidget {
     required this.assign,
     required this.onAssign,
     required this.onPlan,
+    this.onSkipBill,
+    this.rowHover = false,
+    this.noBills = const [],
   });
   final int id;
   final PlanNote note;
   final String? assign;
   final VoidCallback? onAssign;
   final VoidCallback? onPlan;
+  final VoidCallback? onSkipBill;
+  final bool rowHover;
+  final List<_NoBill> noBills;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final words = onest(12, color: Mid.ink2, tabular: true);
+    TextStyle blue(bool hover) =>
+        onest(12, color: Mid.blue, tabular: true).copyWith(
+          decoration: hover ? TextDecoration.underline : null,
+          decorationColor: Mid.blue,
+        );
     return Padding(
       padding: const EdgeInsets.only(top: 1),
-      child: Row(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Flexible(
-            child: Tooltip(
-              message: t.planEditTip,
-              waitDuration: const Duration(milliseconds: 600),
-              child: Hoverable(
-                key: ValueKey('plan-note-$id'),
-                onTap: onPlan,
-                // A sentence with an amount wraps rather than being cut
-                // (ADR 0004 "No overflow stripe"); Left took some width.
-                builder: (hover) => Text(
-                  note.text,
-                  style: onest(
-                    12,
-                    color: hover ? Mid.ink : Mid.ink2,
-                    tabular: true,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Tooltip(
+                  message: t.planEditTip,
+                  waitDuration: const Duration(milliseconds: 600),
+                  child: Hoverable(
+                    key: ValueKey('plan-note-$id'),
+                    onTap: onPlan,
+                    // A sentence with an amount wraps rather than being cut
+                    // (ADR 0004 "No overflow stripe"); Left took some width.
+                    builder: (hover) => Text(
+                      note.text,
+                      style: onest(
+                        12,
+                        color: hover ? Mid.ink : Mid.ink2,
+                        tabular: true,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          if (note.state case final state?)
-            Text(
-              ' · $state',
-              key: ValueKey('plan-state-$id'),
-              style: onest(
-                12,
-                color: note.behind ? Mid.ink : Mid.ink2,
-                tabular: true,
-              ),
-            ),
-          if (assign case final amount?) ...[
-            const SizedBox(width: 10),
-            Hoverable(
-              key: ValueKey('plan-assign-$id'),
-              onTap: onAssign,
-              builder: (hover) => Text(
-                t.planAssignThis(amount),
-                style: onest(12, color: Mid.blue, tabular: true).copyWith(
-                  decoration: hover ? TextDecoration.underline : null,
-                  decorationColor: Mid.blue,
+              if (note.state case final state?)
+                Text(
+                  ' · $state',
+                  key: ValueKey('plan-state-$id'),
+                  style: onest(
+                    12,
+                    color: note.behind ? Mid.ink : Mid.ink2,
+                    tabular: true,
+                  ),
                 ),
-              ),
+              if (assign case final amount?) ...[
+                const SizedBox(width: 10),
+                Hoverable(
+                  key: ValueKey('plan-assign-$id'),
+                  onTap: onAssign,
+                  builder: (hover) =>
+                      Text(t.planAssignThis(amount), style: blue(hover)),
+                ),
+              ],
+              if (onSkipBill case final skip?)
+                Hoverable(
+                  key: ValueKey('plan-skip-$id'),
+                  onTap: skip,
+                  // In the tree off the row too, so Tab finds it.
+                  builder: (hover) => hover || rowHover
+                      ? Padding(
+                          padding: const EdgeInsets.only(left: 10),
+                          child: Text(t.planSkipBill, style: blue(hover)),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+            ],
+          ),
+          for (final (i, b) in noBills.indexed)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(child: Text('${b.words} · ', style: words)),
+                Hoverable(
+                  key: ValueKey('plan-back-$id-$i'),
+                  onTap: b.onBringBack,
+                  builder: (hover) =>
+                      Text(t.planBringBackBill, style: blue(hover)),
+                ),
+              ],
             ),
-          ],
         ],
       ),
     );

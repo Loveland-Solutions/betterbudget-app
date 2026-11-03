@@ -8713,6 +8713,36 @@ abstract class Words {
   /// **'No {name} bill on {date}.'**
   String ledgerNoBillLast(String name, String date);
 
+  /// Toast after a bill is skipped when no money was set aside for it.
+  ///
+  /// In en, this message translates to:
+  /// **'No {name} bill on {date}. The next one is due {next}.'**
+  String ledgerNoBillNext(String name, String date, String next);
+
+  /// Toast after Bring it back on a skipped bill.
+  ///
+  /// In en, this message translates to:
+  /// **'The {name} bill on {date} is back.'**
+  String ledgerBillBack(String name, String date);
+
+  /// On a bill's Budget line, on the row the pointer is on.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip this bill'**
+  String get planSkipBill;
+
+  /// On a bill's Budget line: a skipped bill in this period.
+  ///
+  /// In en, this message translates to:
+  /// **'No bill on {date}'**
+  String planNoBillOn(String date);
+
+  /// Beside No bill on a date: the bill is expected again.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring it back'**
+  String get planBringBackBill;
+
   /// Popup after the phone's rows or a bank file: that many bills they paid.
   ///
   /// In en, this message translates to:

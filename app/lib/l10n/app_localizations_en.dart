@@ -6224,6 +6224,27 @@ class WordsEn extends Words {
   }
 
   @override
+  String ledgerNoBillNext(String name, String date, String next) {
+    return 'No $name bill on $date. The next one is due $next.';
+  }
+
+  @override
+  String ledgerBillBack(String name, String date) {
+    return 'The $name bill on $date is back.';
+  }
+
+  @override
+  String get planSkipBill => 'Skip this bill';
+
+  @override
+  String planNoBillOn(String date) {
+    return 'No bill on $date';
+  }
+
+  @override
+  String get planBringBackBill => 'Bring it back';
+
+  @override
   String ledgerBillsPaidCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

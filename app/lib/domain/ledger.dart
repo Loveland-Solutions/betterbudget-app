@@ -616,6 +616,28 @@ String billSkippedKey(int txnId) => 'bill.skipped.$txnId';
 /// What every [billSkippedKey] starts with.
 const billSkippedPrefix = 'bill.skipped.';
 
+/// The setting that marks a bill with no row yet as one there won't be
+/// (Skip this bill on the Budget page, #357), with the value of
+/// [billSkippedValue]. A bill further ahead has no row to go by.
+String billSkippedDayKey(int categoryId, DateTime date) =>
+    '${billSkippedPrefix}day.$categoryId.${dateKey(date)}';
+
+/// What a skipped bill's setting holds: `12;2026-10-15`.
+String billSkippedValue(int categoryId, DateTime date) =>
+    '$categoryId;${dateKey(date)}';
+
+/// The category and date in a [billSkippedValue].
+({int category, DateTime date})? decodeBillSkipped(String value) {
+  final parts = value.split(';');
+  final category = parts.length == 2 ? int.tryParse(parts[0]) : null;
+  if (category == null) return null;
+  try {
+    return (category: category, date: parseDateKey(parts[1]));
+  } catch (_) {
+    return null;
+  }
+}
+
 /// The setting on a row taken as a bill paid ([AppDatabase.payBill]):
 /// which bill, what it was for before a part payment left the rest
 /// (empty when it went), and the bills after it paid with it. "Not this

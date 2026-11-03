@@ -9189,6 +9189,50 @@
       }
     }
   },
+  "ledgerNoBillNext": "No {name} bill on {date}. The next one is due {next}.",
+  "@ledgerNoBillNext": {
+    "description": "Toast after a bill is skipped when no money was set aside for it.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "next": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerBillBack": "The {name} bill on {date} is back.",
+  "@ledgerBillBack": {
+    "description": "Toast after Bring it back on a skipped bill.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planSkipBill": "Skip this bill",
+  "@planSkipBill": {
+    "description": "On a bill's Budget line, on the row the pointer is on."
+  },
+  "planNoBillOn": "No bill on {date}",
+  "@planNoBillOn": {
+    "description": "On a bill's Budget line: a skipped bill in this period.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planBringBackBill": "Bring it back",
+  "@planBringBackBill": {
+    "description": "Beside No bill on a date: the bill is expected again."
+  },
   "ledgerBillsPaidCount": "{count, plural, =1{1 bill paid.} other{{count} bills paid.}}",
   "@ledgerBillsPaidCount": {
     "description": "Popup after the phone's rows or a bank file: that many bills they paid.",

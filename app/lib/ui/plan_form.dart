@@ -784,7 +784,13 @@ PlanNote planNote(
     state = null;
   } else if (once && p.done) {
     state = t.planSetAsideState;
-  } else if (p.plan.kind == PlanKind.each || p.waiting || p.done || p.late) {
+  } else if (p.plan.kind == PlanKind.each ||
+      p.waiting ||
+      p.done ||
+      p.late ||
+      // A month whose bill won't come asks nothing: nothing to be on track
+      // with (#357).
+      (p.noBills.isNotEmpty && p.planned == 0)) {
     state = null;
   } else if (line.toAssign == 0) {
     state = t.planOnTrack;

@@ -36,7 +36,7 @@ import '../domain/phone.dart'
 import '../domain/goals.dart';
 import '../domain/readiness.dart';
 import '../domain/setup.dart';
-import '../domain/sync.dart' show MadeHow, SyncKeys;
+import '../domain/sync.dart' show MadeHow, SyncKeys, sharedRowId;
 import '../import/mapping.dart';
 import '../import/sheet.dart';
 import 'balance_header.dart';
@@ -2283,6 +2283,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               until: until,
               payById: data.payScheduleById,
               planOf: (id) => data.plans[id],
+              skipped: (plan) => Budget.skippedBills(data, plan),
             ),
       // What the budget expects spent from it (#179): far enough for any
       // pay period; the forecast stops at its own end. Worked out once per
@@ -3265,9 +3266,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (plan == null) return [bill.date];
     final pay = data.payScheduleById(plan.payScheduleId);
     final out = [bill.date];
+    // Not one there won't be: those aren't paid (#357).
+    final skipped = Budget.skippedBills(data, plan);
     for (var n = 0; n < 400 && out.length < count; n++) {
       final d = Budget.dueAfter(plan, n, pay: pay);
-      if (d.isAfter(bill.date)) out.add(d);
+      if (d.isAfter(bill.date) && !skipped.contains(d)) out.add(d);
     }
     return out;
   }
@@ -3370,14 +3373,44 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// "No bill this time" on a category's scheduled bill: it won't come.
   /// Deleted by the person, it stays the plan's, so it isn't scheduled
   /// again and the budget asks nothing for it; what was put aside for it
-  /// stays for the next (owner, 2026-10-21).
-  Future<void> _noBill(RegisterRow r) async {
+  /// stays for the next (owner, 2026-10-21). The popup says only what the
+  /// category has left ([held], from the Budget page; else worked out),
+  /// and the setting keeps the bill's own date ([bill]), for a row whose
+  /// date was moved.
+  Future<void> _noBill(RegisterRow r, {int? held, DateTime? bill}) async {
     final t = context.t;
+    final data = _data;
     final planned = r.planCategoryId;
-    if (planned == null) return;
+    if (planned == null || data == null) return;
+    final plan = data.plans[planned];
+    final pay = data.payScheduleById(plan?.payScheduleId);
+    final due =
+        bill ??
+        switch (plan) {
+          final p? => Budget.billDate(
+            p,
+            r.date,
+            pay: pay,
+            skipped: Budget.skippedBills(data, p),
+          ),
+          null => null,
+        } ??
+        r.date;
+    final has =
+        held ??
+        () {
+          final p = budgetPeriod(due, data.periodSchedule);
+          return Budget.of(
+                data,
+                start: p.start,
+                end: p.end,
+                today: today,
+              ).lines[planned]?.left ??
+              0;
+        }();
     final List<int> deleted, made;
     final skipKey = billSkippedKey(r.txnId);
-    final skipValue = '$planned;${dateKey(r.date)}';
+    final skipValue = billSkippedValue(planned, due);
     if (!_deleting.add(r.txnId)) return;
     try {
       deleted = await db.softDeleteMany([r.txnId]);
@@ -3394,8 +3427,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _deleting.remove(r.txnId);
     }
     DateTime? next;
-    for (final x
-        in _data?.registerFor(r.accountId).scheduled ?? const <RegisterRow>[]) {
+    for (final x in data.registerFor(r.accountId).scheduled) {
       if (x.planCategoryId == planned && x.date.isAfter(r.date)) {
         next = x.date;
         break;
@@ -3409,14 +3441,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!mounted) return;
     _clearSelection();
     final name = rowPayee(t, r);
+    final stays = has > r.amount.abs() ? r.amount.abs() : has;
     _did(
       next == null
-          ? t.ledgerNoBillLast(name, sayDate(t, r.date))
+          ? t.ledgerNoBillLast(name, _billDay(t, due))
+          : stays <= 0
+          ? t.ledgerNoBillNext(name, _billDay(t, due), _billDay(t, next))
           : t.ledgerNoBill(
               name,
-              sayDate(t, r.date),
-              formatShort(r.amount.abs(), currency: r.currency),
-              sayDate(t, next),
+              _billDay(t, due),
+              formatShort(stays, currency: r.currency),
+              _billDay(t, next),
             ),
       undo: () => db.transaction(() async {
         await db.dropPlanBills(made);
@@ -3427,6 +3462,96 @@ class _LedgerScreenState extends State<LedgerScreen> {
         _expect((await db.softDeleteMany(deleted)).length == deleted.length);
         await db.setPreference(skipKey, skipValue);
         await db.bringBackPlanBills(made, planned);
+      }),
+    );
+  }
+
+  /// A bill's date in a popup: with its year when that isn't this one.
+  String _billDay(Words t, DateTime d) =>
+      d.year == today.year ? sayDate(t, d) : sayFullDate(t, d);
+
+  /// **Skip this bill** on the Budget page (#357): the bill on the line
+  /// for the period on screen. Its row, the one scheduled for that date
+  /// (moved or not), takes No bill this time; further ahead there's no
+  /// row yet, so its date is kept and nothing schedules it.
+  Future<void> _skipBill(AccountInfo category, DateTime due, int left) async {
+    final t = context.t;
+    final data = _data;
+    final plan = data?.plans[category.id];
+    if (data == null || plan == null) return;
+    final pay = data.payScheduleById(plan.payScheduleId);
+    final id = sharedRowId('bill', '${category.id}|${dateKey(due)}');
+    for (final a in data.accounts.keys) {
+      for (final r in data.registerFor(a).scheduled) {
+        if (r.planCategoryId != category.id || r.amount >= 0) continue;
+        if (r.txnId == id || r.date == due) {
+          return _noBill(r, held: left, bill: due);
+        }
+      }
+    }
+    final key = billSkippedDayKey(category.id, due);
+    final value = billSkippedValue(category.id, due);
+    final List<int> made;
+    try {
+      made = await db.transaction(() async {
+        await db.setPreference(key, value);
+        return db.ensurePlanBills(today, only: category.id);
+      });
+    } catch (e) {
+      if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
+      return;
+    }
+    if (!mounted) return;
+    final next = Budget.nextBill(
+      plan,
+      due,
+      skipped: Budget.skippedBills(data, plan),
+      pay: pay,
+    );
+    _did(
+      next == null
+          ? t.ledgerNoBillLast(category.name, _billDay(t, due))
+          : t.ledgerNoBillNext(
+              category.name,
+              _billDay(t, due),
+              _billDay(t, next),
+            ),
+      undo: () => db.transaction(() async {
+        await db.dropPlanBills(made);
+        await db.setPreference(key, null);
+      }),
+      redo: () => db.transaction(() async {
+        await db.setPreference(key, value);
+        await db.bringBackPlanBills(made, category.id);
+      }),
+    );
+  }
+
+  /// **Bring it back** on a line that says there's no bill on [date]: long
+  /// after Undo is gone, the bill is expected again.
+  Future<void> _bringBackBill(AccountInfo category, DateTime date) async {
+    final t = context.t;
+    final ({Map<String, String> settings, List<int> made}) back;
+    try {
+      back = await db.bringBackBill(category.id, date, today);
+    } catch (e) {
+      if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
+      return;
+    }
+    if (!mounted) return;
+    _did(
+      t.ledgerBillBack(category.name, _billDay(t, date)),
+      undo: () => db.transaction(() async {
+        await db.dropPlanBills(back.made);
+        for (final e in back.settings.entries) {
+          await db.setPreference(e.key, e.value);
+        }
+      }),
+      redo: () => db.transaction(() async {
+        for (final k in back.settings.keys) {
+          await db.setPreference(k, null);
+        }
+        await db.bringBackPlanBills(back.made, category.id);
       }),
     );
   }
@@ -7007,6 +7132,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   onAssignPlanned: _assignPlanned,
                                   onClearAssigned: _clearAssigned,
                                   onMove: _moveBudget,
+                                  onSkipBill: _skipBill,
+                                  onBringBackBill: _bringBackBill,
                                   onKeepStart: () => _setPref(
                                     BudgetKeys.keptStart,
                                     '1',
