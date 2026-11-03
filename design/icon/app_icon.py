@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Makes the app icons: the logo's night form on a navy tile, for macOS and Windows.
+"""Makes the app icons: the logo's night form on a navy tile, for macOS, Windows and iPhone.
 
 The owner asked for "a nice one with the new icon" (2026-10-09). The tile is
 the logo's own navy, the sidebar's, lit a little from above; the logo is the
@@ -11,7 +11,8 @@ Run from the repo root; needs rsvg-convert (`brew install librsvg`) and sips:
     python3 design/icon/app_icon.py
 It writes the PNGs into app/macos/Runner/Assets.xcassets/AppIcon.appiconset,
 app/windows/runner/resources/app_icon.ico, and the Microsoft Store package's tiles
-into app/windows/msix/Assets. Windows draws an icon as it is, with no
+into app/windows/msix/Assets, and the iPhone's one 1024 picture, without alpha,
+into app/ios/Runner/Assets.xcassets/AppIcon.appiconset. Windows draws an icon as it is, with no
 margin of its own and no shadow, so its tile fills the square and casts none.
 """
 import pathlib
@@ -27,17 +28,26 @@ ICO = ROOT / "app/windows/runner/resources/app_icon.ico"
 # The Store package's tiles, by the names its manifest gives them.
 STORE = ROOT / "app/windows/msix/Assets"
 STORE_TILES = {"Square44x44Logo": 44, "Square150x150Logo": 150, "StoreLogo": 50}
+IOS_ICON = ROOT / "app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png"
 
 # The tile macOS expects inside a 1024 canvas, and the logo's height in it:
 # 620 makes the logo 61% of the tile wide, with room for the coins' shadow.
 MAC = dict(TILE=824, AT=100, RADIUS=185, LOGO_H=620, SHADOW=True)
 # Windows: the same tile and logo, grown to fill the square.
 WINDOWS = dict(TILE=1000, AT=12, RADIUS=225, LOGO_H=752, SHADOW=False)
+# iPhone: the tile is the whole square, since iOS rounds the corners itself,
+# with no frame line for its mask to cut through.
+IOS = dict(TILE=1024, AT=0, RADIUS=0, LOGO_H=740, SHADOW=False, FRAME=False)
 
 
-def svg(TILE, AT, RADIUS, LOGO_H, SHADOW):
+def svg(TILE, AT, RADIUS, LOGO_H, SHADOW, FRAME=True):
     LOGO_W = LOGO_H * 489 / 600  # the logo's own proportions
     under_tile = 'filter="url(#under-tile)"' if SHADOW else ""
+    frame = (
+        f'<rect x="{AT + 1}" y="{AT + 1}" width="{TILE - 2}" height="{TILE - 2}" '
+        f'rx="{RADIUS - 1}" fill="none" stroke="#fff" stroke-opacity="0.10" stroke-width="2"/>'
+        if FRAME else ""
+    )
     return f"""<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
@@ -63,10 +73,18 @@ def svg(TILE, AT, RADIUS, LOGO_H, SHADOW):
   </defs>
   <rect x="{AT}" y="{AT}" width="{TILE}" height="{TILE}" rx="{RADIUS}" fill="url(#tile)" {under_tile}/>
   <rect x="{AT}" y="{AT}" width="{TILE}" height="{TILE}" rx="{RADIUS}" fill="url(#light)"/>
-  <rect x="{AT + 1}" y="{AT + 1}" width="{TILE - 2}" height="{TILE - 2}" rx="{RADIUS - 1}" fill="none" stroke="#fff" stroke-opacity="0.10" stroke-width="2"/>
+  {frame}
   <image xlink:href="logo-night.svg" x="{512 - LOGO_W / 2:.1f}" y="{512 - LOGO_H / 2:.1f}" width="{LOGO_W:.1f}" height="{LOGO_H}" filter="url(#under-logo)"/>
 </svg>
 """
+
+
+def opaque(png):
+    """The PNG as it is, once it's known to have no alpha: the App Store
+    refuses an iPhone icon that has one. rsvg-convert leaves it out of a
+    picture with no see-through pixel."""
+    assert png[25] == 2, "the iPhone icon came out with an alpha channel"
+    return png
 
 
 def write_ico(pngs):
@@ -88,10 +106,17 @@ def main():
     beside = HERE / "logo-night.svg"
     mac_svg = HERE / "app_icon.svg"
     win_svg = HERE / "app_icon_windows.svg"
+    ios_svg = HERE / "app_icon_ios.svg"
     shutil.copyfile(LOGO, beside)
     mac_svg.write_text(svg(**MAC))
     win_svg.write_text(svg(**WINDOWS))
+    ios_svg.write_text(svg(**IOS))
     try:
+        # One 1024 picture; Xcode makes the iPhone's other sizes from it.
+        IOS_ICON.write_bytes(opaque(subprocess.run(
+            ["rsvg-convert", "-w", "1024", str(ios_svg)],
+            check=True, capture_output=True,
+        ).stdout))
         big = ICONSET / "app_icon_1024.png"
         subprocess.run(
             ["rsvg-convert", "-w", "1024", str(mac_svg), "-o", str(big)], check=True
@@ -123,6 +148,7 @@ def main():
         beside.unlink()
         mac_svg.unlink()
         win_svg.unlink()
+        ios_svg.unlink()
 
 
 if __name__ == "__main__":

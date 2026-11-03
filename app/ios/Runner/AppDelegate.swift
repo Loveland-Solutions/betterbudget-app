@@ -10,7 +10,13 @@ import UIKit
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
+  // The cloud folder (FolderChannel.swift), kept as long as the engine is.
+  private var folder: FolderChannel?
+
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "BetterBudgetFolder") {
+      folder = FolderChannel(messenger: registrar.messenger())
+    }
   }
 }

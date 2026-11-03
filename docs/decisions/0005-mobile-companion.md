@@ -170,7 +170,12 @@ folder: saved on the phone at 12:23, the phone's file on the Mac at 12:24, in th
 ledger at 12:25.
 
 No table was added: the ledger's schema is unchanged. Not built: other phones'
-entries shown on a phone, and the iPhone's folder access. **Transfers (2026-10-09):**
+entries shown on a phone. **The iPhone's folder access (#112, 2026-11-03)** answers
+the same channel as Android's: the folder is picked in Files, kept as a
+security-scoped bookmark, and every read and write goes through a file
+coordinator, which is what makes a cloud provider fetch a file not yet on the
+phone. Tested in the simulator on a local folder; Google Drive and OneDrive in
+Files wait for a real iPhone through TestFlight. **Transfers (2026-10-09):**
 money moved between two of the ledger's own accounts is an entry whose category id is
 the account it went to (the ledger keeps categories and accounts in one list, so an id
 names one or the other), with the amount negative and no payee. The phone's file didn't
