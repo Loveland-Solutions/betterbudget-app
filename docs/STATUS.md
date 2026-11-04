@@ -701,8 +701,13 @@ session loses the statement balance.
   `ps -ax | grep -E "flutter|dart"`.
 - **Run:** `cd app && flutter run -d macos`, or build with `flutter build macos --debug`
   and open `app/build/macos/Build/Products/Debug/BetterBudget.app`.
-- **Rebuild and relaunch:** `pkill -f "BetterBudget.app/Contents/MacOS"; flutter build
-  macos --debug && open build/macos/Build/Products/Debug/BetterBudget.app` (from `app/`).
+- **Rebuild and relaunch** (from `app/`): the owner runs a Release build signed by the
+  company team (44H5SLX8KR), so build that, then quit and open it: `xcodebuild -workspace
+  macos/Runner.xcworkspace -scheme Runner -configuration Release -derivedDataPath
+  build/macos-company -allowProvisioningUpdates build && pkill -f
+  "BetterBudget.app/Contents/MacOS"; open
+  build/macos-company/Build/Products/Release/BetterBudget.app`. A build signed by another
+  team can't read the ledger's key.
 - **App data:** `~/Library/Containers/com.lovelandsolutions.betterbudget/Data/Library/Application Support/com.lovelandsolutions.betterbudget/Ledger.betterbudget`
   (plus `-wal`, `-shm`). **This file is production data.** Never delete, reseed, erase or
   hand-edit it; tests use demo data, and anything tried by hand goes on a copy.
