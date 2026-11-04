@@ -112,9 +112,12 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
   `.msix` (#287). `--check` uses a tag already pushed and throws the submission away.
 - **Mac App Store.** `tool/release_mac.sh` archives the Mac app signed by the team
   in the Xcode project, signs a copy for the App Store and checks it is that version,
-  sandboxed and asks for no network, then uploads it to App Store Connect through
-  Xcode's sign-in (no key file); `--check` uploads nothing. Submitting for review is
-  the owner's click.
+  sandboxed and asks for no network, then uploads it to App Store Connect;
+  `--check` uploads nothing. Submitting for review is the owner's click.
+  Both Apple scripts sign and upload by the team's App Store Connect API key
+  (`~/.config/betterbudget/AuthKey_<Key ID>.p8` and `app-store-connect-issuer`
+  beside it, never in the repo; #380): Xcode 27.2's command line can't use Xcode's
+  sign-in.
 - **App Store, iPhone.** `tool/release_ios.sh` archives the iPhone app unsigned (a
   signed archive needs a registered iPhone) with the commit count as its build number,
   signs a copy for the App Store, checks its version, build number and privacy

@@ -13,8 +13,8 @@
 #   3. uploads it
 #
 # Submitting it for review stays the owner's click in App Store Connect.
-# Run from a clean commit. Needs, once: the paid team signed in to Xcode
-# (Settings → Accounts); this Mac registered with the team, which a build for
+# Run from a clean commit. Needs, once: the paid team's App Store Connect API key
+# (below); this Mac registered with the team, which a build for
 # it does (STATUS "Signing"); and the app made in App Store Connect with the
 # bundle ID com.lovelandsolutions.betterbudget. Apple keeps the signing
 # certificate.
@@ -35,6 +35,26 @@ fi
 version=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
 team=$(sed -n 's/.*DEVELOPMENT_TEAM = \([A-Z0-9]*\);/\1/p' \
   macos/Runner.xcodeproj/project.pbxproj | head -n 1)
+
+# Xcode 27.2's command line can't use the account signed in to Xcode, so every
+# step that signs or uploads goes by an App Store Connect API key (#380): its
+# AuthKey_<Key ID>.p8 in ~/.config/betterbudget/, and the Issuer ID beside it
+# in app-store-connect-issuer. Neither goes in the repo.
+keys=$HOME/.config/betterbudget
+key=$(ls "$keys"/AuthKey_*.p8 2>/dev/null | head -n 1)
+issuer=$(cat "$keys/app-store-connect-issuer" 2>/dev/null || true)
+if [ -z "$key" ] || [ -z "$issuer" ]; then
+  echo "No App Store Connect API key: put AuthKey_<Key ID>.p8 and a file" >&2
+  echo "app-store-connect-issuer holding the Issuer ID in $keys." >&2
+  exit 1
+fi
+key_id=$(basename "$key" .p8)
+key_id=${key_id#AuthKey_}
+signed() {
+  xcodebuild -quiet "$@" -allowProvisioningUpdates \
+    -authenticationKeyPath "$key" -authenticationKeyID "$key_id" \
+    -authenticationKeyIssuerID "$issuer"
+}
 
 work=build/release-mac
 rm -rf "$work"
@@ -62,16 +82,14 @@ EOF
 # 1. Archive. Only xcodebuild may make the team's signing profile, so Flutter
 # writes its settings and the archive builds the app.
 flutter build macos --release --config-only
-xcodebuild -quiet -workspace macos/Runner.xcworkspace -scheme Runner \
-  -configuration Release -archivePath "$work/BetterBudget.xcarchive" \
-  -allowProvisioningUpdates archive
+signed -workspace macos/Runner.xcworkspace -scheme Runner \
+  -configuration Release -archivePath "$work/BetterBudget.xcarchive" archive
 
 # 2. Nothing leaves the user's machine: the app the store gets must be
 # sandboxed and ask for no network. A codesign that fails stops the script.
 options export
-xcodebuild -quiet -exportArchive -archivePath "$work/BetterBudget.xcarchive" \
-  -exportPath "$work/export" -exportOptionsPlist "$work/export.plist" \
-  -allowProvisioningUpdates
+signed -exportArchive -archivePath "$work/BetterBudget.xcarchive" \
+  -exportPath "$work/export" -exportOptionsPlist "$work/export.plist"
 pkgutil --expand-full "$work/export/BetterBudget.pkg" "$work/expanded"
 app=$(find "$work/expanded" -name BetterBudget.app -type d -prune | head -n 1)
 built=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
@@ -100,9 +118,8 @@ fi
 
 # 3. Upload, signed the same way as the copy checked above.
 options upload
-xcodebuild -quiet -exportArchive -archivePath "$work/BetterBudget.xcarchive" \
-  -exportPath "$work/upload" -exportOptionsPlist "$work/upload.plist" \
-  -allowProvisioningUpdates
+signed -exportArchive -archivePath "$work/BetterBudget.xcarchive" \
+  -exportPath "$work/upload" -exportOptionsPlist "$work/upload.plist"
 
 echo "BetterBudget $version ($build) is uploaded. It shows in App Store Connect"
 echo "under TestFlight once Apple has processed it (usually 10 to 30 minutes)."
