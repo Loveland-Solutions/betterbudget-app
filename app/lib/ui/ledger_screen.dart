@@ -39,6 +39,7 @@ import '../domain/setup.dart';
 import '../domain/sync.dart' show MadeHow, SyncKeys, sharedRowId;
 import '../import/mapping.dart';
 import '../import/sheet.dart';
+import 'amount_input.dart';
 import 'balance_header.dart';
 import 'entry_row.dart';
 import 'reconcile.dart';

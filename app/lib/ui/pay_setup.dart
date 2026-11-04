@@ -456,6 +456,7 @@ class _PayFormState extends State<_PayForm> {
         child: TextField(
           key: ValueKey(key),
           controller: c,
+          inputFormatters: [GroupedAmount(_account.currency)],
           focusNode: autofocus ? _amountFocus : null,
           autofocus: autofocus && widget.existing == null,
           textAlign: TextAlign.right,

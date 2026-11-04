@@ -3120,6 +3120,7 @@ class _MoveBoxState extends State<_MoveBox> {
                     child: TextField(
                       key: const ValueKey('move-amount'),
                       controller: _amount,
+                      inputFormatters: [GroupedAmount(widget.currency)],
                       focusNode: _focus,
                       style: onest(13.5, tabular: true),
                       onChanged: (_) => setState(() => _noAmount = false),
@@ -3903,6 +3904,7 @@ class _AssignFieldState extends State<_AssignField> {
           child: TextField(
             key: const ValueKey('assign-field'),
             controller: text,
+            inputFormatters: [GroupedAmount(widget.currency)],
             focusNode: _focus,
             textAlign: TextAlign.right,
             style: onest(13.5, tabular: true),
@@ -4907,6 +4909,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       child: TextField(
         key: ValueKey(key),
         controller: controller,
+        inputFormatters: [GroupedAmount(_currency)],
         focusNode: focus,
         autofocus: autofocus,
         textAlign: TextAlign.right,

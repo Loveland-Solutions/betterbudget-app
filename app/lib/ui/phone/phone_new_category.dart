@@ -521,6 +521,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                       child: TextField(
                         key: ValueKey(key),
                         controller: controller,
+                        inputFormatters: [if (money) GroupedAmount(_currency)],
                         focusNode: _focus(key),
                         textAlign: TextAlign.end,
                         keyboardType: money

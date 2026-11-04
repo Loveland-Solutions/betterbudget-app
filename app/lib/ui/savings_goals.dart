@@ -443,12 +443,14 @@ class _GoalPanelState extends State<_GoalPanel> {
       TextEditingController c,
       FocusNode focus, {
       double width = 180,
+      bool money = false,
     }) => SizedBox(
       width: width,
       height: 32,
       child: TextField(
         key: ValueKey('goal-$key'),
         controller: c,
+        inputFormatters: [if (money) GroupedAmount(_currency)],
         focusNode: focus,
         style: onest(13.5, tabular: true),
         onSubmitted: (_) => _add(),
@@ -552,7 +554,7 @@ class _GoalPanelState extends State<_GoalPanel> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         label(t.goalHowMuch),
-                        field('amount', d.amount, _amountFocus),
+                        field('amount', d.amount, _amountFocus, money: true),
                         wrong('amount', t.planMonthWrong),
                       ],
                     ),

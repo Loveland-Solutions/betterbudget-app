@@ -7,6 +7,7 @@ import 'data_words.dart';
 import 'entry_row.dart';
 import 'language.dart';
 import 'register.dart' show BarButton;
+import 'amount_input.dart';
 import 'theme.dart';
 
 /// One reconcile in progress: the statement's date and balance as typed.
@@ -175,6 +176,7 @@ class ReconcilePanel extends StatelessWidget {
                   child: TextField(
                     key: const ValueKey('reconcile-balance'),
                     controller: s.balance,
+                    inputFormatters: [GroupedAmount(s.currency)],
                     focusNode: s.balanceFocus,
                     autofocus: true,
                     textAlign: TextAlign.right,

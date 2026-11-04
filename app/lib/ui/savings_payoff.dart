@@ -12,6 +12,7 @@ class _AmountEditor extends StatelessWidget {
     required this.what,
     required this.typed,
     required this.focus,
+    required this.currency,
     required this.hint,
     required this.onSave,
     required this.onClose,
@@ -24,6 +25,7 @@ class _AmountEditor extends StatelessWidget {
   final String what;
   final _Typed typed;
   final FocusNode focus;
+  final Currency currency;
   final String hint;
   final VoidCallback onSave;
   final VoidCallback onClose;
@@ -61,6 +63,7 @@ class _AmountEditor extends StatelessWidget {
                     child: TextField(
                       key: ValueKey('$what-field'),
                       controller: typed.text,
+                      inputFormatters: [GroupedAmount(currency)],
                       focusNode: focus,
                       style: onest(13, tabular: true),
                       textAlign: TextAlign.right,
@@ -309,6 +312,7 @@ class _DebtPaymentState extends State<_DebtPayment>
                 what: what,
                 typed: open,
                 focus: focus,
+                currency: _a.currency,
                 hint: pay == null ? '' : formatWhole(pay.amount, _a.currency),
                 onSave: _save,
                 onClose: close,
@@ -430,6 +434,7 @@ class _ExtraFieldState extends State<_ExtraField>
             what: what,
             typed: open,
             focus: focus,
+            currency: CurrencyScope.of(context),
             hint: '',
             onSave: _save,
             onClose: close,
