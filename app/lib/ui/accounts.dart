@@ -476,6 +476,7 @@ class _AccountStartState extends State<_AccountStart> {
                   child: TextField(
                     key: const ValueKey('start-balance'),
                     controller: _balance,
+                    inputFormatters: [GroupedAmount(widget.account.currency)],
                     focusNode: _balanceFocus,
                     autofocus: true,
                     textAlign: TextAlign.right,

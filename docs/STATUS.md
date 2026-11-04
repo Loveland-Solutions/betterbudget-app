@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-04** · version 0.73.2 · schema v24 · 1007 tests pass
+**Last updated: 2026-11-04** · version 0.74.0 · schema v24 · 1038 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -32,6 +32,11 @@ Apple's encryption question are filled in App Store Connect. The iPhone app wait
 #112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+
+**Amounts group as they're typed** (0.74.0, #324; ADR 0004 "Amounts group in thousands as
+they're typed"): every money field on the computer, and the phone's New category, shows
+`2,500,000` while it's typed (`GroupedAmount` in `ui/amount_input.dart`). Backspace on a
+comma takes the digit before it; a paste is read as import reads a bank's cell.
 
 **Skip a bill from the Budget page** (0.72.0, #357; ADR 0004 "Skip a bill from the Budget
 page"): the row the pointer is on says **Skip this bill**, and the period arrows reach any

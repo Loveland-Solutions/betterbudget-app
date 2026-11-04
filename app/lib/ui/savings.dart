@@ -922,6 +922,9 @@ class _MonthFieldState extends State<_MonthField> {
                     child: TextField(
                       key: const ValueKey('month-field'),
                       controller: typed.text,
+                      inputFormatters: [
+                        GroupedAmount(CurrencyScope.of(context)),
+                      ],
                       focusNode: _focus,
                       style: onest(13, tabular: true),
                       onSubmitted: (_) => _save(),

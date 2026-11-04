@@ -7,6 +7,7 @@ import '../domain/money.dart';
 import 'data_words.dart';
 import 'language.dart';
 import 'register.dart' show BarButton, Cols, SourceColumn;
+import 'amount_input.dart';
 import 'theme.dart';
 
 enum EditField { date, payee, memo, category, amount }
@@ -256,11 +257,10 @@ String _lockedCategoryTip(Words t, RegisterRow r, String reconciledTip) =>
       _ => reconciledTip,
     };
 
-/// How an amount reads in the field: `30000`, `214750.50`, `+2500000`.
-String editableAmount(int minor, [Currency currency = Currency.mnt]) {
-  final whole = minor.abs() ~/ currency.scale;
-  return '${minor > 0 ? '+' : ''}$whole${currency.hasCents(minor) ? formatCents(minor, currency) : ''}';
-}
+/// How an amount reads in the field, grouped as it's typed (#324):
+/// `30,000`, `214,750.50`, `+2,500,000`.
+String editableAmount(int minor, [Currency currency = Currency.mnt]) =>
+    '${minor > 0 ? '+' : ''}${typedAmount(minor, currency)}';
 
 /// The new-transaction row, and the same row opened on an existing
 /// transaction when [initial] is set.
@@ -1609,6 +1609,7 @@ class _EntryRowState extends State<EntryRow> {
                         controller: l.amount,
                         focusNode: l.amountFocus,
                         hint: zeroHint(_hereCurrency),
+                        money: _hereCurrency,
                         tabular: true,
                         align: TextAlign.right,
                         onSubmitted: (_) => _lineEntered(l),
@@ -2223,6 +2224,7 @@ class _EntryRowState extends State<EntryRow> {
                                           controller: _amount,
                                           focusNode: _amountFocus,
                                           hint: zeroHint(_hereCurrency),
+                                          money: _hereCurrency,
                                           tabular: true,
                                           align: TextAlign.right,
                                           wanted: _wants('amount'),
@@ -2608,6 +2610,7 @@ class _ExchangeLine extends StatelessWidget {
                     controller: controller,
                     focusNode: focusNode,
                     hint: zeroHint(other.currency),
+                    money: other.currency,
                     tabular: true,
                     small: true,
                     align: TextAlign.right,
@@ -2744,11 +2747,15 @@ class _Field extends StatelessWidget {
     this.onSubmitted,
     this.wanted = false,
     this.small = false,
+    this.money,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final String hint;
+
+  /// An amount's currency: what's typed is grouped in thousands.
+  final Currency? money;
   final bool tabular;
   final TextAlign align;
   final ValueChanged<String>? onSubmitted;
@@ -2759,6 +2766,7 @@ class _Field extends StatelessWidget {
   Widget build(BuildContext context) => TextField(
     controller: controller,
     focusNode: focusNode,
+    inputFormatters: [if (money != null) GroupedAmount(money!)],
     style: onest(
       small ? 12.5 : 13.5,
       tabular: tabular,

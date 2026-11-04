@@ -637,6 +637,7 @@ class _ImportDialogState extends State<_ImportDialog> {
                 child: TextField(
                   key: const ValueKey('import-today'),
                   controller: _today,
+                  inputFormatters: [GroupedAmount(widget.currency)],
                   focusNode: _todayFocus,
                   textAlign: TextAlign.right,
                   style: onest(13.5, tabular: true),

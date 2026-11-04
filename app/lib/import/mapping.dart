@@ -319,7 +319,7 @@ int? readAmount(Object? cell, [int decimals = 2]) {
   }
   if (cell is! String) return null;
   var s = cell.replaceAll(
-    RegExp(r'[\s ₮$€]|MNT|USD|төг', caseSensitive: false),
+    RegExp(r'[\s ₮$€]|MNT|USD|төгрөг|төг', caseSensitive: false),
     '',
   );
   if (s.isEmpty) return null;

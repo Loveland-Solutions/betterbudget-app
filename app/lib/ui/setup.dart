@@ -922,6 +922,7 @@ class _SetupAccountEntryState extends State<_SetupAccountEntry> {
                       child: TextField(
                         key: const ValueKey('setup-amount'),
                         controller: _amount,
+                        inputFormatters: [GroupedAmount(_currency)],
                         focusNode: _amountFocus,
                         textAlign: TextAlign.right,
                         style: onest(13.5, tabular: true),

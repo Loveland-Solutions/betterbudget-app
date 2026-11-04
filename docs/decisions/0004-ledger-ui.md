@@ -5198,3 +5198,37 @@ Settled in the two reviews:
   early, across a skipped one, is the later one. "Did this pay 2 bills?" names the bills it
   really pays. The ledger's No bill this time says money stays only when some is there.
 
+## Amounts group in thousands as they're typed (owner, 2026-10-28, #324)
+
+Owner: "There are big numbers when you're working with tugriks. We need automatic commas
+every three digits." Amounts shown were grouped and the phone's pad grouped as it was
+typed, but a salary typed on the computer read `2500000` until it was saved.
+
+- **Every money field groups as it's typed** (`GroupedAmount`): a row's amount and its
+  split lines and other currency, Assigned, Move money, a category's plan, setup's opening
+  balance, regular income, a new account's balance, reconcile, import's balance, a goal,
+  savings' month and a debt's payment, and the phone's New category. Not a rate, a day or
+  a count, which aren't money.
+- **Commas only, as the app shows amounts**, for every currency and in both languages.
+  Digits after the point aren't grouped. A sum is grouped number by number:
+  `12,000+8,500`.
+- **The caret stays after the digit it was after.** Backspace on a comma takes the digit
+  before it and Delete the one after, since a comma alone would only come back.
+- **A paste is read as import reads a bank's cell:** `1.250.000`, `1 250,50` and
+  `(64,210.50)` come in as the amount they say. A paste against digits already there is
+  part of that number, and a sum is left for the field to work out.
+- A comma typed by hand anywhere else goes: `12,5` reads as 125, as it always has, and
+  now the field shows it (#382).
+
+Settled in the two reviews:
+
+- **A pasted `+` stays:** it makes a row money in, so `+125,000.00 ₮` from a bank's app is
+  a refund, not a second purchase.
+- **One point and three digits pasted is a point**, as it would be typed: `12.345` in
+  dollars isn't twelve thousand. Import's rule reads it as thousands, which suits a column
+  of bank cells, not a single paste. Two points (`1.250.000`) are still thousands.
+- **A row opened to fix it shows its amount grouped** (`editableAmount`), so a key and
+  Backspace leave it unchanged and a click away still closes it.
+- A paste after a sign already typed is part of that number; `төгрөг` after a pasted
+  amount is read as `төг` was.
+

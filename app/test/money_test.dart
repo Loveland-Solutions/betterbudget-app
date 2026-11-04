@@ -12,6 +12,43 @@ void main() {
     });
   });
 
+  group('groupTyped', () {
+    String g(String s) => groupTyped(s, const []).text;
+    int at(String s, int caret) => groupTyped(s, [caret]).offsets.single;
+
+    test('groups each whole number in thousands, not what follows a point', () {
+      expect(g('2500000'), '2,500,000');
+      expect(g('999'), '999');
+      expect(g('1000.5'), '1,000.5');
+      expect(g('1250.12345'), '1,250.12345');
+      expect(g('-2500000'), '-2,500,000');
+      expect(g('12000+8500*3'), '12,000+8,500*3');
+      expect(g('.50'), '.50');
+      expect(g(''), '');
+    });
+
+    test('commas typed anywhere are put where they belong', () {
+      expect(g('2,50,0000'), '2,500,000');
+      expect(g('12,5'), '125');
+      expect(g('1,'), '1');
+    });
+
+    test('the caret stays after the digit it was after', () {
+      expect(at('2500000', 7), 9); // at the end
+      expect(at('2500000', 1), 1); // 2|,500,000: ahead of the comma
+      expect(at('2500000', 2), 3); // 2,5|00,000
+      expect(at('25,00000', 3), 3); // after a comma that moves: 2,5|00,000
+      expect(at('1,2345', 2), 1); // 1|2,345
+      expect(at('1234', 0), 0);
+    });
+
+    test('what it shows reads as the same amount', () {
+      for (final s in ['2500000', '1234567.89', '12000+8500', '-1000']) {
+        expect(parseAmount(g(s)), parseAmount(s), reason: s);
+      }
+    });
+  });
+
   group('parseAmount', () {
     test('more than 15 whole digits is not an amount, typed or worked out '
         '(#163)', () {

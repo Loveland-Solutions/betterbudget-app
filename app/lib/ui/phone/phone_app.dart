@@ -20,6 +20,7 @@ import '../../domain/phone.dart';
 import '../language.dart';
 import '../plan_form.dart';
 import '../schemes.dart';
+import '../amount_input.dart';
 import '../theme.dart';
 
 part 'phone_new_category.dart';

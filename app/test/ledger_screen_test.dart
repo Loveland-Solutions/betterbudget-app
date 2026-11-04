@@ -703,7 +703,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Savings'));
     await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(monthField).controller!.text, '1500000');
+    expect(tester.widget<TextField>(monthField).controller!.text, '1,500,000');
     await tester.tap(find.byKey(const ValueKey('month-save')));
     await settle(tester);
     expect((await prefs())[ReadyKeys.month], 'MNT:150000000');
@@ -1246,8 +1246,8 @@ void main() {
     final focused = tester.widget<EditableText>(
       find.byWidgetPredicate((w) => w is EditableText && w.focusNode.hasFocus),
     );
-    expect(focused.controller.text, '1800000');
-    expect(focused.controller.selection.extentOffset, 7);
+    expect(focused.controller.text, '1,800,000');
+    expect(focused.controller.selection.extentOffset, 9);
     expect(find.widgetWithText(TextField, '2026.09.16'), findsOneWidget);
     expect(find.text('Confirm'), findsOneWidget); // the row's button
     await tester.pump(
@@ -1765,7 +1765,7 @@ void main() {
     // A new amount: the popup says where the balance would come to.
     await tester.tap(find.text('Edit'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, '50000'), '30000');
+    await tester.enterText(find.widgetWithText(TextField, '50,000'), '30000');
     await tester.runAsync(() async {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await Future<void>.delayed(const Duration(milliseconds: 400));
@@ -1922,7 +1922,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('change-locked-amount')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, '80000'), '90000');
+    await tester.enterText(find.widgetWithText(TextField, '80,000'), '90000');
     await tester.runAsync(() async {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await Future<void>.delayed(const Duration(milliseconds: 400));
@@ -1930,7 +1930,7 @@ void main() {
     await tester.pumpAndSettle();
     // A new total opens the lines, which must add up to it.
     expect(find.text('₮10,000.00 left'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, '60000'), '70000');
+    await tester.enterText(find.widgetWithText(TextField, '60,000'), '70000');
     await tester.runAsync(() async {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await Future<void>.delayed(const Duration(milliseconds: 400));
@@ -1985,7 +1985,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('change-locked-amount')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, '350000'), '300000');
+    await tester.enterText(find.widgetWithText(TextField, '350,000'), '300000');
     await tester.runAsync(() async {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await Future<void>.delayed(const Duration(milliseconds: 400));
@@ -2044,7 +2044,7 @@ void main() {
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/change_locked_amount.png'),
     );
-    await tester.enterText(find.widgetWithText(TextField, '48000'), '40000');
+    await tester.enterText(find.widgetWithText(TextField, '48,000'), '40000');
     await tester.runAsync(() async {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await Future<void>.delayed(const Duration(milliseconds: 400));
@@ -2437,7 +2437,7 @@ void main() {
             (w) => w is EditableText && w.focusNode.hasFocus,
           ),
         );
-        expect(focused.controller.text, '30000');
+        expect(focused.controller.text, '30,000');
         tester.testTextInput.enterText('35000');
         await tester.pump();
         await save(tester);
@@ -2954,6 +2954,36 @@ void main() {
       expect(cancel, findsNothing);
       expect(find.text('Postpaid plan'), findsNothing);
       expect(find.text('Postpaid'), findsOneWidget);
+
+      // Its amount opens grouped, as it's typed (#324), so a key and
+      // Backspace leave it untouched and a click away still closes it.
+      await edit();
+      final amount = find.byWidgetPredicate(
+        (w) =>
+            w is TextField &&
+            RegExp(r'^\+?\d{1,3}(,\d{3})+(\.\d+)?$')
+                .hasMatch(w.controller?.text ?? ''),
+      );
+      expect(amount, findsOneWidget);
+      await tester.tap(amount);
+      await tester.pumpAndSettle();
+      final c = tester.widget<TextField>(amount).controller!;
+      final had = c.text;
+      c.selection = TextSelection.collapsed(offset: had.length);
+      await tester.pump();
+      tester.testTextInput.updateEditingValue(
+        TextEditingValue(
+          text: '${had}1',
+          selection: TextSelection.collapsed(offset: had.length + 1),
+        ),
+      );
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+      await tester.pump();
+      expect(c.text, had);
+      await tester.tapAt(const Offset(700, 80));
+      await tester.pumpAndSettle();
+      expect(cancel, findsNothing);
       await tidy(tester, db);
     },
   );
@@ -2991,6 +3021,47 @@ void main() {
       await settle(tester);
       expect(find.text('Redone · Modern Nomads added'), findsOneWidget);
       expect(find.text('Modern Nomads'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('an amount typed in thousands is grouped, saved, undone and '
+        'redone (#324)', (tester) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'Nomin',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        'Dining out',
+      );
+      final amount = find.widgetWithText(TextField, '₮0.00');
+      await tester.enterText(amount, '2500000');
+      await tester.pump();
+      expect(tester.widget<TextField>(amount).controller!.text, '2,500,000');
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      final saved = await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        return data.txns.firstWhere((x) => x.payee == 'Nomin');
+      });
+      expect(saved!.entries.map((e) => e.amount), contains(-250000000));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(find.text('Nomin'), findsNothing);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect(find.text('Nomin'), findsOneWidget);
+      expect(find.textContaining('2,500,000'), findsWidgets);
       await tidy(tester, db);
     });
 
@@ -3789,7 +3860,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('split-categories')));
     await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(lineAmount(0)).controller!.text, '98000');
+    expect(tester.widget<TextField>(lineAmount(0)).controller!.text, '98,000');
     await tester.enterText(lineAmount(0), '88000');
     await tester.enterText(lineAmount(1), '37500+10000');
     await tester.tap(find.byKey(const ValueKey('split-done')));
@@ -4125,7 +4196,7 @@ void main() {
     expect(find.text('The total is money in.'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('split-done')));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextField, '+135500'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '+135,500'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('entry-submit')));
     await settle(tester);
     var d = (await tester.runAsync(() => db.loadLedger()))!;
@@ -4219,17 +4290,17 @@ void main() {
       find.text('₮640,200.00 from Golomt Visa to TDB Checking'),
       findsOneWidget,
     );
-    expect(find.widgetWithText(TextField, '+640200'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '+640,200'), findsOneWidget);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/entry_transfer.png'),
     );
     await tester.tap(find.byKey(const ValueKey('transfer-swap')));
     await tester.pump();
-    expect(find.widgetWithText(TextField, '640200'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '640,200'), findsOneWidget);
 
     // Swap before any amount still needs one.
-    await tester.enterText(find.widgetWithText(TextField, '640200'), '');
+    await tester.enterText(find.widgetWithText(TextField, '640,200'), '');
     await tester.tap(find.byKey(const ValueKey('transfer-swap')));
     await tester.pump();
     expect(find.text('From Golomt Visa to TDB Checking'), findsOneWidget);
@@ -8650,7 +8721,7 @@ void main() {
       await tester.enterText(category, 'Golomt Visa');
       await tester.pump();
       expect(find.textContaining('“Gro” isn’t a category'), findsNothing);
-      await tester.enterText(find.widgetWithText(TextField, '6500'), '7000');
+      await tester.enterText(find.widgetWithText(TextField, '6,500'), '7000');
       await tester.runAsync(() async {
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await Future<void>.delayed(const Duration(milliseconds: 300));

@@ -140,6 +140,58 @@ String zeroHint(Currency currency) =>
 String typedAmount(int minor, Currency currency) =>
     '${formatWhole(minor, currency)}${currency.hasCents(minor) ? formatCents(minor, currency) : ''}';
 
+/// What's typed in an amount field with each number's whole part grouped in
+/// thousands, as the field shows it while typing: `2500000` is `2,500,000`,
+/// `12000+8500` is `12,000+8,500`; digits after a point aren't grouped
+/// (#324). Commas typed anywhere else go, as [parseAmount] ignores them.
+/// [offsets] are places in [text] (the caret, a selection's ends); each comes
+/// back after the same digit or sign it was after.
+({String text, List<int> offsets}) groupTyped(String text, List<int> offsets) {
+  final bare = StringBuffer();
+  // For each place, how many characters other than commas came before it.
+  final kept = List.filled(offsets.length, 0);
+  for (var i = 0; i < text.length; i++) {
+    if (text[i] == ',') continue;
+    for (var k = 0; k < offsets.length; k++) {
+      if (i < offsets[k]) kept[k]++;
+    }
+    bare.write(text[i]);
+  }
+  final s = bare.toString();
+  final out = StringBuffer();
+  // Where each character of [s] lands in [out].
+  final at = <int>[];
+  var i = 0;
+  while (i < s.length) {
+    if (!_isDigit(s, i)) {
+      at.add(out.length);
+      out.write(s[i++]);
+      continue;
+    }
+    var end = i;
+    while (end < s.length && _isDigit(s, end)) {
+      end++;
+    }
+    final grouped = i == 0 || s[i - 1] != '.';
+    for (var j = i; j < end; j++) {
+      if (grouped && j > i && (end - j) % 3 == 0) out.write(',');
+      at.add(out.length);
+      out.write(s[j]);
+    }
+    i = end;
+  }
+  // Right after the character before it, ahead of any comma that follows.
+  return (
+    text: out.toString(),
+    offsets: [for (final k in kept) k == 0 ? 0 : at[k - 1] + 1],
+  );
+}
+
+bool _isDigit(String s, int i) {
+  final c = s.codeUnitAt(i);
+  return c >= 0x30 && c <= 0x39;
+}
+
 /// `₮4,182,450` or `−$1,250`: whole units only.
 String formatRounded(int minor, {Currency currency = Currency.mnt}) =>
     '${minor < 0 ? '−' : ''}${currency.prefix}${formatWhole(minor, currency)}';
