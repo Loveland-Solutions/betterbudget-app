@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-03** · version 0.72.0 · schema v24 · 1007 tests pass
+**Last updated: 2026-11-04** · version 0.73.2 · schema v24 · 1007 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -23,8 +23,11 @@ it passes (the owner asked me to publish it; `msstore` has no Publish now). `rel
 than stopping; 0.66.3, passed and waiting for Publish now, and then 0.69.0 went that way.
 
 **Mac App Store (#108):** the paid team "Loveland Solutions, LLC" (`44H5SLX8KR`)
-is signed in to Xcode (2026-11-03) and the Mac app moved to it (0.72.1);
-`tool/release_mac.sh` builds, checks and uploads. The listing, the privacy label and
+is signed in to Xcode (2026-11-03) and the Mac app moved to it (0.72.1). On
+2026-11-04 macOS 0.72.1 and iOS 0.73.1 are waiting for Apple's review.
+`tool/release_mac.sh` and `tool/release_ios.sh` build, check and upload, signing by
+the team's App Store Connect API key in `~/.config/betterbudget/` (0.73.2, #380):
+Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy label and
 Apple's encryption question are filled in App Store Connect. The iPhone app waits on
 #112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
 
