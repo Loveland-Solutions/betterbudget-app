@@ -7466,6 +7466,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         icon: Icons.file_download_rounded,
                         key: const ValueKey('import'),
                         tooltip: '',
+                        color: Mid.blue,
+                        ink: Mid.onAccent,
                         onTap: () =>
                             _startImport(data, account, summary.cleared),
                       ),
@@ -9416,11 +9418,18 @@ class _PrimaryButton extends StatelessWidget {
     required this.onTap,
     this.tooltip,
     this.focusNode,
+    this.color,
+    this.ink,
   });
   final String label;
   final IconData icon;
   final VoidCallback onTap;
   final FocusNode? focusNode;
+
+  /// Green ([Mid.fill] on [Mid.onFill]) unless given; Import transactions…
+  /// is blue, the color of what's still to come in (owner, 2026-11-07).
+  final Color? color;
+  final Color? ink;
 
   /// Its shortcut; ⌘N (Ctrl+N) unless given, '' for a button with none.
   final String? tooltip;
@@ -9428,22 +9437,24 @@ class _PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final message = tooltip ?? (_isMac ? '⌘N' : 'Ctrl+N');
+    final fill = color ?? Mid.fill;
+    final onFill = ink ?? Mid.onFill;
     final button = Material(
-      color: Mid.fill,
+      color: fill,
       borderRadius: BorderRadius.circular(9),
       child: InkWell(
         onTap: onTap,
         focusNode: focusNode,
         borderRadius: BorderRadius.circular(9),
-        hoverColor: Mid.onFill.withValues(alpha: 0.12),
+        hoverColor: onFill.withValues(alpha: 0.12),
         child: Container(
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             children: [
-              Icon(icon, size: 16, color: Mid.onFill),
+              Icon(icon, size: 16, color: onFill),
               const SizedBox(width: 8),
-              Text(label, style: onest(13, weight: 600, color: Mid.onFill)),
+              Text(label, style: onest(13, weight: 600, color: onFill)),
             ],
           ),
         ),

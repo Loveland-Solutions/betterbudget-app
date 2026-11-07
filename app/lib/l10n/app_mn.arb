@@ -787,7 +787,7 @@
   "startPaySplitAtLeast": "багадаа: {firstDay} {first}, {secondDay} {second}",
   "startThisPayPeriod": "Энэ орлогын үе",
   "startThisMonth": "Энэ сар",
-  "importButton": "Файлаас оруулах…",
+  "importButton": "Гүйлгээ оруулах…",
   "importTitle": "{account} дансанд оруулах",
   "importExcelFiles": "Excel файл",
   "importTextFiles": "Текст файл (CSV)",

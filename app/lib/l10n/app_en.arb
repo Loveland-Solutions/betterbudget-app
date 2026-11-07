@@ -5122,9 +5122,9 @@
   "@startThisMonth": {
     "description": "Name of the budget span when budgeting by calendar month, e.g. on a filter chip before its dates."
   },
-  "importButton": "Import…",
+  "importButton": "Import transactions…",
   "@importButton": {
-    "description": "Account header, beside Reconcile: button that opens a bank file to bring its rows in."
+    "description": "Register tab row, beside Add: button that opens a bank file to bring its rows in."
   },
   "importTitle": "Import into {account}",
   "@importTitle": {

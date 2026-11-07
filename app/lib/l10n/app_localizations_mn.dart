@@ -3361,7 +3361,7 @@ class WordsMn extends Words {
   String get startThisMonth => 'Энэ сар';
 
   @override
-  String get importButton => 'Файлаас оруулах…';
+  String get importButton => 'Гүйлгээ оруулах…';
 
   @override
   String importTitle(Object account) {
