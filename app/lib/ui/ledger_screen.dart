@@ -7365,13 +7365,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
               hoveredStatus: _hoveredStatus,
               activeStatus: activeStatus,
               onOpenScheduled: _openScheduled,
-              // Cash: no statement to reconcile against, no bank file.
+              // Cash: no statement to reconcile against.
               onReconcile: account.isCash
                   ? null
                   : () => _startReconcile(data, account),
-              onImport: account.isCash
-                  ? null
-                  : () => _startImport(data, account, summary.cleared),
               // Asked until there's pay anywhere; once there is, an account
               // it doesn't go into doesn't nag, and a click can't start a
               // second Salary by mistake.
@@ -7460,6 +7457,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   key: const ValueKey('add-transaction'),
                   onTap: _newEntry,
                 ),
+                // Beside Add, where a transaction comes in either way
+                // (owner, 2026-11-07). Cash has no bank file to import.
+                importButton: account.isCash
+                    ? null
+                    : _PrimaryButton(
+                        label: context.t.importButton,
+                        icon: Icons.file_download_rounded,
+                        key: const ValueKey('import'),
+                        tooltip: '',
+                        color: Mid.blue,
+                        ink: Mid.onAccent,
+                        onTap: () =>
+                            _startImport(data, account, summary.cleared),
+                      ),
                 onCloseEntry: _closeEntry,
                 actions: RegisterActions(
                   onFilter: (f) => setState(() => _filter = f),
@@ -9407,40 +9418,51 @@ class _PrimaryButton extends StatelessWidget {
     required this.onTap,
     this.tooltip,
     this.focusNode,
+    this.color,
+    this.ink,
   });
   final String label;
   final IconData icon;
   final VoidCallback onTap;
   final FocusNode? focusNode;
 
-  /// Its shortcut; ⌘N (Ctrl+N) unless given.
+  /// Green ([Mid.fill] on [Mid.onFill]) unless given; Import transactions…
+  /// is blue, the color of what's still to come in (owner, 2026-11-07).
+  final Color? color;
+  final Color? ink;
+
+  /// Its shortcut; ⌘N (Ctrl+N) unless given, '' for a button with none.
   final String? tooltip;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip ?? (_isMac ? '⌘N' : 'Ctrl+N'),
-    child: Material(
-      color: Mid.fill,
+  Widget build(BuildContext context) {
+    final message = tooltip ?? (_isMac ? '⌘N' : 'Ctrl+N');
+    final fill = color ?? Mid.fill;
+    final onFill = ink ?? Mid.onFill;
+    final button = Material(
+      color: fill,
       borderRadius: BorderRadius.circular(9),
       child: InkWell(
         onTap: onTap,
         focusNode: focusNode,
         borderRadius: BorderRadius.circular(9),
-        hoverColor: Mid.onFill.withValues(alpha: 0.12),
+        hoverColor: onFill.withValues(alpha: 0.12),
         child: Container(
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             children: [
-              Icon(icon, size: 16, color: Mid.onFill),
+              Icon(icon, size: 16, color: onFill),
               const SizedBox(width: 8),
-              Text(label, style: onest(13, weight: 600, color: Mid.onFill)),
+              Text(label, style: onest(13, weight: 600, color: onFill)),
             ],
           ),
         ),
       ),
-    ),
-  );
+    );
+    if (message.isEmpty) return button;
+    return Tooltip(message: message, child: button);
+  }
 }
 
 /// The popup that reports a saved change: a card of one width in the page's

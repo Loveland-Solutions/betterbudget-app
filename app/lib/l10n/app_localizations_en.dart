@@ -3451,7 +3451,7 @@ class WordsEn extends Words {
   String get startThisMonth => 'This month';
 
   @override
-  String get importButton => 'Import…';
+  String get importButton => 'Import transactions…';
 
   @override
   String importTitle(Object account) {

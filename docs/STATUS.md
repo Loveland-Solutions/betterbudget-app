@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-04** · version 0.74.0 · schema v24 · 1038 tests pass
+**Last updated: 2026-11-07** · version 0.75.0 · schema v24 · 1038 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -39,6 +39,11 @@ Apple's encryption question are filled in App Store Connect. The iPhone app wait
 #112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+
+**Import beside Add** (0.75.0, #384; ADR 0004 "Import beside Add"): Import… sits in the
+register's tab row beside Add, drawn as Add is; the balance header keeps Reconcile
+alone. Cash and All accounts still have none, and Import stays offered while
+reconciling. The computer only. No schema change.
 
 **Amounts group as they're typed** (0.74.0, #324; ADR 0004 "Amounts group in thousands as
 they're typed"): every money field on the computer, and the phone's New category, shows

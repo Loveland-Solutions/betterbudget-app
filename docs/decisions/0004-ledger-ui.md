@@ -5232,3 +5232,22 @@ Settled in the two reviews:
 - A paste after a sign already typed is part of that number; `төгрөг` after a pasted
   amount is read as `төг` was.
 
+
+## Import beside Add (owner, 2026-11-07, #384)
+
+Owner: "Import should be a prominent button on the same row as the 'Add +' transaction
+button." A bank file is the other way rows come in, so it stands next to typing one.
+
+- **Import transactions… sits in the register's tab row, beside Add**, a filled button
+  with a file icon. Add stays last: it's the first action of the two.
+- **It's blue, not Add's green** (owner, on seeing it drawn as Add is: "Let's make it a
+  different positive color and make it say 'Import Transactions…'"). Blue is already
+  the color of what's still to come in — a scheduled bill's Confirm, the chosen tab —
+  and gold is kept for what's done. The label follows the app's sentence case:
+  **Import transactions…**; in Mongolian **Гүйлгээ оруулах…** (was "Файлаас
+  оруулах…"), for Tanan's pass (#90).
+- **The balance header's Import… is gone**: one button, one place. Reconcile stays in
+  the header, by the reconciled line it checks.
+- **A cash account still has no Import** (no bank file), and **All accounts has none**:
+  a file is imported into one account (offer a thing only while there's something
+  for it).

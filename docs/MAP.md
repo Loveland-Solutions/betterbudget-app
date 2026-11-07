@@ -89,7 +89,9 @@ search for the marker. Keys for the `Preferences` table are defined in the domai
 - **Generated files, all committed. Change the source, then regenerate.**
   `data/database.g.dart` from the tables, by `dart run build_runner build`.
   `l10n/app_localizations*.dart` (the `Words` class) from the `.arb` files, by
-  `flutter gen-l10n` or any build. `domain/currencies.dart` and
+  `flutter gen-l10n` or any build — but not by `flutter test`, which quietly keeps
+  the old words in tests and goldens, so after an `.arb` edit run `flutter gen-l10n`
+  first. `domain/currencies.dart` and
   `l10n/currency_names.dart` by `tool/gen_currencies.py`; `BetterBudgetSymbols.ttf` by
   `tool/gen_symbol_font.py` ([currencies.md](currencies.md)).
 - **Logo and pictures.** `assets/brand/mark-dark.svg`, the two wordmarks and the eight

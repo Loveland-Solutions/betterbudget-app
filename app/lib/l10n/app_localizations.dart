@@ -4855,10 +4855,10 @@ abstract class Words {
   /// **'This month'**
   String get startThisMonth;
 
-  /// Account header, beside Reconcile: button that opens a bank file to bring its rows in.
+  /// Register tab row, beside Add: button that opens a bank file to bring its rows in.
   ///
   /// In en, this message translates to:
-  /// **'Import…'**
+  /// **'Import transactions…'**
   String get importButton;
 
   /// Import window title. account is the account's name.
