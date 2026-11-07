@@ -720,10 +720,10 @@ abstract class Words {
   /// **'Category: {name}'**
   String ledgerCategoryChip(String name);
 
-  /// Blue button above the register: add a transaction.
+  /// Green button in the register's tab row: opens the entry row to type a transaction.
   ///
   /// In en, this message translates to:
-  /// **'Add'**
+  /// **'Manually add a transaction'**
   String get ledgerAdd;
 
   /// All accounts, beside the category chip: how many posted rows show. Followed by " · " and the total.

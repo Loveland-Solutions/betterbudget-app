@@ -323,16 +323,16 @@ class RegisterPanel extends StatelessWidget {
   /// statement date, so they can be ticked off against it.
   final DateTime? reconcileThrough;
 
-  /// Opens the new-transaction row; sits at the end of the tab row, above
-  /// where the row opens.
+  /// Opens the new-transaction row; in the tab row, above where the row
+  /// opens.
   final Widget? addButton;
 
   /// Opens the import dialog, beside Add (owner, 2026-11-07: a prominent
   /// button on the Add row). None on a cash account: no bank file.
   final Widget? importButton;
 
-  /// The search box: in the tab row, beside what it narrows (owner,
-  /// 2026-09-30), not at the top of the page.
+  /// The search box: at the very right of the tab row, beside what it
+  /// narrows (owner, 2026-09-30 and 2026-11-07), not at the top of the page.
   final Widget? searchBox;
 
   /// The new-transaction row is open (from Add or ⌘N).
@@ -693,29 +693,37 @@ class RegisterPanel extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
               child: Row(
                 children: [
+                  // Narrow, or with a fourth tab beside the two buttons, the
+                  // tabs are drawn smaller rather than losing one off the
+                  // end (ADR 0004, "No overflow stripe").
                   Expanded(
                     child: through != null
                         ? Text(
                             t.rowsNotReconciledThrough(sayFullDate(t, through)),
                             style: onest(13, color: Mid.ink2),
                           )
-                        : _Tabs(
-                            filter: filter,
-                            uncleared: uncleared,
-                            scheduled: scheduled.length,
-                            uncategorized: uncategorized,
-                            onFilter: actions.onFilter,
+                        : Align(
+                            alignment: Alignment.centerLeft,
+                            child: Shrink(
+                              _Tabs(
+                                filter: filter,
+                                uncleared: uncleared,
+                                scheduled: scheduled.length,
+                                uncategorized: uncategorized,
+                                onFilter: actions.onFilter,
+                              ),
+                            ),
                           ),
                   ),
-                  if (searchBox case final box?) ...[
-                    box,
-                    const SizedBox(width: 10),
-                  ],
                   if (importButton case final button?) ...[
                     button,
                     const SizedBox(width: 10),
                   ],
                   ?addButton,
+                  if (searchBox case final box?) ...[
+                    const SizedBox(width: 10),
+                    box,
+                  ],
                 ],
               ),
             ),
@@ -790,6 +798,9 @@ class _Tabs extends StatelessWidget {
     };
     final t = context.t;
     return Row(
+      // Its natural width, so [Shrink] can draw it smaller when the row is
+      // tight rather than cut a tab off.
+      mainAxisSize: MainAxisSize.min,
       children: [
         _Tab(
           t.rowsTabAll,

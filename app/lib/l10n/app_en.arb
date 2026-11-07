@@ -748,9 +748,9 @@
       }
     }
   },
-  "ledgerAdd": "Add",
+  "ledgerAdd": "Manually add a transaction",
   "@ledgerAdd": {
-    "description": "Blue button above the register: add a transaction."
+    "description": "Green button in the register's tab row: opens the entry row to type a transaction."
   },
   "ledgerFilterRows": "{count, plural, =1{1 row} other{{count} rows}}",
   "@ledgerFilterRows": {
