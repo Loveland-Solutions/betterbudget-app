@@ -23,8 +23,15 @@ it passes (the owner asked me to publish it; `msstore` has no Publish now). `rel
 than stopping; 0.66.3, passed and waiting for Publish now, and then 0.69.0 went that way.
 
 **Mac App Store (#108):** the paid team "Loveland Solutions, LLC" (`44H5SLX8KR`)
-is signed in to Xcode (2026-11-03) and the Mac app moved to it (0.72.1). On
-2026-11-04 macOS 0.72.1 and iOS 0.73.1 are waiting for Apple's review.
+is signed in to Xcode (2026-11-03) and the Mac app moved to it (0.72.1). macOS 0.72.1
+is waiting for Apple's review. iOS 0.73.1 was rejected on 2026-11-05 (Guideline 2.1,
+information needed, no defect named): Apple wants a screen recording from a physical
+iPhone plus answers in the Review Notes. The answers (demo key, no accounts, no
+external services, same in every region, not regulated) are written into the iOS
+version's Review Notes by the API (2026-11-07); what's left is the owner's recording
+(launch → demo key `DEMO-DEMO-DEMO-DEMO-DEMO` → use the app, on the son's iPhone by
+TestFlight), its link pasted over the marked line in App Store Connect → App Review
+Information → Notes, then Resubmit.
 `tool/release_mac.sh` and `tool/release_ios.sh` build, check and upload, signing by
 the team's App Store Connect API key in `~/.config/betterbudget/` (0.73.2, #380):
 Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy label and
