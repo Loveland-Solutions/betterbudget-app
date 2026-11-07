@@ -19,7 +19,6 @@ class BalanceHeader extends StatelessWidget {
     required this.onStatusTap,
     required this.onOpenScheduled,
     required this.onReconcile,
-    this.onImport,
     this.reconcile,
     this.owed = false,
     this.onAddPay,
@@ -64,9 +63,6 @@ class BalanceHeader extends StatelessWidget {
   final Widget? reconcile;
   final VoidCallback? onReconcile;
 
-  /// Brings a bank file's rows in.
-  final VoidCallback? onImport;
-
   /// A forecast dot was clicked: show that scheduled transaction.
   final ValueChanged<RegisterRow> onOpenScheduled;
   final AccountSummary summary;
@@ -101,7 +97,6 @@ class BalanceHeader extends StatelessWidget {
                     active: activeStatus,
                     onTap: onStatusTap,
                     onReconcile: onReconcile,
-                    onImport: onImport,
                   ),
             ),
             const SizedBox(width: 40),
@@ -138,13 +133,11 @@ class _Balances extends StatelessWidget {
     required this.onTap,
     required this.onReconcile,
     required this.owed,
-    this.onImport,
   });
 
   final AccountSummary s;
   final bool owed;
   final VoidCallback? onReconcile;
-  final VoidCallback? onImport;
   final ValueNotifier<Cleared?> hovered;
   final Cleared? active;
   final ValueChanged<Cleared> onTap;
@@ -215,12 +208,6 @@ class _Balances extends StatelessWidget {
                     onTap: reconcile,
                   ),
                 ],
-                if (onImport != null)
-                  BarButton(
-                    key: const ValueKey('import'),
-                    label: t.importButton,
-                    onTap: onImport!,
-                  ),
               ],
             ),
           ],

@@ -7365,13 +7365,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
               hoveredStatus: _hoveredStatus,
               activeStatus: activeStatus,
               onOpenScheduled: _openScheduled,
-              // Cash: no statement to reconcile against, no bank file.
+              // Cash: no statement to reconcile against.
               onReconcile: account.isCash
                   ? null
                   : () => _startReconcile(data, account),
-              onImport: account.isCash
-                  ? null
-                  : () => _startImport(data, account, summary.cleared),
               // Asked until there's pay anywhere; once there is, an account
               // it doesn't go into doesn't nag, and a click can't start a
               // second Salary by mistake.
@@ -7460,6 +7457,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   key: const ValueKey('add-transaction'),
                   onTap: _newEntry,
                 ),
+                // Beside Add, where a transaction comes in either way
+                // (owner, 2026-11-07). Cash has no bank file to import.
+                importButton: account.isCash
+                    ? null
+                    : _PrimaryButton(
+                        label: context.t.importButton,
+                        icon: Icons.file_download_rounded,
+                        key: const ValueKey('import'),
+                        tooltip: '',
+                        onTap: () =>
+                            _startImport(data, account, summary.cleared),
+                      ),
                 onCloseEntry: _closeEntry,
                 actions: RegisterActions(
                   onFilter: (f) => setState(() => _filter = f),
@@ -9413,13 +9422,13 @@ class _PrimaryButton extends StatelessWidget {
   final VoidCallback onTap;
   final FocusNode? focusNode;
 
-  /// Its shortcut; ⌘N (Ctrl+N) unless given.
+  /// Its shortcut; ⌘N (Ctrl+N) unless given, '' for a button with none.
   final String? tooltip;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip ?? (_isMac ? '⌘N' : 'Ctrl+N'),
-    child: Material(
+  Widget build(BuildContext context) {
+    final message = tooltip ?? (_isMac ? '⌘N' : 'Ctrl+N');
+    final button = Material(
       color: Mid.fill,
       borderRadius: BorderRadius.circular(9),
       child: InkWell(
@@ -9439,8 +9448,10 @@ class _PrimaryButton extends StatelessWidget {
           ),
         ),
       ),
-    ),
-  );
+    );
+    if (message.isEmpty) return button;
+    return Tooltip(message: message, child: button);
+  }
 }
 
 /// The popup that reports a saved change: a card of one width in the page's

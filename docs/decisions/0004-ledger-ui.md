@@ -5232,3 +5232,16 @@ Settled in the two reviews:
 - A paste after a sign already typed is part of that number; `төгрөг` after a pasted
   amount is read as `төг` was.
 
+
+## Import beside Add (owner, 2026-11-07, #384)
+
+Owner: "Import should be a prominent button on the same row as the 'Add +' transaction
+button." A bank file is the other way rows come in, so it stands next to typing one.
+
+- **Import… sits in the register's tab row, beside Add, drawn as Add is** (the filled
+  green button, a file icon). Add stays last: it's the first action of the two.
+- **The balance header's Import… is gone**: one button, one place. Reconcile stays in
+  the header, by the reconciled line it checks.
+- **A cash account still has no Import** (no bank file), and **All accounts has none**:
+  a file is imported into one account (offer a thing only while there's something
+  for it).

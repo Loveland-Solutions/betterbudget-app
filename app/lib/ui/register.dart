@@ -272,6 +272,7 @@ class RegisterPanel extends StatelessWidget {
     this.shown,
     this.onCloseEntry,
     this.addButton,
+    this.importButton,
     this.searchBox,
     this.reconcileThrough,
     this.owed = false,
@@ -325,6 +326,10 @@ class RegisterPanel extends StatelessWidget {
   /// Opens the new-transaction row; sits at the end of the tab row, above
   /// where the row opens.
   final Widget? addButton;
+
+  /// Opens the import dialog, beside Add (owner, 2026-11-07: a prominent
+  /// button on the Add row). None on a cash account: no bank file.
+  final Widget? importButton;
 
   /// The search box: in the tab row, beside what it narrows (owner,
   /// 2026-09-30), not at the top of the page.
@@ -704,6 +709,10 @@ class RegisterPanel extends StatelessWidget {
                   ),
                   if (searchBox case final box?) ...[
                     box,
+                    const SizedBox(width: 10),
+                  ],
+                  if (importButton case final button?) ...[
+                    button,
                     const SizedBox(width: 10),
                   ],
                   ?addButton,
