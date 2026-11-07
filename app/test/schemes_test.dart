@@ -58,6 +58,13 @@ void main() {
       // The version in the ledger now, of a thing both computers changed:
       // settled, done and safe.
       'rows_dialog.dart',
+      // The register's Scheduled filter (owner, 2026-11-07, option C of
+      // three): the filters are buttons, each in its own color, and
+      // Scheduled's is gold. This narrows the rule of 2026-10-09 rather
+      // than dropping it — a scheduled *row* is still gray dashes with a
+      // blue Confirm, and the reconciled diamond keeps gold on the tab
+      // beside it.
+      'register.dart',
     };
     final using = [
       for (final f in Directory('lib/ui').listSync(recursive: true))

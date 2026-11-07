@@ -813,12 +813,14 @@ class _Tabs extends StatelessWidget {
           uncleared,
           filter == RegisterFilter.uncleared,
           () => onFilter(RegisterFilter.uncleared),
+          hue: Mid.blue,
         ),
         _Tab(
           t.rowsTabScheduled,
           scheduled,
           filter == RegisterFilter.scheduled,
           () => onFilter(RegisterFilter.scheduled),
+          hue: Mid.gold,
         ),
         // Only while rows wait there: nothing to say otherwise.
         if (uncategorized > 0)
@@ -828,9 +830,13 @@ class _Tabs extends StatelessWidget {
             uncategorized,
             filter == RegisterFilter.uncategorized,
             () => onFilter(RegisterFilter.uncategorized),
+            hue: Mid.coral,
           ),
         // Cleared and reconciled are reached from the header's key; show the
-        // tab only while it's the active filter, with a way back out.
+        // tab only while it's the active filter, with a way back out. It
+        // keeps the plain ink chip and leads with its own glyph, so gold
+        // still says "done" on the reconciled diamond while Scheduled wears
+        // gold beside it (owner, 2026-11-07).
         if (statusTab != null)
           _Tab(
             clearedName(t, statusTab),
@@ -838,12 +844,19 @@ class _Tabs extends StatelessWidget {
             true,
             () => onFilter(RegisterFilter.all),
             closable: true,
+            leading: StatusGlyph(statusTab),
           ),
       ],
     );
   }
 }
 
+/// One filter, drawn as a button in its own color (owner, 2026-11-07:
+/// "Let's make this section more intuitive. Maybe change them into buttons
+/// of different colors"). Every tab carries a box and a border, because the
+/// flat gray words beside two filled buttons read as a caption rather than
+/// something to click; [hue] is the color that filter wears, and the one
+/// you're on fills deeper, outlines in full color and sets its label in 600.
 class _Tab extends StatelessWidget {
   const _Tab(
     this.label,
@@ -852,6 +865,8 @@ class _Tab extends StatelessWidget {
     this.onTap, {
     super.key,
     this.closable = false,
+    this.hue,
+    this.leading,
   });
   final String label;
   final int? count;
@@ -859,45 +874,62 @@ class _Tab extends StatelessWidget {
   final VoidCallback onTap;
   final bool closable;
 
+  /// What this filter wears: blue for Uncleared, gold for Scheduled, coral
+  /// for Not categorized. None for All and for the closable Cleared and
+  /// Reconciled tab, which keep the page's quieter ink.
+  final Color? hue;
+
+  /// Drawn before the label: the closable tab's own cleared glyph.
+  final Widget? leading;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(right: 8),
-    child: Hoverable(
-      onTap: onTap,
-      builder: (hover) => Container(
-        height: 28,
-        padding: EdgeInsets.only(left: 12, right: closable ? 8 : 12),
-        decoration: BoxDecoration(
-          // The tab you're on is tinted like the row you've chosen.
-          color: active
-              ? Mid.blueWash
-              : (hover ? Mid.hover : Colors.transparent),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              // Color only: a heavier word would nudge the tabs beside it.
-              style: onest(13, color: active ? Mid.blue : Mid.ink3),
+  Widget build(BuildContext context) {
+    final c = hue ?? Mid.ink2;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: Hoverable(
+        onTap: onTap,
+        builder: (hover) => Container(
+          height: 32,
+          padding: EdgeInsets.only(left: 10, right: closable ? 7 : 10),
+          decoration: BoxDecoration(
+            color: c.withValues(
+              alpha: active
+                  ? 0.22
+                  : hover
+                  ? 0.16
+                  : 0.10,
             ),
-            if (count != null && count! > 0) ...[
-              const SizedBox(width: 4),
+            border: Border.all(
+              color: c.withValues(alpha: active ? 0.9 : 0.25),
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (leading case final g?) ...[g, const SizedBox(width: 6)],
               Text(
-                '($count)',
-                style: onest(11.5, color: Mid.ink3, tabular: true),
+                label,
+                style: onest(13, color: c, weight: active ? 600 : 400),
               ),
+              if (count != null && count! > 0) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '($count)',
+                  style: onest(11.5, color: c, tabular: true),
+                ),
+              ],
+              if (closable) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.close_rounded, size: 13, color: c),
+              ],
             ],
-            if (closable) ...[
-              const SizedBox(width: 6),
-              Icon(Icons.close_rounded, size: 13, color: Mid.ink2),
-            ],
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// A row's cells keep to its first 52 points, so a long memo grows downward
