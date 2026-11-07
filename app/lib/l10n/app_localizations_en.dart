@@ -482,7 +482,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get ledgerAdd => 'Add';
+  String get ledgerAdd => 'Manually add a transaction';
 
   @override
   String ledgerFilterRows(int count) {

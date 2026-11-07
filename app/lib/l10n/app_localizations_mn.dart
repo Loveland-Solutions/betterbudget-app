@@ -481,7 +481,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get ledgerAdd => 'Нэмэх';
+  String get ledgerAdd => 'Гүйлгээ гараар нэмэх';
 
   @override
   String ledgerFilterRows(int count) {

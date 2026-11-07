@@ -9845,7 +9845,10 @@ void main() {
       Color? add() => tester
           .widget<Material>(
             find
-                .ancestor(of: find.text('Add'), matching: find.byType(Material))
+                .ancestor(
+                  of: find.text('Manually add a transaction'),
+                  matching: find.byType(Material),
+                )
                 .first,
           )
           .color;

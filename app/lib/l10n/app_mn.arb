@@ -102,7 +102,7 @@
   "ledgerShowingDarkNow": "Одоо бараан · {system} солигдоход дагаж солигдоно",
   "ledgerAllAccounts": "Бүх данс",
   "ledgerCategoryChip": "Ангилал: {name}",
-  "ledgerAdd": "Нэмэх",
+  "ledgerAdd": "Гүйлгээ гараар нэмэх",
   "ledgerFilterRows": "{count, plural, other{{count} мөр}}",
   "ledgerFilterTotal": "{kind, select, received{{amount} орсон} paidBack{{amount} буцааж төлсөн} refunded{{amount} буцаан авсан} other{{amount} зарцуулсан}}",
   "ledgerFilterTotalSince": "{kind, select, received{{date} өдрөөс хойш {amount} орсон} paidBack{{date} өдрөөс хойш {amount} буцааж төлсөн} refunded{{date} өдрөөс хойш {amount} буцаан авсан} other{{date} өдрөөс хойш {amount} зарцуулсан}}",

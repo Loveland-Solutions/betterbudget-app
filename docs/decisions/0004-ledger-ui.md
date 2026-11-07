@@ -5251,3 +5251,9 @@ button." A bank file is the other way rows come in, so it stands next to typing 
 - **A cash account still has no Import** (no bank file), and **All accounts has none**:
   a file is imported into one account (offer a thing only while there's something
   for it).
+- **The row settled as tabs · Import transactions… · Manually add a transaction ·
+  search** (owner, 2026-11-07, on seeing the buttons: "Let's move the search field to
+  the very right, and let's rename the 'Add' button to 'Manually Add a Transaction'").
+  Add says what it does now that it stands beside Import; in Mongolian **Гүйлгээ
+  гараар нэмэх**, for Tanan's pass (#90). The search box keeps its place in the tab
+  row, beside what it narrows (2026-09-30), just at the row's end.
