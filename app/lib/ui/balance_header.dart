@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -618,10 +620,10 @@ class ForecastPanel extends StatelessWidget {
             )
           : t.planBillsBefore(f.billCount, money(f.billTotal), end);
     }
-    // What it takes out for the budget's spending, a day at a time (#179).
-    if (f.spendingTotal > 0) {
-      detail = '$detail · ${t.planSpendingFromBudget(money(f.spendingTotal))}';
-    }
+    // The budget's spending used to be a tail glued onto this line, as did
+    // "N of them expected". Both are gone: the tooltip's "if the budget is
+    // followed" covers the first, and the bill list's own rows say which are
+    // expected (ADR 0004, "The forecast's chart does the talking").
 
     // Late money in, named so a warning without it makes sense.
     final late = f.late;
@@ -635,18 +637,36 @@ class ForecastPanel extends StatelessWidget {
         f.spendingTotal == 0 &&
         !f.shortNow &&
         (f.paydayCounted || !f.fixedEnd);
-    // How far it looks, as the title says it.
-    final spanLabel = switch (span) {
-      ForecastSpan.payPeriod =>
-        payday == null || f.fixedEnd
-            ? t.planNext30Days
-            : t.planUntilPaycheck(sayDate(t, f.end)),
-      ForecastSpan.days30 => t.planNext30Days,
-      ForecastSpan.days60 => t.planNextDays(60),
-      ForecastSpan.days90 => t.planNextDays(90),
-      ForecastSpan.months6 => t.planNext6Months,
-      ForecastSpan.year => t.planNextYear,
-    };
+    // The key to the rail: what each tick is, counted on its own side with
+    // its own sign. "4 bills" alone was wrong once the income had a tick
+    // (owner, 2026-11-08).
+    final out = f.rowSteps.where((s) => s.row.amount < 0).toList();
+    final inn = f.rowSteps.where((s) => s.row.amount > 0).toList();
+    final rail = <String>[
+      if (out.isNotEmpty)
+        t.planRailBills(
+          out.length,
+          money(out.fold(0, (a, s) => a + s.row.amount)),
+        ),
+      if (inn.isNotEmpty)
+        t.planRailIn(
+          inn.length,
+          money(inn.fold(0, (a, s) => a + s.row.amount)),
+        ),
+    ];
+    // Words only for what the chart cannot show (owner, 2026-11-08: "I don't
+    // need you to use language so much. Use the chart to explain"). With a
+    // chart to read, the figures sit at their own points: the dip carries
+    // its own figure and the line goes coral where it crosses ₮0, so a
+    // headline would only say them again. Four things no line can draw keep
+    // theirs: nothing scheduled at all, a wallet that has to be filled from
+    // the bank, what a card is owed (the chart's figure can't say "owed"),
+    // and a shortfall that only happens if money due today never arrives.
+    final sayIt =
+        f.steps.isEmpty ||
+        f.takeOutBy != null ||
+        f.owed ||
+        f.late.any((r) => !r.date.isBefore(f.start) && r.amount > 0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,85 +715,97 @@ class ForecastPanel extends StatelessWidget {
           ),
           const SizedBox(height: 6),
         ],
-        // What this part of the header is, for someone seeing it first.
-        Center(
-          child: Text(
-            t.planForecast,
-            key: const ValueKey('forecast-title'),
-            style: onest(14, weight: 700, color: Mid.ink),
-          ),
-        ),
-        const SizedBox(height: 6),
+        // The card's name and how far it looks share one row: two titles
+        // were one too many, and the control sat above the figures it only
+        // qualifies. "Until your income on 12.01" is gone with the dropdown
+        // — the filled button says which length, and the date under the
+        // chart's end says where it stops.
         Row(
           key: const ValueKey('forecast-horizon'),
           children: [
-            _SpanChoice(
-              label: spanLabel,
-              span: span,
-              payPeriodEnd: payPeriodEnd,
-              onSpan: onSpan,
+            Text(
+              t.planForecast,
+              key: const ValueKey('forecast-title'),
+              style: onest(12.5, color: Mid.ink3),
             ),
-            if (late.isNotEmpty)
-              Flexible(
-                child: _LateNote(late: late, today: f.start, onOpen: onOpen),
-              )
-            // Nothing to run to: the forecast can't say "until payday", so it
-            // asks for pay, every time, until it has some.
-            else if (!f.owed && payday == null && onAddPay != null)
-              Flexible(
-                child: Hoverable(
-                  key: const ValueKey('add-pay'),
-                  onTap: onAddPay,
-                  builder: (hover) => Text(
-                    t.planAddPay,
-                    style: onest(12, color: Mid.blue).copyWith(
-                      decoration: hover ? TextDecoration.underline : null,
-                      decorationColor: Mid.blue,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+            const SizedBox(width: 6),
+            const _WhatIsIt(),
+            const SizedBox(width: 10),
+            // Mongolian's words for these are longer, and the card narrows
+            // with the window: the row of buttons shrinks rather than
+            // overflow or drop one.
+            Expanded(
+              child: Shrink(
+                end: true,
+                _SpanChoice(
+                  span: span,
+                  payPeriodEnd: payPeriodEnd,
+                  onSpan: onSpan,
                 ),
               ),
+            ),
           ],
         ),
+        if (late.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          _LateNote(late: late, today: f.start, onOpen: onOpen),
+        ]
+        // Nothing to run to: the forecast can't say "until payday", so it
+        // asks for pay, every time, until it has some.
+        else if (!f.owed && payday == null && onAddPay != null) ...[
+          const SizedBox(height: 4),
+          Hoverable(
+            key: const ValueKey('add-pay'),
+            onTap: onAddPay,
+            builder: (hover) => Text(
+              t.planAddPay,
+              style: onest(12, color: Mid.blue).copyWith(
+                decoration: hover ? TextDecoration.underline : null,
+                decorationColor: Mid.blue,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
         if (knownOnly) ...[
           const SizedBox(height: 8),
           Expanded(
             child: _KnownList(f: f, onOpen: onOpen, budgeted: budgeted),
           ),
         ] else ...[
-          const SizedBox(height: 4),
-          // An amount and a date: smaller rather than cut.
-          Shrink(
-            Text(
-              headline,
-              style: onest(
-                18,
-                weight: 500,
-                color: f.isShort ? Mid.coral : Mid.ink,
-                tabular: true,
+          if (sayIt) ...[
+            const SizedBox(height: 4),
+            // An amount and a date: smaller rather than cut.
+            Shrink(
+              Text(
+                headline,
+                style: onest(
+                  18,
+                  weight: 500,
+                  color: f.isShort ? Mid.coral : Mid.ink,
+                  tabular: true,
+                ),
+                maxLines: 1,
               ),
-              maxLines: 1,
             ),
-          ),
+          ],
           const SizedBox(height: 4),
           if (f.rowSteps.isEmpty)
             Text(detail, style: onest(13, color: Mid.ink3, tabular: true))
           else
-            _BillsLink(
-              // Looking further than the scheduled rows: how many of the
-              // bills are the app's expectation, not rows yet.
-              label: f.expectedBills > 0
-                  ? '$detail · ${t.planOfThemExpected(f.expectedBills)}'
-                  : detail,
-              f: f,
-              onOpen: onOpen,
-            ),
-          const SizedBox(height: 14),
+            // A credit account keeps its own words: there a bill is a
+            // charge and money in is a payment, and the signs run the other
+            // way, so the rail's "4 bills −₮…" would read backwards.
+            _BillsLink(parts: f.owed ? [detail] : rail, f: f, onOpen: onOpen),
+          const SizedBox(height: 10),
           Expanded(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 96),
+              // The chart is what the card says now, so it sets the header's
+              // height rather than taking what the balances beside it leave.
+              // Not higher than this: the header would take a row off the
+              // register, which is the page's real work.
+              constraints: const BoxConstraints(minHeight: 132),
               child: _ForecastChart(f: f, onOpen: onOpen),
             ),
           ),
@@ -783,99 +815,158 @@ class ForecastPanel extends StatelessWidget {
   }
 }
 
-/// The forecast with pay but no bills: today, what comes in, where it ends,
-/// and what to add. Each line opens its row.
-/// The forecast's small title, and the dropdown that says how far it
-/// looks: through the next pay period (named by the paycheck's date), or
-/// 30, 60 or 90 days, six months or a year from today.
-class _SpanChoice extends StatefulWidget {
+/// How far ahead the forecast looks. A row of buttons, not a dropdown
+/// (owner, 2026-11-08: "Let's also make the forecast time range a little
+/// more standard. I don't think a dropdown makes sense here"), the one
+/// you're on filled. No colors: these are lengths of time, not kinds of
+/// thing, so a color each would be noise.
+class _SpanChoice extends StatelessWidget {
   const _SpanChoice({
-    required this.label,
     required this.span,
     required this.payPeriodEnd,
     required this.onSpan,
   });
-  final String label;
   final ForecastSpan span;
   final DateTime? payPeriodEnd;
   final ValueChanged<ForecastSpan>? onSpan;
 
-  @override
-  State<_SpanChoice> createState() => _SpanChoiceState();
-}
+  /// 60 days and 6 months went with the dropdown (owner, 2026-11-08). Their
+  /// [ForecastSpan] values and words stay, so a ledger already set to one
+  /// still reads and still draws.
+  static const _offered = [
+    ForecastSpan.payPeriod,
+    ForecastSpan.days30,
+    ForecastSpan.days90,
+    ForecastSpan.year,
+  ];
 
-class _SpanChoiceState extends State<_SpanChoice> {
-  final _menu = MenuController();
+  static String nameOf(Words t, ForecastSpan s) => switch (s) {
+    ForecastSpan.payPeriod => t.planSpanToIncome,
+    ForecastSpan.days30 => t.planSpanDays(30),
+    ForecastSpan.days60 => t.planSpanDays(60),
+    ForecastSpan.days90 => t.planSpanDays(90),
+    ForecastSpan.months6 => t.planSpanMonths(6),
+    ForecastSpan.year => t.planSpanYear,
+  };
 
   @override
   Widget build(BuildContext context) {
-    final onSpan = widget.onSpan;
-    if (onSpan == null) {
-      return Text(widget.label, style: onest(12, color: Mid.ink3));
-    }
     final t = context.t;
-    String name(ForecastSpan s) => switch (s) {
-      ForecastSpan.payPeriod => t.planUntilPaycheck(
-        sayDate(t, widget.payPeriodEnd!),
+    final onSpan = this.onSpan;
+    if (onSpan == null) {
+      return Text(nameOf(t, span), style: onest(12, color: Mid.ink3));
+    }
+    // The pay period needs a payday ahead in this account to run to; without
+    // one, the fixed lengths are what's offered. A ledger left on a length
+    // that is no longer offered keeps its own button until it's changed, so
+    // nothing a person chose disappears under them.
+    final shown =
+        <ForecastSpan>{
+          for (final s in _offered)
+            if (s != ForecastSpan.payPeriod || payPeriodEnd != null) s,
+          if (span != ForecastSpan.payPeriod || payPeriodEnd != null) span,
+        }.toList()..sort((a, b) => a.index.compareTo(b.index));
+    // An inset track with the chosen one raised out of it. By day the card
+    // is white, so the track is the page's grey and the chosen chip white;
+    // at night the card is lifted off a darker page, so they swap.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Mid.isLight ? Mid.raised : Mid.panel,
+        borderRadius: BorderRadius.circular(7),
       ),
-      ForecastSpan.days30 => t.planNext30Days,
-      ForecastSpan.days60 => t.planNextDays(60),
-      ForecastSpan.days90 => t.planNextDays(90),
-      ForecastSpan.months6 => t.planNext6Months,
-      ForecastSpan.year => t.planNextYear,
-    };
-    return MenuAnchor(
-      controller: _menu,
-      style: MenuStyle(
-        backgroundColor: WidgetStatePropertyAll(Mid.raised),
-        shape: const WidgetStatePropertyAll(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final s in shown)
+              Hoverable(
+                key: ValueKey('forecast-span-${s.name}'),
+                onTap: () => onSpan(s),
+                builder: (hover) => DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: s == span
+                        ? (Mid.isLight ? Mid.card : Mid.raised)
+                        : hover
+                        ? Mid.hover
+                        : null,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 4,
+                    ),
+                    child: Text(
+                      nameOf(t, s),
+                      style: onest(
+                        11,
+                        weight: s == span ? 500 : 400,
+                        color: s == span ? Mid.ink : Mid.ink3,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// What the forecast is, on an ⓘ beside the card's name: the one place on
+/// the card where language lives, which is what lets the rest stay quiet.
+/// The owner's own words (2026-11-08).
+class _WhatIsIt extends StatelessWidget {
+  const _WhatIsIt();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final style = onest(11.5, color: Mid.ink, height: 1.45);
+    return Tooltip(
+      key: const ValueKey('forecast-what'),
+      triggerMode: TooltipTriggerMode.tap,
+      waitDuration: const Duration(milliseconds: 300),
+      richMessage: WidgetSpan(
+        child: SizedBox(
+          width: 264,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Whole sentences, each its own message: Mongolian orders the
+              // words inside one, never across two.
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: t.planForecastWhatOne),
+                    const TextSpan(text: ' '),
+                    TextSpan(text: t.planForecastWhatTwo),
+                  ],
+                ),
+                style: style,
+              ),
+              const SizedBox(height: 8),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: t.planForecastWhatThree),
+                    const TextSpan(text: ' '),
+                    TextSpan(text: t.planForecastWhatFour),
+                  ],
+                ),
+                style: style.copyWith(color: Mid.ink2),
+              ),
+            ],
           ),
         ),
-        padding: const WidgetStatePropertyAll(
-          EdgeInsets.symmetric(vertical: 6),
-        ),
       ),
-      onOpen: () => setState(() {}),
-      onClose: () {
-        if (mounted) setState(() {});
-      },
-      menuChildren: [
-        for (final s in ForecastSpan.values)
-          // The pay period needs a payday ahead in this account to be
-          // named by; without one, the fixed spans are what's offered.
-          if (s != ForecastSpan.payPeriod || widget.payPeriodEnd != null)
-            MenuItemButton(
-              key: ValueKey('forecast-span-${s.name}'),
-              onPressed: () => onSpan(s),
-              style: ButtonStyle(
-                minimumSize: const WidgetStatePropertyAll(Size(200, 34)),
-                overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-              ),
-              child: Text(
-                name(s),
-                style: onest(13, color: s == widget.span ? Mid.ink : Mid.ink2),
-              ),
-            ),
-      ],
-      child: Tooltip(
-        message: t.planSpanTip,
-        waitDuration: const Duration(milliseconds: 600),
-        child: Hoverable(
-          key: const ValueKey('forecast-span'),
-          onTap: () => _menu.isOpen ? _menu.close() : _menu.open(),
-          builder: (hover) {
-            final color = hover || _menu.isOpen ? Mid.ink2 : Mid.ink3;
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(widget.label, style: onest(12, color: color)),
-                Icon(Icons.expand_more_rounded, size: 14, color: color),
-              ],
-            );
-          },
-        ),
+      child: Semantics(
+        label: t.planForecastWhatLabel,
+        button: true,
+        child: Icon(Icons.info_outline_rounded, size: 13, color: Mid.ink3),
       ),
     );
   }
@@ -1001,11 +1092,15 @@ class _KnownList extends StatelessWidget {
 /// the end date, with the balance after each; clicking a bill opens it.
 class _BillsLink extends StatefulWidget {
   const _BillsLink({
-    required this.label,
+    required this.parts,
     required this.f,
     required this.onOpen,
   });
-  final String label;
+
+  /// One label per side of the rail, each a whole message of its own: they
+  /// are separate facts set beside each other, never one sentence built
+  /// from pieces.
+  final List<String> parts;
   final Forecast f;
   final ValueChanged<RegisterRow> onOpen;
 
@@ -1095,7 +1190,7 @@ class _BillsLinkState extends State<_BillsLink> {
                   Flexible(
                     child: Shrink(
                       Text(
-                        widget.label,
+                        widget.parts.join(' · '),
                         maxLines: 1,
                         style:
                             onest(
@@ -1317,25 +1412,102 @@ class _BillLineState extends State<_BillLine> {
 
 /// Where things sit on the chart; shared by the painter and the dot targets.
 class _ChartGeometry {
-  _ChartGeometry(this.f, Size size)
-    : w = size.width - _rightGutter,
-      h = size.height - _labelBand {
+  _ChartGeometry(this.f, Size size) : w = size.width {
+    h = size.height - _labelBand - _railBand;
     final values = [f.startBalance, ...f.steps.map((s) => s.balance)];
-    _hi = values.reduce((a, b) => a > b ? a : b).clamp(1, 1 << 62);
-    _lo = values.reduce((a, b) => a < b ? a : b).clamp(-(1 << 62), 0);
+    var hi = values.reduce((a, b) => a > b ? a : b);
+    var lo = values.reduce((a, b) => a < b ? a : b);
+    // The chart is framed on the money that moves, not anchored at ₮0
+    // (ADR 0004, "The forecast's chart does the talking"): a ₮1,500,000 dip
+    // was drawn as a sixth of the height while the payday jump took the
+    // rest. ₮0 is drawn only where it falls inside that frame, and never
+    // pulls the frame to itself. A credit account keeps it: there it is the
+    // paid-off mark, not a cliff.
+    if (f.owed) {
+      if (lo > 0) lo = 0;
+      if (hi < 0) hi = 0;
+    }
+    // A month whose money barely moves is drawn as it is. Without this a 2%
+    // wobble fills the box and the card shouts every month.
+    final least = (hi.abs() / 4).round();
+    if (hi - lo < least) lo = hi - least;
+    if (hi <= lo) hi = lo + 1;
+    _hi = hi;
+    _lo = lo;
+    // The last day's bills were drawn in the final pixel column, under the
+    // chart's own border, and read as the edge of the box rather than money
+    // leaving: the axis runs past the end so the step has room, and a short
+    // flat run after it says the balance stays there.
+    final days = f.end.difference(f.start).inDays;
+    _days = days + (days * 0.08).round().clamp(1, 1 << 30);
+
+    // Bills and the income that follows them the same day landed on one
+    // pixel, so the dip was a zero-width spike. Spread them: it can be seen
+    // and aimed at, and it is truer — they happened in some order that day.
+    final perDay = <DateTime, int>{}, seen = <DateTime, int>{};
+    for (final s in f.steps) {
+      if (!s.spending) perDay[s.date] = (perDay[s.date] ?? 0) + 1;
+    }
+    xs = [
+      for (final s in f.steps)
+        if (s.spending)
+          x(s.date)
+        else
+          () {
+            final n = perDay[s.date]!;
+            final i = seen[s.date] = (seen[s.date] ?? -1) + 1;
+            return (x(s.date) + (i - (n - 1) / 2) * _sameDay).clamp(0.0, w);
+          }(),
+    ];
   }
 
-  static const _labelBand = 20.0, _rightGutter = 24.0;
+  static const _labelBand = 16.0, _railBand = 14.0, _sameDay = 5.0;
   final Forecast f;
-  final double w, h;
+  final double w;
+  late final double h;
   late final int _hi, _lo;
+  late final int _days;
+
+  /// Where each of [Forecast.steps] sits across the chart, same-day events
+  /// spread apart.
+  late final List<double> xs;
+
+  /// ₮0 falls inside the frame, so the line and the fill under it are drawn.
+  bool get showsZero => _lo <= 0 && _hi >= 0;
+
+  /// The rail of what happens, under the plot, and the dates under that.
+  double get railY => h + _railBand / 2;
+  double get datesY => h + _railBand + 4;
 
   double x(DateTime d) =>
-      (d.difference(f.start).inDays /
-          f.end.difference(f.start).inDays.clamp(1, 1000)) *
-      w;
-  // Room above the highest point and below the lowest for their amounts.
-  double y(int v) => 20 + (1 - (v - _lo) / (_hi - _lo)) * (h - 38);
+      (d.difference(f.start).inDays / _days.clamp(1, 4000)) * w;
+
+  /// Air above the high point, and enough below the low one for the dip's
+  /// own figure to sit under it. Above the dip is where the line itself
+  /// runs, so a figure placed there lands on top of it.
+  double y(int v) => 7 + (1 - (v - _lo) / (_hi - _lo)) * (h - 37);
+}
+
+/// A path through [pts] with its corners rounded, so the staircase reads as
+/// a path rather than a diagram (owner, 2026-11-08: the old one was "wimpy").
+/// Each corner's radius shrinks to fit the shorter of its two legs.
+Path _roundedThrough(List<Offset> pts, double radius) {
+  final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+  for (var i = 1; i < pts.length - 1; i++) {
+    final (prev, here, next) = (pts[i - 1], pts[i], pts[i + 1]);
+    final inLen = (here - prev).distance, outLen = (next - here).distance;
+    final r = [radius, inLen / 2, outLen / 2].reduce((a, b) => a < b ? a : b);
+    if (r < 0.5) {
+      path.lineTo(here.dx, here.dy);
+      continue;
+    }
+    final from = here + (prev - here) / inLen * r;
+    final to = here + (next - here) / outLen * r;
+    path.lineTo(from.dx, from.dy);
+    path.quadraticBezierTo(here.dx, here.dy, to.dx, to.dy);
+  }
+  path.lineTo(pts.last.dx, pts.last.dy);
+  return path;
 }
 
 /// Bills that land on the same day share one dot.
@@ -1365,15 +1537,7 @@ class _ForecastChart extends StatelessWidget {
         LayoutId(
           id: 'paint',
           child: CustomPaint(
-            painter: _ForecastPainter(
-              f,
-              CurrencyScope.of(context),
-              payLabel: f.paydayCounted
-                  ? context.t.planChartPay(
-                      roundedIn(context, f.payday!.amount.abs()),
-                    )
-                  : null,
-            ),
+            painter: _ForecastPainter(f, CurrencyScope.of(context)),
           ),
         ),
         for (var i = 0; i < days.length; i++)
@@ -1403,7 +1567,10 @@ class _ForecastChart extends StatelessWidget {
   }
 }
 
-/// Puts each dot's hover target over the dot the painter draws.
+/// Puts each day's hover target over its ticks on the rail, which stand
+/// apart from each other and from the line (ADR 0004, "The forecast's chart
+/// does the talking"). Two bills a day or two apart still overlap on a long
+/// span, and only one of them can be reached: #393.
 class _ChartLayout extends MultiChildLayoutDelegate {
   _ChartLayout(this.f, this.days);
   final Forecast f;
@@ -1414,19 +1581,21 @@ class _ChartLayout extends MultiChildLayoutDelegate {
     layoutChild('paint', BoxConstraints.tight(size));
     positionChild('paint', Offset.zero);
     final g = _ChartGeometry(f, size);
-    const dot = 22.0;
+    const dot = Size(24, 26);
     for (var i = 0; i < days.length; i++) {
-      layoutChild('dot$i', BoxConstraints.tight(const Size(dot, dot)));
+      layoutChild('dot$i', BoxConstraints.tight(dot));
       positionChild(
         'dot$i',
-        Offset(g.x(days[i].first.date), g.y(days[i].last.balance)) -
-            const Offset(dot / 2, dot / 2),
+        Offset(
+          (g.x(days[i].first.date) - dot.width / 2).clamp(0, size.width - dot.width),
+          g.railY - dot.height / 2,
+        ),
       );
     }
     if (hasChild('payday')) {
       const label = Size(120, _ChartGeometry._labelBand);
       layoutChild('payday', BoxConstraints.tight(label));
-      positionChild('payday', Offset(g.w - label.width, g.h));
+      positionChild('payday', Offset(g.w - label.width, g.datesY - 4));
     }
   }
 
@@ -1594,12 +1763,9 @@ class _BillCard extends StatelessWidget {
 }
 
 class _ForecastPainter extends CustomPainter {
-  _ForecastPainter(this.f, this.currency, {this.payLabel});
+  _ForecastPainter(this.f, this.currency);
   final Currency currency;
   final Forecast f;
-
-  /// "+₮5,973,750 pay" on the paycheck's step, running through the period.
-  final String? payLabel;
 
   /// Drawn in these colors; a switch between light and dark repaints.
   final Palette palette = Mid.palette;
@@ -1608,117 +1774,155 @@ class _ForecastPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final g = _ChartGeometry(f, size);
     final w = g.w, h = g.h;
-    final x = g.x, y = g.y;
-    final values = [f.startBalance, ...f.steps.map((s) => s.balance)];
+    final y = g.y;
+    final zero = y(0);
+    // Below zero is a shortfall, in coral; a wallet filled from the bank
+    // isn't, and neither is a card (rule 2).
+    final under = !f.owed && f.takeOut == 0;
 
-    // Balance changes on the day a bill lands, so draw steps; the budget's
-    // spending goes a day at a time, so it slopes.
-    final path = Path()..moveTo(0, y(f.startBalance));
+    // Where the line goes: a flat run to each event, a step at it, and the
+    // budget's spending sloping a day at a time between them.
+    final pts = <Offset>[Offset(0, y(f.startBalance))];
     var prev = f.startBalance;
-    for (final s in f.steps) {
-      if (!s.spending) path.lineTo(x(s.date), y(prev));
-      path.lineTo(x(s.date), y(s.balance));
+    for (var i = 0; i < f.steps.length; i++) {
+      final s = f.steps[i];
+      final sx = g.xs[i];
+      if (!s.spending) pts.add(Offset(sx, y(prev)));
+      pts.add(Offset(sx, y(s.balance)));
       prev = s.balance;
     }
-    path.lineTo(w, y(values.last));
+    pts.add(Offset(w, y(prev)));
+    final path = _roundedThrough(pts, 5);
 
-    final zero = y(0);
-    final dash = Paint()
-      ..color = f.isShort ? Mid.coral.withValues(alpha: 0.45) : Mid.rule
-      ..strokeWidth = 1;
-    for (var dx = 0.0; dx < w; dx += 7) {
-      canvas.drawLine(
-        Offset(dx, zero),
-        Offset((dx + 3).clamp(0, w), zero),
-        dash,
-      );
-    }
-    _label(
-      canvas,
-      formatRounded(0, currency: currency),
-      Offset(w + 8, zero - 7),
-      Mid.ink3,
+    // The wash under the line carries weight near it and fades out, so the
+    // shape reads without anyone having to follow the stroke.
+    final washTo = g.showsZero ? zero : h;
+    canvas.drawPath(
+      Path.from(path)
+        ..lineTo(w, washTo)
+        ..lineTo(0, washTo)
+        ..close(),
+      Paint()
+        ..shader = ui.Gradient.linear(const Offset(0, 0), Offset(0, washTo), [
+          Mid.blue.withValues(alpha: 0.24),
+          Mid.blue.withValues(alpha: 0.05),
+          Mid.blue.withValues(alpha: 0),
+        ], const [0, 0.7, 1]),
     );
 
-    if (f.isShort) {
-      canvas.save();
-      canvas.clipRect(Rect.fromLTRB(-4, zero, w + 4, h));
-      final fill = Path.from(path)
-        ..lineTo(w, zero)
-        ..lineTo(0, zero)
-        ..close();
-      canvas.drawPath(fill, Paint()..color = Mid.coral.withValues(alpha: 0.16));
-      canvas.restore();
+    if (g.showsZero) {
+      final dash = Paint()
+        ..color = f.isShort ? Mid.coral.withValues(alpha: 0.45) : Mid.rule
+        ..strokeWidth = 1;
+      for (var dx = 0.0; dx < w; dx += 7) {
+        canvas.drawLine(
+          Offset(dx, zero),
+          Offset((dx + 3).clamp(0, w), zero),
+          dash,
+        );
+      }
+      // Inside the plot, at the line's own left end: the right gutter it
+      // used to sit in put it beside where the line ends, and it was read
+      // as "you end with nothing".
+      _label(canvas, formatRounded(0, currency: currency), Offset(0, zero - 18), Mid.ink3);
+      if (f.isShort) {
+        canvas.save();
+        canvas.clipRect(Rect.fromLTRB(-4, zero, w + 4, h));
+        canvas.drawPath(
+          Path.from(path)
+            ..lineTo(w, zero)
+            ..lineTo(0, zero)
+            ..close(),
+          Paint()..color = Mid.coral.withValues(alpha: 0.18),
+        );
+        canvas.restore();
+      }
     }
 
+    // A glow under the stroke, then the stroke itself: lighter at the top,
+    // deeper at the bottom.
     final stroke = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.75
-      ..strokeJoin = StrokeJoin.round;
-    canvas.save();
-    canvas.clipRect(Rect.fromLTRB(-4, -4, w + 4, zero));
-    canvas.drawPath(path, stroke..color = Mid.blue);
-    canvas.restore();
-    canvas.save();
-    canvas.clipRect(Rect.fromLTRB(-4, zero, w + 4, h + 4));
-    // Below zero is coral, a shortfall; a wallet filled from the bank isn't.
+      ..strokeWidth = 2.5
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
     canvas.drawPath(
       path,
-      stroke..color = f.owed || f.takeOut > 0 ? Mid.blue : Mid.coral,
-    );
-    canvas.restore();
-
-    for (final s in f.rowSteps) {
-      canvas.drawCircle(
-        Offset(x(s.date), y(s.balance)),
-        2.5,
-        Paint()
-          ..color = !f.owed && f.takeOut == 0 && s.balance < 0
-              ? Mid.coral
-              : Mid.ink2,
-      );
-    }
-    canvas.drawCircle(
-      Offset(0, y(f.startBalance)),
-      3.5,
-      Paint()..color = Mid.card,
-    );
-    canvas.drawCircle(
-      Offset(0, y(f.startBalance)),
-      3.5,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = Mid.ink,
+        ..strokeWidth = 5
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round
+        ..color = Mid.blue.withValues(alpha: 0.28)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.2),
     );
-
-    // Paydays: the end, and the next paycheck when it runs past it.
-    final paydayLine = Paint()..color = Mid.green.withValues(alpha: 0.5);
-    if (f.payday != null) {
-      canvas.drawLine(Offset(w, 2), Offset(w, h), paydayLine);
+    final line = ui.Gradient.linear(const Offset(0, 0), Offset(0, h), [
+      Mid.blue,
+      Mid.blue,
+    ], null);
+    canvas.save();
+    canvas.clipRect(Rect.fromLTRB(-4, -4, w + 4, g.showsZero ? zero : h + 4));
+    canvas.drawPath(path, stroke..shader = line);
+    canvas.restore();
+    if (g.showsZero) {
+      canvas.save();
+      canvas.clipRect(Rect.fromLTRB(-4, zero, w + 4, h + 4));
+      canvas.drawPath(
+        path,
+        stroke
+          ..shader = null
+          ..color = under ? Mid.coral : Mid.blue,
+      );
+      canvas.restore();
+      stroke.shader = line;
     }
-    // Amounts where they matter, so the line reads without hovering: where
-    // it starts, the paycheck, and the lowest point. Each sits beside its
-    // point, never across a step or the payday line, in the first free spot
-    // it prefers; one that would cover another is left off.
+
+    // The rail: what happens, under the shape it causes. A tick for each
+    // bill below the rail, money in above it in green. The line stops being
+    // a wire with dots stuck to it.
+    canvas.drawLine(
+      Offset(0, g.railY),
+      Offset(w, g.railY),
+      Paint()
+        ..color = Mid.rule
+        ..strokeWidth = 1,
+    );
+    for (var i = 0; i < f.steps.length; i++) {
+      final s = f.steps[i];
+      if (s.spending) continue;
+      final inward = s.row.amount > 0;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(g.xs[i] - 1.4, g.railY - (inward ? 8 : 0), 2.8, 8),
+          const Radius.circular(1.4),
+        ),
+        Paint()..color = inward ? Mid.green : Mid.ink2,
+      );
+    }
+
+    // The figures sit at their points, and only where nothing else on the
+    // card says them: the dip, drawn large, and where you land.
+    final bigLow = !f.owed && f.low < f.startBalance;
     final placed = <Rect>[];
     void tag(
       String text,
       Offset at,
       Color color,
-      List<(bool right, bool above)> spots,
-    ) {
+      double size,
+      List<(bool right, bool above)> spots, {
+      int weight = 400,
+    }) {
       final tp = TextPainter(
         text: TextSpan(
           text: text,
-          style: onest(11, color: color, tabular: true),
+          style: onest(size, color: color, weight: weight, tabular: true),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
       for (final (right, above) in spots) {
         final r = Rect.fromLTWH(
-          right ? at.dx + 5 : at.dx - 5 - tp.width,
-          above ? at.dy - tp.height - 3 : at.dy + 3,
+          right ? at.dx + 7 : at.dx - 7 - tp.width,
+          above ? at.dy - tp.height - 4 : at.dy + 4,
           tp.width,
           tp.height,
         );
@@ -1731,52 +1935,82 @@ class _ForecastPainter extends CustomPainter {
     }
 
     String amount(int v) => formatRounded(v, currency: currency);
-    // First: the low point is the one that matters most.
-    if (!f.owed && f.low < f.startBalance) {
+    final lowX = () {
+      for (var i = 0; i < f.steps.length; i++) {
+        if (f.steps[i].balance == f.low && !f.steps[i].spending) return g.xs[i];
+      }
+      return g.x(f.lowDate);
+    }();
+    // The dip is the card's one big number now that no sentence says it.
+    if (bigLow) {
       tag(
         amount(f.low),
-        Offset(x(f.lowDate), y(f.low)),
-        f.low < 0 && f.takeOut == 0 ? Mid.coral : Mid.ink2,
-        [(false, false), (true, false), (false, true), (true, true)],
+        Offset(lowX, y(f.low)),
+        f.low < 0 && under ? Mid.coral : Mid.ink,
+        17,
+        [(false, false), (false, true), (true, false), (true, true)],
+        weight: 500,
+      );
+      canvas.drawCircle(
+        Offset(lowX, y(f.low)),
+        4,
+        Paint()..color = Mid.card,
+      );
+      canvas.drawCircle(
+        Offset(lowX, y(f.low)),
+        4,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.25
+          ..color = f.low < 0 && under ? Mid.coral : Mid.blue,
       );
     }
-    if (payLabel != null) {
-      final s = f.rowSteps.firstWhere((s) => identical(s.row, f.payday));
-      tag(payLabel!, Offset(x(s.date), y(s.balance)), Mid.green, [
-        (true, true),
-        (false, true),
-        (true, false),
-      ]);
-    }
-    tag(amount(f.startBalance), Offset(0, y(f.startBalance)), Mid.ink3, [
-      (true, true),
-      (true, false),
-    ]);
-
-    // Just dates: where the chart starts and ends, and when the paycheck
-    // comes (hover its dot for the amount). Too close to an end, it's left
-    // off rather than drawn over that end's date.
-    if (f.paydayCounted) {
-      final pd = f.rowSteps.firstWhere((s) => identical(s.row, f.payday)).date;
-      final px = x(pd);
-      canvas.drawLine(Offset(px, 2), Offset(px, h), paydayLine);
-      if (px > 56 && px < w - 56) {
-        _label(
-          canvas,
-          shortDate(pd),
-          Offset(px, h + 6),
-          Mid.ink3,
-          center: true,
+    // Where you land: the figure the card never said, and the one whose
+    // absence made the end of the line read as the edge of the box. When
+    // the month ends at its own lowest point the big figure has already
+    // said it, so it isn't printed a second time.
+    if (f.steps.isNotEmpty) {
+      final endY = y(f.endBalance);
+      if (!bigLow || f.endBalance != f.low) {
+        tag(
+          amount(f.endBalance),
+          Offset(w, endY),
+          f.endBalance < 0 && under ? Mid.coral : Mid.ink2,
+          11,
+          // Under the last flat run first: above it is where the step down
+          // to it comes through, and the line would cross the figure.
+          [(false, false), (false, true)],
         );
       }
+      canvas.drawCircle(Offset(pts.last.dx, endY), 3.5, Paint()..color = Mid.card);
+      canvas.drawCircle(
+        Offset(pts.last.dx, endY),
+        3.5,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = f.endBalance < 0 && under ? Mid.coral : Mid.blue,
+      );
     }
-    _label(canvas, shortDate(f.start), Offset(0, h + 6), Mid.ink3);
+
+    // Just dates: where it starts, the dip, and where it stops.
+    _label(canvas, shortDate(f.start), Offset(0, g.datesY), Mid.ink3);
+    final endX = g.x(f.end);
+    if (!f.owed && f.low < f.startBalance && lowX > 52 && lowX < endX - 52) {
+      _label(
+        canvas,
+        shortDate(f.lowDate),
+        Offset(lowX, g.datesY),
+        f.low < 0 && under ? Mid.coral : Mid.ink,
+        center: true,
+      );
+    }
     _label(
       canvas,
       shortDate(f.end),
-      Offset(w, h + 6),
+      Offset(endX, g.datesY),
       Mid.ink3,
-      alignRight: true,
+      center: true,
     );
   }
 
@@ -1807,8 +2041,5 @@ class _ForecastPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ForecastPainter old) =>
-      old.f != f ||
-      old.palette != palette ||
-      old.currency != currency ||
-      old.payLabel != payLabel;
+      old.f != f || old.palette != palette || old.currency != currency;
 }

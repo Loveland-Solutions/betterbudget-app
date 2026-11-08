@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-08** · version 0.77.0 · schema v24 · 1038 tests pass
+**Last updated: 2026-11-08** · version 0.78.0 · schema v24 · 1039 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -39,6 +39,24 @@ Apple's encryption question are filled in App Store Connect. The iPhone app wait
 #112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+
+**The forecast's chart does the talking** (0.78.0, #392; ADR 0004 of the same name): the
+card's picture used to contradict its own figures — the balance ran ₮5,418,682 →
+₮4,292,432, ending about where it started, while the line read as finishing high because
+the last day's bills were drawn in the final pixel column. The chart is now framed on the
+money that moves rather than anchored at ₮0 (₮0 and its coral fill appear only when ₮0
+falls inside that frame; a credit account keeps it always), the time axis runs 8% past
+the end so the last step is drawn in full, and same-day events are spread a few pixels
+apart. The events moved off the line onto a **rail** beneath it, one tick each, green for
+money in. **No headline sentence**: the dip carries its own figure, large, and the end
+balance is named where you land. Words stay only where no line can draw them — nothing
+scheduled, a wallet to fill from the bank, what a card is owed, and a shortfall that
+only happens if money due today never arrives. How far ahead is a **row of buttons**
+(**To income · 30 days · 90 days · 1 year**; 60 days and 6 months are gone, their words
+kept for a ledger still set to one), and an **ⓘ** beside the word Forecast says what the
+forecast is. The line under the chart is the key to the rail: `4 bills −₮7,100,000 ·
+1 income +₮5,973,750`. The computer only. No schema change. Not built, and filed:
+#393, #394, #395.
 
 **The register's tab row** (0.75.0–0.77.0, #384, #387, #390; ADR 0004 "Import beside
 Add", "The filters are buttons, each in its own color"): the filters, then **Import

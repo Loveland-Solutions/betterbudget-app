@@ -145,7 +145,10 @@ void main() {
   testWidgets('ledger renders balances, forecast and register', (tester) async {
     final db = await pumpLedger(tester);
     expect(find.text('TDB Checking'), findsWidgets);
-    expect(find.text('Lowest ₮1,392,250 on 10.01'), findsOneWidget);
+    // No headline sentence: the chart carries the figures, and the line
+    // under it is the key to its rail.
+    expect(find.text('3 bills −₮2,790,200'), findsOneWidget);
+    expect(find.textContaining('Lowest'), findsNothing);
     // Header sum: cleared + uncleared = working; reconciled shows only when.
     expect(find.text('−₮116,400.00', findRichText: true), findsOneWidget);
     expect(find.text('Last reconciled on 09.10'), findsOneWidget);
@@ -1402,7 +1405,7 @@ void main() {
   testWidgets('the bill count lists every bill before payday', (tester) async {
     final db = await pumpLedger(tester);
     final link = find.byKey(const ValueKey('forecast-bills'));
-    expect(find.text('3 bills · ₮2,790,200 through 10.10'), findsOneWidget);
+    expect(find.text('3 bills −₮2,790,200'), findsOneWidget);
     await tester.tap(link);
     await tester.pumpAndSettle();
     // Each bill with the balance after it, then the income that ends it.
@@ -5722,11 +5725,10 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(find.text('Next 30 days'), findsOneWidget);
+    expect(find.text('30 days'), findsOneWidget);
     // The amount and how late, not a name or a date that reads like money.
     expect(find.text('+₮2,500,000 in, 2 days late'), findsOneWidget);
     expect(find.text(' · not counted'), findsOneWidget);
-    expect(find.text('Lowest ₮1,392,250 on 10.12'), findsOneWidget);
     // Only the header: the register below isn't what this is about.
     await expectLater(
       find.byType(ForecastPanel),
@@ -5916,11 +5918,11 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await settle(tester);
-    expect(
-      find.text('Runs out on 09.30 · up to ₮707,750 short'),
-      findsOneWidget,
-    );
-    // The sidebar says so too, with a coral dot beside the account.
+    // No headline: the chart says it, going coral under ₮0 with the dip's
+    // own figure (ADR 0004, "The forecast's chart does the talking"). The
+    // sidebar's dot still carries the words, for an account you aren't on.
+    expect(find.textContaining('Runs out on'), findsNothing);
+    // The sidebar says so, with a coral dot beside the account.
     final short = find.byWidgetPredicate(
       (w) =>
           w.key is ValueKey<String> &&
@@ -5982,8 +5984,7 @@ void main() {
     // The headline is calm; the line above the title isn't, and the
     // sidebar's dot agrees. Both name the first dip: what it would take
     // to stay above zero that day.
-    expect(find.text('Until your income on 11.10'), findsOneWidget);
-    expect(find.text('Lowest ₮1,392,250 on 10.01'), findsOneWidget);
+    expect(find.text('To income'), findsOneWidget);
     expect(
       find.text('After 11.10: runs out on 11.20 · ₮1,607,750 short'),
       findsOneWidget,
@@ -5998,36 +5999,34 @@ void main() {
       tester,
       find.byKey(const ValueKey('forecast-short-ahead')),
     );
-    expect(find.text('Next 90 days'), findsOneWidget);
-    expect(
-      find.text('Runs out on 11.20 · up to ₮1,607,750 short'),
-      findsOneWidget,
-    );
+    // The 90 days button is the one filled now, and the shortfall is the
+    // chart's to say: the line goes coral under ₮0 and the dip carries the
+    // figure, so no sentence repeats it.
+    expect(find.text('90 days'), findsOneWidget);
+    expect(find.textContaining('Runs out'), findsNothing);
     expect(find.byKey(const ValueKey('forecast-short-ahead')), findsNothing);
     await tidy(tester, db);
   });
 
-  testWidgets('the forecast looks as far as the small title says', (
+  testWidgets('how far ahead the forecast looks is a row of buttons', (
     tester,
   ) async {
     final db = await pumpLedger(tester);
-    // The demo's salary on 10.10 ends the forecast; the title is the
-    // dropdown, and names that choice by the date.
-    expect(find.text('Until your income on 10.10'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('forecast-span')));
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('forecast-span-payPeriod')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('forecast-span-year')), findsOneWidget);
+    // Every length is on the card, in one click, with the one you're on
+    // filled: no menu to open first, and no sentence naming the end date,
+    // which the chart already carries (ADR 0004, 2026-11-08).
+    expect(find.text('To income'), findsOneWidget);
+    expect(find.text('30 days'), findsOneWidget);
+    expect(find.text('90 days'), findsOneWidget);
+    expect(find.text('1 year'), findsOneWidget);
+    expect(find.textContaining('Until your income'), findsNothing);
+    // 60 days and 6 months went with the dropdown.
+    expect(find.text('60 days'), findsNothing);
+    expect(find.text('6 months'), findsNothing);
     await tapAndWait(
       tester,
       find.byKey(const ValueKey('forecast-span-days90')),
     );
-    // 90 days from 09.16 is 12.15: the title and the bill line say so.
-    expect(find.text('Next 90 days'), findsOneWidget);
-    expect(find.textContaining('through 12.15'), findsOneWidget);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/forecast_span_90.png'),
@@ -6035,16 +6034,37 @@ void main() {
     // One choice for every account, kept in the ledger.
     var data = (await tester.runAsync(db.loadLedger))!;
     expect(data.prefs['forecast.span'], 'days90');
-    // And back to the pay period.
-    await tester.tap(find.byKey(const ValueKey('forecast-span')));
-    await tester.pumpAndSettle();
+    // And back to the pay period, in one click.
     await tapAndWait(
       tester,
       find.byKey(const ValueKey('forecast-span-payPeriod')),
     );
-    expect(find.text('Until your income on 10.10'), findsOneWidget);
     data = (await tester.runAsync(db.loadLedger))!;
     expect(data.prefs['forecast.span'], 'payPeriod');
+    await tidy(tester, db);
+  });
+
+  testWidgets('the ⓘ says what the forecast is', (tester) async {
+    final db = await pumpLedger(tester);
+    // The one place on the card where language lives.
+    await tapAndWait(tester, find.byKey(const ValueKey('forecast-what')));
+    // Each sentence is its own message; they sit in one paragraph.
+    expect(
+      find.text(
+        'The forecast shows your financial short-term future if the budget '
+        'is followed. It puts scheduled bills and income on a timeline.',
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'It starts with today’s working balance. You can change how far '
+        'ahead it looks with the buttons above.',
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
     await tidy(tester, db);
   });
 
@@ -9318,7 +9338,7 @@ void main() {
         );
       });
       await settle(tester);
-      expect(find.textContaining('Until your income on'), findsOneWidget);
+      expect(find.text('To income'), findsOneWidget);
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/forecast_labeled.png'),

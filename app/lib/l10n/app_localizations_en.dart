@@ -1235,6 +1235,62 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planSpanToIncome => 'To income';
+
+  @override
+  String planSpanDays(int count) {
+    return '$count days';
+  }
+
+  @override
+  String planSpanMonths(int count) {
+    return '$count months';
+  }
+
+  @override
+  String get planSpanYear => '1 year';
+
+  @override
+  String get planForecastWhatLabel => 'What the forecast is';
+
+  @override
+  String get planForecastWhatOne =>
+      'The forecast shows your financial short-term future if the budget is followed.';
+
+  @override
+  String get planForecastWhatTwo =>
+      'It puts scheduled bills and income on a timeline.';
+
+  @override
+  String get planForecastWhatThree => 'It starts with today’s working balance.';
+
+  @override
+  String get planForecastWhatFour =>
+      'You can change how far ahead it looks with the buttons above.';
+
+  @override
+  String planRailBills(int count, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bills −$amount',
+      one: '1 bill −$amount',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planRailIn(int count, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count incomes +$amount',
+      one: '1 income +$amount',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String planLowest(String amount, String date) {
     return 'Lowest $amount on $date';
   }
