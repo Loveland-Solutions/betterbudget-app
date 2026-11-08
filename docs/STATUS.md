@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-07** · version 0.76.0 · schema v24 · 1038 tests pass
+**Last updated: 2026-11-08** · version 0.77.0 · schema v24 · 1038 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -40,11 +40,19 @@ Apple's encryption question are filled in App Store Connect. The iPhone app wait
 
 **Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
 
-**The register's tab row** (0.75.0–0.76.0, #384, #387; ADR 0004 "Import beside Add"):
-tabs, then **Import transactions…** (blue, the color of what's still to come in),
-**Manually add a transaction** (green), and the search box at the row's end; the
-balance header keeps Reconcile alone. Cash and All accounts have no Import, and Import
-stays offered while reconciling. The computer only. No schema change.
+**The register's tab row** (0.75.0–0.77.0, #384, #387, #390; ADR 0004 "Import beside
+Add", "The filters are buttons, each in its own color"): the filters, then **Import
+transactions…** (blue, the color of what's still to come in), **Manually add a
+transaction** (green), and the search box at the row's end; the balance header keeps
+Reconcile alone. Cash and All accounts have no Import, and Import stays offered while
+reconciling. **Each filter is a button in its own color** (owner, 2026-11-07, option C
+of three): All in the page's quieter ink, **Uncleared** blue, **Scheduled** gold, **Not
+categorized** coral, the one you're on filled deeper with a full outline and its label
+in 600. The closable Cleared and Reconciled tab keeps the plain ink chip and leads with
+its glyph, so gold still says "done" on the diamond. By day gold is `#866100`, so
+Scheduled reads brown-olive; at night it is the coins' gold. The computer only. No
+schema change. Known and not fixed here: a row added while a filter is on saves,
+doesn't appear and says nothing (#389).
 
 **Amounts group as they're typed** (0.74.0, #324; ADR 0004 "Amounts group in thousands as
 they're typed"): every money field on the computer, and the phone's New category, shows

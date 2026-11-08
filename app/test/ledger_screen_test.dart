@@ -1514,6 +1514,14 @@ void main() {
       findsOneWidget,
     );
 
+    // All four filters at once, each in its own color (owner, 2026-11-07):
+    // All in the page's ink, Uncleared blue, Scheduled gold, Not categorized
+    // coral. The widest the row ever gets.
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/ledger_tabs_four.png'),
+    );
+
     // The tab shows just those rows.
     await tester.tap(find.byKey(tab));
     await tester.pumpAndSettle();

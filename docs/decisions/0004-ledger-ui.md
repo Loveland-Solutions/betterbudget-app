@@ -5257,3 +5257,44 @@ button." A bank file is the other way rows come in, so it stands next to typing 
   Add says what it does now that it stands beside Import; in Mongolian **Гүйлгээ
   гараар нэмэх**, for Tanan's pass (#90). The search box keeps its place in the tab
   row, beside what it narrows (2026-09-30), just at the row's end.
+
+## The filters are buttons, each in its own color (owner, 2026-11-07, #390)
+
+Owner, on the register's tab row: "Let's make this section more intuitive. Maybe change
+them into buttons of different colors." The design committee (layout, words, flow, and a
+first-time reader) was run on the row and agreed the trouble was not which colors the
+filters were, but that they were not drawn as controls at all: `Mid.ink3`, the palette's
+quietest ink — the same gray as the empty-register sentence — with no box and no border,
+28 points tall beside two filled 36-point buttons. The first-time reader: "in this app I
+have just learned that a thing you press is filled solid. So at first I did not think I
+could click them at all." The chosen tab's `blueWash` is blue at 10% alpha, about 4% off
+the page by day.
+
+Three ways were drawn (https://claude.ai/artifact/BT5swwqerQAtmDzRg4pFYb): **A**, the
+app's own `_Segmented` from a category's Edit, one outline around the set; **B**, the
+same switch with the chosen position lifted; **C**, four colors. The owner chose **C**,
+having been shown that every hue in the palette already has a job.
+
+- **Each filter is a button in its own color**, always boxed: 32 tall, radius 8, 1px
+  border, the label and the count in that color. **All** takes the page's quieter ink,
+  **Uncleared** blue, **Scheduled** gold, **Not categorized** coral (`_Tab.hue` in
+  `ui/register.dart`).
+- **The one you're on fills deeper** (0.22 against 0.10), outlines in full color and
+  sets its label in 600. Hover is 0.16. Color alone never says which is chosen, so the
+  fill and the outline do it too.
+- **This narrows "Gold is an accent" (2026-10-09) rather than undoing it.** A scheduled
+  *row* is still gray dashes with a blue Confirm, and the reconciled diamond keeps gold.
+  What changed is that the Scheduled *filter* now wears gold. `schemes_test.dart`'s list
+  of files allowed to use `Mid.gold` gains `register.dart`.
+- **The closable Cleared and Reconciled tab keeps the plain ink chip** and leads with its
+  own `StatusGlyph`, so gold still says "done" on the diamond while Scheduled wears gold
+  beside it. Decided along the owner's lines, not asked.
+- **Known, and told to the owner:** by day gold is `#866100`, so the Scheduled button
+  reads brown-olive — the cast the owner objected to in October. At night it is the
+  coins' `#F2BD4B`. The owner's own Mac is on the night colors.
+- **The words are unchanged.** English "Uncleared" against Mongolian `Хүлээгдэж буй`
+  ("pending", the banks' own word) was put to the owner with "Not cleared" and "Pending"
+  as alternatives; the owner kept **Uncleared**.
+- **Not built, and filed instead:** a row added while a filter is on saves, does not
+  appear and says nothing (#389); `ledgerNotInThisView` exists in both languages and is
+  not reached.
