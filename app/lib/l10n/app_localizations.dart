@@ -1728,6 +1728,72 @@ abstract class Words {
   /// **'Look as far as {date}'**
   String planShortAheadTip(String date);
 
+  /// Forecast, how-far-ahead buttons: run to the next income. The dropdown this replaced said 'Until your income on 12.01'; the chart's end date says the date now.
+  ///
+  /// In en, this message translates to:
+  /// **'To income'**
+  String get planSpanToIncome;
+
+  /// Forecast, how-far-ahead buttons: a fixed number of days from today. Kept short: it sits in a row of buttons.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days'**
+  String planSpanDays(int count);
+
+  /// Forecast, how-far-ahead buttons: a fixed number of months from today. Only shown for a ledger already set to it (6 months is no longer offered).
+  ///
+  /// In en, this message translates to:
+  /// **'{count} months'**
+  String planSpanMonths(int count);
+
+  /// Forecast, how-far-ahead buttons: a year from today.
+  ///
+  /// In en, this message translates to:
+  /// **'1 year'**
+  String get planSpanYear;
+
+  /// Forecast: what a screen reader says for the small information mark beside the word Forecast.
+  ///
+  /// In en, this message translates to:
+  /// **'What the forecast is'**
+  String get planForecastWhatLabel;
+
+  /// Forecast tooltip, first sentence. The owner's own wording (2026-11-08). 'if the budget is followed' is what covers the money the budget plans to spend and the bills it expects before they are entered.
+  ///
+  /// In en, this message translates to:
+  /// **'The forecast shows your financial short-term future if the budget is followed.'**
+  String get planForecastWhatOne;
+
+  /// Forecast tooltip, second sentence, after the first in the same paragraph. The owner's own wording (2026-11-08).
+  ///
+  /// In en, this message translates to:
+  /// **'It puts scheduled bills and income on a timeline.'**
+  String get planForecastWhatTwo;
+
+  /// Forecast tooltip, second paragraph, first sentence. The owner's own wording (2026-11-08). 'working balance' is the Working line in the balances beside this card.
+  ///
+  /// In en, this message translates to:
+  /// **'It starts with today’s working balance.'**
+  String get planForecastWhatThree;
+
+  /// Forecast tooltip, second paragraph, second sentence. Points at the row of how-far-ahead buttons at the top right of the card.
+  ///
+  /// In en, this message translates to:
+  /// **'You can change how far ahead it looks with the buttons above.'**
+  String get planForecastWhatFour;
+
+  /// Forecast, the line under the chart: how many bills are on the rail and what they come to. Money out keeps its minus. Set beside the income label with a · between; each is a whole message of its own.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 bill −{amount}} other{{count} bills −{amount}}}'**
+  String planRailBills(int count, String amount);
+
+  /// Forecast, the line under the chart: how much money comes in before the end, and how many times. Says 'income', the app's word, because it covers a paycheck, a transfer in and a refund alike.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 income +{amount}} other{{count} incomes +{amount}}}'**
+  String planRailIn(int count, String amount);
+
   /// Account header, forecast panel: headline, the lowest the balance gets before next income
   ///
   /// In en, this message translates to:

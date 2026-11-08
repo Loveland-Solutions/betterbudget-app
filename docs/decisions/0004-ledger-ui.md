@@ -5298,3 +5298,97 @@ having been shown that every hue in the palette already has a job.
 - **Not built, and filed instead:** a row added while a filter is on saves, does not
   appear and says nothing (#389); `ledgerNotInThisView` exists in both languages and is
   not reached.
+
+## The forecast's chart does the talking (owner, 2026-11-08, #392)
+
+Owner, on the Forecast card: "What can we do to make this nicer to look at and more
+intuitive to understand?" Then, on the first mockups: "Less is more. Too much
+information gives the user target confusion"; "The little 1 pixel forecast line is
+wimpy, can we get something that looks nicer?"; and the one that settled it: **"I don't
+need you to use language so much. Use the chart to explain."**
+
+The card was not merely plain, it contradicted itself. On the owner's own ledger the
+balance ran ₮5,418,682 → ₮4,292,432, ending about where it started, while the picture
+read as a long high flat line finishing strong: the ₮5,600,000 of bills due on the last
+day were drawn in the final pixel column, beneath a green rule sitting on the chart's
+own border. The first-time reader took that drop for the edge of the box, expected to
+finish near ₮9,892,432, and said so: "a short drop at the very right edge, right on the
+border line, with no number on it; I took it for the edge of the box, not money
+leaving." They also read `₮0`, which sat in the right gutter beside the line's end, as
+"you end with nothing", and could not place `₮7,100,000` against the picture at all.
+
+Twelve cards were drawn over five passes
+(https://claude.ai/artifact/WE2sCAsfJXvxUrvCuzs8N5). **A** fixed the chart and left
+every word alone. **B** added a sentence for a headline ("Down to ₮3,918,682 on 11.16,
+then back up"), **C** unfolded the bill list inside the card. **D** and **E** cut marks
+and thickened the line. The owner rejected the sentence headline outright — the card is
+not to narrate what it can draw — and the third pass (**F**, **G**) dropped it, giving
+the space to the chart and setting the figures at their own points. **J**, **K** and
+**L** then drew the same data three ways; the owner chose **K**.
+
+- **The chart is framed on the money that moves.** The floor is the low and the ceiling
+  the high; `_ChartGeometry._lo` no longer clamps to zero. **₮0 and its coral fill are
+  drawn only when ₮0 falls inside that band**, and never pull the band toward
+  themselves. A **minimum band of a quarter of the high** keeps a month whose money
+  barely moves from being drawn as a canyon. A credit account keeps its ₮0 line always:
+  there it is the paid-off mark, not a cliff, and it is never coral (rule 2 stands).
+  What keeps the two states one chart is that the shape rule never changes — the dip
+  always touches the floor, the peak the ceiling, in the same blue at the same weight.
+- **The time axis runs 8% past the end date**, at least one day, so the last day's step
+  is drawn in full with a short flat run after it, and the end date's label sits under
+  the 92% mark.
+- **Events that land on the same day are spread over a few pixels.** The dip to
+  ₮3,918,682 and the income that followed it the same day were a zero-width spike with
+  a dot stuck on it; as a notch it can be seen and aimed at, and it is truer — they
+  happened in some order during that day.
+- **The events come off the line onto a rail beneath the plot**: one tick for each bill
+  in the app's quiet ink, the income's in green above the rail. The chart stops being a
+  wire with dots stuck to it and becomes two layers, the shape above and its causes
+  below.
+- **The line is 2.5px**, step corners rounded, a vertical gradient from `#9CC4F5` to
+  `#5192E0`, a soft glow, and a wash beneath that carries weight near the line and
+  fades out. The owner on the old one: "wimpy".
+- **No headline sentence.** The low is drawn large at the dip itself, and the **end
+  balance is named where you land** — the figure the card never said, and the one whose
+  absence frightened the first-time reader.
+- **Cut from the chart:** the start ring's amount (it is the Working balance, an inch to
+  its left), the low's second tag (the big figure at the dip is the only one), the `₮0`
+  label whenever ₮0 is out of band, and **both green vertical rules** — the one at the
+  right edge sat on the chart's own border and read as a frame, not a fact.
+- **The range is a segmented control, not a dropdown** (owner: "Let's also make the
+  forecast time range a little more standard. I don't think a dropdown makes sense
+  here"): **To income · 30 days · 90 days · 1 year**, the one you are on filled. **No
+  colors**: these are lengths of time, not kinds of thing, so a color each would be
+  noise — this does not reach into the filters' colors above. The owner chose the
+  four-button row over one keeping all six ranges, so **60 days and 6 months go**.
+- **"Until your income on 12.01" is gone with it.** The filled button says which range
+  and the chart's end date says where it stops; the sentence said both again and made
+  12.01 look like a second income competing with the green step at 11.16.
+- **A tooltip on an ⓘ beside the word Forecast**, on hover and on focus, the owner's own
+  words after three passes: "The forecast shows your financial short-term future if the
+  budget is followed. It puts scheduled bills and income on a timeline." / "It starts
+  with today's working balance. You can change how far ahead it looks with the buttons
+  above." Each sentence is its own string in both `.arb` files. This is the only place
+  on the card where language lives, which is what lets the rest stay quiet. Rejected on
+  the way: a longer version naming the budget's daily spending and the bills expected
+  before they are entered — "if the budget is followed" carries both in five words.
+- **"Timeframe" was asked about and not used** (owner: "Can you think of a better word
+  than timeframe?"). The plain phrase is **how far ahead**, which the span's own tooltip
+  already used; it names no control, so nothing has to be kept in sync. **Range** is the
+  noun if one is ever needed. Not "period" (it collides with pay period) or "span" (a
+  code word).
+- **The line under the chart is the key to the rail:** `4 bills −₮7,100,000 · 1 income
+  +₮5,973,750`. The owner, on seeing five ticks: "'4 bills' isn't correct when one of
+  them is income." One umbrella count was rejected — **transactions** is the app's word
+  for rows that have happened ("Manually add a transaction"), and a single count of five
+  would have to carry either the bills-only total or a net figure nobody says aloud.
+  **Scheduled**, the register's own filter name, would fight the existing "N of them
+  expected" tail, since some of those rows are the budget's expectation and not
+  scheduled at all. If one word is ever wanted, it is **coming up**.
+- **The forecast's income tag moved off the chart** onto that line, so one fewer label
+  floats over the plot.
+- **Not built, and filed instead:** forecast dots that land close together cannot all be
+  clicked, only the one laid out last (#393); the bills line is not reachable by Tab and
+  opening it takes focus from the register (#394); and this ADR's older line that the
+  dots do nothing during a reconcile, against the app's coral "Finish reconciling first"
+  (#395).

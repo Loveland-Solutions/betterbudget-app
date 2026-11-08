@@ -1195,6 +1195,62 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planSpanToIncome => 'Орлого хүртэл';
+
+  @override
+  String planSpanDays(int count) {
+    return '$count хоног';
+  }
+
+  @override
+  String planSpanMonths(int count) {
+    return '$count сар';
+  }
+
+  @override
+  String get planSpanYear => '1 жил';
+
+  @override
+  String get planForecastWhatLabel => 'Төсөөлөл гэж юу вэ';
+
+  @override
+  String get planForecastWhatOne =>
+      'Төсөөлөл нь төсвөө баримталбал ойрын хугацаанд таны санхүү ямар байхыг харуулна.';
+
+  @override
+  String get planForecastWhatTwo =>
+      'Товлосон нэхэмжлэх, орлогыг цагийн шулуун дээр байрлуулна.';
+
+  @override
+  String get planForecastWhatThree => 'Өнөөдрийн ажлын үлдэгдлээс эхэлнэ.';
+
+  @override
+  String get planForecastWhatFour =>
+      'Дээрх товчнуудаар хэр хол харахыг өөрчилж болно.';
+
+  @override
+  String planRailBills(int count, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count нэхэмжлэх −$amount',
+      one: '1 нэхэмжлэх −$amount',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planRailIn(int count, String amount) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count орлого +$amount',
+      one: '1 орлого +$amount',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String planLowest(String amount, String date) {
     return 'Доод үлдэгдэл $amount · $date';
   }
