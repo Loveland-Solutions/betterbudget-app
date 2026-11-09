@@ -223,10 +223,6 @@ class WordsEn extends Words {
   String get ledgerSaveOrDiscard => 'Save or cancel the open row first';
 
   @override
-  String get ledgerFinishReconcileFirst =>
-      'Finish or cancel the reconcile first';
-
-  @override
   String ledgerConfirmed(String name) {
     return '$name confirmed';
   }

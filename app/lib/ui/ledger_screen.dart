@@ -2177,14 +2177,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   void _clearSelection() => setState(() => _selected = null);
 
-  /// From a forecast dot: show that scheduled transaction, selected.
+  /// From the forecast: show that scheduled transaction, selected. Not
+  /// offered while reconciling — the register hides scheduled rows then, so
+  /// the forecast's clicks are withheld rather than refused (#395).
   void _openScheduled(RegisterRow r) {
-    // The register hides scheduled rows while reconciling, and keys would act
-    // on a row nobody can see.
-    if (_reconcile != null) {
-      _showFailure(context.t.ledgerFinishReconcileFirst);
-      return;
-    }
     if (_editing != null) {
       if (_editing!.controller.isDirty()) {
         _showFailure(context.t.ledgerSaveOrDiscard);
@@ -7362,7 +7358,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               // A category in use with a plan or an amount assigned; one
               // archived or deleted isn't the budget any more.
               maybePaid: maybePaid.length,
-              onShowMaybePaid: maybePaid.isEmpty
+              onShowMaybePaid: maybePaid.isEmpty || _reconcile != null
                   ? null
                   : () => _showIn(
                       maybePaid.first.accountId,
@@ -7396,7 +7392,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     ),
               hoveredStatus: _hoveredStatus,
               activeStatus: activeStatus,
-              onOpenScheduled: _openScheduled,
+              onOpenScheduled: _reconcile == null ? _openScheduled : null,
               // Cash: no statement to reconcile against.
               onReconcile: account.isCash
                   ? null

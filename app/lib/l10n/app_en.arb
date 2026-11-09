@@ -348,10 +348,6 @@
   "@ledgerSaveOrDiscard": {
     "description": "Toast when leaving a row that has unsaved edits."
   },
-  "ledgerFinishReconcileFirst": "Finish or cancel the reconcile first",
-  "@ledgerFinishReconcileFirst": {
-    "description": "Toast when a forecast dot is clicked while reconciling."
-  },
   "ledgerConfirmed": "{name} confirmed",
   "@ledgerConfirmed": {
     "description": "Undo-menu label after a scheduled transaction is confirmed. name is the payee.",

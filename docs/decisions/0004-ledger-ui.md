@@ -667,8 +667,8 @@ What's known so far:
     also locked category, opening-balance and statement-less sides, which made rows
     look unlocked but refuse edits, or stay locked forever. Schema version 3 puts those
     back to cleared. The database also refuses statement dates out of order, and
-    forecast dots do nothing while a reconcile is open (the register hides scheduled
-    rows then).
+    the forecast offers no clicks while a reconcile is open (the register hides
+    scheduled rows then; see "The chart has one hover owner and one focus stop").
 
 17. **A transfer says which way it goes before it's added** (owner's call, from
     budget-app review finding H). While the category is "→ Account", a line under
@@ -5535,3 +5535,44 @@ clicked redraws the forecast to that day.
   #409 (the two-year limit), #410 (money in on the chosen last day is counted as
   landed), #411 (the forecast is worked out on every rebuild) and #412 (the calendar
   pages one month per click).
+
+## The chart has one hover owner and one focus stop (2026-11-09, #393, #394, #395)
+
+Three findings from the flow review of #392, decided along the lines the owner has
+already given rather than asked back.
+
+- **The nearest event owns the space around it.** A hover target each meant that on a
+  90-day or year span two bills a day or two apart overlapped, and only the one laid
+  out last could be reached: the earlier ones weren't fiddly, they were unhittable. One
+  owner now covers the plot and the rail and snaps to the nearest event by x. Nearest
+  wins rather than paint order, there is no cut-off — every point across the chart
+  belongs to some event — and the strip past the last one belongs to the payday sitting
+  in the right gutter.
+- **The card is placed once, and stays inside the chart.** Each event used to anchor its
+  own card and guess; the last day's sat at x = w and hung off the end. The owner places
+  it and clamps it to the chart's own width, so it stays over the thing it describes
+  instead of across the register's search box. A thin line from the top of the plot down
+  to the event's tick says which event the card speaks for: clamped, the card can sit
+  well away from it, and at a year the ticks are about a pixel apart.
+- **One focus stop for the whole chart, not one per event.** The number of events
+  changes with the range, so a stop each would move the Tab order under the person.
+  Tab lands on the first event — the card is the focus state — and ← → walk them, Enter
+  opens the one it is on, Esc puts the card away without leaving the chart.
+- **The bill count line is a focus stop too.** It was a bare `GestureDetector`, so half
+  the card was mouse-only. Once it is a real stop, Esc after opening the list from the
+  keyboard comes back to the line and Esc after opening it with the mouse goes back to
+  the register, because what held focus at the moment it opened is already the right
+  answer — the behaviour ADR 0004 asked for, which was unreachable before.
+- **While a reconcile is open the forecast offers no clicks at all.** It used to show a
+  coral failure card saying "Finish or cancel the reconcile first". Coral is for
+  something wrong, and nothing is wrong — the person clicked a thing that has no job
+  right now, because the register hides scheduled rows while reconciling. So the pointer
+  cursor, the row opening and the bill lines' clicks are all withheld, while the chart
+  still reads, its cards still show and the bill list still unfolds. Nothing is taken
+  away that there was anything for, so nothing needs reporting, and the string is gone.
+  This replaces the earlier note here that the dots simply "do nothing" while
+  reconciling: they did something, and it was a failure message.
+- Still open from these reviews: #398 (the card says nothing about what the budget plans
+  to spend), #408, #409, #411, #412, #413, and #410, which the owner answered on
+  2026-11-09 — money due on a day picked with Custom… is **not** counted as arrived, the
+  way a pay period already treats its last day — and which is not built yet.

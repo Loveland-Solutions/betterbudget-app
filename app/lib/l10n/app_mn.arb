@@ -49,7 +49,6 @@
   "ledgerRedone": "Дахин хийлээ · {action}",
   "ledgerUndo": "Буцаах",
   "ledgerSaveOrDiscard": "Эхлээд нээлттэй мөрөө хадгалах эсвэл болиулна уу",
-  "ledgerFinishReconcileFirst": "Эхлээд тулгалтаа дуусгах эсвэл болиулна уу",
   "ledgerConfirmed": "{name} бүртгэгдлээ",
   "ledgerConfirmedAmount": "{when, select, early{{name} эрт бүртгэгдлээ · {amount}} other{{name} бүртгэгдлээ · {amount}}}",
   "ledgerConfirmedAmountPlanned": "{when, select, early{{name} эрт бүртгэгдлээ · {amount}, төлөвлөсөн {planned}} other{{name} бүртгэгдлээ · {amount}, төлөвлөсөн {planned}}}",
