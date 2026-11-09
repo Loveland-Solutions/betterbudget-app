@@ -1114,6 +1114,10 @@ class WordsEn extends Words {
   String get planLateNotCounted => ' · not counted';
 
   @override
+  String get planNotCounted =>
+      'Not counted: it may arrive after the bills go out.';
+
+  @override
   String get planNothingScheduled => 'Nothing scheduled';
 
   @override

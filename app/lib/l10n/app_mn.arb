@@ -249,6 +249,7 @@
   "planLateToday": "+{amount} орлого, өнөөдөр орох ёстой",
   "planLateDays": "+{amount} орлого, {days} хоног хоцорсон",
   "planLateNotCounted": " · тооцоогүй",
+  "planNotCounted": "Тооцоогүй: төлбөрүүд гарсны дараа орж ирж болзошгүй.",
   "planNothingScheduled": "Товлосон зүйл алга",
   "planCreditAfter": "{date} гэхэд {amount} илүү төлөлттэй",
   "planOwedAfterDate": "{date} гэхэд {amount} өртэй",

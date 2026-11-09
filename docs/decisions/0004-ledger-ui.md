@@ -5573,6 +5573,57 @@ already given rather than asked back.
   This replaces the earlier note here that the dots simply "do nothing" while
   reconciling: they did something, and it was a failure message.
 - Still open from these reviews: #398 (the card says nothing about what the budget plans
-  to spend), #408, #409, #411, #412, #413, and #410, which the owner answered on
-  2026-11-09 — money due on a day picked with Custom… is **not** counted as arrived, the
-  way a pay period already treats its last day — and which is not built yet.
+  to spend), #408, #409, #411, #412 and #413. #410 is answered and built: see "Money due
+  on a day picked with Custom… hasn't arrived" below.
+
+## Money due on a day picked with Custom… hasn't arrived (owner, 2026-11-09, #410)
+
+Owner, answering the question from the budget-app review of #397: "leave it out, the way
+a pay period already does. Money due on the day picked with Custom… is not counted as
+arrived, so the balance the chart names for that day is the cautious one — what the
+household would have if the money hasn't landed yet. Extending the range by a day shows
+it arriving."
+
+A pay period has always held back money in on its last day: the paycheck that ends it
+may land after the bills do. A fixed length did not, and did not need to — nobody reads
+day 30 of a 30-day look as a deadline. A day the person picked is different, and the
+reason it was picked is the reason: something has to be paid that day. A salary due the
+same morning was counted as received, so the balance the chart named for the day could
+be a whole paycheck higher than what the household would actually have when it paid.
+
+- **A chosen last day is held back; a fixed length is not.** `buildForecast` takes
+  `untilChosen` beside `until`, true only when Custom… has a day picked (with no day
+  picked it looks 30 days ahead, and that end is nobody's deadline). Money in dated that
+  last day — a salary, a projected paycheck, a refund — drops out, exactly as on a pay
+  period's last day. Bills on it count, as they always have.
+- **A transfer on that day still counts**, on both sides. It is the household's own
+  money moving, not money owed to it by somebody else, which is the rule the forecast
+  already applies to late transfers.
+- **Everything held back is named, past the end** (`Forecast.heldBack`). The bill list
+  already closed with the paycheck a pay period stops at, below a rule and outside the
+  balance; every row held back now closes it the same way, and they share one tick in
+  the chart's right-hand gutter. The first try named only the next *scheduled* paycheck,
+  which both reviews caught: the paychecks after the next are projected rows that exist
+  nowhere else in the app, so a salary on the day someone picked three months out
+  vanished from the chart, the rail and the list, and ₮2,500,000 simply stopped
+  existing on that screen. A household acts on that figure — breaks a term deposit,
+  moves the Tsagaan Sar savings — so money the forecast decides not to count has to
+  still be money the person can see.
+- **A line at the rule says why.** "Not counted: it may arrive after the bills go out."
+  The list's header already names the last day ("Through 10.10"), so without it the same
+  date carries two balances, told apart by a hairline — right arithmetic that still
+  confuses. The chart itself stays wordless: this is in the list, which opens on a
+  click, and it is the app's own reason, said once, where it is fixed.
+- **The day's own bills can now leave the account short**, and that is the point: the
+  shortfall says what the household would face if the salary is late on the day the fees
+  are due. This is the cautious answer the owner asked for, not a new warning.
+- **A card holds nothing back.** The span is one choice for every account, so a credit
+  account gets the picked day too, and holding a payment back there would say the
+  household owes more than it does. Owing is never a warning, so money arriving late on
+  a card only ever helps — the rule the forecast already followed for a late payment.
+- **A pay period that ends *at* its payday now holds that whole day back**, not just the
+  paycheck. The old rule held back last-day money in only when the forecast ran on past
+  the payday; ending on it, a refund dated that day still lifted the line. The budget-app
+  review found it while checking the precedent this decision leans on. The app's own
+  30-day fallback, when no payday is known at all, holds back nothing: like a length, it
+  is nobody's deadline.

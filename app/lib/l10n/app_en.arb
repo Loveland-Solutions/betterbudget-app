@@ -1595,6 +1595,10 @@
   "@planLateNotCounted": {
     "description": "Account header, forecast panel: after the late-income note; the late money is left out of the forecast"
   },
+  "planNotCounted": "Not counted: it may arrive after the bills go out.",
+  "@planNotCounted": {
+    "description": "Account header, forecast bill list: above the money due on the last day that the forecast leaves out, under a rule"
+  },
   "planNothingScheduled": "Nothing scheduled",
   "@planNothingScheduled": {
     "description": "Account header, forecast panel: headline when no bills or income are scheduled"

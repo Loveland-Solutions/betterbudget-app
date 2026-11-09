@@ -6312,6 +6312,55 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('money due on the day picked waits, as on a payday', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    // Today is 09.16, the demo's salary is scheduled 10.10. Picking 10.10 is
+    // picking the day something has to be paid, so the salary due that day
+    // isn't counted as arrived (owner, 2026-11-09, #410) — the balance the
+    // chart names for the day is what the household has if it hasn't landed.
+    await tester.runAsync(() async {
+      await db.setPreference('forecast.customEnd', '2026-10-10T00:00:00.000');
+      await db.setPreference('forecast.span', 'custom');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    // The key under the rail says money out alone: no tick came in.
+    expect(find.textContaining('Money in +₮'), findsNothing);
+    expect(find.textContaining('Money out −₮'), findsOneWidget);
+    await tapAndWait(tester, find.byKey(const ValueKey('forecast-bills')));
+    expect(find.text('Through 10.10'), findsOneWidget);
+    // The paycheck still closes the list, past the end, the way it does
+    // when a pay period ends on it: the money is seen coming, the line
+    // doesn't lean on it. The list's header names 10.10 too, so a line
+    // says why that one has a balance of its own.
+    expect(find.text('+₮2,500,000'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('forecast-not-counted')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Not counted: it may arrive after the bills go out.'),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    // One day further and it has arrived: the income is a tick of its own.
+    await tester.runAsync(() async {
+      await db.setPreference('forecast.customEnd', '2026-10-11T00:00:00.000');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.textContaining('Money in +₮2,500,000'), findsOneWidget);
+    // Arrived, so nothing is held back and the list says nothing about it.
+    await tapAndWait(tester, find.byKey(const ValueKey('forecast-bills')));
+    expect(find.byKey(const ValueKey('forecast-not-counted')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    await tidy(tester, db);
+  });
+
   testWidgets('a day that has gone by falls back to 30 days', (tester) async {
     final db = await pumpLedger(tester);
     // A day picked last autumn, opened again in the spring: the forecast
