@@ -1825,6 +1825,14 @@
   "@planSpanYear": {
     "description": "Forecast, how-far-ahead buttons: a year from today."
   },
+  "planSpanCustom": "Custom\u2026",
+  "@planSpanCustom": {
+    "description": "Forecast, how-far-ahead buttons: the last one, which opens the calendar to pick the day the forecast runs to (#397). Once a day is picked this button says that date instead, so the filled button still names the range drawn."
+  },
+  "planSpanCustomTip": "Choose the day the forecast runs to.",
+  "@planSpanCustomTip": {
+    "description": "Forecast: tooltip on the Custom\u2026 button, and on the date it shows once one is picked."
+  },
   "planForecastWhatLabel": "What the forecast is",
   "@planForecastWhatLabel": {
     "description": "Forecast: what a screen reader says for the small information mark beside the word Forecast."

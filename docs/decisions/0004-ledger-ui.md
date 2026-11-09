@@ -5480,3 +5480,58 @@ pair, **split the bucket**.
   countable where they stand. Reversible if the owner wants them back.
 - Still open, not built: whether a transfer's tick should be drawn apart from the others
   — a hollow tick against the filled ones is the cheapest honest move, no new colour.
+
+## Custom…, the day the forecast runs to (owner, 2026-11-08, #397)
+
+Owner, with the row of buttons: "Let's make it a genuine line chart with preset choices
+and a custom option with a date picker"; "I want them to be able to choose a date."
+
+The row of lengths ends with **Custom…**, which opens the app's own calendar. A day
+clicked redraws the forecast to that day.
+
+- **It is the fifth button, not a sixth preset.** The presets answer a month, a quarter,
+  a year. What they cannot answer is a date a household already has in mind: the Tsagaan
+  Sar savings decided in the autumn, a term's school fees, the winter coal bought in
+  summer. A preset at 120 or 180 days would still be someone else's guess at those.
+- **The chosen day's button says the date**, `2027.03.14`, and Custom… goes until the
+  day is changed. The filled button has to name the range drawn, and that is the range.
+  The date is the YYYY.MM.DD every row already uses: a month spelled out is a different
+  length in each language and would push the row off the card.
+- **The calendar is the register's**, not a second one written for the card. It gained
+  a first and a last day a caller can offer, and a switch for the line about scheduling
+  a transaction, which means nothing here.
+- **Tomorrow at the earliest, two years at the latest.** Today has nothing ahead left in
+  it. Past two years, the paydays and bills a forecast projects run out before the end
+  does, and the line would flatten into a lie. Days outside that are dimmed, as days
+  after today already are on a statement date.
+- **A day that has gone by reads as none picked** — the day itself still draws, since it
+  is the day the whole choice was made for — and the forecast falls back to 30
+  days with that button filled — the same fallback a pay period with no payday ahead
+  gets. A date chosen in November is still stored in March; redrawing backwards, or
+  silently clearing what the person chose, are both worse than falling back.
+- **The day is one choice for every account**, kept beside `forecast.span` as
+  `forecast.customEnd`, and like it, it is this computer's own: a view, not money, so
+  two computers that each picked a day keep their own and nobody is asked.
+- **The coral line above the chart never jumps to a picked day.** "Runs out on 11.20"
+  picks the shortest *length* that reaches the trouble; landing on a date someone chose
+  in another month would not be the shortest anything.
+- **A dated button that isn't the one drawn goes back to its day in one click.** Pick a
+  day, then click 30 days: the fifth button still says the date. Clicking it used to
+  reopen the calendar and ask the person to find the same day again, while its four
+  neighbours all select in one click. It selects now; only the button already drawn
+  reopens the calendar.
+- **The bill list carries the year once the range crosses one.** At more than a year the
+  list has two 02.16s in it, telling apart only by the balance beside them, so each date
+  there (and the "Through …" header) says its year. Under a year nothing changes.
+- **The chart's dots are keyed by the whole date**, not `MM.DD`: two children of one
+  layout can't share a key, and a range longer than a year gives a monthly bill the same
+  month-day twice.
+- **The calendar hangs off the whole row, not off the button.** The row shrinks to fit
+  when Mongolian's longer words need it, and a popup anchored inside that shrink is
+  drawn scaled down with it.
+- Not addressed here: at a year the rail is already a comb, and #393 (dots that land
+  close together cannot all be clicked) covers a custom range the same way. Also filed
+  from the two reviews: #408 (nothing says where the projection stops being knowledge),
+  #409 (the two-year limit), #410 (money in on the chosen last day is counted as
+  landed), #411 (the forecast is worked out on every rebuild) and #412 (the calendar
+  pages one month per click).

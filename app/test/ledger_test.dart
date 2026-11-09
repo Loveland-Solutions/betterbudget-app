@@ -3027,6 +3027,58 @@ void main() {
         DateTime(2026, 9, 25),
       );
     });
+
+    test('a day picked for Custom… runs the forecast to it', () {
+      final today = DateTime(2026, 9, 16);
+      // A length is worked out from today; a picked day is the end itself.
+      expect(
+        ForecastSpan.custom.endFrom(today, customEnd: DateTime(2027, 2, 16)),
+        DateTime(2027, 2, 16),
+      );
+      // Nothing picked: 30 days, the same fallback a pay period with no
+      // payday ahead gets, so the card still draws.
+      expect(
+        ForecastSpan.custom.endFrom(today),
+        ForecastSpan.days30.endFrom(today),
+      );
+      expect(ForecastSpan.parse('custom'), ForecastSpan.custom);
+      // Tomorrow is the first day that can be picked.
+      expect(ForecastSpan.firstCustom(today), DateTime(2026, 9, 17));
+      expect(
+        ForecastSpan.parseCustomEnd('2026-09-17T00:00:00.000', today),
+        DateTime(2026, 9, 17),
+      );
+      // A day picked in the autumn has gone by in the spring: the forecast
+      // falls back rather than drawing backwards.
+      expect(
+        ForecastSpan.parseCustomEnd(
+          '2026-09-20T00:00:00.000',
+          DateTime(2027, 3, 1),
+        ),
+        isNull,
+      );
+      // Past two years the bills a forecast projects run out before the
+      // end does, so that is as far as a picked day goes.
+      expect(
+        ForecastSpan.parseCustomEnd('2040-01-01T00:00:00.000', today),
+        DateTime(2028, 9, 16),
+      );
+      // The day itself still draws, at any hour of it: it is the day the
+      // whole choice was made for. Only a day truly past falls back.
+      expect(
+        ForecastSpan.parseCustomEnd(
+          '2026-09-16T00:00:00.000',
+          DateTime(2026, 9, 16, 14, 30),
+        ),
+        DateTime(2026, 9, 16),
+      );
+      expect(
+        ForecastSpan.parseCustomEnd('2026-09-15T00:00:00.000', today),
+        isNull,
+      );
+      expect(ForecastSpan.parseCustomEnd('not a date', today), isNull);
+      expect(ForecastSpan.parseCustomEnd(null, today), isNull);
+    });
   });
 
   group('accounts', () {

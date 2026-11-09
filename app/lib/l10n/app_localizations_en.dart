@@ -1251,6 +1251,12 @@ class WordsEn extends Words {
   String get planSpanYear => '1 year';
 
   @override
+  String get planSpanCustom => 'Custom…';
+
+  @override
+  String get planSpanCustomTip => 'Choose the day the forecast runs to.';
+
+  @override
   String get planForecastWhatLabel => 'What the forecast is';
 
   @override

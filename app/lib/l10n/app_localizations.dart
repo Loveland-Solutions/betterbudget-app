@@ -1752,6 +1752,18 @@ abstract class Words {
   /// **'1 year'**
   String get planSpanYear;
 
+  /// Forecast, how-far-ahead buttons: the last one, which opens the calendar to pick the day the forecast runs to (#397). Once a day is picked this button says that date instead, so the filled button still names the range drawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom…'**
+  String get planSpanCustom;
+
+  /// Forecast: tooltip on the Custom… button, and on the date it shows once one is picked.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the day the forecast runs to.'**
+  String get planSpanCustomTip;
+
   /// Forecast: what a screen reader says for the small information mark beside the word Forecast.
   ///
   /// In en, this message translates to:

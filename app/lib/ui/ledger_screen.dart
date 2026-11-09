@@ -2258,6 +2258,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
   ForecastSpan _span(LedgerData data) =>
       ForecastSpan.parse(data.prefs[ForecastSpan.prefKey]);
 
+  /// The day Custom… runs to (#397), kept beside the choice: null until a
+  /// day is picked, and again once that day has gone by.
+  DateTime? _customEnd(LedgerData data) =>
+      ForecastSpan.parseCustomEnd(data.prefs[ForecastSpan.customEndKey], today);
+
   /// An account's forecast, as its header shows it: through the next pay
   /// period, or to the date the chosen span ends on ([span] overrides the
   /// ledger's choice), with the paydays and plan bills after the scheduled
@@ -2268,7 +2273,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ForecastSpan? span,
   }) {
     final scheduled = data.registerFor(account.id).scheduled;
-    final until = (span ?? _span(data)).endFrom(today);
+    final until = (span ?? _span(data)).endFrom(
+      today,
+      customEnd: _customEnd(data),
+    );
     return buildForecast(
       working: data.summaryFor(account.id).working,
       today: today,
@@ -2430,6 +2438,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<void> _setSpan(ForecastSpan span) async {
     try {
       await db.setPreference(ForecastSpan.prefKey, span.name);
+    } catch (e) {
+      if (mounted) _showFailure(context.t.ledgerCouldntSave, error: e);
+    }
+    _keysBack();
+  }
+
+  /// A day was picked in Custom…'s calendar: the day is kept and the span
+  /// goes with it, so the forecast redraws to that day. A view, like the
+  /// lengths: no undo step, no toast.
+  Future<void> _setCustomEnd(DateTime end) async {
+    try {
+      await db.setPreference(
+        ForecastSpan.customEndKey,
+        dateOnly(end).toIso8601String(),
+      );
+      await db.setPreference(ForecastSpan.prefKey, ForecastSpan.custom.name);
     } catch (e) {
       if (mounted) _showFailure(context.t.ledgerCouldntSave, error: e);
     }
@@ -7354,13 +7378,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
               ),
               span: span,
               payPeriodEnd: payPeriodEnd,
+              customEnd: _customEnd(data),
               onSpan: _setSpan,
+              onCustomEnd: _setCustomEnd,
               shortAhead: beyond,
               onShowShort: beyond == null
                   ? null
                   : () => _setSpan(
                       ForecastSpan.values
                           .skip(1)
+                          // A length, never the day the person picked.
+                          .where((s) => s != ForecastSpan.custom)
                           .firstWhere(
                             (s) => !s.endFrom(today)!.isBefore(beyond.date),
                             orElse: () => ForecastSpan.year,
