@@ -644,18 +644,27 @@ class ForecastPanel extends StatelessWidget {
     // The key to the rail: what each tick is, counted on its own side with
     // its own sign. "4 bills" alone was wrong once the income had a tick
     // (owner, 2026-11-08).
-    final out = f.rowSteps.where((s) => s.row.amount < 0).toList();
-    final inn = f.rowSteps.where((s) => s.row.amount > 0).toList();
+    // Money moved between the person's own accounts is its own kind, named
+    // by the word the register already puts on that row (owner, 2026-11-09:
+    // "Money In / Money Out / Transfer"). The sign says which way it went,
+    // as it does everywhere else, and each part shows only while there is
+    // something for it. No counts: "4 money out" is not English, and the
+    // rail's ticks are countable where they stand.
     final rail = <String>[
-      if (out.isNotEmpty)
-        t.planRailBills(
-          out.length,
-          money(out.fold(0, (a, s) => a + s.row.amount)),
-        ),
-      if (inn.isNotEmpty)
+      if (f.billTotal > 0) t.planRailOut(money(f.billTotal)),
+      if (f.moveOut > 0) t.planRailMoveOut(money(f.moveOut)),
+      if (f.moveIn > 0) t.planRailMoveIn(money(f.moveIn)),
+      if (f.rowSteps.any(
+        (s) => s.row.amount > 0 && s.row.kind != RowKind.transfer,
+      ))
         t.planRailIn(
-          inn.length,
-          money(inn.fold(0, (a, s) => a + s.row.amount)),
+          money(
+            f.rowSteps
+                .where(
+                  (s) => s.row.amount > 0 && s.row.kind != RowKind.transfer,
+                )
+                .fold(0, (a, s) => a + s.row.amount),
+          ),
         ),
     ];
     // Words only for what the chart cannot show (owner, 2026-11-08: "I don't

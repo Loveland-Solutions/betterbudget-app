@@ -1845,6 +1845,33 @@
   "@planForecastWhatFour": {
     "description": "Forecast tooltip, second paragraph, second sentence. Points at the row of how-far-ahead buttons at the top right of the card."
   },
+  "planRailOut": "Money out −{amount}",
+  "@planRailOut": {
+    "description": "Forecast, the line under the chart: what the bills before the end come to. Money moved to the person's own other account is NOT in this — that is planRailMoveOut. Money out keeps its minus, as everywhere else in the app.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planRailMoveOut": "Transfer −{amount}",
+  "@planRailMoveOut": {
+    "description": "Forecast, the line under the chart: money going to one of the person's own other accounts before the end, such as a standing amount into savings. Neither owed to anyone nor spent, so it is counted apart from the bills. 'Transfer' is the word the register already prints on that row.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planRailMoveIn": "Transfer +{amount}",
+  "@planRailMoveIn": {
+    "description": "Forecast, the line under the chart: money coming from one of the person's own other accounts before the end, such as taking some of the savings back. Not earned, so it is not money in: counting it there made a drawdown read as a small paycheck.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "planRailBills": "{count, plural, =1{1 bill −{amount}} other{{count} bills −{amount}}}",
   "@planRailBills": {
     "description": "Forecast, the line under the chart: how many bills are on the rail and what they come to. Money out keeps its minus. Set beside the income label with a · between; each is a whole message of its own.",
@@ -1857,13 +1884,10 @@
       }
     }
   },
-  "planRailIn": "{count, plural, =1{1 income +{amount}} other{{count} incomes +{amount}}}",
+  "planRailIn": "Money in +{amount}",
   "@planRailIn": {
-    "description": "Forecast, the line under the chart: how much money comes in before the end, and how many times. Says 'income', the app's word, because it covers a paycheck, a transfer in and a refund alike.",
+    "description": "Forecast, the line under the chart: what arrives before the end that the person did not already own \u2014 a salary, a refund. Money taken from one of their own other accounts is NOT in this; that is planRailMoveIn.",
     "placeholders": {
-      "count": {
-        "type": "int"
-      },
       "amount": {
         "type": "String"
       }

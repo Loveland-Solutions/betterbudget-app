@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-08** · version 0.78.1 · schema v24 · 1040 tests pass
+**Last updated: 2026-11-09** · version 0.79.0 · schema v24 · 1040 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -56,7 +56,12 @@ only happens if money due today never arrives. How far ahead is a **row of butto
 kept for a ledger still set to one), and an **ⓘ** beside the word Forecast says what the
 forecast is. The line under the chart is the key to the rail: `4 bills −₮7,100,000 ·
 1 income +₮5,973,750`. The chart takes whatever width the balances beside it don't
-(0.78.1). The computer only. No schema change. Not built, and filed: #393, #394, #395,
+(0.78.1). **Money In, Money Out, Transfer** (0.79.0, #400; ADR 0004 of that name): money
+moved between the person's own accounts is counted apart from both, so a standing amount
+into savings is no longer a bill and taking it back out is no longer a paycheck; paying
+a card off stays Money out, and a card's own forecast doesn't split. Credit/debit was
+put forward and dropped — кредит is a loan in Mongolian. The computer only. No schema
+change. Not built, and filed: #393, #394, #395,
 and from the reviews #397 (pick any end date with Custom…) and #398 (the card says
 nothing about what the budget plans to spend, so its own sum stops tying the day a
 category is paid from the account).

@@ -147,7 +147,7 @@ void main() {
     expect(find.text('TDB Checking'), findsWidgets);
     // No headline sentence: the chart carries the figures, and the line
     // under it is the key to its rail.
-    expect(find.text('3 bills −₮2,790,200'), findsOneWidget);
+    expect(find.text('Money out −₮2,790,200'), findsOneWidget);
     expect(find.textContaining('Lowest'), findsNothing);
     // Header sum: cleared + uncleared = working; reconciled shows only when.
     expect(find.text('−₮116,400.00', findRichText: true), findsOneWidget);
@@ -1405,7 +1405,7 @@ void main() {
   testWidgets('the bill count lists every bill before payday', (tester) async {
     final db = await pumpLedger(tester);
     final link = find.byKey(const ValueKey('forecast-bills'));
-    expect(find.text('3 bills −₮2,790,200'), findsOneWidget);
+    expect(find.text('Money out −₮2,790,200'), findsOneWidget);
     await tester.tap(link);
     await tester.pumpAndSettle();
     // Each bill with the balance after it, then the income that ends it.

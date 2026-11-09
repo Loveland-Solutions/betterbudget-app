@@ -1782,17 +1782,35 @@ abstract class Words {
   /// **'You can change how far ahead it looks with the buttons above.'**
   String get planForecastWhatFour;
 
+  /// Forecast, the line under the chart: what the bills before the end come to. Money moved to the person's own other account is NOT in this — that is planRailMoveOut. Money out keeps its minus, as everywhere else in the app.
+  ///
+  /// In en, this message translates to:
+  /// **'Money out −{amount}'**
+  String planRailOut(String amount);
+
+  /// Forecast, the line under the chart: money going to one of the person's own other accounts before the end, such as a standing amount into savings. Neither owed to anyone nor spent, so it is counted apart from the bills. 'Transfer' is the word the register already prints on that row.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer −{amount}'**
+  String planRailMoveOut(String amount);
+
+  /// Forecast, the line under the chart: money coming from one of the person's own other accounts before the end, such as taking some of the savings back. Not earned, so it is not money in: counting it there made a drawdown read as a small paycheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer +{amount}'**
+  String planRailMoveIn(String amount);
+
   /// Forecast, the line under the chart: how many bills are on the rail and what they come to. Money out keeps its minus. Set beside the income label with a · between; each is a whole message of its own.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 bill −{amount}} other{{count} bills −{amount}}}'**
   String planRailBills(int count, String amount);
 
-  /// Forecast, the line under the chart: how much money comes in before the end, and how many times. Says 'income', the app's word, because it covers a paycheck, a transfer in and a refund alike.
+  /// Forecast, the line under the chart: what arrives before the end that the person did not already own — a salary, a refund. Money taken from one of their own other accounts is NOT in this; that is planRailMoveIn.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 income +{amount}} other{{count} incomes +{amount}}}'**
-  String planRailIn(int count, String amount);
+  /// **'Money in +{amount}'**
+  String planRailIn(String amount);
 
   /// Account header, forecast panel: headline, the lowest the balance gets before next income
   ///

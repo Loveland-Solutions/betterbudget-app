@@ -316,6 +316,10 @@ class Forecast {
     required this.billTotal,
     required this.billCount,
     required this.inTotal,
+    this.moveOut = 0,
+    this.moveOutCount = 0,
+    this.moveIn = 0,
+    this.moveInCount = 0,
     this.late = const [],
     this.owed = false,
     this.nextPayday,
@@ -383,9 +387,20 @@ class Forecast {
   final int takeOut;
   final DateTime? takeOutBy;
 
-  /// Money going out before [end], and how many rows.
+  /// Money going out before [end], and how many rows. Transfers between the
+  /// person's own accounts are not in it: they are [moveOut] and [moveIn].
   final int billTotal;
   final int billCount;
+
+  /// Money moved to and from the person's own other accounts before [end],
+  /// and how many rows each way (owner, 2026-11-09: "Money In / Money Out /
+  /// Transfer"). Neither owed to anyone nor earned, so counted apart from
+  /// both: a standing amount into savings is not a bill, and taking it back
+  /// out again is not a paycheck.
+  final int moveOut;
+  final int moveOutCount;
+  final int moveIn;
+  final int moveInCount;
 
   /// Money coming in before [end] other than the next paycheck: transfers
   /// from another account, refunds. Late money in isn't in it (see [late]).
@@ -456,6 +471,7 @@ Forecast buildForecast({
   List<RegisterRow> projected = const [],
   List<({DateTime date, int amount})> spending = const [],
   bool cash = false,
+  Set<String> owedAccounts = const {},
 }) {
   final start = dateOnly(today);
   // Overdue bills still have to be paid; treat them as due today.
@@ -549,6 +565,7 @@ Forecast buildForecast({
   int shown(int v) => owed ? -v : v;
   var bal = working, billTotal = 0, billCount = 0, inTotal = 0;
   var expectedBills = 0, spendingTotal = 0;
+  var moveOut = 0, moveOutCount = 0, moveIn = 0, moveInCount = 0;
   DateTime? takeOutBy;
   var firstShortBalance = !owed && working < 0 ? working : 0;
   var low = shown(working);
@@ -559,8 +576,27 @@ Forecast buildForecast({
   for (final (i: _, :r) in inRange) {
     bal += r.amount;
     final day = isSpending.contains(r);
+    // Money moved between the household's own accounts is neither a bill
+    // nor money earned (owner, 2026-11-09: "Money In / Money Out /
+    // Transfer"). Counted with the bills, a standing ₮500,000 into savings
+    // read as a fifth creditor; counted as money in, a drawdown back out of
+    // it read as a small paycheck.
+    //
+    // Two transfers are not that. Paying a card off is money gone, settling
+    // what the bank is owed, and a household looks for it among its bills
+    // ([owedAccounts] names the accounts that are owed). And on a card's own
+    // forecast every side is a transfer, so splitting there would empty the
+    // charges and payments the card already says.
+    final move =
+        r.kind == RowKind.transfer && !owed && !owedAccounts.contains(r.payee);
     if (day) {
       spendingTotal -= r.amount;
+    } else if (move && r.amount < 0) {
+      moveOut -= r.amount;
+      moveOutCount++;
+    } else if (move) {
+      moveIn += r.amount;
+      moveInCount++;
     } else if (r.amount < 0) {
       billTotal -= r.amount;
       billCount++;
@@ -606,6 +642,10 @@ Forecast buildForecast({
     billTotal: billTotal,
     billCount: billCount,
     inTotal: inTotal,
+    moveOut: moveOut,
+    moveOutCount: moveOutCount,
+    moveIn: moveIn,
+    moveInCount: moveInCount,
     late: late,
     owed: owed,
     nextPayday: nextPayday,

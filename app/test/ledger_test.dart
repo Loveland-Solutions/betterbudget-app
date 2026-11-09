@@ -2126,6 +2126,12 @@ void main() {
         working: ledger.summaryFor(checking).working,
         today: today,
         scheduled: ledger.registerFor(checking).scheduled,
+        // As the app calls it: paying a card off is money gone, not the
+        // household's own money moving, so it stays among the bills.
+        owedAccounts: {
+          for (final a in ledger.balanceSheetAccounts)
+            if (a.isOwed) a.name,
+        },
       );
     }
 
@@ -2241,6 +2247,12 @@ void main() {
         today: today,
         scheduled: ledger.registerFor(checking).scheduled,
         spending: days,
+        // The same as the helper it is compared against, or the card
+        // payment falls on a different side of the bill count.
+        owedAccounts: {
+          for (final a in ledger.balanceSheetAccounts)
+            if (a.isOwed) a.name,
+        },
       );
       final without = await forecast();
       expect(f.billCount, without.billCount);
@@ -2422,7 +2434,13 @@ void main() {
         // The refund isn't payday: the forecast still runs to the salary.
         expect(f.end, DateTime(2026, 10, 10));
         expect(f.payday!.payee, 'Altan Gadas LLC');
-        expect(f.inTotal, 100500000);
+        // The ₮1,000,000 from Khan Savings is the household's own money
+        // moving, not money earned, so it is counted apart from the refund
+        // (owner, 2026-11-09: "Money In / Money Out / Transfer"). Counting
+        // it as income made a drawdown read as a small paycheck.
+        expect(f.inTotal, 500000);
+        expect(f.moveIn, 100000000);
+        expect(f.moveInCount, 1);
         expect(f.billCount, 3);
         expect(f.low, 139225000 + 100500000);
         expect(f.steps.map((s) => s.row.amount > 0), [
@@ -2550,7 +2568,10 @@ void main() {
       );
       expect(moved.late, isEmpty);
       expect(moved.steps.first.date, today);
-      expect(moved.inTotal, 100000000);
+      // A transfer is the household's own money moving, so it lands in
+      // moveIn rather than being counted as money earned.
+      expect(moved.inTotal, 0);
+      expect(moved.moveIn, 100000000);
 
       // A card doesn't warn, so a late payment to it still counts.
       final card = buildForecast(
