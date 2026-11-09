@@ -1367,7 +1367,7 @@ void main() {
     final db = await pumpLedger(tester);
     await tester.tap(find.byKey(const ValueKey('reconcile')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('forecast-dot-09.20')));
+    await tester.tap(find.byKey(const ValueKey('forecast-dot-2026.09.20')));
     await tester.pumpAndSettle();
     expect(find.text('Finish or cancel the reconcile first'), findsOneWidget);
     expect(find.text('Edit'), findsNothing);
@@ -1376,7 +1376,7 @@ void main() {
 
   testWidgets('forecast dots show their bill and open it', (tester) async {
     final db = await pumpLedger(tester);
-    final dot = find.byKey(const ValueKey('forecast-dot-09.20'));
+    final dot = find.byKey(const ValueKey('forecast-dot-2026.09.20'));
     expect(find.text('Balance after'), findsNothing);
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -5909,10 +5909,7 @@ void main() {
       find.widgetWithText(TextField, 'Category'),
       'Tuition',
     );
-    await tester.enterText(
-      find.widgetWithText(TextField, '₮0.00'),
-      '5000000',
-    );
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '5000000');
     await tester.runAsync(() async {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -6076,6 +6073,141 @@ void main() {
     );
     data = (await tester.runAsync(db.loadLedger))!;
     expect(data.prefs['forecast.span'], 'payPeriod');
+    await tidy(tester, db);
+  });
+
+  testWidgets('Custom… picks the day the forecast runs to', (tester) async {
+    final db = await pumpLedger(tester);
+    // The row ends with Custom…, after the lengths (#397). It says a word,
+    // not a date, until a day is picked.
+    expect(find.text('Custom…'), findsOneWidget);
+    expect(find.byTooltip('Choose the day the forecast runs to.'), findsOne);
+    // It opens the app's own calendar, on the month today is in.
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('forecast-span-custom')),
+    );
+    final calendar = find.byKey(const ValueKey('forecast-span-calendar'));
+    expect(calendar, findsOneWidget);
+    // Nothing here schedules a transaction, so the row's line about that
+    // stays away.
+    expect(
+      find.textContaining('after today', findRichText: true),
+      findsNothing,
+    );
+    // Esc closes the calendar and hands focus back, without picking
+    // anything: the ledger screen's own Esc must not get it first.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(calendar, findsNothing);
+    var kept = (await tester.runAsync(db.loadLedger))!;
+    expect(kept.prefs['forecast.span'], isNot('custom'));
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('forecast-span-custom')),
+    );
+    expect(calendar, findsOneWidget);
+    // Today is 09.16: a day in the past can't be picked, a later one can.
+    await tapAndWait(
+      tester,
+      find.descendant(of: calendar, matching: find.text('10')),
+    );
+    var data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.prefs['forecast.span'], isNot('custom'));
+    await tapAndWait(
+      tester,
+      find.descendant(of: calendar, matching: find.text('20')),
+    );
+    // The calendar closes, and the day is kept beside the choice: one
+    // choice for every account, as the lengths are.
+    expect(calendar, findsNothing);
+    data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.prefs['forecast.span'], 'custom');
+    expect(data.prefs['forecast.customEnd'], startsWith('2026-09-20'));
+    // The filled button says the date, so the row still names the range
+    // drawn, and the bill list runs to that day.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('forecast-horizon')),
+        matching: find.text('2026.09.20'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Custom…'), findsNothing);
+    await tapAndWait(tester, find.byKey(const ValueKey('forecast-bills')));
+    expect(find.text('Through 09.20'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/forecast_span_custom.png'),
+    );
+    // Another length, and the button keeps the day it says: one click goes
+    // back to it, as every other button in the row takes one click.
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('forecast-span-days30')),
+    );
+    data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.prefs['forecast.span'], 'days30');
+    await tapAndWait(
+      tester,
+      find.byKey(const ValueKey('forecast-span-custom')),
+    );
+    data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.prefs['forecast.span'], 'custom');
+    await tidy(tester, db);
+  });
+
+  testWidgets('a day that has gone by falls back to 30 days', (tester) async {
+    final db = await pumpLedger(tester);
+    // A day picked last autumn, opened again in the spring: the forecast
+    // can't draw backwards, so it falls back the way a pay period with no
+    // payday ahead does — and says so by filling 30 days.
+    await tester.runAsync(() async {
+      await db.setPreference('forecast.customEnd', '2026-08-01T00:00:00.000');
+      await db.setPreference('forecast.span', 'custom');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    // The word comes back on the last button: there is no day to show.
+    expect(find.text('Custom…'), findsOneWidget);
+    expect(find.text('2026.08.01'), findsNothing);
+    // And the bill list runs 30 days out, not to a day that has passed.
+    await tapAndWait(tester, find.byKey(const ValueKey('forecast-bills')));
+    expect(find.text('Through 10.16'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a day more than a year out draws, and says the year', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    // Picked through the calendar this is a year of clicks, so it's set
+    // the way the app stores it. Today is 09.16.2026.
+    await tester.runAsync(() async {
+      await db.setPreference('forecast.customEnd', '2027-12-20T00:00:00.000');
+      await db.setPreference('forecast.span', 'custom');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('forecast-horizon')),
+        matching: find.text('2027.12.20'),
+      ),
+      findsOneWidget,
+    );
+    // Every monthly bill now falls on two 02.16s, so the chart's dots and
+    // the bill list both have to tell the years apart.
+    await tapAndWait(tester, find.byKey(const ValueKey('forecast-bills')));
+    expect(find.text('Through 2027.12.20'), findsOneWidget);
+    expect(find.text('2026.10.01'), findsWidgets);
+    expect(find.text('10.01'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
     await tidy(tester, db);
   });
 

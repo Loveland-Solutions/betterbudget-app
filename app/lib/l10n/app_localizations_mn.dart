@@ -1211,6 +1211,12 @@ class WordsMn extends Words {
   String get planSpanYear => '1 жил';
 
   @override
+  String get planSpanCustom => 'Өөрөө тохируулах…';
+
+  @override
+  String get planSpanCustomTip => 'Төсөөлөл дуусах өдрийг сонгоно уу.';
+
+  @override
   String get planForecastWhatLabel => 'Төсөөлөл гэж юу вэ';
 
   @override

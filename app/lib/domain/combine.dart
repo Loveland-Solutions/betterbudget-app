@@ -337,7 +337,11 @@ const _references = <(String, String, String)>[
 
 /// Settings that only change what a page shows: when both changed one,
 /// this computer keeps its own and nobody is asked.
-const _viewOnly = {ForecastSpan.prefKey, showSourceKey};
+const _viewOnly = {
+  ForecastSpan.prefKey,
+  ForecastSpan.customEndKey,
+  showSourceKey,
+};
 
 /// Settings whose key ends in a row's id.
 const _keyedById = [

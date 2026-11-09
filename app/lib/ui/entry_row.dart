@@ -2886,7 +2886,7 @@ class _DateFieldState extends State<DateField> {
               child: ExcludeFocus(
                 child: ListenableBuilder(
                   listenable: widget.controller,
-                  builder: (context, _) => _Calendar(
+                  builder: (context, _) => Calendar(
                     selected: parseRowDate(
                       widget.controller.text,
                       widget.today,
@@ -2918,32 +2918,52 @@ class _DateFieldState extends State<DateField> {
 }
 
 /// A month of days, Monday first. The selected day is filled, today is
-/// underlined. Days after today are plain: the line under the month says
-/// picking one schedules the transaction.
-class _Calendar extends StatefulWidget {
-  const _Calendar({
+/// underlined. Days after today are plain: on a row, the line under the
+/// month says picking one schedules the transaction. The forecast's
+/// Custom… picks a day with the same calendar (#397), so what a day does
+/// and which days are offered are the caller's to say.
+class Calendar extends StatefulWidget {
+  const Calendar({
+    super.key,
     required this.selected,
     required this.today,
     required this.onPick,
     this.allowFuture = true,
+    this.earliest,
+    this.latest,
+    this.scheduleNote = true,
   });
   final DateTime? selected;
   final DateTime today;
   final ValueChanged<DateTime> onPick;
+
+  /// False where a future date means nothing (a statement date).
   final bool allowFuture;
 
+  /// The first day that can be picked; days before it are dimmed and don't
+  /// take a click. Null: any day up to today, and later ones too while
+  /// [allowFuture].
+  final DateTime? earliest;
+
+  /// The last day that can be picked; later ones are dimmed the same way.
+  final DateTime? latest;
+
+  /// The line under the month saying a later day schedules the row. Off
+  /// where every day offered is a later one and nothing is scheduled.
+  final bool scheduleNote;
+
   @override
-  State<_Calendar> createState() => _CalendarState();
+  State<Calendar> createState() => _CalendarState();
 }
 
-class _CalendarState extends State<_Calendar> {
+class _CalendarState extends State<Calendar> {
   late DateTime _month = _monthOf(widget.selected ?? widget.today);
   DateTime? _hover;
 
   static DateTime _monthOf(DateTime d) => DateTime(d.year, d.month);
 
   @override
-  void didUpdateWidget(_Calendar old) {
+  void didUpdateWidget(Calendar old) {
     super.didUpdateWidget(old);
     // Typing a date jumps to its month.
     final s = widget.selected;
@@ -2956,6 +2976,12 @@ class _CalendarState extends State<_Calendar> {
   bool _future(DateTime d) => d.isAfter(
     DateTime(widget.today.year, widget.today.month, widget.today.day),
   );
+
+  /// A day the caller doesn't offer: too late, or before its first one.
+  bool _off(DateTime d) =>
+      (!widget.allowFuture && _future(d)) ||
+      (widget.earliest != null && d.isBefore(widget.earliest!)) ||
+      (widget.latest != null && d.isAfter(widget.latest!));
 
   @override
   Widget build(BuildContext context) {
@@ -2981,7 +3007,7 @@ class _CalendarState extends State<_Calendar> {
     Widget day(DateTime d) {
       final selected = _same(widget.selected, d);
       final today = _same(widget.today, d);
-      final off = !widget.allowFuture && _future(d);
+      final off = _off(d);
       final hovered = !off && _same(_hover, d);
       final color = selected
           ? Mid.onAccent
@@ -3078,7 +3104,10 @@ class _CalendarState extends State<_Calendar> {
                 ],
               ),
               // Says what a later day does, only when it matters.
-              if (widget.allowFuture && hint != null && _future(hint))
+              if (widget.scheduleNote &&
+                  widget.allowFuture &&
+                  hint != null &&
+                  _future(hint))
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(

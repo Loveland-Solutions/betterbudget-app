@@ -273,6 +273,8 @@
   "planSpanDays": "{count} хоног",
   "planSpanMonths": "{count} сар",
   "planSpanYear": "1 жил",
+  "planSpanCustom": "Өөрөө тохируулах…",
+  "planSpanCustomTip": "Төсөөлөл дуусах өдрийг сонгоно уу.",
   "planForecastWhatLabel": "Төсөөлөл гэж юу вэ",
   "planForecastWhatOne": "Төсөөлөл нь төсвөө баримталбал ойрын хугацаанд таны санхүү ямар байхыг харуулна.",
   "planForecastWhatTwo": "Товлосон нэхэмжлэх, орлогыг цагийн шулуун дээр байрлуулна.",

@@ -4,24 +4,66 @@ import 'money.dart' show Currency;
 import 'pay.dart';
 
 /// How far the forecast looks (owner's request, 2026-10-05): through the
-/// next pay period, as it always has, or a fixed span from today. One
-/// choice for every account, kept in the ledger's preferences.
+/// next pay period, as it always has, a fixed span from today, or a day
+/// the person picked (owner, 2026-11-08, #397: "a custom option with a
+/// date picker"). One choice for every account, kept in the ledger's
+/// preferences.
 enum ForecastSpan {
   payPeriod,
   days30,
   days60,
   days90,
   months6,
-  year;
+  year,
+  custom;
 
   static const prefKey = 'forecast.span';
+
+  /// The day [custom] runs to, beside [prefKey]: one choice for every
+  /// account, as the lengths are. Stored as a date; a date that has since
+  /// gone by reads as none, and the forecast falls back to 30 days the way
+  /// it does for a pay period with no payday ahead.
+  static const customEndKey = 'forecast.customEnd';
 
   static ForecastSpan parse(String? stored) =>
       values.where((s) => s.name == stored).firstOrNull ?? payPeriod;
 
+  /// The furthest day [custom] can run to: two years out. Past that the
+  /// paydays and bills a forecast projects run out before the end does, so
+  /// the line would flatten and say less than the truth
+  /// (owner's reason for the choice, #397: a date months ahead — Tsagaan
+  /// Sar savings, school fees, the winter coal — not a decade).
+  static DateTime lastCustom(DateTime start) {
+    final d = dateOnly(start);
+    return DateTime(d.year + 2, d.month, d.day);
+  }
+
+  /// The first day that can be picked: tomorrow. A day already picked
+  /// stays good through the day itself ([parseCustomEnd]); picking today
+  /// is choosing a forecast with nothing ahead in it.
+  static DateTime firstCustom(DateTime start) {
+    final d = dateOnly(start);
+    return DateTime(d.year, d.month, d.day + 1);
+  }
+
+  /// A stored [customEndKey], as a day the forecast can run to, or null
+  /// when there is none, it can't be read, or it has gone by.
+  static DateTime? parseCustomEnd(String? stored, DateTime today) {
+    final read = stored == null ? null : DateTime.tryParse(stored);
+    if (read == null) return null;
+    final day = dateOnly(read);
+    // Through the day itself: the day someone picked in the autumn is the
+    // one day they most want to see when it comes.
+    if (day.isBefore(dateOnly(today))) return null;
+    final last = lastCustom(today);
+    return day.isAfter(last) ? last : day;
+  }
+
   /// The last day a fixed span covers, from [start]; null for the pay
-  /// period, which the forecast works out from the paydays.
-  DateTime? endFrom(DateTime start) {
+  /// period, which the forecast works out from the paydays. [customEnd] is
+  /// the day picked for [custom] ([parseCustomEnd]); without one, [custom]
+  /// looks 30 days ahead, so a date that has gone by still draws.
+  DateTime? endFrom(DateTime start, {DateTime? customEnd}) {
     final d = dateOnly(start);
     return switch (this) {
       payPeriod => null,
@@ -30,6 +72,7 @@ enum ForecastSpan {
       days90 => DateTime(d.year, d.month, d.day + 90),
       months6 => DateTime(d.year, d.month + 6, d.day),
       year => DateTime(d.year + 1, d.month, d.day),
+      custom => customEnd ?? days30.endFrom(d),
     };
   }
 }

@@ -586,6 +586,19 @@ void main() {
     final found = run();
     expect(found.conflict, isNull);
     expect(found.ops, isEmpty);
+    // The day picked for the forecast's Custom… is a view the same way
+    // (#397): two computers each keep their own day, unasked.
+    mine['preferences'] = [
+      ...base['preferences']!,
+      pref(ForecastSpan.customEndKey, '2027-03-14T00:00:00.000'),
+    ];
+    theirs['preferences'] = [
+      ...base['preferences']!,
+      pref(ForecastSpan.customEndKey, '2027-09-01T00:00:00.000'),
+    ];
+    final days = run();
+    expect(days.conflict, isNull);
+    expect(days.ops, isEmpty);
   });
 
   test('Not it said for one bill on both, to different rows: both kept', () {

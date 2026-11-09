@@ -340,6 +340,22 @@ void main() {
       );
     }
 
+    // The forecast's Custom… calendar, in the language whose words are
+    // longest: the row of buttons shrinks to fit, and the calendar hanging
+    // off it must not shrink with it (#397).
+    await tester.tap(find.byKey(const ValueKey('forecast-span-custom')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('forecast-span-calendar')),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(MaterialApp), // the calendar lives in the app's overlay
+      matchesGoldenFile('goldens/forecast_calendar_mn.png'),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
     // The longest phrases: the reconcile panel and pay setup.
     await tester.tap(find.text(mn.planReconcile));
     await tester.pumpAndSettle();

@@ -8,6 +8,7 @@ import '../domain/ledger.dart';
 import '../domain/money.dart';
 import 'data_words.dart';
 import 'language.dart';
+import 'entry_row.dart' show Calendar;
 import 'register.dart' show BarButton, Hoverable;
 import 'theme.dart';
 
@@ -26,7 +27,9 @@ class BalanceHeader extends StatelessWidget {
     this.onAddPay,
     this.span = ForecastSpan.payPeriod,
     this.payPeriodEnd,
+    this.customEnd,
     this.onSpan,
+    this.onCustomEnd,
     this.shortAhead,
     this.onShowShort,
     this.budgeted = false,
@@ -41,7 +44,11 @@ class BalanceHeader extends StatelessWidget {
   /// to (null with no payday ahead here), and the choice being changed.
   final ForecastSpan span;
   final DateTime? payPeriodEnd;
+
+  /// The day Custom… runs to, and a day being picked for it (#397).
+  final DateTime? customEnd;
   final ValueChanged<ForecastSpan>? onSpan;
+  final ValueChanged<DateTime>? onCustomEnd;
 
   /// The balance goes to zero or below past what the forecast shows: the
   /// day and how low. A coral line above the forecast says so; a click
@@ -115,7 +122,9 @@ class BalanceHeader extends StatelessWidget {
                 onAddPay: onAddPay,
                 span: span,
                 payPeriodEnd: payPeriodEnd,
+                customEnd: customEnd,
                 onSpan: onSpan,
+                onCustomEnd: onCustomEnd,
                 shortAhead: shortAhead,
                 onShowShort: onShowShort,
                 budgeted: budgeted,
@@ -495,7 +504,9 @@ class ForecastPanel extends StatelessWidget {
     this.onAddPay,
     this.span = ForecastSpan.payPeriod,
     this.payPeriodEnd,
+    this.customEnd,
     this.onSpan,
+    this.onCustomEnd,
     this.shortAhead,
     this.onShowShort,
     this.budgeted = false,
@@ -528,7 +539,12 @@ class ForecastPanel extends StatelessWidget {
   /// without one, that choice isn't offered here.
   final ForecastSpan span;
   final DateTime? payPeriodEnd;
+
+  /// The day Custom… runs to; null until a day is picked, or once the day
+  /// picked has gone by.
+  final DateTime? customEnd;
   final ValueChanged<ForecastSpan>? onSpan;
+  final ValueChanged<DateTime>? onCustomEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -748,13 +764,13 @@ class ForecastPanel extends StatelessWidget {
             // with the window: the row of buttons shrinks rather than
             // overflow or drop one.
             Expanded(
-              child: Shrink(
-                end: true,
-                _SpanChoice(
-                  span: span,
-                  payPeriodEnd: payPeriodEnd,
-                  onSpan: onSpan,
-                ),
+              child: _SpanChoice(
+                span: span,
+                payPeriodEnd: payPeriodEnd,
+                today: f.start,
+                customEnd: customEnd,
+                onSpan: onSpan,
+                onCustomEnd: onCustomEnd,
               ),
             ),
           ],
@@ -837,15 +853,28 @@ class ForecastPanel extends StatelessWidget {
 /// more standard. I don't think a dropdown makes sense here"), the one
 /// you're on filled. No colors: these are lengths of time, not kinds of
 /// thing, so a color each would be noise.
-class _SpanChoice extends StatelessWidget {
+class _SpanChoice extends StatefulWidget {
   const _SpanChoice({
     required this.span,
     required this.payPeriodEnd,
+    required this.today,
+    required this.customEnd,
     required this.onSpan,
+    required this.onCustomEnd,
   });
   final ForecastSpan span;
   final DateTime? payPeriodEnd;
+
+  /// The day the forecast starts from, which the calendar opens on.
+  final DateTime today;
+
+  /// The day Custom… runs to, once one is picked (#397).
+  final DateTime? customEnd;
   final ValueChanged<ForecastSpan>? onSpan;
+  final ValueChanged<DateTime>? onCustomEnd;
+
+  @override
+  State<_SpanChoice> createState() => _SpanChoiceState();
 
   /// 60 days and 6 months went with the dropdown (owner, 2026-11-08). Their
   /// [ForecastSpan] values and words stay, so a ledger already set to one
@@ -855,6 +884,7 @@ class _SpanChoice extends StatelessWidget {
     ForecastSpan.days30,
     ForecastSpan.days90,
     ForecastSpan.year,
+    ForecastSpan.custom,
   ];
 
   static String nameOf(Words t, ForecastSpan s) => switch (s) {
@@ -864,14 +894,37 @@ class _SpanChoice extends StatelessWidget {
     ForecastSpan.days90 => t.planSpanDays(90),
     ForecastSpan.months6 => t.planSpanMonths(6),
     ForecastSpan.year => t.planSpanYear,
+    ForecastSpan.custom => t.planSpanCustom,
   };
+
+  /// A day picked says the date itself, so the filled button still names
+  /// the range that is drawn. `2027.03.14`, the convention every row's
+  /// date already uses, and the same length in both languages: a month
+  /// spelled out would push the row of buttons off the card.
+  static String customName(Words t, DateTime? end) =>
+      end == null ? t.planSpanCustom : fullDate(end);
+}
+
+class _SpanChoiceState extends State<_SpanChoice> {
+  /// The calendar hangs off the whole row, not off the button inside it:
+  /// Mongolian's longer words shrink this row, and a follower inside that
+  /// shrink is drawn scaled down with it.
+  final _link = LayerLink();
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final onSpan = this.onSpan;
+    final span = widget.span;
+    final payPeriodEnd = widget.payPeriodEnd;
+    final customEnd = widget.customEnd;
+    final onSpan = widget.onSpan;
     if (onSpan == null) {
-      return Text(nameOf(t, span), style: onest(12, color: Mid.ink3));
+      return Text(
+        span == ForecastSpan.custom
+            ? _SpanChoice.customName(t, customEnd)
+            : _SpanChoice.nameOf(t, span),
+        style: onest(12, color: Mid.ink3),
+      );
     }
     // The pay period needs a payday ahead in this account to run to; without
     // one, the fixed lengths are what's offered. A ledger left on a length
@@ -880,18 +933,33 @@ class _SpanChoice extends StatelessWidget {
     // With no payday ahead — every card, wallet and savings account, and a
     // new ledger — the pay-period button has nothing to run to, and the
     // forecast falls back to 30 days. Fill that one, so the row always says
-    // which length is drawn instead of showing none chosen.
-    final chosen = span == ForecastSpan.payPeriod && payPeriodEnd == null
+    // which length is drawn instead of showing none chosen. A picked day
+    // that has since gone by falls back the same way.
+    final chosen =
+        (span == ForecastSpan.payPeriod && payPeriodEnd == null) ||
+            (span == ForecastSpan.custom && customEnd == null)
         ? ForecastSpan.days30
         : span;
     final shown = <ForecastSpan>{
-      for (final s in _offered)
+      for (final s in _SpanChoice._offered)
         if (s != ForecastSpan.payPeriod || payPeriodEnd != null) s,
       chosen,
     }.toList()..sort((a, b) => a.index.compareTo(b.index));
     // An inset track with the chosen one raised out of it. By day the card
     // is white, so the track is the page's grey and the chosen chip white;
     // at night the card is lifted off a darker page, so they swap.
+    return CompositedTransformTarget(
+      link: _link,
+      child: Shrink(end: true, _row(t, chosen, shown, onSpan)),
+    );
+  }
+
+  Widget _row(
+    Words t,
+    ForecastSpan chosen,
+    List<ForecastSpan> shown,
+    ValueChanged<ForecastSpan> onSpan,
+  ) {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Mid.isLight ? Mid.raised : Mid.panel,
@@ -903,35 +971,193 @@ class _SpanChoice extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final s in shown)
-              Hoverable(
-                key: ValueKey('forecast-span-${s.name}'),
-                onTap: () => onSpan(s),
-                builder: (hover) => DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: s == chosen
-                        ? (Mid.isLight ? Mid.card : Mid.raised)
-                        : hover
-                        ? Mid.hover
-                        : null,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 4,
-                    ),
-                    child: Text(
-                      nameOf(t, s),
-                      style: onest(
-                        11,
-                        weight: s == chosen ? 500 : 400,
-                        color: s == chosen ? Mid.ink : Mid.ink3,
-                      ),
-                    ),
+              if (s == ForecastSpan.custom)
+                _CustomSpan(
+                  key: const ValueKey('forecast-span-custom-slot'),
+                  link: _link,
+                  chosen: chosen == ForecastSpan.custom,
+                  today: widget.today,
+                  end: widget.customEnd,
+                  onPick: widget.onCustomEnd,
+                  onBack: () => onSpan(ForecastSpan.custom),
+                )
+              else
+                _SpanChip(
+                  name: s.name,
+                  label: _SpanChoice.nameOf(t, s),
+                  chosen: s == chosen,
+                  onTap: () => onSpan(s),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One length in the row. The chosen one is raised out of the track, in
+/// the page's ink; the rest are quieter and light up under the mouse.
+class _SpanChip extends StatelessWidget {
+  const _SpanChip({
+    required this.name,
+    required this.label,
+    required this.chosen,
+    required this.onTap,
+  });
+  final String name, label;
+  final bool chosen;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Hoverable(
+    key: ValueKey('forecast-span-$name'),
+    onTap: onTap,
+    builder: (hover) => DecoratedBox(
+      decoration: BoxDecoration(
+        color: chosen
+            ? (Mid.isLight ? Mid.card : Mid.raised)
+            : hover
+            ? Mid.hover
+            : null,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        child: Text(
+          label,
+          style: onest(
+            11,
+            weight: chosen ? 500 : 400,
+            color: chosen ? Mid.ink : Mid.ink3,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Custom…, the last button in the row: it opens the app's calendar on
+/// the day the forecast runs to, and a click on a day redraws the forecast
+/// to it (owner, 2026-11-08, #397: "I want them to be able to choose a
+/// date"). The presets answer a month or a year; this answers the four
+/// months to Tsagaan Sar or the term's school fees, which is why there is
+/// no sixth preset.
+class _CustomSpan extends StatefulWidget {
+  const _CustomSpan({
+    super.key,
+    required this.link,
+    required this.chosen,
+    required this.today,
+    required this.end,
+    required this.onPick,
+    required this.onBack,
+  });
+
+  /// The row's own link: the calendar hangs off the whole row, which is
+  /// outside the shrink that Mongolian's longer words can scale.
+  final LayerLink link;
+  final bool chosen;
+  final DateTime today;
+  final DateTime? end;
+  final ValueChanged<DateTime>? onPick;
+
+  /// The button already says a day, and another length is drawn: a click
+  /// goes back to that day, in one click like every other button in the
+  /// row, instead of making the person find it in the calendar again.
+  final VoidCallback onBack;
+
+  @override
+  State<_CustomSpan> createState() => _CustomSpanState();
+}
+
+class _CustomSpanState extends State<_CustomSpan> {
+  final _portal = OverlayPortalController();
+
+  /// Where focus was before the calendar opened, so Esc and closing hand
+  /// it back to the register.
+  FocusNode? _returnFocus;
+  final _focus = FocusNode(debugLabel: 'forecast-span-custom');
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    if (_portal.isShowing) return _close();
+    _returnFocus = FocusManager.instance.primaryFocus;
+    setState(_portal.show);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+  }
+
+  void _close() {
+    if (!_portal.isShowing) return;
+    setState(_portal.hide);
+    _returnFocus?.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return TapRegion(
+      groupId: widget.link,
+      onTapOutside: (_) => _close(),
+      child: OverlayPortal(
+        controller: _portal,
+        // Under the row and against its right end: the row sits at the
+        // card's right edge, so a calendar hung from the left would
+        // stand off the card.
+        overlayChildBuilder: (context) => CompositedTransformFollower(
+          link: widget.link,
+          targetAnchor: Alignment.bottomRight,
+          followerAnchor: Alignment.topRight,
+          offset: const Offset(0, 8),
+          // The follower is handed the whole overlay's constraints, so the
+          // calendar is loosened here or it stretches across the window.
+          child: Align(
+            alignment: Alignment.topRight,
+            child: TapRegion(
+              groupId: widget.link,
+              child: CallbackShortcuts(
+                bindings: {
+                  const SingleActivator(LogicalKeyboardKey.escape): _close,
+                },
+                child: Focus(
+                  focusNode: _focus,
+                  child: Calendar(
+                    key: const ValueKey('forecast-span-calendar'),
+                    selected: widget.end,
+                    today: widget.today,
+                    // Today has nothing ahead left in it, and past two
+                    // years the bills a forecast projects run out before
+                    // the end does.
+                    earliest: ForecastSpan.firstCustom(widget.today),
+                    latest: ForecastSpan.lastCustom(widget.today),
+                    // Every day here is a later one, and none of them
+                    // schedules anything.
+                    scheduleNote: false,
+                    onPick: (d) {
+                      _close();
+                      widget.onPick?.call(d);
+                    },
                   ),
                 ),
               ),
-          ],
+            ),
+          ),
+        ),
+        child: Tooltip(
+          message: t.planSpanCustomTip,
+          waitDuration: const Duration(milliseconds: 500),
+          child: _SpanChip(
+            name: 'custom',
+            label: _SpanChoice.customName(t, widget.end),
+            chosen: widget.chosen,
+            onTap: widget.end != null && !widget.chosen
+                ? widget.onBack
+                : _toggle,
+          ),
         ),
       ),
     );
@@ -1289,6 +1515,10 @@ class _BillsCard extends StatelessWidget {
     final t = context.t;
     final payday = f.payday;
     final last = f.endBalance;
+    // A list that runs into another year has two 02.16s in it, telling
+    // apart only by the balance beside them, so every date here carries
+    // its year (#397).
+    final years = f.end.year != f.start.year;
     return Material(
       color: Mid.raised,
       elevation: 12,
@@ -1309,7 +1539,9 @@ class _BillsCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        t.planUntilDate(sayDate(t, f.end)),
+                        t.planUntilDate(
+                          years ? sayFullDate(t, f.end) : sayDate(t, f.end),
+                        ),
                         style: onest(12, color: Mid.ink3),
                       ),
                     ),
@@ -1324,6 +1556,7 @@ class _BillsCard extends StatelessWidget {
                 _BillLine(
                   row: s.row,
                   date: s.date,
+                  years: years,
                   balanceAfter: s.balance,
                   owed: f.owed,
                   onTap: () => onOpen(s.row),
@@ -1340,6 +1573,7 @@ class _BillsCard extends StatelessWidget {
                 _BillLine(
                   row: payday,
                   date: f.end,
+                  years: years,
                   balanceAfter: last + payday.amount,
                   onTap: () => onOpen(payday),
                 ),
@@ -1359,7 +1593,11 @@ class _BillLine extends StatefulWidget {
     required this.balanceAfter,
     required this.onTap,
     this.owed = false,
+    this.years = false,
   });
+
+  /// The list crosses into another year: the date carries its year.
+  final bool years;
   final RegisterRow row;
   final DateTime date;
   final int balanceAfter;
@@ -1393,7 +1631,7 @@ class _BillLineState extends State<_BillLine> {
               SizedBox(
                 width: 44,
                 child: Text(
-                  shortDate(widget.date),
+                  widget.years ? fullDate(widget.date) : shortDate(widget.date),
                   style: onest(12.5, color: Mid.ink3, tabular: true),
                 ),
               ),
@@ -1609,7 +1847,10 @@ class _ForecastChart extends StatelessWidget {
         ),
         for (var i = 0; i < days.length; i++)
           LayoutId(
-            key: ValueKey('forecast-dot-${shortDate(days[i].first.date)}'),
+            // Keyed by the whole date: a range longer than a year has
+            // two 02.16s in it, and two children of one layout can't share
+            // a key (#397).
+            key: ValueKey('forecast-dot-${fullDate(days[i].first.date)}'),
             id: 'dot$i',
             child: _DotTarget(
               lines: [
