@@ -6333,8 +6333,17 @@ void main() {
     expect(find.text('Through 10.10'), findsOneWidget);
     // The paycheck still closes the list, past the end, the way it does
     // when a pay period ends on it: the money is seen coming, the line
-    // doesn't lean on it.
+    // doesn't lean on it. The list's header names 10.10 too, so a line
+    // says why that one has a balance of its own.
     expect(find.text('+₮2,500,000'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('forecast-not-counted')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Not counted: it may arrive after the bills go out.'),
+      findsOneWidget,
+    );
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await settle(tester);
     // One day further and it has arrived: the income is a tick of its own.
@@ -6344,6 +6353,11 @@ void main() {
     });
     await settle(tester);
     expect(find.textContaining('Money in +₮2,500,000'), findsOneWidget);
+    // Arrived, so nothing is held back and the list says nothing about it.
+    await tapAndWait(tester, find.byKey(const ValueKey('forecast-bills')));
+    expect(find.byKey(const ValueKey('forecast-not-counted')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
     await tidy(tester, db);
   });
 

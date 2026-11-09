@@ -3130,9 +3130,10 @@ void main() {
         expect(f.inTotal, 5000000);
         expect(f.endBalance, 100000000 + 5000000 - 90000000);
         expect(f.firstShort, isNull);
-        // The card still names the paycheck past the end, so the money is
-        // seen to be coming without the line leaning on it.
-        expect(f.heldBackPay, same(salary));
+        // The card still names what it held back, past the end, so none of
+        // the money disappears from the screen: the refund first, then the
+        // paycheck, the order the walk would have taken them.
+        expect(f.heldBack, [same(refund), same(salary)]);
 
         // The same rows to a fixed length ending that day count in full:
         // nobody reads day 28 of a 30 day look as a deadline.
@@ -3151,7 +3152,7 @@ void main() {
           refund,
           salary,
         ]);
-        expect(fixed.heldBackPay, isNull);
+        expect(fixed.heldBack, isEmpty);
         expect(fixed.endBalance, 100000000 + 5000000 - 90000000 + 255000000);
 
         // Extending the picked day by one shows it all arriving (the
@@ -3165,7 +3166,7 @@ void main() {
           untilChosen: true,
         );
         expect(nextDay.endBalance, fixed.endBalance);
-        expect(nextDay.heldBackPay, isNull);
+        expect(nextDay.heldBack, isEmpty);
 
         // A transfer in on the picked day is the household's own doing and
         // counts on both sides, as it does on a pay period's last day.
@@ -3194,8 +3195,98 @@ void main() {
         );
         expect(short.firstShort, picked);
         expect(short.endBalance, 10000000 - 90000000);
+        // A projected paycheck — the ones after the next, which only this
+        // forecast knows about — is held back and named the same way. It
+        // was the hole the budget-app review found: the scheduled payday
+        // had been counted, so nothing named the one that was dropped.
+        final projectedPay = row(6, picked, 250000000, pay: true);
+        final later = buildForecast(
+          working: 100000000,
+          today: today,
+          scheduled: [earlier],
+          payIsSetUp: true,
+          until: picked,
+          untilChosen: true,
+          projected: [fees, projectedPay],
+        );
+        expect(later.steps.map((s) => s.row), [earlier, fees]);
+        expect(later.heldBack, [same(projectedPay)]);
+
+        // Income typed by hand while pay is set up elsewhere — a shop's
+        // takings, an invoice — is held back and named too.
+        final invoice = row(7, picked, 70000000);
+        final byHand = buildForecast(
+          working: 100000000,
+          today: today,
+          scheduled: [salary, fees, invoice],
+          payIsSetUp: true,
+          until: picked,
+          untilChosen: true,
+        );
+        expect(byHand.heldBack, [same(invoice), same(salary)]);
+
+        // A card is never held back: owing is not a warning, so a payment
+        // that lands late only ever helps, and holding it back would
+        // overstate what the household owes.
+        final card = buildForecast(
+          working: -64020000,
+          today: today,
+          scheduled: [row(8, picked, 64020000, kind: RowKind.transfer)],
+          owed: true,
+          until: picked,
+          untilChosen: true,
+        );
+        expect(card.endBalance, 0);
+        expect(card.heldBack, isEmpty);
       },
     );
+
+    test('a forecast that ends at payday holds back that day entirely', () {
+      // The budget-app review's finding: the rule cited the pay period, but
+      // a pay period ending *at* its payday (no later one known) still let
+      // a refund dated that day lift the line, while holding the paycheck
+      // back. Both are money that may land after the bills.
+      final today = DateTime(2026, 9, 16);
+      RegisterRow row(int txn, DateTime date, int amount, {bool pay = false}) =>
+          RegisterRow(
+            txnId: txn,
+            entryId: txn,
+            date: date,
+            payee: 'P',
+            memo: '',
+            amount: amount,
+            cleared: Cleared.uncleared,
+            scheduled: true,
+            kind: RowKind.simple,
+            categoryLabel: pay ? 'Salary' : 'Rent',
+            categoryId: 1,
+            splitLines: const [],
+            incomeCategory: pay,
+          );
+      final payday = DateTime(2026, 10, 10);
+      final salary = row(1, payday, 250000000, pay: true);
+      final refund = row(2, payday, 5000000);
+      final f = buildForecast(
+        working: 10000000,
+        today: today,
+        scheduled: [salary, refund],
+      );
+      expect(f.end, payday);
+      expect(f.steps, isEmpty);
+      expect(f.heldBack, [same(refund), same(salary)]);
+      expect(f.endBalance, 10000000);
+
+      // With no payday at all the end is the app's own 30 days, which is
+      // nobody's deadline: money in on it counts, as it always has.
+      final horizon = buildForecast(
+        working: 10000000,
+        today: today,
+        scheduled: [row(3, DateTime(2026, 10, 16), 5000000)],
+      );
+      expect(horizon.end, DateTime(2026, 10, 16));
+      expect(horizon.heldBack, isEmpty);
+      expect(horizon.endBalance, 15000000);
+    });
   });
 
   group('accounts', () {

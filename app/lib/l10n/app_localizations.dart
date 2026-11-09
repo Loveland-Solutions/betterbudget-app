@@ -1602,6 +1602,12 @@ abstract class Words {
   /// **' · not counted'**
   String get planLateNotCounted;
 
+  /// Account header, forecast bill list: above the money due on the last day that the forecast leaves out, under a rule
+  ///
+  /// In en, this message translates to:
+  /// **'Not counted: it may arrive after the bills go out.'**
+  String get planNotCounted;
+
   /// Account header, forecast panel: headline when no bills or income are scheduled
   ///
   /// In en, this message translates to:

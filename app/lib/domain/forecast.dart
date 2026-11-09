@@ -364,6 +364,7 @@ class Forecast {
     this.moveIn = 0,
     this.moveInCount = 0,
     this.late = const [],
+    this.heldBack = const [],
     this.owed = false,
     this.nextPayday,
     this.nextPayAmount,
@@ -389,8 +390,10 @@ class Forecast {
   /// The payday after [payday], from its pay plan: where the forecast ends.
   final DateTime? nextPayday;
 
-  /// The forecast runs to a date the user chose ([ForecastSpan]), not to
-  /// a payday: the end is just where it stops looking.
+  /// The forecast runs to a date from the span buttons, not to a payday:
+  /// the end is just where it stops looking. It does not say whether that
+  /// date is a length or a day the person picked — [heldBack] is what
+  /// answers how the last day was treated (#410).
   final bool fixedEnd;
 
   /// What the plan expects on [nextPayday] (not counted: it ends the
@@ -405,18 +408,6 @@ class Forecast {
   bool get paydayCounted =>
       payday != null && steps.any((s) => identical(s.row, payday));
 
-  /// The next paycheck when it falls inside the range and the forecast
-  /// still leaves it out: on the last day of a pay period, and on a day
-  /// picked with Custom…, where money due that day isn't counted as
-  /// arrived either (owner, 2026-11-09, #410). The card names it past the
-  /// end, so the person sees the money coming without the line leaning on
-  /// it. Null when the paycheck is counted, or when it falls beyond [end],
-  /// where it is no business of this forecast.
-  RegisterRow? get heldBackPay {
-    final p = payday;
-    if (p == null || paydayCounted || p.date.isAfter(end)) return null;
-    return p;
-  }
   final int low;
   final DateTime lowDate;
 
@@ -468,6 +459,16 @@ class Forecast {
   /// count, as due today, and so do transfers between the user's own
   /// accounts, which count on both sides.
   final List<RegisterRow> late;
+
+  /// Money in dated the forecast's last day and left out of it: the
+  /// paycheck a pay period stops at, and on a day picked with Custom…
+  /// everything money in that falls there — a projected paycheck, income
+  /// typed by hand, a refund (owner, 2026-11-09, #410). It may land after
+  /// the day's bills go out, so the balance is worked out without it; the
+  /// card still names each one past the end, in the order the walk would
+  /// have taken them, so the money is seen coming. Transfers are not in it:
+  /// the household's own money moving counts on both sides.
+  final List<RegisterRow> heldBack;
 
   final bool owed;
 
@@ -601,15 +602,21 @@ Forecast buildForecast({
   // salary or a refund due the same day can't be leaned on. A fixed length
   // (30 days, 90 days, a year) stops on whatever day it stops on, and nobody
   // reads that day as a deadline, so everything through it counts.
+  //
+  // Only an end that means something holds money back: a payday, or a day
+  // the person picked. The fallback horizon when no payday is known is the
+  // app's own 30 days, as much nobody's deadline as a length is. On a card
+  // nothing is held back at all: owing is never a warning there, so a
+  // payment arriving late only ever helps.
+  final holdLastDay = !owed && (untilChosen || (until == null && payday != null));
   bool counts(RegisterRow r) {
     if (when(r).isAfter(end)) return false;
-    if (until != null && !untilChosen) return true;
+    if (!holdLastDay) return true;
+    // The paycheck a pay period ends at is a step only when the forecast
+    // runs past it.
     if (until == null && identical(r, payday)) return nextPayday != null;
     final lastDayIn =
-        (until != null || nextPayday != null) &&
-        r.amount > 0 &&
-        r.kind != RowKind.transfer &&
-        !when(r).isBefore(end);
+        r.amount > 0 && r.kind != RowKind.transfer && !when(r).isBefore(end);
     return !lastDayIn;
   }
 
@@ -626,6 +633,23 @@ Forecast buildForecast({
         final o = paidLast(a.r).compareTo(paidLast(b.r));
         return o != 0 ? o : a.i.compareTo(b.i);
       });
+
+  // The money in the forecast left out of its last day, in the order the
+  // walk would have taken it: not only the paycheck a pay period stops at,
+  // but a projected paycheck, income typed by hand, a refund. The card
+  // names all of it past the end, so none of it just disappears from a
+  // screen the household reads a figure off (#410).
+  final heldBack = !holdLastDay
+      ? const <RegisterRow>[]
+      : ([
+              for (final (i, r) in rows.indexed)
+                if (!when(r).isAfter(end) && !counts(r)) (i: i, r: r),
+            ]..sort((a, b) {
+              final o = paidLast(a.r).compareTo(paidLast(b.r));
+              return o != 0 ? o : a.i.compareTo(b.i);
+            }))
+            .map((x) => x.r)
+            .toList();
 
   // On a card, balances are shown as what's owed.
   int shown(int v) => owed ? -v : v;
@@ -713,6 +737,7 @@ Forecast buildForecast({
     moveIn: moveIn,
     moveInCount: moveInCount,
     late: late,
+    heldBack: heldBack,
     owed: owed,
     nextPayday: nextPayday,
     nextPayAmount: until == null ? after?.amount : null,

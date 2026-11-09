@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-09** · version 0.81.0 · schema v24 · 1049 tests pass
+**Last updated: 2026-11-09** · version 0.81.0 · schema v24 · 1050 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -43,9 +43,12 @@ day picked with Custom… hasn't arrived"): money in dated the day picked with C
 a salary, a projected paycheck, a refund — is left out of the forecast the way a pay
 period leaves out the paycheck that ends it, so the balance the chart names for that day
 is what the household has if the money hasn't landed; a transfer on it still counts, on
-both sides, and the paycheck is still named past the end of the bill list
-(`Forecast.heldBackPay`). A fixed length (30 days, 90 days, a year) counts everything
-through its end, as before: nobody reads day 30 as a deadline. The computer only. No
+both sides. Everything held back is still named past the end of the bill list and shares
+a tick in the chart's gutter (`Forecast.heldBack`), under the line **Not counted: it may
+arrive after the bills go out.** A fixed length (30 days, 90 days, a year) counts
+everything through its end, as before: nobody reads day 30 as a deadline, and neither
+does a card, where owing is not a warning. From the two reviews: a pay period that ends
+*at* its payday now holds back that whole day, not only the paycheck. The computer only. No
 schema change. **#398 is next**: the card says nothing about what the budget plans to
 spend.
 

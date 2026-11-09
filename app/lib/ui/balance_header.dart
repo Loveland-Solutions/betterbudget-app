@@ -662,7 +662,7 @@ class ForecastPanel extends StatelessWidget {
         f.billCount == 0 &&
         f.spendingTotal == 0 &&
         !f.shortNow &&
-        (f.paydayCounted || f.heldBackPay != null);
+        (f.paydayCounted || f.heldBack.isNotEmpty);
     // The key to the rail: what each tick is, counted on its own side with
     // its own sign. "4 bills" alone was wrong once the income had a tick
     // (owner, 2026-11-08).
@@ -1360,15 +1360,18 @@ class _KnownList extends StatelessWidget {
             t.planExpectedIncome,
             f.nextPayAmount == null ? null : plus(f.nextPayAmount!),
           )
-        // The paycheck the forecast stops at, or the one due on a day
-        // picked with Custom… that it doesn't count as arrived (#410).
-        else if (f.heldBackPay case final held?)
-          line(
-            shortDate(f.end),
-            t.planExpectedIncome,
-            plus(held.amount),
-            row: held,
-          ),
+        // The paycheck the forecast stops at, and anything else due on a
+        // day picked with Custom… that it doesn't count as arrived (#410).
+        else
+          for (final held in f.heldBack)
+            line(
+              shortDate(f.end),
+              identical(held, payday) || held.payScheduleId != null
+                  ? t.planExpectedIncome
+                  : _payeeText(t, held),
+              plus(held.amount),
+              row: held,
+            ),
         if (!budgeted) ...[
           const SizedBox(height: 8),
           Text(t.planNothingBudgeted, style: onest(12.5, color: Mid.ink3)),
@@ -1582,23 +1585,38 @@ class _BillsCard extends StatelessWidget {
                   owed: f.owed,
                   onTap: open == null ? null : () => open(s.row),
                 ),
-              // Ending at payday, the paycheck closes the list, and so it
-              // does on a day picked with Custom… where it isn't counted as
-              // arrived (#410). Running through the period it's already a
-              // line above, and past the end it's no business of this list.
-              if (f.heldBackPay case final held?) ...[
+              // Money due on the last day that the forecast doesn't count
+              // as arrived: the paycheck a pay period ends at, and on a day
+              // picked with Custom… everything money in that falls there
+              // (#410). Below a rule, with their own balances, because the
+              // list's header names that day too and two balances for one
+              // date read as a mistake without a word saying why.
+              if (f.heldBack.isNotEmpty) ...[
                 Container(
                   height: 1,
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   color: Mid.rule,
                 ),
-                _BillLine(
-                  row: held,
-                  date: f.end,
-                  years: years,
-                  balanceAfter: last + held.amount,
-                  onTap: open == null ? null : () => open(held),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 2),
+                  child: Text(
+                    t.planNotCounted,
+                    key: const ValueKey('forecast-not-counted'),
+                    style: onest(12, color: Mid.ink3),
+                  ),
                 ),
+                for (final (i, held) in f.heldBack.indexed)
+                  _BillLine(
+                    row: held,
+                    date: f.end,
+                    years: years,
+                    balanceAfter:
+                        last +
+                        f.heldBack
+                            .take(i + 1)
+                            .fold(0, (a, r) => a + r.amount),
+                    onTap: open == null ? null : () => open(held),
+                  ),
               ],
             ],
           ),
@@ -1884,14 +1902,21 @@ List<_ChartEvent> _eventsOf(Forecast f) {
         ],
       ),
   ];
-  if (f.heldBackPay case final held?) {
+  if (f.heldBack.isNotEmpty) {
+    // Every row held back lands on the same day, so they share one tick in
+    // the gutter, each line carrying the balance as it would stand once
+    // that row and the ones above it had arrived.
+    var running = f.endBalance;
     out.add(
       _ChartEvent(
         // Not its date: a bill can fall on the same day, and two children
         // of one layout can't share a key.
         id: 'payday',
         steps: const [],
-        lines: [(row: held, balanceAfter: f.endBalance + held.amount)],
+        lines: [
+          for (final held in f.heldBack)
+            (row: held, balanceAfter: running += held.amount),
+        ],
       ),
     );
   }

@@ -1098,6 +1098,10 @@ class WordsMn extends Words {
   String get planLateNotCounted => ' · тооцоогүй';
 
   @override
+  String get planNotCounted =>
+      'Тооцоогүй: төлбөрүүд гарсны дараа орж ирж болзошгүй.';
+
+  @override
   String get planNothingScheduled => 'Товлосон зүйл алга';
 
   @override
