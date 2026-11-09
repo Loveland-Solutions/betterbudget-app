@@ -135,6 +135,22 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// A focus node by the label its widget gave it: the forecast's own
+  /// stops are inside a `FocusableActionDetector`, so `Focus.of` from the
+  /// widget's element would find an ancestor instead.
+  FocusNode focusNamed(WidgetTester tester, String label) {
+    FocusNode? found;
+    void walk(FocusNode n) {
+      if (n.debugLabel == label) found = n;
+      for (final child in n.children) {
+        walk(child);
+      }
+    }
+
+    walk(tester.binding.focusManager.rootScope);
+    return found!;
+  }
+
   Future<void> settle(WidgetTester tester) async {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 200)),
@@ -1363,20 +1379,155 @@ void main() {
     await tidy(tester, db);
   });
 
-  testWidgets('forecast dots do nothing while reconciling', (tester) async {
+  testWidgets('the forecast offers no clicks while reconciling', (
+    tester,
+  ) async {
     final db = await pumpLedger(tester);
     await tester.tap(find.byKey(const ValueKey('reconcile')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('forecast-dot-2026.09.20')));
+    final rent = find.byKey(const ValueKey('forecast-event-2026.09.20'));
+    final card = find.byKey(const ValueKey('forecast-bill-card'));
+    // The chart still reads: the bill still shows under the pointer.
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(rent));
     await tester.pumpAndSettle();
-    expect(find.text('Finish or cancel the reconcile first'), findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.text('Zaisan Residence')),
+      findsOneWidget,
+    );
+    // A click there goes nowhere, and nothing is reported: the register
+    // hides scheduled rows while reconciling, so there was nothing to
+    // offer in the first place (#395).
+    await tester.tapAt(tester.getCenter(rent));
+    await tester.pumpAndSettle();
+    await mouse.moveTo(Offset.zero);
+    await tester.pumpAndSettle();
+    await mouse.removePointer();
     expect(find.text('Edit'), findsNothing);
+    expect(find.textContaining('Finish'), findsNothing);
+    // The bill list still unfolds, and its lines lead nowhere either.
+    await tester.tap(find.byKey(const ValueKey('forecast-bills')));
+    await tester.pumpAndSettle();
+    expect(find.text('Balance after'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('forecast-bill-line')).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Edit'), findsNothing);
+    expect(find.text('Balance after'), findsOneWidget);
     await tidy(tester, db);
   });
 
-  testWidgets('forecast dots show their bill and open it', (tester) async {
+  testWidgets('the forecast chart snaps to the nearest event', (tester) async {
     final db = await pumpLedger(tester);
-    final dot = find.byKey(const ValueKey('forecast-dot-2026.09.20'));
+    final card = find.byKey(const ValueKey('forecast-bill-card'));
+    final rent = tester
+        .getCenter(find.byKey(const ValueKey('forecast-event-2026.09.20')))
+        .dx;
+    final visa = tester
+        .getCenter(find.byKey(const ValueKey('forecast-event-2026.09.25')))
+        .dx;
+    final y = tester
+        .getCenter(find.byKey(const ValueKey('forecast-event-2026.09.20')))
+        .dy;
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+
+    // Well off the rent's own pixel and still the rent: the nearest event
+    // owns the space around it, so two a day apart are both reachable
+    // instead of only the one laid out last (#393).
+    await mouse.moveTo(Offset(rent + 16, y));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: card, matching: find.text('Zaisan Residence')),
+      findsOneWidget,
+    );
+    // Past the halfway mark, and the next one answers.
+    await mouse.moveTo(Offset((rent + visa) / 2 + 8, y));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: card, matching: find.text('Zaisan Residence')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('Card payment')),
+      findsOneWidget,
+    );
+    await mouse.moveTo(Offset.zero);
+    await tester.pumpAndSettle();
+    await mouse.removePointer();
+    expect(card, findsNothing);
+    await tidy(tester, db);
+  });
+
+  testWidgets('the forecast chart is one focus stop, stepped with arrows', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    final card = find.byKey(const ValueKey('forecast-bill-card'));
+    // Tab onto it lands on the first event, so the keyboard alone shows
+    // where focus is (#394).
+    expect(find.byKey(const ValueKey('forecast-events')), findsOneWidget);
+    focusNamed(tester, 'forecast-chart').requestFocus();
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: card, matching: find.text('Zaisan Residence')),
+      findsOneWidget,
+    );
+    // → and ← walk the events; one stop for the chart, not one per event,
+    // whose count changes with the range.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: card, matching: find.text('Card payment')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: card, matching: find.text('Zaisan Residence')),
+      findsOneWidget,
+    );
+    // Esc puts the card away without leaving the chart.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(card, findsNothing);
+    // Enter opens the one it is on.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(card, findsNothing);
+    expect(find.text('Edit'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('the bills line is reached by Tab and hands focus back', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    expect(find.byKey(const ValueKey('forecast-bills')), findsOneWidget);
+    // Opened from the keyboard, Esc comes back to the line, not to the
+    // register (#394).
+    final line = focusNamed(tester, 'forecast-bills-line');
+    line.requestFocus();
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text('Balance after'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Balance after'), findsNothing);
+    expect(line.hasFocus, isTrue);
+    // Enter opens it again from there.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text('Balance after'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('forecast events show their bill and open it', (tester) async {
+    final db = await pumpLedger(tester);
+    final dot = find.byKey(const ValueKey('forecast-event-2026.09.20'));
     expect(find.text('Balance after'), findsNothing);
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -1390,9 +1541,11 @@ void main() {
       matchesGoldenFile('goldens/forecast_card.png'),
     );
 
-    // Clicking goes to the transaction: Scheduled tab, row selected.
+    // Clicking goes to the transaction: Scheduled tab, row selected. The
+    // marker takes no pointer — the one owner over the plot does the
+    // hitting, and snaps to the nearest event (#393).
     await mouse.moveTo(tester.getCenter(dot));
-    await tester.tap(dot);
+    await tester.tapAt(tester.getCenter(dot));
     await tester.pumpAndSettle();
     await mouse.removePointer();
     expect(find.text('Balance after'), findsNothing);

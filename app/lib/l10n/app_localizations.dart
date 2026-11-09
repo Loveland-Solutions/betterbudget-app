@@ -397,12 +397,6 @@ abstract class Words {
   /// **'Save or cancel the open row first'**
   String get ledgerSaveOrDiscard;
 
-  /// Toast when a forecast dot is clicked while reconciling.
-  ///
-  /// In en, this message translates to:
-  /// **'Finish or cancel the reconcile first'**
-  String get ledgerFinishReconcileFirst;
-
   /// Undo-menu label after a scheduled transaction is confirmed. name is the payee.
   ///
   /// In en, this message translates to:

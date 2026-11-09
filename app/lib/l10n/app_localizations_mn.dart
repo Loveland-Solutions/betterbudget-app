@@ -223,10 +223,6 @@ class WordsMn extends Words {
       'Эхлээд нээлттэй мөрөө хадгалах эсвэл болиулна уу';
 
   @override
-  String get ledgerFinishReconcileFirst =>
-      'Эхлээд тулгалтаа дуусгах эсвэл болиулна уу';
-
-  @override
   String ledgerConfirmed(String name) {
     return '$name бүртгэгдлээ';
   }

@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-09** · version 0.80.0 · schema v24 · 1044 tests pass
+**Last updated: 2026-11-09** · version 0.80.1 · schema v24 · 1047 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -38,7 +38,9 @@ Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy la
 Apple's encryption question are filled in App Store Connect. The iPhone app waits on
 #112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
 
-**Next:** nothing waits on the phone. Every "Question:" issue on the board is answered.
+**Next:** nothing waits on the phone. The owner answered #410 on 2026-11-09 — money due
+on a day picked with Custom… is not counted as arrived, the way a pay period already
+treats its last day — and that is the next piece of forecast work, with #398 after it.
 
 **The forecast's chart does the talking** (0.78.0, #392; ADR 0004 of the same name): the
 card's picture used to contradict its own figures — the balance ran ₮5,418,682 →
@@ -71,8 +73,16 @@ and from the reviews #398 (the card says
 nothing about what the budget plans to spend, so its own sum stops tying the day a
 category is paid from the account), and from the reviews of Custom… #408 (the line runs
 flat where nothing is known), #409 (the two-year limit), #410 (money due on the last day
-counted as arrived), #411 (the forecast worked out on every rebuild), #412 (the calendar
-pages one month per click) and #413 (the end balance counts money already set aside).
+counted as arrived, now answered), #411 (the forecast worked out on every rebuild), #412
+(the calendar pages one month per click) and #413 (the end balance counts money already
+set aside). **The chart's clicks and keys** (0.80.1, #393, #394, #395; ADR 0004 "The
+chart has one hover owner and one focus stop"): one hover owner over the plot and the
+rail snaps to the nearest event, so two bills a day apart are both reachable instead of
+only the one drawn last, and the card is placed once and kept inside the chart with a
+thin line down to the event it speaks for. The chart is one focus stop — Tab lands on
+the first event, ← → walk them, Enter opens one — and so is the bill count line, which
+Esc now hands focus back to when the keyboard opened it. While a reconcile is open the
+forecast offers no clicks at all rather than answering one with a coral failure card.
 
 **The register's tab row** (0.75.0–0.77.0, #384, #387, #390; ADR 0004 "Import beside
 Add", "The filters are buttons, each in its own color"): the filters, then **Import

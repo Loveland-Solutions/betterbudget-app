@@ -73,7 +73,9 @@ class BalanceHeader extends StatelessWidget {
   final VoidCallback? onReconcile;
 
   /// A forecast dot was clicked: show that scheduled transaction.
-  final ValueChanged<RegisterRow> onOpenScheduled;
+  /// Null while a reconcile is open: the register hides scheduled rows
+  /// then, so the forecast offers no clicks into them (#395).
+  final ValueChanged<RegisterRow>? onOpenScheduled;
   final AccountSummary summary;
   final Forecast forecast;
 
@@ -440,7 +442,7 @@ class _LateNote extends StatelessWidget {
   });
   final List<RegisterRow> late;
   final DateTime today;
-  final ValueChanged<RegisterRow> onOpen;
+  final ValueChanged<RegisterRow>? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -457,12 +459,13 @@ class _LateNote extends StatelessWidget {
       final days = daysBefore(late.single.date, today);
       what = days == 0 ? t.planLateToday(total) : t.planLateDays(total, days);
     }
+    final open = onOpen;
     return Hoverable(
       key: const ValueKey('forecast-late'),
-      onTap: () => onOpen(late.first),
+      onTap: open == null ? null : () => open(late.first),
       builder: (h) {
         final style = onest(12, color: Mid.ink, tabular: true).copyWith(
-          decoration: h ? TextDecoration.underline : null,
+          decoration: h && open != null ? TextDecoration.underline : null,
           decorationColor: Mid.ink,
         );
         // Only the amount part shrinks: "not counted" explains the warning.
@@ -514,7 +517,10 @@ class ForecastPanel extends StatelessWidget {
     this.onShowMaybePaid,
   });
   final Forecast f;
-  final ValueChanged<RegisterRow> onOpen;
+
+  /// Null while a reconcile is open. The chart and the bill list still
+  /// read; nothing offers a click that has nowhere to go (#395).
+  final ValueChanged<RegisterRow>? onOpen;
   final VoidCallback? onAddPay;
 
   /// Some category has a plan or an amount assigned: with no bills here
@@ -704,7 +710,7 @@ class ForecastPanel extends StatelessWidget {
         if (shortAhead case final s?) ...[
           Hoverable(
             key: const ValueKey('forecast-short-ahead'),
-            onTap: onShowShort ?? () {},
+            onTap: onShowShort,
             builder: (hover) => Tooltip(
               message: t.planShortAheadTip(sayDate(t, s.date)),
               waitDuration: const Duration(milliseconds: 500),
@@ -721,7 +727,9 @@ class ForecastPanel extends StatelessWidget {
                       ),
                 // Wraps rather than cut the amount short.
                 style: onest(12.5, color: Mid.coral, tabular: true).copyWith(
-                  decoration: hover ? TextDecoration.underline : null,
+                  decoration: hover && onShowShort != null
+                      ? TextDecoration.underline
+                      : null,
                   decorationColor: Mid.coral,
                 ),
               ),
@@ -733,11 +741,13 @@ class ForecastPanel extends StatelessWidget {
         if (maybePaid > 0) ...[
           Hoverable(
             key: const ValueKey('forecast-maybe-paid'),
-            onTap: onShowMaybePaid ?? () {},
+            onTap: onShowMaybePaid,
             builder: (hover) => Text(
               t.forecastMaybePaid(maybePaid),
               style: onest(12.5, color: Mid.ink2).copyWith(
-                decoration: hover ? TextDecoration.underline : null,
+                decoration: hover && onShowMaybePaid != null
+                    ? TextDecoration.underline
+                    : null,
                 decorationColor: Mid.ink2,
               ),
             ),
@@ -1257,7 +1267,7 @@ class _KnownList extends StatelessWidget {
     required this.budgeted,
   });
   final Forecast f;
-  final ValueChanged<RegisterRow> onOpen;
+  final ValueChanged<RegisterRow>? onOpen;
   final bool budgeted;
 
   @override
@@ -1302,9 +1312,10 @@ class _KnownList extends StatelessWidget {
           ],
         ),
       );
-      return row == null
+      final open = onOpen;
+      return row == null || open == null
           ? KeyedSubtree(key: key, child: body)
-          : Hoverable(key: key, onTap: () => onOpen(row), builder: (_) => body);
+          : Hoverable(key: key, onTap: () => open(row), builder: (_) => body);
     }
 
     // Today, then each paycheck the plan expects with its amount (which
@@ -1380,7 +1391,7 @@ class _BillsLink extends StatefulWidget {
   /// from pieces.
   final List<String> parts;
   final Forecast f;
-  final ValueChanged<RegisterRow> onOpen;
+  final ValueChanged<RegisterRow>? onOpen;
 
   @override
   State<_BillsLink> createState() => _BillsLinkState();
@@ -1389,15 +1400,21 @@ class _BillsLink extends StatefulWidget {
 class _BillsLinkState extends State<_BillsLink> {
   final _portal = OverlayPortalController();
   final _link = LayerLink();
-  bool _hover = false;
 
-  /// Where focus was before the list opened, so Esc and closing hand it back.
+  /// Where focus was before the list opened, so Esc and closing hand it
+  /// back: to the register when the mouse opened it, and to the line itself
+  /// when Tab and Enter did (#394). The line is a focus stop now, so
+  /// whatever held focus at that moment is already the right answer.
   FocusNode? _returnFocus;
   final _cardFocus = FocusNode(debugLabel: 'forecast-bills');
+
+  /// The line's own stop, so half the card isn't mouse-only (#394).
+  final _lineFocus = FocusNode(debugLabel: 'forecast-bills-line');
 
   @override
   void dispose() {
     _cardFocus.dispose();
+    _lineFocus.dispose();
     super.dispose();
   }
 
@@ -1419,7 +1436,6 @@ class _BillsLinkState extends State<_BillsLink> {
 
   @override
   Widget build(BuildContext context) {
-    final lit = _hover || _portal.isShowing;
     return TapRegion(
       groupId: _link,
       onTapOutside: (_) => _close(),
@@ -1444,24 +1460,25 @@ class _BillsLinkState extends State<_BillsLink> {
                     focusNode: _cardFocus,
                     child: _BillsCard(
                       f: widget.f,
-                      onOpen: (r) {
-                        _close();
-                        widget.onOpen(r);
-                      },
+                      onOpen: widget.onOpen == null
+                          ? null
+                          : (r) {
+                              _close();
+                              widget.onOpen!(r);
+                            },
                     ),
                   ),
                 ),
               ),
             ),
           ),
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            onEnter: (_) => setState(() => _hover = true),
-            onExit: (_) => setState(() => _hover = false),
-            child: GestureDetector(
-              key: const ValueKey('forecast-bills'),
-              onTap: _toggle,
-              child: Row(
+          child: Hoverable(
+            key: const ValueKey('forecast-bills'),
+            focusNode: _lineFocus,
+            onTap: _toggle,
+            builder: (hover) {
+              final lit = hover || _portal.isShowing;
+              return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Amounts and dates: smaller rather than cut.
@@ -1493,8 +1510,8 @@ class _BillsLinkState extends State<_BillsLink> {
                     color: lit ? Mid.ink : Mid.ink3,
                   ),
                 ],
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
@@ -1506,7 +1523,10 @@ class _BillsLinkState extends State<_BillsLink> {
 class _BillsCard extends StatelessWidget {
   const _BillsCard({required this.f, required this.onOpen});
   final Forecast f;
-  final ValueChanged<RegisterRow> onOpen;
+
+  /// Null while a reconcile is open: the list still reads, its lines just
+  /// lead nowhere (#395).
+  final ValueChanged<RegisterRow>? onOpen;
 
   static const width = 440.0;
 
@@ -1519,6 +1539,7 @@ class _BillsCard extends StatelessWidget {
     // apart only by the balance beside them, so every date here carries
     // its year (#397).
     final years = f.end.year != f.start.year;
+    final open = onOpen;
     return Material(
       color: Mid.raised,
       elevation: 12,
@@ -1559,7 +1580,7 @@ class _BillsCard extends StatelessWidget {
                   years: years,
                   balanceAfter: s.balance,
                   owed: f.owed,
-                  onTap: () => onOpen(s.row),
+                  onTap: open == null ? null : () => open(s.row),
                 ),
               // Ending at payday, the paycheck closes the list; running
               // through the period, or to a chosen date, it's already a
@@ -1575,7 +1596,7 @@ class _BillsCard extends StatelessWidget {
                   date: f.end,
                   years: years,
                   balanceAfter: last + payday.amount,
-                  onTap: () => onOpen(payday),
+                  onTap: open == null ? null : () => open(payday),
                 ),
               ],
             ],
@@ -1602,7 +1623,9 @@ class _BillLine extends StatefulWidget {
   final DateTime date;
   final int balanceAfter;
   final bool owed;
-  final VoidCallback onTap;
+
+  /// Null while a reconcile is open.
+  final VoidCallback? onTap;
 
   @override
   State<_BillLine> createState() => _BillLineState();
@@ -1616,15 +1639,16 @@ class _BillLineState extends State<_BillLine> {
     final r = widget.row;
     final b = widget.balanceAfter;
     final overdue = overdueNoteIn(context.t, r, widget.date);
+    final tap = widget.onTap;
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
+      cursor: tap == null ? MouseCursor.defer : SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
         key: const ValueKey('forecast-bill-line'),
-        onTap: widget.onTap,
+        onTap: tap,
         child: Container(
-          color: _hover ? Mid.chip : Colors.transparent,
+          color: _hover && tap != null ? Mid.chip : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           child: Row(
             children: [
@@ -1815,163 +1839,320 @@ Path _roundedThrough(List<Offset> pts, double radius) {
   return path;
 }
 
-/// Bills that land on the same day share one dot.
-List<List<ForecastStep>> _days(Forecast f) {
-  final byDay = <DateTime, List<ForecastStep>>{};
-  for (final s in f.rowSteps) {
-    byDay.putIfAbsent(s.date, () => []).add(s);
-  }
-  return byDay.values.toList();
+/// A day's events on the chart: one stop each, as the rail's ticks and the
+/// bill list group them. Where it sits across the chart is known only once
+/// the chart has a size, so the layout delegate fills that in ([_Where]).
+class _ChartEvent {
+  _ChartEvent({required this.id, required this.steps, required this.lines});
+
+  /// Tells one event from another, and names its marker on the rail.
+  final String id;
+
+  /// Which of [Forecast.steps] it stands for; empty for the payday past
+  /// the end, which is no step.
+  final List<int> steps;
+  final List<({RegisterRow row, int balanceAfter})> lines;
 }
 
-/// The chart plus what makes it useful: hover a dot to see the bill, click
-/// it to go to that transaction.
-class _ForecastChart extends StatelessWidget {
+/// Where the events ended up: written by the layout delegate, read by the
+/// hover owner and by the card it places. Only the layout knows the size.
+class _Where {
+  List<double> xs = const [];
+  double railY = 0, width = 0;
+}
+
+/// Every event on the chart, left to right, with the payday past the end
+/// last: it sits in the right gutter, so the whole right strip belongs to
+/// it (#393).
+List<_ChartEvent> _eventsOf(Forecast f) {
+  final byDay = <DateTime, List<int>>{};
+  for (var i = 0; i < f.steps.length; i++) {
+    // The budget's spending slopes a day at a time and has no row to open.
+    if (f.steps[i].spending) continue;
+    byDay.putIfAbsent(f.steps[i].date, () => []).add(i);
+  }
+  final days = byDay.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+  final out = [
+    for (final day in days)
+      _ChartEvent(
+        id: fullDate(day.key),
+        steps: day.value,
+        lines: [
+          for (final i in day.value)
+            (row: f.steps[i].row, balanceAfter: f.steps[i].balance),
+        ],
+      ),
+  ];
+  final payday = f.payday;
+  if (payday != null && !f.paydayCounted && !f.fixedEnd) {
+    out.add(
+      _ChartEvent(
+        // Not its date: a bill can fall on the same day, and two children
+        // of one layout can't share a key.
+        id: 'payday',
+        steps: const [],
+        lines: [(row: payday, balanceAfter: f.endBalance + payday.amount)],
+      ),
+    );
+  }
+  return out;
+}
+
+/// Keeps [v] between [lo] and [hi], and gives [lo] when there is no room
+/// between them at all (a chart narrower than the card it shows).
+double _within(double v, double lo, double hi) =>
+    hi <= lo ? lo : v.clamp(lo, hi);
+
+/// The chart plus what makes it useful: hover an event to see the bill,
+/// click it to go to that transaction.
+///
+/// One hover owner over the plot and the rail, snapping to the nearest
+/// event by x (#393). A target each meant that on a 90-day or year span
+/// two bills a day or two apart overlapped and only the one laid out last
+/// could be reached — the earlier ones weren't fiddly, they were
+/// unhittable. Nearest wins rather than paint order, and the card is
+/// placed once by the owner and clamped inside the chart instead of each
+/// event guessing from its own anchor.
+///
+/// One focus stop for the whole chart, not one per event (#394): the
+/// number of events changes with the range, so a stop each would move the
+/// Tab order under the person. ← and → step event to event.
+class _ForecastChart extends StatefulWidget {
   const _ForecastChart({required this.f, required this.onOpen});
   final Forecast f;
-  final ValueChanged<RegisterRow> onOpen;
+
+  /// Null while a reconcile is open: no pointer cursor and no row opening,
+  /// while the chart still reads and its cards still show. Nothing is taken
+  /// away that there was anything for, so nothing needs reporting (#395).
+  final ValueChanged<RegisterRow>? onOpen;
+
+  @override
+  State<_ForecastChart> createState() => _ForecastChartState();
+}
+
+class _ForecastChartState extends State<_ForecastChart> {
+  final _portal = OverlayPortalController();
+  final _link = LayerLink();
+  final _focus = FocusNode(debugLabel: 'forecast-chart');
+  final _where = _Where();
+
+  List<_ChartEvent> _events = const [];
+
+  /// The event the pointer or the keyboard is on.
+  int? _at;
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  /// The one in range, or null: a shorter range can leave [_at] past the
+  /// end, and the chart may not have been laid out yet.
+  int? get _on =>
+      _at != null && _at! < _events.length && _at! < _where.xs.length
+      ? _at
+      : null;
+
+  void _goTo(int? i) {
+    if (i == _at) return;
+    setState(() => _at = i);
+    if (i == null) {
+      if (_portal.isShowing) _portal.hide();
+    } else if (!_portal.isShowing) {
+      _portal.show();
+    }
+  }
+
+  /// Nearest by x, with no cut-off: every point across the chart belongs to
+  /// some event, and the strip past the last one belongs to it.
+  int? _nearest(double dx) {
+    final xs = _where.xs;
+    if (xs.isEmpty) return null;
+    var best = 0;
+    for (var i = 1; i < xs.length; i++) {
+      if ((xs[i] - dx).abs() < (xs[best] - dx).abs()) best = i;
+    }
+    return best;
+  }
+
+  void _step(int by) {
+    if (_events.isEmpty) return;
+    final from = _on ?? (by > 0 ? -1 : _events.length);
+    _goTo((from + by).clamp(0, _events.length - 1));
+  }
+
+  void _open() {
+    final at = _on;
+    if (at == null) return;
+    final row = _events[at].lines.first.row;
+    _goTo(null);
+    widget.onOpen?.call(row);
+  }
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.arrowRight:
+        _step(1);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowLeft:
+        _step(-1);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.escape:
+        if (_on == null) return KeyEventResult.ignored;
+        _goTo(null);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.enter:
+      case LogicalKeyboardKey.numpadEnter:
+      case LogicalKeyboardKey.space:
+        if (_on == null) return KeyEventResult.ignored;
+        _open();
+        return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final days = _days(f);
-    final payday = f.payday;
-    final last = f.endBalance;
-    return CustomMultiChildLayout(
-      delegate: _ChartLayout(f, days),
-      children: [
-        LayoutId(
-          id: 'paint',
-          child: CustomPaint(
-            painter: _ForecastPainter(f, CurrencyScope.of(context)),
+    _events = _eventsOf(widget.f);
+    final at = _on;
+    final canOpen = widget.onOpen != null && _events.isNotEmpty;
+    return CompositedTransformTarget(
+      link: _link,
+      child: OverlayPortal(
+        controller: _portal,
+        overlayChildBuilder: (context) {
+          if (at == null) return const SizedBox.shrink();
+          return CompositedTransformFollower(
+            link: _link,
+            showWhenUnlinked: false,
+            targetAnchor: Alignment.topLeft,
+            offset: Offset(
+              _within(
+                _where.xs[at] - _BillCard.width / 2,
+                0,
+                _where.width - _BillCard.width,
+              ),
+              _where.railY + 8,
+            ),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: IgnorePointer(
+                child: _BillCard(
+                  lines: _events[at].lines,
+                  owed: widget.f.owed,
+                ),
+              ),
+            ),
+          );
+        },
+        child: Focus(
+          focusNode: _focus,
+          canRequestFocus: canOpen,
+          skipTraversal: !canOpen,
+          // Tab onto the chart lands on the first event, so the keyboard
+          // alone shows where it is; leaving puts the card away.
+          onFocusChange: (has) => has ? _step(1) : _goTo(null),
+          onKeyEvent: _onKey,
+          child: CustomMultiChildLayout(
+            delegate: _ChartLayout(widget.f, _events, _where),
+            children: [
+              LayoutId(
+                id: 'paint',
+                child: CustomPaint(
+                  painter: _ForecastPainter(
+                    widget.f,
+                    CurrencyScope.of(context),
+                    highlightX: at == null ? null : _where.xs[at],
+                  ),
+                ),
+              ),
+              // Where each event sits, marked so a test can aim at one;
+              // the owner below does all the hitting.
+              for (var i = 0; i < _events.length; i++)
+                LayoutId(
+                  key: ValueKey('forecast-event-${_events[i].id}'),
+                  id: 'event$i',
+                  child: const IgnorePointer(child: SizedBox.shrink()),
+                ),
+              LayoutId(
+                id: 'hit',
+                child: MouseRegion(
+                  cursor: canOpen
+                      ? SystemMouseCursors.click
+                      : MouseCursor.defer,
+                  onHover: (e) => _goTo(_nearest(e.localPosition.dx)),
+                  onExit: (_) => _goTo(null),
+                  child: GestureDetector(
+                    key: const ValueKey('forecast-events'),
+                    behavior: HitTestBehavior.opaque,
+                    onTapUp: widget.onOpen == null
+                        ? null
+                        : (d) {
+                            _goTo(_nearest(d.localPosition.dx));
+                            _open();
+                          },
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        for (var i = 0; i < days.length; i++)
-          LayoutId(
-            // Keyed by the whole date: a range longer than a year has
-            // two 02.16s in it, and two children of one layout can't share
-            // a key (#397).
-            key: ValueKey('forecast-dot-${fullDate(days[i].first.date)}'),
-            id: 'dot$i',
-            child: _DotTarget(
-              lines: [
-                for (final s in days[i]) (row: s.row, balanceAfter: s.balance),
-              ],
-              owed: f.owed,
-              onOpen: onOpen,
-            ),
-          ),
-        if (payday != null && !f.paydayCounted && !f.fixedEnd)
-          LayoutId(
-            key: const ValueKey('forecast-payday'),
-            id: 'payday',
-            child: _DotTarget(
-              lines: [(row: payday, balanceAfter: last + payday.amount)],
-              onOpen: onOpen,
-              alignRight: true,
-            ),
-          ),
-      ],
+      ),
     );
   }
 }
 
-/// Puts each day's hover target over its ticks on the rail, which stand
-/// apart from each other and from the line (ADR 0004, "The forecast's chart
-/// does the talking"). Two bills a day or two apart still overlap on a long
-/// span, and only one of them can be reached: #393.
+/// Puts the painter, the event markers and the one hover owner over the
+/// plot, and tells the chart's state where each event landed.
 class _ChartLayout extends MultiChildLayoutDelegate {
-  _ChartLayout(this.f, this.days);
+  _ChartLayout(this.f, this.events, this.where);
   final Forecast f;
-  final List<List<ForecastStep>> days;
+  final List<_ChartEvent> events;
+  final _Where where;
 
   @override
   void performLayout(Size size) {
     layoutChild('paint', BoxConstraints.tight(size));
     positionChild('paint', Offset.zero);
     final g = _ChartGeometry(f, size);
-    const dot = Size(24, 26);
-    for (var i = 0; i < days.length; i++) {
-      layoutChild('dot$i', BoxConstraints.tight(dot));
-      positionChild(
-        'dot$i',
-        Offset(
-          (g.x(days[i].first.date) - dot.width / 2).clamp(
-            0,
-            size.width - dot.width,
-          ),
-          g.railY - dot.height / 2,
-        ),
-      );
-    }
-    if (hasChild('payday')) {
-      const label = Size(120, _ChartGeometry._labelBand);
-      layoutChild('payday', BoxConstraints.tight(label));
-      positionChild('payday', Offset(g.w - label.width, g.datesY - 4));
-    }
-  }
-
-  @override
-  bool shouldRelayout(_ChartLayout old) => old.f != f;
-}
-
-class _DotTarget extends StatefulWidget {
-  const _DotTarget({
-    required this.lines,
-    required this.onOpen,
-    this.alignRight = false,
-    this.owed = false,
-  });
-  final List<({RegisterRow row, int balanceAfter})> lines;
-  final ValueChanged<RegisterRow> onOpen;
-  final bool alignRight;
-  final bool owed;
-
-  @override
-  State<_DotTarget> createState() => _DotTargetState();
-}
-
-class _DotTargetState extends State<_DotTarget> {
-  final _portal = OverlayPortalController();
-  final _link = LayerLink();
-
-  @override
-  Widget build(BuildContext context) {
-    return CompositedTransformTarget(
-      link: _link,
-      child: OverlayPortal(
-        controller: _portal,
-        overlayChildBuilder: (context) => CompositedTransformFollower(
-          link: _link,
-          showWhenUnlinked: false,
-          targetAnchor: widget.alignRight
-              ? Alignment.bottomRight
-              : Alignment.bottomCenter,
-          offset: Offset(
-            widget.alignRight ? -_BillCard.width : -_BillCard.width / 2,
-            6,
-          ),
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: IgnorePointer(
-              child: _BillCard(lines: widget.lines, owed: widget.owed),
-            ),
-          ),
-        ),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => setState(_portal.show),
-          onExit: (_) => setState(_portal.hide),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              setState(_portal.hide);
-              widget.onOpen(widget.lines.first.row);
-            },
-          ),
+    where
+      ..width = g.w
+      ..railY = g.railY
+      ..xs = [
+        for (final e in events)
+          // The middle of that day's ticks, which the geometry spreads a
+          // few pixels apart: aiming at the cluster lands on the day. The
+          // payday past the end sits in the right gutter.
+          if (e.steps.isEmpty)
+            g.w
+          else
+            e.steps.fold(0.0, (sum, i) => sum + g.xs[i]) / e.steps.length,
+      ];
+    // The plot and the rail, not the dates under them: a pointer cursor
+    // over the date row would offer nothing.
+    layoutChild(
+      'hit',
+      BoxConstraints.tight(
+        Size(
+          size.width,
+          (g.railY + _ChartGeometry._railBand / 2).clamp(0.0, size.height),
         ),
       ),
     );
+    positionChild('hit', Offset.zero);
+    for (var i = 0; i < events.length; i++) {
+      layoutChild('event$i', BoxConstraints.tight(const Size.square(1)));
+      positionChild('event$i', Offset(where.xs[i] - 0.5, g.railY - 0.5));
+    }
   }
+
+  @override
+  bool shouldRelayout(_ChartLayout old) =>
+      old.f != f || old.events.length != events.length;
 }
 
 /// What a forecast dot stands for.
@@ -1986,6 +2167,7 @@ class _BillCard extends StatelessWidget {
     final t = context.t;
     final last = lines.last;
     return Material(
+      key: const ValueKey('forecast-bill-card'),
       color: Mid.raised,
       elevation: 12,
       shadowColor: Colors.black,
@@ -2074,9 +2256,14 @@ class _BillCard extends StatelessWidget {
 }
 
 class _ForecastPainter extends CustomPainter {
-  _ForecastPainter(this.f, this.currency);
+  _ForecastPainter(this.f, this.currency, {this.highlightX});
   final Currency currency;
   final Forecast f;
+
+  /// Where the event the pointer or the keyboard is on sits. At a year the
+  /// ticks are about a pixel apart, so the card alone doesn't say which one
+  /// it speaks for.
+  final double? highlightX;
 
   /// Drawn in these colors; a switch between light and dark repaints.
   final Palette palette = Mid.palette;
@@ -2160,6 +2347,20 @@ class _ForecastPainter extends CustomPainter {
         );
         canvas.restore();
       }
+    }
+
+    // The event being read, from the top of the plot down to its tick on
+    // the rail: the card is clamped inside the chart, so on a long span it
+    // can sit well away from the event it speaks for. Drawn under the
+    // line, the figures and the ticks, which all stay on top of it.
+    if (highlightX case final hx?) {
+      canvas.drawLine(
+        Offset(hx, 0),
+        Offset(hx, g.railY),
+        Paint()
+          ..color = Mid.ink2.withValues(alpha: 0.5)
+          ..strokeWidth = 1,
+      );
     }
 
     // A glow under the stroke, then the stroke itself: lighter at the top,
@@ -2396,5 +2597,8 @@ class _ForecastPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ForecastPainter old) =>
-      old.f != f || old.palette != palette || old.currency != currency;
+      old.f != f ||
+      old.palette != palette ||
+      old.currency != currency ||
+      old.highlightX != highlightX;
 }
