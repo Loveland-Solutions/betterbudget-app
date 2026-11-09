@@ -1269,6 +1269,21 @@ class WordsEn extends Words {
       'You can change how far ahead it looks with the buttons above.';
 
   @override
+  String planRailOut(String amount) {
+    return 'Money out −$amount';
+  }
+
+  @override
+  String planRailMoveOut(String amount) {
+    return 'Transfer −$amount';
+  }
+
+  @override
+  String planRailMoveIn(String amount) {
+    return 'Transfer +$amount';
+  }
+
+  @override
   String planRailBills(int count, String amount) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1280,14 +1295,8 @@ class WordsEn extends Words {
   }
 
   @override
-  String planRailIn(int count, String amount) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count incomes +$amount',
-      one: '1 income +$amount',
-    );
-    return '$_temp0';
+  String planRailIn(String amount) {
+    return 'Money in +$amount';
   }
 
   @override

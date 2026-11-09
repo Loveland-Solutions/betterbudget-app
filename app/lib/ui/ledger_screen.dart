@@ -2274,6 +2274,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
       today: today,
       scheduled: scheduled,
       owed: account.isOwed,
+      owedAccounts: {
+        for (final a in data.balanceSheetAccounts)
+          if (a.isOwed) a.name,
+      },
       paydayAfter: (row) => _paydayAfter(data, row),
       payIsSetUp: data.paySchedules.isNotEmpty,
       until: until,

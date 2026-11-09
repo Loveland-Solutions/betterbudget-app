@@ -5432,3 +5432,51 @@ above rather than part of its first draft.
 - Smaller: ₮0 was printed at both ends of a paid-off card; the ₮0 label could paint
   above the plot onto the bills line; the late note began with a dangling "·" left from
   when it trailed the title; a scheduled row of exactly ₮0 made the key line empty.
+
+## Money In, Money Out, Transfer (owner, 2026-11-09, #400)
+
+The forecast's key line sorted every row by its sign alone, so a standing ₮500,000 into
+the household's own savings was counted among the bills, and taking some of it back out
+again was counted as money in. The first-time reader on the old wording: "I would count
+four bills and start looking for which bill is ₮500,000" — when nobody is owed it and
+the money is still theirs. The reverse month is worse: ₮400,000 drawn out of Khan
+Savings read as `1 income +₮400,000`, and "I would think my pay arrived small... Really
+I am poorer, not richer."
+
+The owner first proposed **credit and debit** for the two sides. Both experts advised
+against it, and the deciding reason was Mongolian: **кредит is a loan**, so
+`1 кредит +₮5,973,750` reads as one loan of ₮5.97m, the opposite of money you own. In
+English the first-time reader takes "debit" from their debit card, so "4 debits" reads
+as four card payments already made, and "credit" reads as borrowing: "the signs do the
+work; the words fight them". Their bank app shows **зарлага** and **орлого**, which is
+what the Mongolian uses now. It also collided with the sidebar's **Credit** heading over
+the card accounts — "two opposite meanings of one word on one screen" — and it would not
+have fixed anything, since one word would still have covered a salary, a drawdown and a
+refund. **In / out** alone was rejected too: "no In/Out columns" is the first recorded
+owner correction.
+
+What both experts recommended instead, and what the owner then chose: don't rename the
+pair, **split the bucket**.
+
+- **The line is `Money out −₮7,100,000 · Transfer −₮2,000,000 · Money in +₮5,973,750`**,
+  each part shown only while there is something for it. Most months there is no
+  scheduled transfer and the line is two parts, as before.
+- **The sign says the direction**, as everywhere else in the app, so one word does both
+  ways of a transfer.
+- **Transfer** is the word the register already prints on that row and the word the
+  unfolded list shows beside the other account's name: the key names what you will read
+  when you click it.
+- **Paying a card off is Money out, not a Transfer** (owner, 2026-11-09). It is money
+  gone, settling what the bank is owed, and a household looks for it among its bills;
+  moving money to savings is different because you still have it. A transfer row knows
+  only the other account's name, so `buildForecast` takes `owedAccounts`, the names of
+  the accounts that are owed, which the ledger screen already has.
+- **A card's own forecast does not split at all.** Every side of a card is a transfer,
+  so splitting there would have emptied the charges and payments the card already says.
+- **The split reaches `billTotal` and `billCount`**, not just the key line, so the
+  no-chart sentences (`planBillsBefore`) cannot keep calling a savings transfer a bill
+  and disagree with the line above them.
+- **No counts on the line.** "4 money out" is not English, and the rail's ticks are
+  countable where they stand. Reversible if the owner wants them back.
+- Still open, not built: whether a transfer's tick should be drawn apart from the others
+  — a hollow tick against the filled ones is the cheapest honest move, no new colour.

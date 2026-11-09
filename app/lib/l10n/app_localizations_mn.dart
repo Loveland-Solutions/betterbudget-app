@@ -1229,6 +1229,21 @@ class WordsMn extends Words {
       'Дээрх товчнуудаар хэр хол харахыг өөрчилж болно.';
 
   @override
+  String planRailOut(String amount) {
+    return 'Зарлага −$amount';
+  }
+
+  @override
+  String planRailMoveOut(String amount) {
+    return 'Шилжүүлэг −$amount';
+  }
+
+  @override
+  String planRailMoveIn(String amount) {
+    return 'Шилжүүлэг +$amount';
+  }
+
+  @override
   String planRailBills(int count, String amount) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1240,14 +1255,8 @@ class WordsMn extends Words {
   }
 
   @override
-  String planRailIn(int count, String amount) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count орлого +$amount',
-      one: '1 орлого +$amount',
-    );
-    return '$_temp0';
+  String planRailIn(String amount) {
+    return 'Орлого +$amount';
   }
 
   @override
