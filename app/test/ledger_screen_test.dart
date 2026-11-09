@@ -5892,6 +5892,41 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('under water the whole time: ₮0 stays on the chart', (
+    tester,
+  ) async {
+    // The chart is framed on the money that moves, so an account whose every
+    // balance is negative has no ₮0 inside its own range. Without forcing it
+    // in, the zero line, the coral fill and the coral half of the stroke all
+    // went, and a drowning account drew exactly like a healthy one.
+    final db = await pumpLedger(tester);
+    await openEntry(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'New transaction — payee'),
+      'МУИС',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      'Tuition',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, '₮0.00'),
+      '5000000',
+    );
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    // Today is already below zero, and every day after it is too.
+    expect(find.textContaining('−₮817,550'), findsWidgets);
+    await expectLater(
+      find.byType(ForecastPanel),
+      matchesGoldenFile('goldens/forecast_under_water.png'),
+    );
+    await tidy(tester, db);
+  });
+
   testWidgets('a future bill turns the forecast into a warning', (
     tester,
   ) async {

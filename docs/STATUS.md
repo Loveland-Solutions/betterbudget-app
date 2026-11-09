@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-08** · version 0.78.0 · schema v24 · 1039 tests pass
+**Last updated: 2026-11-08** · version 0.78.1 · schema v24 · 1040 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -55,8 +55,11 @@ only happens if money due today never arrives. How far ahead is a **row of butto
 (**To income · 30 days · 90 days · 1 year**; 60 days and 6 months are gone, their words
 kept for a ledger still set to one), and an **ⓘ** beside the word Forecast says what the
 forecast is. The line under the chart is the key to the rail: `4 bills −₮7,100,000 ·
-1 income +₮5,973,750`. The computer only. No schema change. Not built, and filed:
-#393, #394, #395.
+1 income +₮5,973,750`. The chart takes whatever width the balances beside it don't
+(0.78.1). The computer only. No schema change. Not built, and filed: #393, #394, #395,
+and from the reviews #397 (pick any end date with Custom…) and #398 (the card says
+nothing about what the budget plans to spend, so its own sum stops tying the day a
+category is paid from the account).
 
 **The register's tab row** (0.75.0–0.77.0, #384, #387, #390; ADR 0004 "Import beside
 Add", "The filters are buttons, each in its own color"): the filters, then **Import

@@ -5345,9 +5345,12 @@ the space to the chart and setting the figures at their own points. **J**, **K**
   in the app's quiet ink, the income's in green above the rail. The chart stops being a
   wire with dots stuck to it and becomes two layers, the shape above and its causes
   below.
-- **The line is 2.5px**, step corners rounded, a vertical gradient from `#9CC4F5` to
-  `#5192E0`, a soft glow, and a wash beneath that carries weight near the line and
-  fades out. The owner on the old one: "wimpy".
+- **The line is 2.5px**, step corners rounded, in the palette's blue over a soft glow
+  of the same blue, and a wash beneath that carries weight near the line and fades out.
+  The owner on the old one: "wimpy". (This line first claimed a light-to-deep gradient
+  along the stroke; the code set two stops of one colour, so there never was one. Hard
+  hexes would take the stroke out of the palette, so the claim went rather than the
+  code, 0.78.1.)
 - **No headline sentence.** The low is drawn large at the dip itself, and the **end
   balance is named where you land** — the figure the card never said, and the one whose
   absence frightened the first-time reader.
@@ -5392,3 +5395,40 @@ the space to the chart and setting the figures at their own points. **J**, **K**
   opening it takes focus from the register (#394); and this ADR's older line that the
   dots do nothing during a reconcile, against the app's coral "Finish reconciling first"
   (#395).
+
+### What the reviews found afterwards (0.78.1)
+
+The two review passes came back after the merge, so these are corrections to the section
+above rather than part of its first draft.
+
+- **The chart takes the width the balances don't** (owner, 2026-11-08: "I want the chart
+  to dynamically take up the rest of the header space to the right of the Cleared,
+  Uncleared, working figures"). It was pinned at 440 with the balances given everything
+  else, so a wide window bought the chart nothing and left dead space in the middle. The
+  balances now take what their own figures need and the chart takes the rest.
+- **₮0 is forced into the frame whenever the account is short.** Framing on the money
+  that moves means an account under water the whole time has no ₮0 in its own range, so
+  the zero line, the coral fill and the coral half of the stroke all went: a drowning
+  account drew exactly like a healthy one. A golden holds that state now.
+- **A balance that lands on exactly ₮0 is coral.** `buildForecast` has counted zero as
+  short since 2026-10-05; the painter was colouring by "below zero", so the card said
+  you were fine on the day you ran out.
+- **The dip's date always shows**, and the figure can no longer be dropped. The date was
+  suppressed within 52px of either end — which in **To income** is where the dip usually
+  is — and the figure drew nothing at all when no spot fitted. With no sentence left to
+  carry them, those two are the whole answer, so the ends of the date band give way to
+  the dip instead.
+- **Same-day spreading is never wider than a day.** At a year a day is about a pixel, so
+  a fixed spread moved an event two days sideways, the line doubled back and the wash
+  folded over itself.
+- **The dip's figure, ring and date are found by date, not by amount.** The same balance
+  can come round twice, and since #179 the low is often one of the budget's spending
+  steps, which aren't spread.
+- **A length is always filled.** With no payday ahead — every card, wallet and savings
+  account, and a new ledger — the pay-period button is dropped and the forecast falls
+  back to 30 days, so that is the one shown as chosen.
+- **The ⓘ is a focus stop** and carries its sentences as its own label: a `WidgetSpan`
+  tooltip reaches a screen reader as one placeholder character.
+- Smaller: ₮0 was printed at both ends of a paid-off card; the ₮0 label could paint
+  above the plot onto the bills line; the late note began with a dangling "·" left from
+  when it trailed the title; a scheduled row of exactly ₮0 made the key line empty.

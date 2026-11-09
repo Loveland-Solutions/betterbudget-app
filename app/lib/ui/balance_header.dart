@@ -89,7 +89,11 @@ class BalanceHeader extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
+            // The balances take the width their own figures need; the chart
+            // takes everything left (owner, 2026-11-08). Pinned at 440 it
+            // sat against the right edge with dead space in the middle, and
+            // a wide window bought the chart nothing.
+            Flexible(
               child:
                   reconcile ??
                   _Balances(
@@ -104,8 +108,7 @@ class BalanceHeader extends StatelessWidget {
             const SizedBox(width: 40),
             Container(width: 1, color: Mid.rule),
             const SizedBox(width: 40),
-            SizedBox(
-              width: 440,
+            Expanded(
               child: ForecastPanel(
                 forecast,
                 onOpen: onOpenScheduled,
@@ -457,7 +460,8 @@ class _LateNote extends StatelessWidget {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(' · ', style: onest(12, color: Mid.ink3)),
+            // No leading "·": the note trailed the span control on one row
+            // before, and now stands on a line of its own.
             Flexible(
               child: Text(
                 what,
@@ -797,7 +801,11 @@ class ForecastPanel extends StatelessWidget {
             // A credit account keeps its own words: there a bill is a
             // charge and money in is a payment, and the signs run the other
             // way, so the rail's "4 bills −₮…" would read backwards.
-            _BillsLink(parts: f.owed ? [detail] : rail, f: f, onOpen: onOpen),
+            _BillsLink(
+              parts: f.owed || rail.isEmpty ? [detail] : rail,
+              f: f,
+              onOpen: onOpen,
+            ),
           const SizedBox(height: 10),
           Expanded(
             child: ConstrainedBox(
@@ -860,12 +868,18 @@ class _SpanChoice extends StatelessWidget {
     // one, the fixed lengths are what's offered. A ledger left on a length
     // that is no longer offered keeps its own button until it's changed, so
     // nothing a person chose disappears under them.
-    final shown =
-        <ForecastSpan>{
-          for (final s in _offered)
-            if (s != ForecastSpan.payPeriod || payPeriodEnd != null) s,
-          if (span != ForecastSpan.payPeriod || payPeriodEnd != null) span,
-        }.toList()..sort((a, b) => a.index.compareTo(b.index));
+    // With no payday ahead — every card, wallet and savings account, and a
+    // new ledger — the pay-period button has nothing to run to, and the
+    // forecast falls back to 30 days. Fill that one, so the row always says
+    // which length is drawn instead of showing none chosen.
+    final chosen = span == ForecastSpan.payPeriod && payPeriodEnd == null
+        ? ForecastSpan.days30
+        : span;
+    final shown = <ForecastSpan>{
+      for (final s in _offered)
+        if (s != ForecastSpan.payPeriod || payPeriodEnd != null) s,
+      chosen,
+    }.toList()..sort((a, b) => a.index.compareTo(b.index));
     // An inset track with the chosen one raised out of it. By day the card
     // is white, so the track is the page's grey and the chosen chip white;
     // at night the card is lifted off a darker page, so they swap.
@@ -885,7 +899,7 @@ class _SpanChoice extends StatelessWidget {
                 onTap: () => onSpan(s),
                 builder: (hover) => DecoratedBox(
                   decoration: BoxDecoration(
-                    color: s == span
+                    color: s == chosen
                         ? (Mid.isLight ? Mid.card : Mid.raised)
                         : hover
                         ? Mid.hover
@@ -901,8 +915,8 @@ class _SpanChoice extends StatelessWidget {
                       nameOf(t, s),
                       style: onest(
                         11,
-                        weight: s == span ? 500 : 400,
-                        color: s == span ? Mid.ink : Mid.ink3,
+                        weight: s == chosen ? 500 : 400,
+                        color: s == chosen ? Mid.ink : Mid.ink3,
                       ),
                     ),
                   ),
@@ -918,15 +932,24 @@ class _SpanChoice extends StatelessWidget {
 /// What the forecast is, on an ⓘ beside the card's name: the one place on
 /// the card where language lives, which is what lets the rest stay quiet.
 /// The owner's own words (2026-11-08).
-class _WhatIsIt extends StatelessWidget {
+class _WhatIsIt extends StatefulWidget {
   const _WhatIsIt();
+
+  @override
+  State<_WhatIsIt> createState() => _WhatIsItState();
+}
+
+class _WhatIsItState extends State<_WhatIsIt> {
+  /// The icon is a focus stop that takes the click itself, so the tooltip is
+  /// opened through this rather than by its own tap trigger.
+  final _tip = GlobalKey<TooltipState>();
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final style = onest(11.5, color: Mid.ink, height: 1.45);
     return Tooltip(
-      key: const ValueKey('forecast-what'),
+      key: _tip,
       triggerMode: TooltipTriggerMode.tap,
       waitDuration: const Duration(milliseconds: 300),
       richMessage: WidgetSpan(
@@ -963,10 +986,30 @@ class _WhatIsIt extends StatelessWidget {
           ),
         ),
       ),
+      // A `WidgetSpan` message reaches a screen reader as one placeholder
+      // character, so the sentences go on the label itself; and the icon is
+      // a real focus stop, so Tab reaches the card's only prose, as ADR 0004
+      // says it should ("on hover and on focus").
       child: Semantics(
-        label: t.planForecastWhatLabel,
+        label:
+            '${t.planForecastWhatLabel}. ${t.planForecastWhatOne} '
+            '${t.planForecastWhatTwo} ${t.planForecastWhatThree} '
+            '${t.planForecastWhatFour}',
         button: true,
-        child: Icon(Icons.info_outline_rounded, size: 13, color: Mid.ink3),
+        excludeSemantics: true,
+        child: Hoverable(
+          key: const ValueKey('forecast-what'),
+          onTap: () => _tip.currentState?.ensureTooltipVisible(),
+          builder: (hover) => Padding(
+            // A 13px glyph is a small thing to hit with a mouse alone.
+            padding: const EdgeInsets.all(5),
+            child: Icon(
+              Icons.info_outline_rounded,
+              size: 13,
+              color: hover ? Mid.ink2 : Mid.ink3,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1427,6 +1470,14 @@ class _ChartGeometry {
       if (lo > 0) lo = 0;
       if (hi < 0) hi = 0;
     }
+    // An account under water the whole time has no ₮0 inside its own range,
+    // so it was framed on its negatives and drawn exactly like a healthy
+    // one: no zero line, no coral fill, and the coral half of the stroke
+    // skipped with it. When the account is short, ₮0 is on the chart.
+    if (!f.owed && (f.isShort || f.shortNow)) {
+      if (hi < 0) hi = 0;
+      if (lo > 0) lo = 0;
+    }
     // A month whose money barely moves is drawn as it is. Without this a 2%
     // wobble fills the box and the card shouts every month.
     final least = (hi.abs() / 4).round();
@@ -1439,7 +1490,7 @@ class _ChartGeometry {
     // leaving: the axis runs past the end so the step has room, and a short
     // flat run after it says the balance stays there.
     final days = f.end.difference(f.start).inDays;
-    _days = days + (days * 0.08).round().clamp(1, 1 << 30);
+    _span = days + (days * 0.08).round().clamp(1, 1 << 30);
 
     // Bills and the income that follows them the same day landed on one
     // pixel, so the dip was a zero-width spike. Spread them: it can be seen
@@ -1456,7 +1507,11 @@ class _ChartGeometry {
           () {
             final n = perDay[s.date]!;
             final i = seen[s.date] = (seen[s.date] ?? -1) + 1;
-            return (x(s.date) + (i - (n - 1) / 2) * _sameDay).clamp(0.0, w);
+            // Never wider than the day itself: at a year a day is about a
+            // pixel, and a fixed spread moved an event two days sideways,
+            // so the line doubled back on itself and the wash folded over.
+            final spread = (w / _span).clamp(0.0, _sameDay);
+            return (x(s.date) + (i - (n - 1) / 2) * spread).clamp(0.0, w);
           }(),
     ];
   }
@@ -1466,7 +1521,10 @@ class _ChartGeometry {
   final double w;
   late final double h;
   late final int _hi, _lo;
-  late final int _days;
+
+  /// Days across the chart, the run past the end included. Named apart from
+  /// the top-level `_days(Forecast)`, which groups steps by day.
+  late final int _span;
 
   /// Where each of [Forecast.steps] sits across the chart, same-day events
   /// spread apart.
@@ -1480,7 +1538,7 @@ class _ChartGeometry {
   double get datesY => h + _railBand + 4;
 
   double x(DateTime d) =>
-      (d.difference(f.start).inDays / _days.clamp(1, 4000)) * w;
+      (d.difference(f.start).inDays / _span.clamp(1, 4000)) * w;
 
   /// Air above the high point, and enough below the low one for the dip's
   /// own figure to sit under it. Above the dip is where the line itself
@@ -1587,7 +1645,10 @@ class _ChartLayout extends MultiChildLayoutDelegate {
       positionChild(
         'dot$i',
         Offset(
-          (g.x(days[i].first.date) - dot.width / 2).clamp(0, size.width - dot.width),
+          (g.x(days[i].first.date) - dot.width / 2).clamp(
+            0,
+            size.width - dot.width,
+          ),
           g.railY - dot.height / 2,
         ),
       );
@@ -1803,11 +1864,16 @@ class _ForecastPainter extends CustomPainter {
         ..lineTo(0, washTo)
         ..close(),
       Paint()
-        ..shader = ui.Gradient.linear(const Offset(0, 0), Offset(0, washTo), [
-          Mid.blue.withValues(alpha: 0.24),
-          Mid.blue.withValues(alpha: 0.05),
-          Mid.blue.withValues(alpha: 0),
-        ], const [0, 0.7, 1]),
+        ..shader = ui.Gradient.linear(
+          const Offset(0, 0),
+          Offset(0, washTo),
+          [
+            Mid.blue.withValues(alpha: 0.24),
+            Mid.blue.withValues(alpha: 0.05),
+            Mid.blue.withValues(alpha: 0),
+          ],
+          const [0, 0.7, 1],
+        ),
     );
 
     if (g.showsZero) {
@@ -1824,7 +1890,14 @@ class _ForecastPainter extends CustomPainter {
       // Inside the plot, at the line's own left end: the right gutter it
       // used to sit in put it beside where the line ends, and it was read
       // as "you end with nothing".
-      _label(canvas, formatRounded(0, currency: currency), Offset(0, zero - 18), Mid.ink3);
+      _label(
+        canvas,
+        formatRounded(0, currency: currency),
+        // Clamped: with the window's high at ₮0 the label sat above the
+        // chart, on the bills line.
+        Offset(0, (zero - 18).clamp(0.0, (h - 14).clamp(0.0, h))),
+        Mid.ink3,
+      );
       if (f.isShort) {
         canvas.save();
         canvas.clipRect(Rect.fromLTRB(-4, zero, w + 4, h));
@@ -1856,25 +1929,15 @@ class _ForecastPainter extends CustomPainter {
         ..color = Mid.blue.withValues(alpha: 0.28)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.2),
     );
-    final line = ui.Gradient.linear(const Offset(0, 0), Offset(0, h), [
-      Mid.blue,
-      Mid.blue,
-    ], null);
     canvas.save();
     canvas.clipRect(Rect.fromLTRB(-4, -4, w + 4, g.showsZero ? zero : h + 4));
-    canvas.drawPath(path, stroke..shader = line);
+    canvas.drawPath(path, stroke..color = Mid.blue);
     canvas.restore();
     if (g.showsZero) {
       canvas.save();
       canvas.clipRect(Rect.fromLTRB(-4, zero, w + 4, h + 4));
-      canvas.drawPath(
-        path,
-        stroke
-          ..shader = null
-          ..color = under ? Mid.coral : Mid.blue,
-      );
+      canvas.drawPath(path, stroke..color = under ? Mid.coral : Mid.blue);
       canvas.restore();
-      stroke.shader = line;
     }
 
     // The rail: what happens, under the shape it causes. A tick for each
@@ -1911,6 +1974,7 @@ class _ForecastPainter extends CustomPainter {
       double size,
       List<(bool right, bool above)> spots, {
       int weight = 400,
+      bool mustShow = false,
     }) {
       final tp = TextPainter(
         text: TextSpan(
@@ -1932,37 +1996,56 @@ class _ForecastPainter extends CustomPainter {
         tp.paint(canvas, r.topLeft);
         return;
       }
+      // No spot fits. With no sentence to fall back on, the card's own
+      // figure is the whole answer, so it is never dropped: put it where it
+      // fits inside the plot rather than nowhere.
+      if (!mustShow) return;
+      final r = Rect.fromLTWH(
+        (at.dx - tp.width / 2).clamp(0.0, (w - tp.width).clamp(0.0, w)),
+        (at.dy + 4).clamp(0.0, (h - tp.height).clamp(0.0, h)),
+        tp.width,
+        tp.height,
+      );
+      placed.add(r);
+      tp.paint(canvas, r.topLeft);
     }
 
     String amount(int v) => formatRounded(v, currency: currency);
+    // The day comes first: the same balance can come round again later, and
+    // since the budget's spending became steps (#179) the low is often one
+    // of those, which are not spread. Matching on the amount alone put the
+    // figure, its ring and its date in the wrong column.
     final lowX = () {
       for (var i = 0; i < f.steps.length; i++) {
-        if (f.steps[i].balance == f.low && !f.steps[i].spending) return g.xs[i];
+        final s = f.steps[i];
+        if (s.date == f.lowDate && s.balance == f.low && !s.spending) {
+          return g.xs[i];
+        }
       }
       return g.x(f.lowDate);
     }();
+    // Zero counts as short (`buildForecast`, owner 2026-10-05), so a balance
+    // that lands exactly on ₮0 is coral like any other shortfall.
+    final lowShort = under && f.low <= 0;
     // The dip is the card's one big number now that no sentence says it.
     if (bigLow) {
       tag(
         amount(f.low),
         Offset(lowX, y(f.low)),
-        f.low < 0 && under ? Mid.coral : Mid.ink,
+        lowShort ? Mid.coral : Mid.ink,
         17,
         [(false, false), (false, true), (true, false), (true, true)],
         weight: 500,
+        mustShow: true,
       );
-      canvas.drawCircle(
-        Offset(lowX, y(f.low)),
-        4,
-        Paint()..color = Mid.card,
-      );
+      canvas.drawCircle(Offset(lowX, y(f.low)), 4, Paint()..color = Mid.card);
       canvas.drawCircle(
         Offset(lowX, y(f.low)),
         4,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2.25
-          ..color = f.low < 0 && under ? Mid.coral : Mid.blue,
+          ..color = lowShort ? Mid.coral : Mid.blue,
       );
     }
     // Where you land: the figure the card never said, and the one whose
@@ -1971,48 +2054,70 @@ class _ForecastPainter extends CustomPainter {
     // said it, so it isn't printed a second time.
     if (f.steps.isNotEmpty) {
       final endY = y(f.endBalance);
-      if (!bigLow || f.endBalance != f.low) {
+      // Not when the dip already carries it, and not when the ₮0 line's own
+      // label says it: a card paid off to ₮0 printed ₮0 at both ends.
+      if ((!bigLow || f.endBalance != f.low) &&
+          !(g.showsZero && f.endBalance == 0)) {
         tag(
           amount(f.endBalance),
           Offset(w, endY),
-          f.endBalance < 0 && under ? Mid.coral : Mid.ink2,
+          under && f.endBalance <= 0 ? Mid.coral : Mid.ink2,
           11,
           // Under the last flat run first: above it is where the step down
           // to it comes through, and the line would cross the figure.
           [(false, false), (false, true)],
         );
       }
-      canvas.drawCircle(Offset(pts.last.dx, endY), 3.5, Paint()..color = Mid.card);
+      canvas.drawCircle(
+        Offset(pts.last.dx, endY),
+        3.5,
+        Paint()..color = Mid.card,
+      );
       canvas.drawCircle(
         Offset(pts.last.dx, endY),
         3.5,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
-          ..color = f.endBalance < 0 && under ? Mid.coral : Mid.blue,
+          ..color = under && f.endBalance <= 0 ? Mid.coral : Mid.blue,
       );
     }
 
-    // Just dates: where it starts, the dip, and where it stops.
-    _label(canvas, shortDate(f.start), Offset(0, g.datesY), Mid.ink3);
+    // Just dates: where it starts, the dip, and where it stops. The dip's
+    // own date always shows — with no sentence left to say it, "down to
+    // ₮91,000" with no day attached cannot be acted on, and in the
+    // to-income range the dip is usually right before the end, which is
+    // exactly where it used to be dropped. The ends give way to it instead.
     final endX = g.x(f.end);
-    if (!f.owed && f.low < f.startBalance && lowX > 52 && lowX < endX - 52) {
+    final showLow = !f.owed && f.low < f.startBalance;
+    final (startText, lowText, endText) = (
+      shortDate(f.start),
+      shortDate(f.lowDate),
+      shortDate(f.end),
+    );
+    final lowHalf = _widthOf(lowText) / 2 + 8;
+    final lowAt = lowX.clamp(lowHalf, w - lowHalf);
+    if (!showLow || lowAt - lowHalf > _widthOf(startText)) {
+      _label(canvas, startText, Offset(0, g.datesY), Mid.ink3);
+    }
+    if (showLow) {
       _label(
         canvas,
-        shortDate(f.lowDate),
-        Offset(lowX, g.datesY),
-        f.low < 0 && under ? Mid.coral : Mid.ink,
+        lowText,
+        Offset(lowAt, g.datesY),
+        lowShort ? Mid.coral : Mid.ink,
         center: true,
       );
     }
-    _label(
-      canvas,
-      shortDate(f.end),
-      Offset(endX, g.datesY),
-      Mid.ink3,
-      center: true,
-    );
+    if (!showLow || (endX - lowAt).abs() > lowHalf + _widthOf(endText) / 2) {
+      _label(canvas, endText, Offset(endX, g.datesY), Mid.ink3, center: true);
+    }
   }
+
+  double _widthOf(String text) => (TextPainter(
+    text: TextSpan(text: text, style: onest(11, tabular: true)),
+    textDirection: TextDirection.ltr,
+  )..layout()).width;
 
   void _label(
     Canvas canvas,
