@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-09** · version 0.80.1 · schema v24 · 1047 tests pass
+**Last updated: 2026-11-09** · version 0.81.0 · schema v24 · 1049 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -38,9 +38,16 @@ Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy la
 Apple's encryption question are filled in App Store Connect. The iPhone app waits on
 #112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
 
-**Next:** nothing waits on the phone. The owner answered #410 on 2026-11-09 — money due
-on a day picked with Custom… is not counted as arrived, the way a pay period already
-treats its last day — and that is the next piece of forecast work, with #398 after it.
+**Next:** nothing waits on the phone. #410 is built (0.81.0; ADR 0004 "Money due on a
+day picked with Custom… hasn't arrived"): money in dated the day picked with Custom… —
+a salary, a projected paycheck, a refund — is left out of the forecast the way a pay
+period leaves out the paycheck that ends it, so the balance the chart names for that day
+is what the household has if the money hasn't landed; a transfer on it still counts, on
+both sides, and the paycheck is still named past the end of the bill list
+(`Forecast.heldBackPay`). A fixed length (30 days, 90 days, a year) counts everything
+through its end, as before: nobody reads day 30 as a deadline. The computer only. No
+schema change. **#398 is next**: the card says nothing about what the budget plans to
+spend.
 
 **The forecast's chart does the talking** (0.78.0, #392; ADR 0004 of the same name): the
 card's picture used to contradict its own figures — the balance ran ₮5,418,682 →
@@ -72,8 +79,7 @@ change. Not built, and filed: #393, #394, #395,
 and from the reviews #398 (the card says
 nothing about what the budget plans to spend, so its own sum stops tying the day a
 category is paid from the account), and from the reviews of Custom… #408 (the line runs
-flat where nothing is known), #409 (the two-year limit), #410 (money due on the last day
-counted as arrived, now answered), #411 (the forecast worked out on every rebuild), #412
+flat where nothing is known), #409 (the two-year limit), #411 (the forecast worked out on every rebuild), #412
 (the calendar pages one month per click) and #413 (the end balance counts money already
 set aside). **The chart's clicks and keys** (0.80.1, #393, #394, #395; ADR 0004 "The
 chart has one hover owner and one focus stop"): one hover owner over the plot and the

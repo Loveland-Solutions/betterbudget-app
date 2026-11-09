@@ -2269,10 +2269,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     ForecastSpan? span,
   }) {
     final scheduled = data.registerFor(account.id).scheduled;
-    final until = (span ?? _span(data)).endFrom(
-      today,
-      customEnd: _customEnd(data),
-    );
+    final chosen = span ?? _span(data);
+    final customEnd = _customEnd(data);
+    final until = chosen.endFrom(today, customEnd: customEnd);
+    // A day picked with Custom… is a day something has to be paid, so money
+    // due that day isn't counted as arrived (#410). Without a day picked,
+    // Custom… looks 30 days ahead, and that end is nobody's deadline.
+    final untilChosen = chosen == ForecastSpan.custom && customEnd != null;
     return buildForecast(
       working: data.summaryFor(account.id).working,
       today: today,
@@ -2285,6 +2288,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       paydayAfter: (row) => _paydayAfter(data, row),
       payIsSetUp: data.paySchedules.isNotEmpty,
       until: until,
+      untilChosen: untilChosen,
       projected: until == null
           ? const []
           : projectScheduled(

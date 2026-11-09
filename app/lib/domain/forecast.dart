@@ -404,6 +404,19 @@ class Forecast {
   /// always is; with a fixed end, when it comes before that end.
   bool get paydayCounted =>
       payday != null && steps.any((s) => identical(s.row, payday));
+
+  /// The next paycheck when it falls inside the range and the forecast
+  /// still leaves it out: on the last day of a pay period, and on a day
+  /// picked with Custom…, where money due that day isn't counted as
+  /// arrived either (owner, 2026-11-09, #410). The card names it past the
+  /// end, so the person sees the money coming without the line leaning on
+  /// it. Null when the paycheck is counted, or when it falls beyond [end],
+  /// where it is no business of this forecast.
+  RegisterRow? get heldBackPay {
+    final p = payday;
+    if (p == null || paydayCounted || p.date.isAfter(end)) return null;
+    return p;
+  }
   final int low;
   final DateTime lowDate;
 
@@ -511,6 +524,11 @@ Forecast buildForecast({
   ({DateTime date, int amount})? Function(RegisterRow payday)? paydayAfter,
   bool payIsSetUp = false,
   DateTime? until,
+  /// [until] is a day the person picked themselves (Custom…), not the end of
+  /// a fixed length. A day gets picked because something has to be paid
+  /// that day, so money due on it is treated the way a pay period treats
+  /// its last day: not counted as arrived (owner, 2026-11-09, #410).
+  bool untilChosen = false,
   List<RegisterRow> projected = const [],
   List<({DateTime date, int amount})> spending = const [],
   bool cash = false,
@@ -577,13 +595,18 @@ Forecast buildForecast({
   // Bills on the last day count; money in on it doesn't (like the paycheck
   // that ends it, it may land after them), except a transfer, the user's own
   // doing. The next paycheck counts only when the forecast runs past it.
-  // To a chosen date, everything through it counts.
+  //
+  // A day picked with Custom… is held back the same way (owner, 2026-11-09,
+  // #410): the day is picked because something has to be paid that day, so a
+  // salary or a refund due the same day can't be leaned on. A fixed length
+  // (30 days, 90 days, a year) stops on whatever day it stops on, and nobody
+  // reads that day as a deadline, so everything through it counts.
   bool counts(RegisterRow r) {
     if (when(r).isAfter(end)) return false;
-    if (until != null) return true;
-    if (identical(r, payday)) return nextPayday != null;
+    if (until != null && !untilChosen) return true;
+    if (until == null && identical(r, payday)) return nextPayday != null;
     final lastDayIn =
-        nextPayday != null &&
+        (until != null || nextPayday != null) &&
         r.amount > 0 &&
         r.kind != RowKind.transfer &&
         !when(r).isBefore(end);

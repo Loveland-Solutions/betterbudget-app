@@ -662,7 +662,7 @@ class ForecastPanel extends StatelessWidget {
         f.billCount == 0 &&
         f.spendingTotal == 0 &&
         !f.shortNow &&
-        (f.paydayCounted || !f.fixedEnd);
+        (f.paydayCounted || f.heldBackPay != null);
     // The key to the rail: what each tick is, counted on its own side with
     // its own sign. "4 bills" alone was wrong once the income had a tick
     // (owner, 2026-11-08).
@@ -1360,13 +1360,14 @@ class _KnownList extends StatelessWidget {
             t.planExpectedIncome,
             f.nextPayAmount == null ? null : plus(f.nextPayAmount!),
           )
-        // To a chosen date, the end is just where it stops looking.
-        else if (!f.fixedEnd)
+        // The paycheck the forecast stops at, or the one due on a day
+        // picked with Custom… that it doesn't count as arrived (#410).
+        else if (f.heldBackPay case final held?)
           line(
             shortDate(f.end),
             t.planExpectedIncome,
-            plus(payday.amount),
-            row: payday,
+            plus(held.amount),
+            row: held,
           ),
         if (!budgeted) ...[
           const SizedBox(height: 8),
@@ -1533,7 +1534,6 @@ class _BillsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final payday = f.payday;
     final last = f.endBalance;
     // A list that runs into another year has two 02.16s in it, telling
     // apart only by the balance beside them, so every date here carries
@@ -1582,21 +1582,22 @@ class _BillsCard extends StatelessWidget {
                   owed: f.owed,
                   onTap: open == null ? null : () => open(s.row),
                 ),
-              // Ending at payday, the paycheck closes the list; running
-              // through the period, or to a chosen date, it's already a
-              // line above (or beyond the date).
-              if (payday != null && !f.paydayCounted && !f.fixedEnd) ...[
+              // Ending at payday, the paycheck closes the list, and so it
+              // does on a day picked with Custom… where it isn't counted as
+              // arrived (#410). Running through the period it's already a
+              // line above, and past the end it's no business of this list.
+              if (f.heldBackPay case final held?) ...[
                 Container(
                   height: 1,
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   color: Mid.rule,
                 ),
                 _BillLine(
-                  row: payday,
+                  row: held,
                   date: f.end,
                   years: years,
-                  balanceAfter: last + payday.amount,
-                  onTap: open == null ? null : () => open(payday),
+                  balanceAfter: last + held.amount,
+                  onTap: open == null ? null : () => open(held),
                 ),
               ],
             ],
@@ -1883,15 +1884,14 @@ List<_ChartEvent> _eventsOf(Forecast f) {
         ],
       ),
   ];
-  final payday = f.payday;
-  if (payday != null && !f.paydayCounted && !f.fixedEnd) {
+  if (f.heldBackPay case final held?) {
     out.add(
       _ChartEvent(
         // Not its date: a bill can fall on the same day, and two children
         // of one layout can't share a key.
         id: 'payday',
         steps: const [],
-        lines: [(row: payday, balanceAfter: f.endBalance + payday.amount)],
+        lines: [(row: held, balanceAfter: f.endBalance + held.amount)],
       ),
     );
   }

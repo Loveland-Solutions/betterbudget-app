@@ -5573,6 +5573,41 @@ already given rather than asked back.
   This replaces the earlier note here that the dots simply "do nothing" while
   reconciling: they did something, and it was a failure message.
 - Still open from these reviews: #398 (the card says nothing about what the budget plans
-  to spend), #408, #409, #411, #412, #413, and #410, which the owner answered on
-  2026-11-09 — money due on a day picked with Custom… is **not** counted as arrived, the
-  way a pay period already treats its last day — and which is not built yet.
+  to spend), #408, #409, #411, #412 and #413. #410 is answered and built: see "Money due
+  on a day picked with Custom… hasn't arrived" below.
+
+## Money due on a day picked with Custom… hasn't arrived (owner, 2026-11-09, #410)
+
+Owner, answering the question from the budget-app review of #397: "leave it out, the way
+a pay period already does. Money due on the day picked with Custom… is not counted as
+arrived, so the balance the chart names for that day is the cautious one — what the
+household would have if the money hasn't landed yet. Extending the range by a day shows
+it arriving."
+
+A pay period has always held back money in on its last day: the paycheck that ends it
+may land after the bills do. A fixed length did not, and did not need to — nobody reads
+day 30 of a 30-day look as a deadline. A day the person picked is different, and the
+reason it was picked is the reason: something has to be paid that day. A salary due the
+same morning was counted as received, so the balance the chart named for the day could
+be a whole paycheck higher than what the household would actually have when it paid.
+
+- **A chosen last day is held back; a fixed length is not.** `buildForecast` takes
+  `untilChosen` beside `until`, true only when Custom… has a day picked (with no day
+  picked it looks 30 days ahead, and that end is nobody's deadline). Money in dated that
+  last day — a salary, a projected paycheck, a refund — drops out, exactly as on a pay
+  period's last day. Bills on it count, as they always have.
+- **A transfer on that day still counts**, on both sides. It is the household's own
+  money moving, not money owed to it by somebody else, which is the rule the forecast
+  already applies to late transfers.
+- **The paycheck is still named, past the end.** The bill list already closes with the
+  paycheck a pay period stops at, below a rule and outside the balance. A chosen day
+  that holds a paycheck back now closes the same way (`Forecast.heldBackPay`), so the
+  person sees the money coming on the day they picked without the line leaning on it.
+  The chart's right-hand gutter gets the same tick it does at a pay period's end.
+- **Nothing new is said in words.** The rule is the one the forecast already follows at
+  the end of a pay period, and the line itself answers it: extend the range by a day and
+  the money arrives. A sentence explaining the caution would be the app telling the
+  person something the chart has already shown them.
+- **The day's own bills can now leave the account short**, and that is the point: the
+  shortfall says what the household would face if the salary is late on the day the fees
+  are due. This is the cautious answer the owner asked for, not a new warning.

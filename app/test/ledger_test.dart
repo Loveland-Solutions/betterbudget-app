@@ -3079,6 +3079,123 @@ void main() {
       expect(ForecastSpan.parseCustomEnd('not a date', today), isNull);
       expect(ForecastSpan.parseCustomEnd(null, today), isNull);
     });
+
+    test(
+      'money due on the day picked with Custom… is not counted as arrived',
+      () {
+        // Owner, 2026-11-09 (#410): a day gets picked because something has
+        // to be paid that day, so a salary or a refund due the same day is
+        // held back the way a pay period holds back the paycheck that ends
+        // it. A fixed length stops wherever it stops, and counts everything.
+        final today = DateTime(2026, 9, 16);
+        RegisterRow row(
+          int txn,
+          DateTime date,
+          int amount, {
+          bool pay = false,
+          RowKind kind = RowKind.simple,
+        }) => RegisterRow(
+          txnId: txn,
+          entryId: txn,
+          date: date,
+          payee: 'P',
+          memo: '',
+          amount: amount,
+          cleared: Cleared.uncleared,
+          scheduled: true,
+          kind: kind,
+          categoryLabel: pay ? 'Salary' : 'Rent',
+          categoryId: 1,
+          splitLines: const [],
+          incomeCategory: pay,
+          payScheduleId: pay ? 7 : null,
+        );
+        // School fees on 10.14, the day the salary lands; the picked day.
+        final picked = DateTime(2026, 10, 14);
+        final fees = row(1, picked, -90000000);
+        final salary = row(2, picked, 250000000, pay: true);
+        final refund = row(3, picked, 5000000);
+        final earlier = row(4, DateTime(2026, 10, 10), 5000000);
+
+        final f = buildForecast(
+          working: 100000000,
+          today: today,
+          scheduled: [fees, salary, refund, earlier],
+          payIsSetUp: true,
+          until: picked,
+          untilChosen: true,
+        );
+        // The fees go out; neither the salary nor the refund comes in.
+        expect(f.steps.map((s) => s.row), [earlier, fees]);
+        expect(f.inTotal, 5000000);
+        expect(f.endBalance, 100000000 + 5000000 - 90000000);
+        expect(f.firstShort, isNull);
+        // The card still names the paycheck past the end, so the money is
+        // seen to be coming without the line leaning on it.
+        expect(f.heldBackPay, same(salary));
+
+        // The same rows to a fixed length ending that day count in full:
+        // nobody reads day 28 of a 30 day look as a deadline.
+        final fixed = buildForecast(
+          working: 100000000,
+          today: today,
+          scheduled: [fees, salary, refund, earlier],
+          payIsSetUp: true,
+          until: picked,
+        );
+        // On the day, bills first, then the refund, then the paycheck: the
+        // cautious order the forecast already uses.
+        expect(fixed.steps.map((s) => s.row), [
+          earlier,
+          fees,
+          refund,
+          salary,
+        ]);
+        expect(fixed.heldBackPay, isNull);
+        expect(fixed.endBalance, 100000000 + 5000000 - 90000000 + 255000000);
+
+        // Extending the picked day by one shows it all arriving (the
+        // owner's own test of the rule).
+        final nextDay = buildForecast(
+          working: 100000000,
+          today: today,
+          scheduled: [fees, salary, refund, earlier],
+          payIsSetUp: true,
+          until: DateTime(2026, 10, 15),
+          untilChosen: true,
+        );
+        expect(nextDay.endBalance, fixed.endBalance);
+        expect(nextDay.heldBackPay, isNull);
+
+        // A transfer in on the picked day is the household's own doing and
+        // counts on both sides, as it does on a pay period's last day.
+        final moved = row(5, picked, 20000000, kind: RowKind.transfer);
+        final withMove = buildForecast(
+          working: 100000000,
+          today: today,
+          scheduled: [fees, salary, moved],
+          payIsSetUp: true,
+          until: picked,
+          untilChosen: true,
+        );
+        expect(withMove.steps.map((s) => s.row), [fees, moved]);
+        expect(withMove.moveIn, 20000000);
+
+        // Bills on the picked day can leave the account short, which is the
+        // cautious answer the owner asked for: the household would have
+        // this much if the salary hasn't landed when the fees go out.
+        final short = buildForecast(
+          working: 10000000,
+          today: today,
+          scheduled: [fees, salary],
+          payIsSetUp: true,
+          until: picked,
+          untilChosen: true,
+        );
+        expect(short.firstShort, picked);
+        expect(short.endBalance, 10000000 - 90000000);
+      },
+    );
   });
 
   group('accounts', () {
