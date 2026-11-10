@@ -257,6 +257,7 @@ Map<String, Object?> planToJson(CategoryPlan plan) {
     'endDate': day(plan.endDate),
     'endCount': plan.endCount,
     'rollover': plan.rollover,
+    'spentEach': plan.spentEach,
     'upTo': plan.upTo,
     'paidFrom': plan.paidFrom,
   };
@@ -301,6 +302,9 @@ CategoryPlan? planFromJson(String text) {
       endDate: day(j['endDate']),
       endCount: j['endCount'] as int?,
       rollover: j['rollover'] as bool? ?? true,
+      // A phone before 0.82.0 doesn't say: spent each period, the answer
+      // most categories have, which the phone can't change (#404).
+      spentEach: j['spentEach'] as bool? ?? true,
       upTo: j['upTo'] as int?,
       paidFrom: j['paidFrom'] as int?,
     );

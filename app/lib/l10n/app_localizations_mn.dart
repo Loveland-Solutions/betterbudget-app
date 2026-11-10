@@ -1231,6 +1231,10 @@ class WordsMn extends Words {
   String get planForecastWhatThree => 'Өнөөдрийн ажлын үлдэгдлээс эхэлнэ.';
 
   @override
+  String get planForecastWhatBand =>
+      'Сүүдэрлэсэн хэсэг нь таны төсвийн зарцуулахаар төлөвлөсөн мөнгө бөгөөд тодорхой огноогүй.';
+
+  @override
   String get planForecastWhatFour =>
       'Дээрх товчнуудаар хэр хол харахыг өөрчилж болно.';
 
@@ -1258,6 +1262,16 @@ class WordsMn extends Words {
       one: '1 нэхэмжлэх −$amount',
     );
     return '$_temp0';
+  }
+
+  @override
+  String planBandLabel(String amount) {
+    return '$amount зарцуулах';
+  }
+
+  @override
+  String planRailSpend(String amount) {
+    return 'Зарцуулах −$amount';
   }
 
   @override
@@ -4629,6 +4643,27 @@ class WordsMn extends Words {
 
   @override
   String get planGoesBack => 'Хуваарилаагүй мөнгө рүү буцна';
+
+  @override
+  String get planMoneyIs => 'Энэ мөнгө';
+
+  @override
+  String get planSpentEachMonth => 'Сар бүр зарцуулагдана';
+
+  @override
+  String get planSpentEachPay => 'Цалингийн үе бүрт зарцуулагдана';
+
+  @override
+  String get planBuiltUp => 'Хожим зарцуулахаар хуримтлагдана';
+
+  @override
+  String get planPaidFromNoneSpend =>
+      'Данс сонгосноор энэ зарлага тухайн дансны төсөөллөөс өдөр бүр хасагдана.';
+
+  @override
+  String planPaidFromSaveHint(String account) {
+    return 'Төлбөр эсвэл бичлэг зарцуулах хүртэл $account дансанд хэвээр байх тул төсөөлөл түүнд хүрэхгүй.';
+  }
 
   @override
   String get planStopAt => 'Дээд хэмжээ';

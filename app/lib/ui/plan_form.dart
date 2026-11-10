@@ -107,6 +107,12 @@ class PlanAnswers {
   PayWeekend weekend = PayWeekend.keep;
   bool rollover = true;
 
+  /// A set amount: the money goes out within its period (groceries, gas),
+  /// so the account's forecast takes it out a day at a time; false is
+  /// money built up for later (car repairs), which the forecast leaves
+  /// alone (#404). The phone doesn't ask, so one it makes is spent.
+  bool spentEach = true;
+
   /// A set amount's own period: per this pay's periods, or per month
   /// (null). Owner, 2026-10-05: each category says how it's budgeted.
   int? eachPayId;
@@ -115,7 +121,11 @@ class PlanAnswers {
 
   /// Fills the answers from [p], or empties them. A new set amount starts
   /// per [periodPayId], the period the budget is seen by.
-  void show(CategoryPlan? p, {int? periodPayId}) {
+  /// [builtUp] starts a category with no plan yet on "Built up for
+  /// something later": the Safety net is money put by, and starting it on
+  /// the usual answer would have it draining the forecast the first time
+  /// the owner gave it an amount (code review, #404).
+  void show(CategoryPlan? p, {int? periodPayId, bool builtUp = false}) {
     hasDate = p?.kind == PlanKind.byDate;
     amount.text = _amountText(p?.amount ?? 0);
     date.text = p?.due == null ? '' : fullDate(p!.due!);
@@ -174,6 +184,7 @@ class PlanAnswers {
     // under every repeat.
     if (p != null && (p.weekdays != null || p.nth != null)) custom = true;
     rollover = p?.rollover ?? true;
+    spentEach = p?.spentEach ?? !builtUp;
     upTo.text = _amountText(p?.upTo ?? 0);
     showOnce(p);
   }
@@ -491,6 +502,7 @@ class PlanAnswers {
       endDate: hasDate ? endDateNow : null,
       endCount: hasDate ? endCountNow : null,
       rollover: carry,
+      spentEach: k != PlanKind.each || spentEach,
       upTo: cap,
       paidFrom: paidFrom,
       once: k == PlanKind.each ? _once(old) : const {},

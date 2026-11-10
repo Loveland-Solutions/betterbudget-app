@@ -1788,6 +1788,12 @@ abstract class Words {
   /// **'It starts with today’s working balance.'**
   String get planForecastWhatThree;
 
+  /// Forecast, the ⓘ beside the word Forecast: the band between the line and the dashed line above it, shown only while there is one. Groceries, transport and the rest come out a day at a time rather than on a date, so they get no tick on the rail (#398).
+  ///
+  /// In en, this message translates to:
+  /// **'The shaded band is what your budget plans to spend, which has no date of its own.'**
+  String get planForecastWhatBand;
+
   /// Forecast tooltip, second paragraph, second sentence. Points at the row of how-far-ahead buttons at the top right of the card.
   ///
   /// In en, this message translates to:
@@ -1817,6 +1823,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 bill −{amount}} other{{count} bills −{amount}}}'**
   String planRailBills(int count, String amount);
+
+  /// Forecast chart: the label inside the shaded band, at the point where it is widest, naming what the budget plans to spend. Without it a dashed line over a shaded band reads as a second scenario — a balance the household might have — rather than as their own money leaving (#398).
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} to spend'**
+  String planBandLabel(String amount);
+
+  /// Forecast, the line under the chart: what the budget plans to spend from this account before the end — groceries, transport and the rest, spread a day at a time rather than dated. It has no tick on the rail; it is the band between the line and the dashed one above it. Money out keeps its minus, as everywhere else in the app.
+  ///
+  /// In en, this message translates to:
+  /// **'To spend −{amount}'**
+  String planRailSpend(String amount);
 
   /// Forecast, the line under the chart: what arrives before the end that the person did not already own — a salary, a refund. Money taken from one of their own other accounts is NOT in this; that is planRailMoveIn.
   ///
@@ -6783,6 +6801,42 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Goes back to not assigned'**
   String get planGoesBack;
+
+  /// Budget page, Edit under a category's row: label of the choice between money spent within each period and money built up for later (#404)
+  ///
+  /// In en, this message translates to:
+  /// **'This money is'**
+  String get planMoneyIs;
+
+  /// Budget page, Edit under a category's row: the first answer to This money is, the default, by month: groceries, gas, household — it goes out within the month it is assigned in
+  ///
+  /// In en, this message translates to:
+  /// **'Spent each month'**
+  String get planSpentEachMonth;
+
+  /// Budget page, Edit under a category's row: the same answer for a category budgeted by pay period
+  ///
+  /// In en, this message translates to:
+  /// **'Spent each pay period'**
+  String get planSpentEachPay;
+
+  /// Budget page, Edit under a category's row: the second answer to This money is: car repairs, a new fridge — the money sits in the account instead of going out this period
+  ///
+  /// In en, this message translates to:
+  /// **'Built up for something later'**
+  String get planBuiltUp;
+
+  /// Budget page, Edit under a category's row: beside Paid from with no account chosen, for a set amount spent each period. Without an account the forecast has nowhere to take the money from, so the category changes no chart at all (#404).
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an account and this spending comes out of its forecast a day at a time.'**
+  String get planPaidFromNoneSpend;
+
+  /// Budget page, Edit under a category's row: beside Paid from, what Built up for something later means for that account's forecast
+  ///
+  /// In en, this message translates to:
+  /// **'It sits in {account} until a bill or a row spends it, so the forecast leaves it there.'**
+  String planPaidFromSaveHint(String account);
 
   /// Budget page, Edit under a category's row: label of the optional cap on a category that carries over
   ///

@@ -247,6 +247,12 @@ class CategoryPlans extends Table {
   /// Each period: what's left stays in the category.
   BoolColumn get rollover => boolean().withDefault(const Constant(true))();
 
+  /// Each period: the money goes out within the period it's assigned in,
+  /// so the forecast takes it off the account a day at a time. False is
+  /// money built up for later, which the forecast leaves in the account
+  /// (v25, #404).
+  BoolColumn get spentEach => boolean().withDefault(const Constant(true))();
+
   /// Each period, carrying over: stop asking once it holds this much.
   IntColumn get upToMinor => integer().nullable()();
 
@@ -1063,7 +1069,7 @@ class AppDatabase extends _$AppDatabase {
   String? thisComputer;
 
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1266,6 +1272,34 @@ class AppDatabase extends _$AppDatabase {
         if (from < 24) {
           // A bill twice a month: empty for every plan already here.
           await _addColumnOnce(m, categoryPlans, categoryPlans.monthDays);
+        }
+        if (from < 25) {
+          // Whether a set amount goes out within its period (#404). Every
+          // plan already here keeps its amount, its dates and its
+          // carry-over answer; this one answer is read from what's stored.
+          // Spent each period, which most are, except the Safety net,
+          // which is money built up by definition and would otherwise
+          // drain the line the first time the app opened.
+          //
+          // An Up to cap was going to mean built up too, and doesn't: it
+          // says when the plan stops asking, which is a sensible thing to
+          // set on a spending category ("Transport ₮200,000 a month, up to
+          // ₮400,000"). Guessing from it would have taken such a category
+          // off the forecast silently — the very bug this fixes — so a
+          // capped category keeps the default and the person can say
+          // otherwise in its Edit (budget-app review).
+          final added = await _addColumnOnce(
+            m,
+            categoryPlans,
+            categoryPlans.spentEach,
+          );
+          if (added) {
+            await customStatement(
+              'UPDATE category_plans SET spent_each = 0 WHERE kind = \'each\' '
+              'AND category_id IN (SELECT id FROM accounts WHERE role = '
+              '\'emergencyFund\')',
+            );
+          }
         }
         // Each trigger names its table's columns: made afresh after every
         // upgrade, whatever it changed.
@@ -1591,7 +1625,10 @@ class AppDatabase extends _$AppDatabase {
     if (have.isEmpty) await m.createTable(table);
   }
 
-  Future<void> _addColumnOnce(
+  /// True when it added the column; false when the file already had it,
+  /// so an upgrade that fills a new column from what's stored fills it
+  /// once and never writes over an answer already there.
+  Future<bool> _addColumnOnce(
     Migrator m,
     TableInfo table,
     GeneratedColumn column,
@@ -1599,8 +1636,9 @@ class AppDatabase extends _$AppDatabase {
     final have = await customSelect(
       'PRAGMA table_info("${table.actualTableName}")',
     ).get();
-    if (have.any((r) => r.read<String>('name') == column.name)) return;
+    if (have.any((r) => r.read<String>('name') == column.name)) return false;
     await m.addColumn(table, column);
+    return true;
   }
 
   /// Copies the database next to itself before a schema upgrade, e.g.
@@ -3518,6 +3556,7 @@ class AppDatabase extends _$AppDatabase {
           endDate: Value(plan.endDate == null ? null : dateKey(plan.endDate!)),
           endCount: Value(plan.endCount),
           rollover: Value(plan.rollover),
+          spentEach: Value(plan.spentEach),
           upToMinor: Value(plan.upTo),
           // Only a dated plan's bill is scheduled anywhere.
           paidFromId: Value(
@@ -4276,6 +4315,7 @@ class AppDatabase extends _$AppDatabase {
     endDate: p.endDate == null ? null : parseDateKey(p.endDate!),
     endCount: p.endCount,
     rollover: p.rollover,
+    spentEach: p.spentEach,
     upTo: p.upToMinor,
     paidFrom: p.paidFromId,
     once: {
@@ -6166,6 +6206,7 @@ class AppDatabase extends _$AppDatabase {
       endDate: p.endDate,
       endCount: p.endCount,
       rollover: p.rollover,
+      spentEach: p.spentEach,
       upTo: p.upTo,
       paidFrom: paid != null && accounts.contains(paid) ? paid : null,
     );

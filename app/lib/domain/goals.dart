@@ -93,6 +93,7 @@ class Goal {
       due: DateTime(month.year, month.month, day),
       weekend: plan.weekend,
       rollover: plan.rollover,
+      spentEach: plan.spentEach,
       paidFrom: plan.paidFrom,
     );
   }

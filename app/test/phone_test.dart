@@ -2833,6 +2833,21 @@ void main() {
       expect(p.monthDays, [1, 15]);
       expect(p.paidFrom, 3);
       expect(p.rollover, isTrue);
+      expect(p.spentEach, isTrue);
+
+      // Whether the money is spent within its period goes over and comes
+      // back (#404), and a phone from before 0.82.0 says nothing, which
+      // reads as spent each period — the answer nearly every category has.
+      final built = CategoryPlan(
+        categoryId: 0,
+        kind: PlanKind.each,
+        amount: 2000000,
+        start: DateTime(2026, 9, 16),
+        spentEach: false,
+      );
+      expect(planFromJson(jsonEncode(planToJson(built)))!.spentEach, isFalse);
+      final older = planToJson(built)..remove('spentEach');
+      expect(planFromJson(jsonEncode(older))!.spentEach, isTrue);
 
       // A plan with no days says nothing of them, so one saved before there
       // were any reads the same.

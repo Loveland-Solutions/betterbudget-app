@@ -2164,7 +2164,8 @@ void main() {
       final food = await categoryId('Groceries');
       final fun = await categoryId('Entertainment');
       // Groceries: ₮600,000 a month, spent down, paid from checking.
-      // Entertainment carries over, so it isn't spent by the day.
+      // Entertainment is money built up for later, so it isn't spent by
+      // the day (#404).
       await db.setCategoryPlan(
         food,
         CategoryPlan(
@@ -2182,6 +2183,7 @@ void main() {
           kind: PlanKind.each,
           amount: 10000000,
           start: DateTime(2026, 9, 1),
+          spentEach: false,
         ),
       );
       for (final c in [food, fun]) {
@@ -2262,6 +2264,48 @@ void main() {
       expect(f.steps.where((s) => s.spending), isNotEmpty);
       expect(f.endBalance, without.endBalance - f.spendingTotal);
       expect(f.low, lessThan(without.low));
+    });
+
+    test('a set amount whose leftovers stay here is still spent each '
+        'month, and money built up for later is not (#404)', () async {
+      // The owner's own case: groceries and transport answer "Stays here"
+      // to what's left at month's end, which is the default, and until
+      // v25 the forecast skipped them altogether.
+      final food = await categoryId('Groceries');
+      final fun = await categoryId('Entertainment');
+      CategoryPlan plan(int id, {required bool spentEach}) => CategoryPlan(
+        categoryId: id,
+        kind: PlanKind.each,
+        amount: 31000000,
+        start: DateTime(2026, 9, 1),
+        spentEach: spentEach,
+      );
+      for (final (id, spent) in [(food, true), (fun, false)]) {
+        await db.setCategoryPlan(id, plan(id, spentEach: spent));
+        await db.setCategoryMoney(
+          id,
+          currency: Currency.mnt,
+          paidFrom: checking,
+        );
+      }
+      final one = await db.loadLedger();
+      expect(one.plans[food]!.rollover, isTrue, reason: 'Stays here');
+      expect(one.plans[fun]!.rollover, isTrue);
+      int total(LedgerData d) => projectSpending(
+        d,
+        accountId: checking,
+        today: DateTime(2026, 10, 1),
+        until: DateTime(2026, 10, 31),
+      ).fold(0, (s, x) => s - x.amount);
+      // All of groceries' October, and nothing of Entertainment's.
+      expect(total(one), 31000000);
+      // Answered the other way round, it is Entertainment's October.
+      await db.setCategoryPlan(food, plan(food, spentEach: false));
+      await db.setCategoryPlan(fun, plan(fun, spentEach: true));
+      expect(total(await db.loadLedger()), 31000000);
+      // Neither spent each month: the line doesn't move for them at all.
+      await db.setCategoryPlan(fun, plan(fun, spentEach: false));
+      expect(total(await db.loadLedger()), 0);
     });
 
     test('the budget\'s spending: the first of a month before assigning, '
@@ -3146,12 +3190,7 @@ void main() {
         );
         // On the day, bills first, then the refund, then the paycheck: the
         // cautious order the forecast already uses.
-        expect(fixed.steps.map((s) => s.row), [
-          earlier,
-          fees,
-          refund,
-          salary,
-        ]);
+        expect(fixed.steps.map((s) => s.row), [earlier, fees, refund, salary]);
         expect(fixed.heldBack, isEmpty);
         expect(fixed.endBalance, 100000000 + 5000000 - 90000000 + 255000000);
 

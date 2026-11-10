@@ -949,6 +949,7 @@ class CategoryPlan {
     this.endDate,
     this.endCount,
     this.rollover = true,
+    this.spentEach = true,
     this.upTo,
     this.paidFrom,
     this.once = const {},
@@ -1043,6 +1044,7 @@ class CategoryPlan {
       endDate: endDate,
       endCount: endCount,
       rollover: rollover,
+      spentEach: spentEach,
       upTo: upTo,
       paidFrom: paidFrom,
     );
@@ -1068,6 +1070,7 @@ class CategoryPlan {
     endDate: endDate,
     endCount: endCount,
     rollover: rollover,
+    spentEach: spentEach,
     upTo: upTo,
     paidFrom: account,
     once: once,
@@ -1119,6 +1122,15 @@ class CategoryPlan {
   /// overspent carries either way.
   final bool rollover;
 
+  /// [PlanKind.each]: the money goes out within the period it's assigned
+  /// in (groceries, gas, household), so the forecast takes it out of the
+  /// account a day at a time. False is money built up for something later
+  /// (car repairs, a new fridge), which the forecast leaves alone: it sits
+  /// in the account until a bill or a row spends it (v25, #404). Nothing
+  /// about [rollover] decides this: that answer is about what wasn't
+  /// spent.
+  final bool spentEach;
+
   /// [PlanKind.each] that carries over: once the category holds this
   /// much, the plan stops asking until some is spent. Null: no cap.
   final int? upTo;
@@ -1147,6 +1159,7 @@ class CategoryPlan {
       other.start == start &&
       sameRepeat(other) &&
       other.rollover == rollover &&
+      other.spentEach == spentEach &&
       other.upTo == upTo &&
       other.paidFrom == paidFrom &&
       _sameOnce(other.once, once);
@@ -1166,6 +1179,7 @@ class CategoryPlan {
     daysAfterPay,
     weekend,
     rollover,
+    spentEach,
     upTo,
     paidFrom,
   );

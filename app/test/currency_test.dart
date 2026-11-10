@@ -14,7 +14,10 @@ void main() {
   test('money reads and writes in either currency', () {
     expect(formatMoney(123450), '₮1,234.50');
     expect(formatMoney(-123450, currency: Currency.usd), r'−$1,234.50');
-    expect(formatRounded(-123450, currency: Currency.usd), r'−$1,234');
+    // Rounded to the nearest whole unit, not cut off: the forecast card's
+    // figures are all shown this way and have to add up (#398).
+    expect(formatRounded(-123450, currency: Currency.usd), r'−$1,235');
+    expect(formatRounded(123449, currency: Currency.usd), r'$1,234');
     expect(parseAmount(r'$12.50'), 1250);
     expect(Currency.fromCode('USD'), Currency.usd);
     expect(Currency.fromCode(null), Currency.mnt);
