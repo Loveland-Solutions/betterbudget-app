@@ -1272,7 +1272,7 @@ class WordsEn extends Words {
 
   @override
   String get planForecastWhatBand =>
-      'The shaded band is what your budget plans to spend, which has no date of its own.';
+      'The shaded band is the budget’s everyday spending, spread over the days.';
 
   @override
   String get planForecastWhatFour =>
@@ -1311,7 +1311,7 @@ class WordsEn extends Words {
 
   @override
   String planRailSpend(String amount) {
-    return 'To spend −$amount';
+    return 'Everyday spending −$amount';
   }
 
   @override
@@ -1323,6 +1323,9 @@ class WordsEn extends Words {
   String planLowest(String amount, String date) {
     return 'Lowest $amount on $date';
   }
+
+  @override
+  String get planLowestWord => 'Lowest';
 
   @override
   String get planForecast => 'Forecast';

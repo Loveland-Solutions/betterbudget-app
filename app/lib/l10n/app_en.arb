@@ -1849,7 +1849,7 @@
   "@planForecastWhatThree": {
     "description": "Forecast tooltip, second paragraph, first sentence. The owner's own wording (2026-11-08). 'working balance' is the Working line in the balances beside this card."
   },
-  "planForecastWhatBand": "The shaded band is what your budget plans to spend, which has no date of its own.",
+  "planForecastWhatBand": "The shaded band is the budget’s everyday spending, spread over the days.",
   "@planForecastWhatBand": {
     "description": "Forecast, the \u24d8 beside the word Forecast: the band between the line and the dashed line above it, shown only while there is one. Groceries, transport and the rest come out a day at a time rather than on a date, so they get no tick on the rail (#398)."
   },
@@ -1901,7 +1901,7 @@
     "description": "Forecast chart: the label inside the shaded band, at the point where it is widest, naming what the budget plans to spend. Without it a dashed line over a shaded band reads as a second scenario — a balance the household might have — rather than as their own money leaving (#398).",
     "placeholders": { "amount": { "type": "String" } }
   },
-  "planRailSpend": "To spend −{amount}",
+  "planRailSpend": "Everyday spending −{amount}",
   "@planRailSpend": {
     "description": "Forecast, the line under the chart: what the budget plans to spend from this account before the end — groceries, transport and the rest, spread a day at a time rather than dated. It has no tick on the rail; it is the band between the line and the dashed one above it. Money out keeps its minus, as everywhere else in the app.",
     "placeholders": { "amount": { "type": "String" } }
@@ -1927,6 +1927,7 @@
       }
     }
   },
+  "planLowestWord": "Lowest",
   "planForecast": "Forecast",
   "@planForecast": {
     "description": "Title of the forecast part of the account header, bold and centered."

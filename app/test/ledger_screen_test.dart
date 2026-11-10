@@ -186,7 +186,8 @@ void main() {
     testWidgets('an account page fits $name', (tester) async {
       final db = await pumpLedger(tester, size: size);
       expect(find.text('Last reconciled on 09.10'), findsOneWidget);
-      expect(find.text('2 not cleared yet'), findsOneWidget);
+      // The count is the Uncleared (2) button's alone now.
+      expect(find.text('2 not cleared yet'), findsNothing);
       await expectLater(
         find.byType(FitWindow),
         matchesGoldenFile(
@@ -1441,8 +1442,13 @@ void main() {
       find.descendant(of: card, matching: find.text('Zaisan Residence')),
       findsOneWidget,
     );
-    // Past the halfway mark, and the next one answers.
-    await mouse.moveTo(Offset((rent + visa) / 2 + 8, y));
+    // Between the two, out of reach of both, the pointer is reading a day:
+    // no bill's card, only that day's balance drawn on the chart.
+    await mouse.moveTo(Offset((rent + visa) / 2, y));
+    await tester.pumpAndSettle();
+    expect(card, findsNothing);
+    // Near the next one, and it answers.
+    await mouse.moveTo(Offset(visa - 16, y));
     await tester.pumpAndSettle();
     expect(
       find.descendant(of: card, matching: find.text('Zaisan Residence')),
@@ -1610,17 +1616,15 @@ void main() {
     });
     await tester.pumpAndSettle();
     expect(find.text('+₮383,600.00', findRichText: true), findsOneWidget);
-    expect(find.text('3 not cleared yet'), findsOneWidget);
     await tidy(tester, db);
   });
 
   testWidgets('the header is the key to the row symbols', (tester) async {
     final db = await pumpLedger(tester);
     expect(find.text('Uncleared'), findsWidgets);
-    expect(find.text('2 not cleared yet'), findsOneWidget);
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(location: Offset.zero);
-    await mouse.moveTo(tester.getCenter(find.text('2 not cleared yet')));
+    await mouse.moveTo(tester.getCenter(find.text('Uncleared').first));
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(LedgerScreen),
@@ -2790,7 +2794,6 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Last reconciled on 09.16'), findsOneWidget);
-    expect(find.text('1 not cleared yet'), findsOneWidget);
 
     await tester.runAsync(() async {
       await tester.tap(find.text('Undo'));
@@ -9757,7 +9760,7 @@ void main() {
       await settle(tester);
       // Its own whole part of the line under the chart, beside the bills
       // and the income: the card's arithmetic ties again (#398).
-      expect(find.textContaining('To spend −'), findsOneWidget);
+      expect(find.textContaining('Everyday spending −'), findsOneWidget);
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/forecast_budgeted.png'),

@@ -88,11 +88,26 @@ class BalanceHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(32, 26, 32, 22),
+      padding: const EdgeInsets.fromLTRB(32, 22, 32, 20),
+      // Lit from its top-left corner and lifted off the page: the header is
+      // the page's one answer, so it is the one card that stands forward
+      // (owner, 2026-11-10: "Can you make it pop?").
       decoration: BoxDecoration(
-        color: Mid.card,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: const Alignment(0.4, 1),
+          colors: [Color.lerp(Mid.card, Mid.raised, 0.55)!, Mid.card],
+          stops: const [0, 0.6],
+        ),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Mid.rule),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: Mid.isLight ? 0.08 : 0.30),
+            blurRadius: 30,
+            offset: const Offset(0, 14),
+          ),
+        ],
       ),
       child: IntrinsicHeight(
         child: Row(
@@ -102,21 +117,23 @@ class BalanceHeader extends StatelessWidget {
             // takes everything left (owner, 2026-11-08). Pinned at 440 it
             // sat against the right edge with dead space in the middle, and
             // a wide window bought the chart nothing.
-            Flexible(
-              child:
-                  reconcile ??
-                  _Balances(
-                    s: summary,
-                    owed: owed,
-                    hovered: hoveredStatus,
-                    active: activeStatus,
-                    onTap: onStatusTap,
-                    onReconcile: onReconcile,
-                  ),
-            ),
-            const SizedBox(width: 40),
-            Container(width: 1, color: Mid.rule),
-            const SizedBox(width: 40),
+            // A reconcile keeps its half; the balances are only as wide as
+            // their figures. As a `Flexible` the balances were offered half
+            // the card and the half they didn't use went to nobody.
+            if (reconcile case final r?)
+              Flexible(child: r)
+            else
+              _Balances(
+                s: summary,
+                owed: owed,
+                hovered: hoveredStatus,
+                active: activeStatus,
+                onTap: onStatusTap,
+                onReconcile: onReconcile,
+              ),
+            // No rule between them: the line begins beside the Working
+            // figure, and a wall stood exactly where now meets ahead.
+            const SizedBox(width: 44),
             Expanded(
               child: ForecastPanel(
                 forecast,
@@ -161,17 +178,48 @@ class _Balances extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final n = s.unclearedCount;
     int shown(int v) => owed ? -v : v;
+    Widget reconciled() => Row(
+      // Only as wide as it is: the chart takes the rest of the card.
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Cash has no statement to be checked against, so neither
+        // the line nor the button means anything on a wallet.
+        if (onReconcile case final reconcile?) ...[
+          _StatusLine(
+            status: Cleared.reconciled,
+            amount: null,
+            // When matters here, not how much: no amount column.
+            label: s.reconciledOn == null
+                ? t.planNeverReconciled
+                : t.planLastReconciled(sayDate(t, s.reconciledOn!)),
+            note: '',
+            hovered: hovered,
+            active: active == Cleared.reconciled,
+            onTap: () => onTap(Cleared.reconciled),
+          ),
+          BarButton(
+            key: const ValueKey('reconcile'),
+            label: t.planReconcile,
+            onTap: reconcile,
+          ),
+        ],
+      ],
+    );
+    // The answer first and biggest, its two parts hung under it, and
+    // Reconcile on the card's foot (owner, 2026-11-10, sketch D). It was a
+    // receipt to decode: Cleared, Uncleared, a rule, and the figure people
+    // came for third. The parts still double as the key to the register's
+    // symbols.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Written as a sum, so the header teaches why working and cleared
-        // differ, and doubles as the key to the register's symbols.
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _TotalLine(amount: shown(s.working), owed: owed),
+            const SizedBox(height: 8),
             _StatusLine(
               status: Cleared.cleared,
               amount: shown(s.cleared),
@@ -180,54 +228,20 @@ class _Balances extends StatelessWidget {
               active: active == Cleared.cleared,
               onTap: () => onTap(Cleared.cleared),
             ),
+            // No "2 not cleared yet" beside it: the Uncleared (2) button
+            // under the header holds the count.
             _StatusLine(
               status: Cleared.uncleared,
               amount: shown(s.uncleared),
               signed: true,
-              note: n == 0 ? '' : t.planNotClearedYet(n),
+              note: '',
               hovered: hovered,
               active: active == Cleared.uncleared,
               onTap: () => onTap(Cleared.uncleared),
             ),
-            Container(
-              width: _Line.amountWidth,
-              height: 1,
-              margin: EdgeInsets.only(
-                left: _Line.amountLeft(context),
-                top: 2,
-                bottom: 4,
-              ),
-              color: Mid.ink3.withValues(alpha: 0.45),
-            ),
-            _TotalLine(amount: shown(s.working), owed: owed),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                // Cash has no statement to be checked against, so neither
-                // the line nor the button means anything on a wallet.
-                if (onReconcile case final reconcile?) ...[
-                  _StatusLine(
-                    status: Cleared.reconciled,
-                    amount: null,
-                    // When matters here, not how much: no amount column.
-                    label: s.reconciledOn == null
-                        ? t.planNeverReconciled
-                        : t.planLastReconciled(sayDate(t, s.reconciledOn!)),
-                    note: '',
-                    hovered: hovered,
-                    active: active == Cleared.reconciled,
-                    onTap: () => onTap(Cleared.reconciled),
-                  ),
-                  BarButton(
-                    key: const ValueKey('reconcile'),
-                    label: t.planReconcile,
-                    onTap: reconcile,
-                  ),
-                ],
-              ],
-            ),
           ],
         ),
+        Padding(padding: const EdgeInsets.only(top: 10), child: reconciled()),
       ],
     );
   }
@@ -320,27 +334,22 @@ class _TotalLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: _Line.amountLeft(context) + _Line.amountWidth,
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(width: _Line._glyph + _Line._gap),
         Text(
           owed ? context.t.planOwed : context.t.planWorking,
-          style: onest(13, weight: 500),
+          style: onest(13, weight: 500, color: Mid.ink2),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Money(
-              amount,
-              size: 30,
-              weight: 500,
-              letterSpacing: -0.6,
-              centsScale: 0.55,
-              color: !owed && amount < 0 ? Mid.coral : Mid.ink,
-            ),
+        // A balance in the hundreds of millions gets smaller, not cut.
+        Shrink(
+          Money(
+            amount,
+            size: 42,
+            weight: 600,
+            letterSpacing: -1.2,
+            centsScale: 0.5,
+            color: !owed && amount < 0 ? Mid.coral : Mid.ink,
           ),
         ),
       ],
@@ -672,26 +681,30 @@ class ForecastPanel extends StatelessWidget {
     // as it does everywhere else, and each part shows only while there is
     // something for it. No counts: "4 money out" is not English, and the
     // rail's ticks are countable where they stand.
-    final rail = <String>[
-      if (f.billTotal > 0) t.planRailOut(money(f.billTotal)),
+    final rail = <(_Part?, String)>[
+      if (f.billTotal > 0) (_Part.out, t.planRailOut(money(f.billTotal))),
       // What the budget plans to spend. It has no tick, because it has no
       // date: it is the band between the line and the dashed one above it.
       // Without it the card's own arithmetic stopped tying — the line ended
       // below what the bills and the income came to, and nothing on the
       // card accounted for the difference (#398).
-      if (f.spendingTotal > 0) t.planRailSpend(money(f.spendingTotal)),
-      if (f.moveOut > 0) t.planRailMoveOut(money(f.moveOut)),
-      if (f.moveIn > 0) t.planRailMoveIn(money(f.moveIn)),
+      if (f.spendingTotal > 0)
+        (_Part.spend, t.planRailSpend(money(f.spendingTotal))),
+      if (f.moveOut > 0) (_Part.out, t.planRailMoveOut(money(f.moveOut))),
+      if (f.moveIn > 0) (_Part.income, t.planRailMoveIn(money(f.moveIn))),
       if (f.rowSteps.any(
         (s) => s.row.amount > 0 && s.row.kind != RowKind.transfer,
       ))
-        t.planRailIn(
-          money(
-            f.rowSteps
-                .where(
-                  (s) => s.row.amount > 0 && s.row.kind != RowKind.transfer,
-                )
-                .fold(0, (a, s) => a + s.row.amount),
+        (
+          _Part.income,
+          t.planRailIn(
+            money(
+              f.rowSteps
+                  .where(
+                    (s) => s.row.amount > 0 && s.row.kind != RowKind.transfer,
+                  )
+                  .fold(0, (a, s) => a + s.row.amount),
+            ),
           ),
         ),
     ];
@@ -836,30 +849,148 @@ class ForecastPanel extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 4),
-          if (f.rowSteps.isEmpty)
-            Text(detail, style: onest(13, color: Mid.ink3, tabular: true))
-          else
-            // A credit account keeps its own words: there a bill is a
-            // charge and money in is a payment, and the signs run the other
-            // way, so the rail's "4 bills −₮…" would read backwards.
-            _BillsLink(
-              parts: f.owed || rail.isEmpty ? [detail] : rail,
+          Expanded(
+            child: _ForecastBody(
               f: f,
               onOpen: onOpen,
-            ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: ConstrainedBox(
-              // The chart is what the card says now, so it sets the header's
-              // height rather than taking what the balances beside it leave.
-              // Not higher than this: the header would take a row off the
-              // register, which is the page's real work.
-              constraints: const BoxConstraints(minHeight: 132),
-              child: _ForecastChart(f: f, onOpen: onOpen),
+              detail: detail,
+              // A credit account keeps its own words: there a bill is a
+              // charge and money in is a payment, and the signs run the
+              // other way, so the key's "Money out −₮…" would read backwards.
+              parts: f.owed || rail.isEmpty ? [(null, detail)] : rail,
             ),
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The three things a forecast is made of, as the key names them and the
+/// chart draws them: dated money out (ticks under the rail), the budget's
+/// everyday spending (the band), and money in (green ticks).
+enum _Part { out, spend, income }
+
+/// The key and the chart it explains. They share which part the pointer is
+/// on, so pointing at a word in the key lights up its marks on the chart
+/// (owner, 2026-11-10, sketch D: "interactive").
+class _ForecastBody extends StatefulWidget {
+  const _ForecastBody({
+    required this.f,
+    required this.onOpen,
+    required this.detail,
+    required this.parts,
+  });
+  final Forecast f;
+  final ValueChanged<RegisterRow>? onOpen;
+  final String detail;
+  final List<(_Part?, String)> parts;
+
+  @override
+  State<_ForecastBody> createState() => _ForecastBodyState();
+}
+
+class _ForecastBodyState extends State<_ForecastBody> {
+  final _lit = ValueNotifier<_Part?>(null);
+
+  @override
+  void dispose() {
+    _lit.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = widget.f;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (f.rowSteps.isEmpty)
+          Text(widget.detail, style: onest(13, color: Mid.ink3, tabular: true))
+        else
+          _BillsLink(
+            parts: widget.parts,
+            f: f,
+            onOpen: widget.onOpen,
+            lit: _lit,
+          ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: ConstrainedBox(
+            // The chart is what the card says now, so it sets the header's
+            // height rather than taking what the balances beside it leave.
+            // Not higher than this: the header would take a row off the
+            // register, which is the page's real work.
+            constraints: const BoxConstraints(minHeight: 132),
+            child: _ForecastChart(f: f, onOpen: widget.onOpen, lit: _lit),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One word of the key: a sample of its mark, then its name and figure.
+/// The sample is what makes a key a key; without it the line read as a
+/// sentence with a link under it.
+class _KeyChip extends StatelessWidget {
+  const _KeyChip({required this.kind, required this.text, required this.lit});
+  final _Part? kind;
+  final String text;
+  final ValueNotifier<_Part?> lit;
+
+  @override
+  Widget build(BuildContext context) {
+    final kind = this.kind;
+    final chip = ValueListenableBuilder<_Part?>(
+      valueListenable: lit,
+      builder: (context, on, _) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: kind != null && on == kind
+              ? Mid.rowHover.withValues(alpha: 0.16)
+              : Mid.chip,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Mid.rule),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (kind == _Part.spend)
+              Container(
+                width: 11,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Mid.ink3.withValues(alpha: 0.4),
+                  border: Border(top: BorderSide(color: Mid.ink3, width: 1.2)),
+                ),
+              )
+            else if (kind != null)
+              Container(
+                width: 2.8,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: kind == _Part.income ? Mid.green : Mid.ink2,
+                  borderRadius: BorderRadius.circular(1.4),
+                ),
+              ),
+            if (kind != null) const SizedBox(width: 7),
+            Text(
+              text,
+              maxLines: 1,
+              style: onest(12.5, weight: 500, color: Mid.ink, tabular: true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (kind == null) return chip;
+    return MouseRegion(
+      onEnter: (_) => lit.value = kind,
+      onExit: (_) {
+        if (lit.value == kind) lit.value = null;
+      },
+      child: chip,
     );
   }
 }
@@ -1030,8 +1161,10 @@ class _SpanChip extends StatelessWidget {
     onTap: onTap,
     builder: (hover) => DecoratedBox(
       decoration: BoxDecoration(
+        // The one you're on is filled in the color of what you click, so
+        // the range drawn is found at a glance (owner, 2026-11-10, sketch D).
         color: chosen
-            ? (Mid.isLight ? Mid.card : Mid.raised)
+            ? Mid.blue
             : hover
             ? Mid.hover
             : null,
@@ -1043,8 +1176,8 @@ class _SpanChip extends StatelessWidget {
           label,
           style: onest(
             11,
-            weight: chosen ? 500 : 400,
-            color: chosen ? Mid.ink : Mid.ink3,
+            weight: chosen ? 600 : 400,
+            color: chosen ? Mid.onAccent : Mid.ink3,
           ),
         ),
       ),
@@ -1403,12 +1536,16 @@ class _BillsLink extends StatefulWidget {
     required this.parts,
     required this.f,
     required this.onOpen,
+    required this.lit,
   });
+
+  /// Which part of the key the pointer is on, shared with the chart.
+  final ValueNotifier<_Part?> lit;
 
   /// One label per side of the rail, each a whole message of its own: they
   /// are separate facts set beside each other, never one sentence built
   /// from pieces.
-  final List<String> parts;
+  final List<(_Part?, String)> parts;
   final Forecast f;
   final ValueChanged<RegisterRow>? onOpen;
 
@@ -1503,20 +1640,15 @@ class _BillsLinkState extends State<_BillsLink> {
                   // Amounts and dates: smaller rather than cut.
                   Flexible(
                     child: Shrink(
-                      Text(
-                        widget.parts.join(' · '),
-                        maxLines: 1,
-                        style:
-                            onest(
-                              13,
-                              color: lit
-                                  ? Mid.ink
-                                  : (widget.f.isShort ? Mid.ink2 : Mid.ink3),
-                              tabular: true,
-                            ).copyWith(
-                              decoration: TextDecoration.underline,
-                              decorationColor: Mid.ink3.withValues(alpha: 0.6),
-                            ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final (i, (kind, text))
+                              in widget.parts.indexed) ...[
+                            if (i > 0) const SizedBox(width: 6),
+                            _KeyChip(kind: kind, text: text, lit: widget.lit),
+                          ],
+                        ],
                       ),
                     ),
                   ),
@@ -1983,8 +2115,15 @@ double _within(double v, double lo, double hi) =>
 /// number of events changes with the range, so a stop each would move the
 /// Tab order under the person. ← and → step event to event.
 class _ForecastChart extends StatefulWidget {
-  const _ForecastChart({required this.f, required this.onOpen});
+  const _ForecastChart({
+    required this.f,
+    required this.onOpen,
+    required this.lit,
+  });
   final Forecast f;
+
+  /// The part of the key the pointer is on: its marks are drawn stronger.
+  final ValueNotifier<_Part?> lit;
 
   /// Null while a reconcile is open: no pointer cursor and no row opening,
   /// while the chart still reads and its cards still show. Nothing is taken
@@ -2005,6 +2144,23 @@ class _ForecastChartState extends State<_ForecastChart> {
 
   /// The event the pointer or the keyboard is on.
   int? _at;
+
+  /// Where the pointer is when it is on no event: the chart then says that
+  /// day's balance, so any day can be read, not only the ones with a bill
+  /// (owner, 2026-11-10, sketch D).
+  double? _scrub;
+
+  /// How near an event the pointer has to be for its card to show. Past
+  /// that the pointer is reading a day, not a bill.
+  static const _reach = 24.0;
+
+  void _hover(double dx) {
+    final n = _nearest(dx);
+    final onEvent = n != null && (_where.xs[n] - dx).abs() <= _reach;
+    final scrub = onEvent ? null : dx;
+    if (scrub != _scrub) setState(() => _scrub = scrub);
+    _goTo(onEvent ? n : null);
+  }
 
   @override
   void dispose() {
@@ -2129,14 +2285,9 @@ class _ForecastChartState extends State<_ForecastChart> {
                     widget.f,
                     CurrencyScope.of(context),
                     highlightX: at == null ? null : _where.xs[at],
-                    bandLabel: widget.f.spendingTotal > 0
-                        ? context.t.planBandLabel(
-                            formatRounded(
-                              widget.f.spendingTotal,
-                              currency: CurrencyScope.of(context),
-                            ),
-                          )
-                        : null,
+                    scrubX: at == null ? _scrub : null,
+                    lowWord: context.t.planLowestWord,
+                    lit: widget.lit,
                   ),
                 ),
               ),
@@ -2154,8 +2305,11 @@ class _ForecastChartState extends State<_ForecastChart> {
                   cursor: canOpen
                       ? SystemMouseCursors.click
                       : MouseCursor.defer,
-                  onHover: (e) => _goTo(_nearest(e.localPosition.dx)),
-                  onExit: (_) => _goTo(null),
+                  onHover: (e) => _hover(e.localPosition.dx),
+                  onExit: (_) {
+                    if (_scrub != null) setState(() => _scrub = null);
+                    _goTo(null);
+                  },
                   child: GestureDetector(
                     key: const ValueKey('forecast-events'),
                     behavior: HitTestBehavior.opaque,
@@ -2326,15 +2480,27 @@ class _BillCard extends StatelessWidget {
 }
 
 class _ForecastPainter extends CustomPainter {
-  _ForecastPainter(this.f, this.currency, {this.highlightX, this.bandLabel});
+  _ForecastPainter(
+    this.f,
+    this.currency, {
+    this.highlightX,
+    this.scrubX,
+    required this.lowWord,
+    required this.lit,
+  }) : super(repaint: lit);
   final Currency currency;
   final Forecast f;
 
-  /// Names the band at the point where it is widest. Without a name a
-  /// dashed line over shading reads as a second scenario — a balance the
-  /// household might have — rather than as their own money going out
-  /// (budget-app review, #398). Null when there is no band to name.
-  final String? bandLabel;
+  /// "Lowest", set before the dip's figure: with three figures on the line
+  /// a first reader could not tell which was which.
+  final String lowWord;
+
+  /// The part of the key the pointer is on.
+  final ValueNotifier<_Part?> lit;
+
+  /// Where the pointer is while it is on no event: that day's balance is
+  /// read off the line.
+  final double? scrubX;
 
   /// Where the event the pointer or the keyboard is on sits. At a year the
   /// ticks are about a pixel apart, so the card alone doesn't say which one
@@ -2398,47 +2564,21 @@ class _ForecastPainter extends CustomPainter {
           _closedDown(barePath, w, h),
           _closedDown(path, w, h),
         ),
-        Paint()..color = Mid.ink3.withValues(alpha: 0.16),
+        // Quiet until the key's Everyday spending is pointed at.
+        Paint()
+          ..color = Mid.ink3.withValues(
+            alpha: lit.value == _Part.spend ? 0.5 : 0.26,
+          ),
       );
-      // Named where it is widest, in the band's own ink: the figure sits
-      // between the two lines, so what it measures is unmistakable.
-      if (bandLabel case final text? when barePts.length > 2) {
-        // The widest point, but kept out of the last stretch, where the
-        // end balance and the final marker already sit.
-        var bestX = 0.0, bestTop = 0.0, bestGap = 0.0;
-        for (var i = 0; i < f.steps.length; i++) {
-          if (g.xs[i] > w * 0.72) break;
-          final a = y(g.bare[i]), b = y(f.steps[i].balance);
-          final gap = (a - b).abs();
-          if (gap > bestGap) {
-            bestGap = gap;
-            bestX = g.xs[i];
-            bestTop = a < b ? a : b;
-          }
-        }
-        final half = _measure(text).width / 2;
-        // Only where it fits inside the band, across and down, without
-        // crowding either line.
-        if (bestGap >= 18 && half * 2 + 16 <= w) {
-          _label(
-            canvas,
-            text,
-            Offset(
-              bestX.clamp(half + 4, w - half - 4),
-              bestTop + bestGap / 2 - 7,
-            ),
-            Mid.ink3,
-            center: true,
-          );
-        }
-      }
+      // Not named on the chart: the key's chip carries a sample of it, its
+      // name and its figure, and pointing at the chip lights it up.
 
       // Its top edge, dashed: nothing is scheduled up there, it is only
       // where the money would have stayed.
       final dash = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2
-        ..color = Mid.ink3.withValues(alpha: 0.5);
+        ..color = Mid.ink3.withValues(alpha: 0.75);
       for (final m in barePath.computeMetrics()) {
         for (var d = 0.0; d < m.length; d += 7) {
           canvas.drawPath(
@@ -2563,14 +2703,40 @@ class _ForecastPainter extends CustomPainter {
       final s = f.steps[i];
       if (s.spending) continue;
       final inward = s.row.amount > 0;
+      // The part of the key under the pointer stands taller; the other
+      // side steps back.
+      final on = lit.value == (inward ? _Part.income : _Part.out);
+      final dim = lit.value != null && lit.value != _Part.spend && !on;
+      final len = on ? 12.0 : 8.0;
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(g.xs[i] - 1.4, g.railY - (inward ? 8 : 0), 2.8, 8),
+          Rect.fromLTWH(g.xs[i] - 1.4, g.railY - (inward ? len : 0), 2.8, len),
           const Radius.circular(1.4),
         ),
-        Paint()..color = inward ? Mid.green : Mid.ink2,
+        Paint()
+          ..color = (inward ? Mid.green : Mid.ink2).withValues(
+            alpha: dim ? 0.3 : 1,
+          ),
       );
     }
+
+    // Where the line begins: the Working balance beside it, marked so the
+    // two are seen to be one number.
+    final startAt = Offset(0, y(f.startBalance));
+    canvas.drawCircle(
+      startAt,
+      9,
+      Paint()..color = Mid.blue.withValues(alpha: 0.2),
+    );
+    canvas.drawCircle(startAt, 4.5, Paint()..color = Mid.ink);
+    canvas.drawCircle(
+      startAt,
+      4.5,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..color = Mid.blue,
+    );
 
     // The figures sit at their points, and only where nothing else on the
     // card says them: the dip, drawn large, and where you land.
@@ -2584,10 +2750,18 @@ class _ForecastPainter extends CustomPainter {
       List<(bool right, bool above)> spots, {
       int weight = 400,
       bool mustShow = false,
+      String? lead,
     }) {
       final tp = TextPainter(
         text: TextSpan(
-          text: text,
+          children: [
+            if (lead != null)
+              TextSpan(
+                text: '$lead  ',
+                style: onest(11, color: Mid.ink3),
+              ),
+            TextSpan(text: text),
+          ],
           style: onest(size, color: color, weight: weight, tabular: true),
         ),
         textDirection: TextDirection.ltr,
@@ -2642,10 +2816,11 @@ class _ForecastPainter extends CustomPainter {
         amount(f.low),
         Offset(lowX, y(f.low)),
         lowShort ? Mid.coral : Mid.ink,
-        17,
+        19,
         [(false, false), (false, true), (true, false), (true, true)],
-        weight: 500,
+        weight: 600,
         mustShow: true,
+        lead: lowWord,
       );
       canvas.drawCircle(Offset(lowX, y(f.low)), 4, Paint()..color = Mid.card);
       canvas.drawCircle(
@@ -2670,11 +2845,12 @@ class _ForecastPainter extends CustomPainter {
         tag(
           amount(f.endBalance),
           Offset(w, endY),
-          under && f.endBalance <= 0 ? Mid.coral : Mid.ink2,
-          11,
+          under && f.endBalance <= 0 ? Mid.coral : Mid.ink,
+          15,
           // Under the last flat run first: above it is where the step down
           // to it comes through, and the line would cross the figure.
           [(false, false), (false, true)],
+          weight: 600,
         );
       }
       canvas.drawCircle(
@@ -2721,19 +2897,79 @@ class _ForecastPainter extends CustomPainter {
     if (!showLow || (endX - lowAt).abs() > lowHalf + _widthOf(endText) / 2) {
       _label(canvas, endText, Offset(endX, g.datesY), Mid.ink3, center: true);
     }
+
+    // The day under the pointer: a hairline, a dot on the line, and that
+    // day's date and balance. Last, so it sits over everything else.
+    if (scrubX case final sx?) {
+      final days = f.end.difference(f.start).inDays;
+      final day = f.start.add(
+        Duration(days: (sx / w * g._span).round().clamp(0, days)),
+      );
+      var balance = f.startBalance;
+      for (final s in f.steps) {
+        if (s.date.isAfter(day)) break;
+        balance = s.balance;
+      }
+      final at = Offset(g.x(day), y(balance));
+      canvas.drawLine(
+        Offset(at.dx, 0),
+        Offset(at.dx, g.railY),
+        Paint()
+          ..color = Mid.ink2.withValues(alpha: 0.5)
+          ..strokeWidth = 1,
+      );
+      canvas.drawCircle(at, 5, Paint()..color = Mid.blue);
+      canvas.drawCircle(
+        at,
+        5,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = Mid.ink,
+      );
+      final date = TextPainter(
+        text: TextSpan(
+          text: shortDate(day),
+          style: onest(11, color: Mid.ink3, tabular: true),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final figure = TextPainter(
+        text: TextSpan(
+          text: amount(balance),
+          style: onest(
+            14,
+            weight: 600,
+            color: under && balance <= 0 ? Mid.coral : Mid.ink,
+            tabular: true,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final boxW = (date.width > figure.width ? date.width : figure.width) + 20;
+      final boxH = date.height + figure.height + 14;
+      final left = at.dx + 12 + boxW > w ? at.dx - 12 - boxW : at.dx + 12;
+      final top = (at.dy - boxH - 8).clamp(0.0, (h - boxH).clamp(0.0, h));
+      final box = RRect.fromRectAndRadius(
+        Rect.fromLTWH(left.clamp(0.0, w), top, boxW, boxH),
+        const Radius.circular(8),
+      );
+      canvas.drawRRect(box, Paint()..color = Mid.ground);
+      canvas.drawRRect(
+        box,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..color = Mid.rule,
+      );
+      date.paint(canvas, Offset(box.left + 10, box.top + 6));
+      figure.paint(canvas, Offset(box.left + 10, box.top + 8 + date.height));
+    }
   }
 
   double _widthOf(String text) => (TextPainter(
     text: TextSpan(text: text, style: onest(11, tabular: true)),
     textDirection: TextDirection.ltr,
   )..layout()).width;
-
-  /// How wide a chart label comes out, so one can be kept inside the plot
-  /// or left out when there is no room for it.
-  TextPainter _measure(String text) => TextPainter(
-    text: TextSpan(text: text, style: onest(11, tabular: true)),
-    textDirection: TextDirection.ltr,
-  )..layout();
 
   void _label(
     Canvas canvas,
@@ -2765,5 +3001,7 @@ class _ForecastPainter extends CustomPainter {
       old.f != f ||
       old.palette != palette ||
       old.currency != currency ||
-      old.highlightX != highlightX;
+      old.highlightX != highlightX ||
+      old.scrubX != scrubX ||
+      old.lowWord != lowWord;
 }
