@@ -1232,7 +1232,7 @@ class WordsMn extends Words {
 
   @override
   String get planForecastWhatBand =>
-      'Сүүдэрлэсэн хэсэг нь таны төсвийн зарцуулахаар төлөвлөсөн мөнгө бөгөөд тодорхой огноогүй.';
+      'Сүүдэрлэсэн хэсэг нь төсвийн өдөр тутмын зардал бөгөөд өдрүүдэд хуваагдана.';
 
   @override
   String get planForecastWhatFour =>
@@ -1271,7 +1271,7 @@ class WordsMn extends Words {
 
   @override
   String planRailSpend(String amount) {
-    return 'Зарцуулах −$amount';
+    return 'Өдөр тутмын зардал −$amount';
   }
 
   @override
@@ -1283,6 +1283,9 @@ class WordsMn extends Words {
   String planLowest(String amount, String date) {
     return 'Доод үлдэгдэл $amount · $date';
   }
+
+  @override
+  String get planLowestWord => 'Хамгийн бага';
 
   @override
   String get planForecast => 'Төсөөлөл';

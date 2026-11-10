@@ -5723,3 +5723,75 @@ open on the issue: draw it, and name it.
 Left for later (#398 keeps it): the bill list's **Balance after** column still has each
 row's balance carrying that day's spending, so a −₮350,000 row can be followed by a
 balance that fell ₮480,000. The chart and the key line now tie; the list's column doesn't.
+
+## The header stands forward: Working first, a live chart (owner, 2026-11-10, #421)
+
+Owner: "The forecast. It's getting closer, but I don't love it. I want the entire top
+header to be very intuitive to the user." The design committee read the header as it
+stood. Nothing tied the chart's start to the Working figure beside it (the line began
+40 px above it, past a rule; the first-time reader learned it from the ⓘ). The key line
+sat above the plot, keyed the ticks below it, and read as a link sentence. "To spend
+−₮948,387" and the band above the line were read as spare money, the opposite of what
+they are. "2 not cleared yet" repeated the Uncleared (2) button under it.
+
+Three sketches moved the same pieces about (A the small fix, B Working first with the
+key under the rail, C the range buttons at the foot). The owner: **"These all look the
+same. Can you make it pop? Look professional, amazing, interactive, sexy?"** Two live
+sketches followed on the same canvas (https://claude.ai/artifact/DWYjNqVenxznVNXKt3cthe):
+**D, Spotlight**, and **E, Three numbers** (the chart the full width of the card under
+three large figures, about 100 px taller). The owner chose **D**, tried it in the app,
+and kept it.
+
+- **Working is first and largest** (42 px, 600), its name above it, with Cleared and
+  Uncleared hung under it and Reconcile on the card's foot. The rule under the sum and
+  the receipt order are gone: the answer no longer comes third.
+- **"2 not cleared yet" is gone.** The Uncleared (2) button holds the count.
+- **No rule between the halves**, and the line begins at a lit dot beside the Working
+  figure, so the two are seen to be one number.
+- **The card is lit from its top-left corner and lifted off the page** with a shadow. It
+  is the page's one answer and the only card that stands forward.
+- **The key is chips, each with a sample of its mark**: a tick, a shaded square with a
+  ruled top, a green tick. **Pointing at a chip lights its part of the chart** (its ticks
+  stand taller and the other side steps back; the band darkens). A click still opens the
+  bill list. The resting underline went with the sentence.
+- **"Everyday spending"** replaces "To spend" in the key, the owner's own phrase for it
+  ("things we'll spend over the month"). "To spend" is how English says *available*.
+  The band is **no longer labelled on the chart**: the chip carries its sample, its name
+  and its figure. This undoes "named inside itself" and the same day's "always named".
+- **The chips keep "Money out" and "Money in"** (owner, 2026-11-09). The sketch said
+  "Bills" and "Income"; the owner's own words stayed.
+- **"Lowest" is written before the dip's figure**, and the end balance is 15 px, 600, in
+  full ink. With three figures on the line a first reader couldn't tell which was which.
+  This narrows "words only for what the chart cannot show" by one word.
+- **Any day can be read.** Moving over the chart draws a hairline, a dot on the line and
+  that day's date and balance. Within 24 px of an event its card shows as before, so
+  two bills a day apart are both still reachable; between events the pointer is reading
+  a day, not a bill. This narrows "every point across the chart belongs to some event"
+  (#393). A click still opens the nearest event from anywhere.
+- **The range you're on is filled blue**, the colour of what you click. This narrows "no
+  colors" on that row: still none per length, one for the choice.
+- **The chart takes all the width the balances don't.** The balances sat in a `Flexible`
+  beside the chart's `Expanded`, so each was offered half the card and the half the
+  balances didn't use went to nobody.
+- **The header is the height it was**: the card's padding gave back what the chips took,
+  so the register loses no row.
+- **Left as they were:** clicking Cleared, Uncleared or Last reconciled still filters the
+  register. The committee found nobody guesses it; it is the only way to the closable
+  Cleared and Reconciled tabs, and the owner hasn't been heard on it.
+- **Rejected:** A, B and C ("all look the same"); E (taller by two register rows); the
+  range buttons on one row with the chips (they don't fit at 1360).
+
+### What the reviews found (same PR)
+
+- **A click opens only the bill whose card is showing**, and the pointing hand shows only
+  then. A click while reading a plain day had opened the nearest bill, which could be
+  weeks away.
+- **A card gets no day reading and keeps the band's name on its chart.** A bare figure
+  there doesn't say owed or in credit, as every other figure on a card's forecast does;
+  and a card's key is a sentence of charges and payments with no chip to name the band.
+- **The day under the pointer is worked out by the calendar**, as the forecast builds its
+  days, not by adding hours.
+- **A chip that goes away under the pointer no longer leaves its part lit.**
+- Not fixed, on #423: tests for the day reading and the chips, "Lowest" as one message,
+  the first day under ₮0 has no date, what "Everyday spending" counts, and the rest.
+

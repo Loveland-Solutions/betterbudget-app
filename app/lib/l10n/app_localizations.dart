@@ -1791,7 +1791,7 @@ abstract class Words {
   /// Forecast, the ⓘ beside the word Forecast: the band between the line and the dashed line above it, shown only while there is one. Groceries, transport and the rest come out a day at a time rather than on a date, so they get no tick on the rail (#398).
   ///
   /// In en, this message translates to:
-  /// **'The shaded band is what your budget plans to spend, which has no date of its own.'**
+  /// **'The shaded band is the budget’s everyday spending, spread over the days.'**
   String get planForecastWhatBand;
 
   /// Forecast tooltip, second paragraph, second sentence. Points at the row of how-far-ahead buttons at the top right of the card.
@@ -1833,7 +1833,7 @@ abstract class Words {
   /// Forecast, the line under the chart: what the budget plans to spend from this account before the end — groceries, transport and the rest, spread a day at a time rather than dated. It has no tick on the rail; it is the band between the line and the dashed one above it. Money out keeps its minus, as everywhere else in the app.
   ///
   /// In en, this message translates to:
-  /// **'To spend −{amount}'**
+  /// **'Everyday spending −{amount}'**
   String planRailSpend(String amount);
 
   /// Forecast, the line under the chart: what arrives before the end that the person did not already own — a salary, a refund. Money taken from one of their own other accounts is NOT in this; that is planRailMoveIn.
@@ -1847,6 +1847,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Lowest {amount} on {date}'**
   String planLowest(String amount, String date);
+
+  /// One word set before the forecast chart's lowest balance, e.g. Lowest ₮1,342,250.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest'**
+  String get planLowestWord;
 
   /// Title of the forecast part of the account header, bold and centered.
   ///
