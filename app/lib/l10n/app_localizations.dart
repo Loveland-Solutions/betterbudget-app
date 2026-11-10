@@ -1848,7 +1848,7 @@ abstract class Words {
   /// **'Lowest {amount} on {date}'**
   String planLowest(String amount, String date);
 
-  /// No description provided for @planLowestWord.
+  /// One word set before the forecast chart's lowest balance, e.g. Lowest ₮1,342,250.
   ///
   /// In en, this message translates to:
   /// **'Lowest'**

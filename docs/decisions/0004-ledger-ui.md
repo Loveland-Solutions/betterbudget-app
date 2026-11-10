@@ -5781,3 +5781,17 @@ and kept it.
 - **Rejected:** A, B and C ("all look the same"); E (taller by two register rows); the
   range buttons on one row with the chips (they don't fit at 1360).
 
+### What the reviews found (same PR)
+
+- **A click opens only the bill whose card is showing**, and the pointing hand shows only
+  then. A click while reading a plain day had opened the nearest bill, which could be
+  weeks away.
+- **A card gets no day reading and keeps the band's name on its chart.** A bare figure
+  there doesn't say owed or in credit, as every other figure on a card's forecast does;
+  and a card's key is a sentence of charges and payments with no chip to name the band.
+- **The day under the pointer is worked out by the calendar**, as the forecast builds its
+  days, not by adding hours.
+- **A chip that goes away under the pointer no longer leaves its part lit.**
+- Not fixed, on #423: tests for the day reading and the chips, "Lowest" as one message,
+  the first day under ₮0 has no date, what "Everyday spending" counts, and the rest.
+

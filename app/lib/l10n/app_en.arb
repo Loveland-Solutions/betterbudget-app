@@ -1928,6 +1928,9 @@
     }
   },
   "planLowestWord": "Lowest",
+  "@planLowestWord": {
+    "description": "One word set before the forecast chart's lowest balance, e.g. Lowest ₮1,342,250."
+  },
   "planForecast": "Forecast",
   "@planForecast": {
     "description": "Title of the forecast part of the account header, bold and centered."

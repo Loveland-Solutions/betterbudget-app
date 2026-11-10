@@ -894,6 +894,16 @@ class _ForecastBodyState extends State<_ForecastBody> {
   final _lit = ValueNotifier<_Part?>(null);
 
   @override
+  void didUpdateWidget(_ForecastBody old) {
+    super.didUpdateWidget(old);
+    // A chip that goes away under the pointer never hears it leave, and
+    // its part would stay lit on the next chart.
+    if (_lit.value != null && !widget.parts.any((p) => p.$1 == _lit.value)) {
+      _lit.value = null;
+    }
+  }
+
+  @override
   void dispose() {
     _lit.dispose();
     super.dispose();
@@ -2285,7 +2295,18 @@ class _ForecastChartState extends State<_ForecastChart> {
                     widget.f,
                     CurrencyScope.of(context),
                     highlightX: at == null ? null : _where.xs[at],
-                    scrubX: at == null ? _scrub : null,
+                    // Not on a card: a bare figure there doesn't say whether
+                    // it is owed or in credit, and every other figure on a
+                    // card's forecast does.
+                    scrubX: at == null && !widget.f.owed ? _scrub : null,
+                    bandLabel: widget.f.owed && widget.f.spendingTotal > 0
+                        ? context.t.planBandLabel(
+                            formatRounded(
+                              widget.f.spendingTotal,
+                              currency: CurrencyScope.of(context),
+                            ),
+                          )
+                        : null,
                     lowWord: context.t.planLowestWord,
                     lit: widget.lit,
                   ),
@@ -2302,7 +2323,7 @@ class _ForecastChartState extends State<_ForecastChart> {
               LayoutId(
                 id: 'hit',
                 child: MouseRegion(
-                  cursor: canOpen
+                  cursor: canOpen && at != null
                       ? SystemMouseCursors.click
                       : MouseCursor.defer,
                   onHover: (e) => _hover(e.localPosition.dx),
@@ -2316,7 +2337,10 @@ class _ForecastChartState extends State<_ForecastChart> {
                     onTapUp: widget.onOpen == null
                         ? null
                         : (d) {
-                            _goTo(_nearest(d.localPosition.dx));
+                            // Only the bill whose card is showing: a click
+                            // while reading a plain day opened one that
+                            // could be weeks away.
+                            _hover(d.localPosition.dx);
                             _open();
                           },
                   ),
@@ -2485,6 +2509,7 @@ class _ForecastPainter extends CustomPainter {
     this.currency, {
     this.highlightX,
     this.scrubX,
+    this.bandLabel,
     required this.lowWord,
     required this.lit,
   }) : super(repaint: lit);
@@ -2497,6 +2522,9 @@ class _ForecastPainter extends CustomPainter {
 
   /// The part of the key the pointer is on.
   final ValueNotifier<_Part?> lit;
+
+  /// Names the band on a card, which has no chip to name it.
+  final String? bandLabel;
 
   /// Where the pointer is while it is on no event: that day's balance is
   /// read off the line.
@@ -2570,8 +2598,42 @@ class _ForecastPainter extends CustomPainter {
             alpha: lit.value == _Part.spend ? 0.5 : 0.26,
           ),
       );
-      // Not named on the chart: the key's chip carries a sample of it, its
-      // name and its figure, and pointing at the chip lights it up.
+      // On an account the key's chip carries a sample of it, its name and
+      // its figure, and pointing at the chip lights it up, so it isn't named
+      // here. A card has no such chip (its line is a sentence of charges
+      // and payments), so there the band keeps its name on the chart.
+      // Named where it is widest, in the band's own ink: the figure sits
+      // between the two lines, so what it measures is unmistakable.
+      if (bandLabel case final text? when barePts.length > 2) {
+        // The widest point, but kept out of the last stretch, where the
+        // end balance and the final marker already sit.
+        var bestX = 0.0, bestTop = 0.0, bestGap = 0.0;
+        for (var i = 0; i < f.steps.length; i++) {
+          if (g.xs[i] > w * 0.72) break;
+          final a = y(g.bare[i]), b = y(f.steps[i].balance);
+          final gap = (a - b).abs();
+          if (gap > bestGap) {
+            bestGap = gap;
+            bestX = g.xs[i];
+            bestTop = a < b ? a : b;
+          }
+        }
+        final half = _measure(text).width / 2;
+        // Only where it fits inside the band, across and down, without
+        // crowding either line.
+        if (bestGap >= 18 && half * 2 + 16 <= w) {
+          _label(
+            canvas,
+            text,
+            Offset(
+              bestX.clamp(half + 4, w - half - 4),
+              bestTop + bestGap / 2 - 7,
+            ),
+            Mid.ink3,
+            center: true,
+          );
+        }
+      }
 
       // Its top edge, dashed: nothing is scheduled up there, it is only
       // where the money would have stayed.
@@ -2902,8 +2964,12 @@ class _ForecastPainter extends CustomPainter {
     // day's date and balance. Last, so it sits over everything else.
     if (scrubX case final sx?) {
       final days = f.end.difference(f.start).inDays;
-      final day = f.start.add(
-        Duration(days: (sx / w * g._span).round().clamp(0, days)),
+      // By the calendar, as the forecast builds its days: adding a
+      // Duration lands an hour short across a daylight-saving change.
+      final day = DateTime(
+        f.start.year,
+        f.start.month,
+        f.start.day + (sx / w * g._span).round().clamp(0, days),
       );
       var balance = f.startBalance;
       for (final s in f.steps) {
@@ -2970,6 +3036,13 @@ class _ForecastPainter extends CustomPainter {
     text: TextSpan(text: text, style: onest(11, tabular: true)),
     textDirection: TextDirection.ltr,
   )..layout()).width;
+
+  /// How wide a chart label comes out, so one can be kept inside the plot
+  /// or left out when there is no room for it.
+  TextPainter _measure(String text) => TextPainter(
+    text: TextSpan(text: text, style: onest(11, tabular: true)),
+    textDirection: TextDirection.ltr,
+  )..layout();
 
   void _label(
     Canvas canvas,
