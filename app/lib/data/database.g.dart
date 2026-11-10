@@ -4504,6 +4504,21 @@ class $CategoryPlansTable extends CategoryPlans
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _spentEachMeta = const VerificationMeta(
+    'spentEach',
+  );
+  @override
+  late final GeneratedColumn<bool> spentEach = GeneratedColumn<bool>(
+    'spent_each',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("spent_each" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   static const VerificationMeta _upToMinorMeta = const VerificationMeta(
     'upToMinor',
   );
@@ -4558,6 +4573,7 @@ class $CategoryPlansTable extends CategoryPlans
     endDate,
     endCount,
     rollover,
+    spentEach,
     upToMinor,
     paidFromId,
     once,
@@ -4686,6 +4702,12 @@ class $CategoryPlansTable extends CategoryPlans
         rollover.isAcceptableOrUnknown(data['rollover']!, _rolloverMeta),
       );
     }
+    if (data.containsKey('spent_each')) {
+      context.handle(
+        _spentEachMeta,
+        spentEach.isAcceptableOrUnknown(data['spent_each']!, _spentEachMeta),
+      );
+    }
     if (data.containsKey('up_to_minor')) {
       context.handle(
         _upToMinorMeta,
@@ -4792,6 +4814,10 @@ class $CategoryPlansTable extends CategoryPlans
         DriftSqlType.bool,
         data['${effectivePrefix}rollover'],
       )!,
+      spentEach: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}spent_each'],
+      )!,
       upToMinor: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}up_to_minor'],
@@ -4868,6 +4894,12 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
   /// Each period: what's left stays in the category.
   final bool rollover;
 
+  /// Each period: the money goes out within the period it's assigned in,
+  /// so the forecast takes it off the account a day at a time. False is
+  /// money built up for later, which the forecast leaves in the account
+  /// (v25, #404).
+  final bool spentEach;
+
   /// Each period, carrying over: stop asking once it holds this much.
   final int? upToMinor;
 
@@ -4897,6 +4929,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     this.endDate,
     this.endCount,
     required this.rollover,
+    required this.spentEach,
     this.upToMinor,
     this.paidFromId,
     this.once,
@@ -4952,6 +4985,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       map['end_count'] = Variable<int>(endCount);
     }
     map['rollover'] = Variable<bool>(rollover);
+    map['spent_each'] = Variable<bool>(spentEach);
     if (!nullToAbsent || upToMinor != null) {
       map['up_to_minor'] = Variable<int>(upToMinor);
     }
@@ -5002,6 +5036,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           ? const Value.absent()
           : Value(endCount),
       rollover: Value(rollover),
+      spentEach: Value(spentEach),
       upToMinor: upToMinor == null && nullToAbsent
           ? const Value.absent()
           : Value(upToMinor),
@@ -5040,6 +5075,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       endDate: serializer.fromJson<String?>(json['endDate']),
       endCount: serializer.fromJson<int?>(json['endCount']),
       rollover: serializer.fromJson<bool>(json['rollover']),
+      spentEach: serializer.fromJson<bool>(json['spentEach']),
       upToMinor: serializer.fromJson<int?>(json['upToMinor']),
       paidFromId: serializer.fromJson<int?>(json['paidFromId']),
       once: serializer.fromJson<String?>(json['once']),
@@ -5071,6 +5107,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       'endDate': serializer.toJson<String?>(endDate),
       'endCount': serializer.toJson<int?>(endCount),
       'rollover': serializer.toJson<bool>(rollover),
+      'spentEach': serializer.toJson<bool>(spentEach),
       'upToMinor': serializer.toJson<int?>(upToMinor),
       'paidFromId': serializer.toJson<int?>(paidFromId),
       'once': serializer.toJson<String?>(once),
@@ -5096,6 +5133,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     Value<String?> endDate = const Value.absent(),
     Value<int?> endCount = const Value.absent(),
     bool? rollover,
+    bool? spentEach,
     Value<int?> upToMinor = const Value.absent(),
     Value<int?> paidFromId = const Value.absent(),
     Value<String?> once = const Value.absent(),
@@ -5120,6 +5158,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     endDate: endDate.present ? endDate.value : this.endDate,
     endCount: endCount.present ? endCount.value : this.endCount,
     rollover: rollover ?? this.rollover,
+    spentEach: spentEach ?? this.spentEach,
     upToMinor: upToMinor.present ? upToMinor.value : this.upToMinor,
     paidFromId: paidFromId.present ? paidFromId.value : this.paidFromId,
     once: once.present ? once.value : this.once,
@@ -5156,6 +5195,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
       endDate: data.endDate.present ? data.endDate.value : this.endDate,
       endCount: data.endCount.present ? data.endCount.value : this.endCount,
       rollover: data.rollover.present ? data.rollover.value : this.rollover,
+      spentEach: data.spentEach.present ? data.spentEach.value : this.spentEach,
       upToMinor: data.upToMinor.present ? data.upToMinor.value : this.upToMinor,
       paidFromId: data.paidFromId.present
           ? data.paidFromId.value
@@ -5185,6 +5225,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           ..write('endDate: $endDate, ')
           ..write('endCount: $endCount, ')
           ..write('rollover: $rollover, ')
+          ..write('spentEach: $spentEach, ')
           ..write('upToMinor: $upToMinor, ')
           ..write('paidFromId: $paidFromId, ')
           ..write('once: $once')
@@ -5212,6 +5253,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
     endDate,
     endCount,
     rollover,
+    spentEach,
     upToMinor,
     paidFromId,
     once,
@@ -5238,6 +5280,7 @@ class CategoryPlanRow extends DataClass implements Insertable<CategoryPlanRow> {
           other.endDate == this.endDate &&
           other.endCount == this.endCount &&
           other.rollover == this.rollover &&
+          other.spentEach == this.spentEach &&
           other.upToMinor == this.upToMinor &&
           other.paidFromId == this.paidFromId &&
           other.once == this.once);
@@ -5262,6 +5305,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
   final Value<String?> endDate;
   final Value<int?> endCount;
   final Value<bool> rollover;
+  final Value<bool> spentEach;
   final Value<int?> upToMinor;
   final Value<int?> paidFromId;
   final Value<String?> once;
@@ -5284,6 +5328,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     this.endDate = const Value.absent(),
     this.endCount = const Value.absent(),
     this.rollover = const Value.absent(),
+    this.spentEach = const Value.absent(),
     this.upToMinor = const Value.absent(),
     this.paidFromId = const Value.absent(),
     this.once = const Value.absent(),
@@ -5307,6 +5352,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     this.endDate = const Value.absent(),
     this.endCount = const Value.absent(),
     this.rollover = const Value.absent(),
+    this.spentEach = const Value.absent(),
     this.upToMinor = const Value.absent(),
     this.paidFromId = const Value.absent(),
     this.once = const Value.absent(),
@@ -5332,6 +5378,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     Expression<String>? endDate,
     Expression<int>? endCount,
     Expression<bool>? rollover,
+    Expression<bool>? spentEach,
     Expression<int>? upToMinor,
     Expression<int>? paidFromId,
     Expression<String>? once,
@@ -5355,6 +5402,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
       if (endDate != null) 'end_date': endDate,
       if (endCount != null) 'end_count': endCount,
       if (rollover != null) 'rollover': rollover,
+      if (spentEach != null) 'spent_each': spentEach,
       if (upToMinor != null) 'up_to_minor': upToMinor,
       if (paidFromId != null) 'paid_from_id': paidFromId,
       if (once != null) 'once': once,
@@ -5380,6 +5428,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     Value<String?>? endDate,
     Value<int?>? endCount,
     Value<bool>? rollover,
+    Value<bool>? spentEach,
     Value<int?>? upToMinor,
     Value<int?>? paidFromId,
     Value<String?>? once,
@@ -5403,6 +5452,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
       endDate: endDate ?? this.endDate,
       endCount: endCount ?? this.endCount,
       rollover: rollover ?? this.rollover,
+      spentEach: spentEach ?? this.spentEach,
       upToMinor: upToMinor ?? this.upToMinor,
       paidFromId: paidFromId ?? this.paidFromId,
       once: once ?? this.once,
@@ -5470,6 +5520,9 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
     if (rollover.present) {
       map['rollover'] = Variable<bool>(rollover.value);
     }
+    if (spentEach.present) {
+      map['spent_each'] = Variable<bool>(spentEach.value);
+    }
     if (upToMinor.present) {
       map['up_to_minor'] = Variable<int>(upToMinor.value);
     }
@@ -5503,6 +5556,7 @@ class CategoryPlansCompanion extends UpdateCompanion<CategoryPlanRow> {
           ..write('endDate: $endDate, ')
           ..write('endCount: $endCount, ')
           ..write('rollover: $rollover, ')
+          ..write('spentEach: $spentEach, ')
           ..write('upToMinor: $upToMinor, ')
           ..write('paidFromId: $paidFromId, ')
           ..write('once: $once')
@@ -11568,6 +11622,7 @@ typedef $$CategoryPlansTableCreateCompanionBuilder =
       Value<String?> endDate,
       Value<int?> endCount,
       Value<bool> rollover,
+      Value<bool> spentEach,
       Value<int?> upToMinor,
       Value<int?> paidFromId,
       Value<String?> once,
@@ -11592,6 +11647,7 @@ typedef $$CategoryPlansTableUpdateCompanionBuilder =
       Value<String?> endDate,
       Value<int?> endCount,
       Value<bool> rollover,
+      Value<bool> spentEach,
       Value<int?> upToMinor,
       Value<int?> paidFromId,
       Value<String?> once,
@@ -11747,6 +11803,11 @@ class $$CategoryPlansTableFilterComposer
 
   ColumnFilters<bool> get rollover => $composableBuilder(
     column: $table.rollover,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get spentEach => $composableBuilder(
+    column: $table.spentEach,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11919,6 +11980,11 @@ class $$CategoryPlansTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get spentEach => $composableBuilder(
+    column: $table.spentEach,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get upToMinor => $composableBuilder(
     column: $table.upToMinor,
     builder: (column) => ColumnOrderings(column),
@@ -12064,6 +12130,9 @@ class $$CategoryPlansTableAnnotationComposer
   GeneratedColumn<bool> get rollover =>
       $composableBuilder(column: $table.rollover, builder: (column) => column);
 
+  GeneratedColumn<bool> get spentEach =>
+      $composableBuilder(column: $table.spentEach, builder: (column) => column);
+
   GeneratedColumn<int> get upToMinor =>
       $composableBuilder(column: $table.upToMinor, builder: (column) => column);
 
@@ -12190,6 +12259,7 @@ class $$CategoryPlansTableTableManager
                 Value<String?> endDate = const Value.absent(),
                 Value<int?> endCount = const Value.absent(),
                 Value<bool> rollover = const Value.absent(),
+                Value<bool> spentEach = const Value.absent(),
                 Value<int?> upToMinor = const Value.absent(),
                 Value<int?> paidFromId = const Value.absent(),
                 Value<String?> once = const Value.absent(),
@@ -12212,6 +12282,7 @@ class $$CategoryPlansTableTableManager
                 endDate: endDate,
                 endCount: endCount,
                 rollover: rollover,
+                spentEach: spentEach,
                 upToMinor: upToMinor,
                 paidFromId: paidFromId,
                 once: once,
@@ -12236,6 +12307,7 @@ class $$CategoryPlansTableTableManager
                 Value<String?> endDate = const Value.absent(),
                 Value<int?> endCount = const Value.absent(),
                 Value<bool> rollover = const Value.absent(),
+                Value<bool> spentEach = const Value.absent(),
                 Value<int?> upToMinor = const Value.absent(),
                 Value<int?> paidFromId = const Value.absent(),
                 Value<String?> once = const Value.absent(),
@@ -12258,6 +12330,7 @@ class $$CategoryPlansTableTableManager
                 endDate: endDate,
                 endCount: endCount,
                 rollover: rollover,
+                spentEach: spentEach,
                 upToMinor: upToMinor,
                 paidFromId: paidFromId,
                 once: once,

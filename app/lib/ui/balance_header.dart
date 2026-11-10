@@ -674,6 +674,12 @@ class ForecastPanel extends StatelessWidget {
     // rail's ticks are countable where they stand.
     final rail = <String>[
       if (f.billTotal > 0) t.planRailOut(money(f.billTotal)),
+      // What the budget plans to spend. It has no tick, because it has no
+      // date: it is the band between the line and the dashed one above it.
+      // Without it the card's own arithmetic stopped tying — the line ended
+      // below what the bills and the income came to, and nothing on the
+      // card accounted for the difference (#398).
+      if (f.spendingTotal > 0) t.planRailSpend(money(f.spendingTotal)),
       if (f.moveOut > 0) t.planRailMoveOut(money(f.moveOut)),
       if (f.moveIn > 0) t.planRailMoveIn(money(f.moveIn)),
       if (f.rowSteps.any(
@@ -768,7 +774,7 @@ class ForecastPanel extends StatelessWidget {
               style: onest(12.5, color: Mid.ink3),
             ),
             const SizedBox(width: 6),
-            const _WhatIsIt(),
+            _WhatIsIt(hasBand: f.spendingTotal > 0),
             const SizedBox(width: 10),
             // Mongolian's words for these are longer, and the card narrows
             // with the window: the row of buttons shrinks rather than
@@ -1178,7 +1184,11 @@ class _CustomSpanState extends State<_CustomSpan> {
 /// the card where language lives, which is what lets the rest stay quiet.
 /// The owner's own words (2026-11-08).
 class _WhatIsIt extends StatefulWidget {
-  const _WhatIsIt();
+  const _WhatIsIt({required this.hasBand});
+
+  /// The chart has a band for what the budget plans to spend: the sentence
+  /// about it is said only while it is there to see (#398).
+  final bool hasBand;
 
   @override
   State<_WhatIsIt> createState() => _WhatIsItState();
@@ -1212,6 +1222,10 @@ class _WhatIsItState extends State<_WhatIsIt> {
                     TextSpan(text: t.planForecastWhatOne),
                     const TextSpan(text: ' '),
                     TextSpan(text: t.planForecastWhatTwo),
+                    if (widget.hasBand) ...[
+                      const TextSpan(text: ' '),
+                      TextSpan(text: t.planForecastWhatBand),
+                    ],
                   ],
                 ),
                 style: style,
@@ -1238,8 +1252,9 @@ class _WhatIsItState extends State<_WhatIsIt> {
       child: Semantics(
         label:
             '${t.planForecastWhatLabel}. ${t.planForecastWhatOne} '
-            '${t.planForecastWhatTwo} ${t.planForecastWhatThree} '
-            '${t.planForecastWhatFour}',
+            '${t.planForecastWhatTwo} '
+            '${widget.hasBand ? '${t.planForecastWhatBand} ' : ''}'
+            '${t.planForecastWhatThree} ${t.planForecastWhatFour}',
         button: true,
         excludeSemantics: true,
         child: Hoverable(
@@ -1612,9 +1627,7 @@ class _BillsCard extends StatelessWidget {
                     years: years,
                     balanceAfter:
                         last +
-                        f.heldBack
-                            .take(i + 1)
-                            .fold(0, (a, r) => a + r.amount),
+                        f.heldBack.take(i + 1).fold(0, (a, r) => a + r.amount),
                     onTap: open == null ? null : () => open(held),
                   ),
               ],
@@ -1747,7 +1760,22 @@ class _BillLineState extends State<_BillLine> {
 class _ChartGeometry {
   _ChartGeometry(this.f, Size size) : w = size.width {
     h = size.height - _labelBand - _railBand;
-    final values = [f.startBalance, ...f.steps.map((s) => s.balance)];
+    // The same walk without the budget's own spending: where the line
+    // would run if only the dated rows happened (#398). It is never below
+    // the line itself, so it only ever asks for room above.
+    bare = <int>[];
+    var running = f.startBalance, prev = f.startBalance;
+    for (final s in f.steps) {
+      final delta = s.balance - prev;
+      prev = s.balance;
+      if (!s.spending) running += delta;
+      bare.add(running);
+    }
+    final values = [
+      f.startBalance,
+      ...f.steps.map((s) => s.balance),
+      if (f.spendingTotal > 0) ...bare,
+    ];
     var hi = values.reduce((a, b) => a > b ? a : b);
     var lo = values.reduce((a, b) => a < b ? a : b);
     // The chart is framed on the money that moves, not anchored at ₮0
@@ -1807,6 +1835,11 @@ class _ChartGeometry {
   }
 
   static const _labelBand = 16.0, _railBand = 14.0, _sameDay = 5.0;
+
+  /// The balance after each of [Forecast.steps] counting only the dated
+  /// rows: the top of the band that shows what the budget plans to spend.
+  late final List<int> bare;
+
   final Forecast f;
   final double w;
   late final double h;
@@ -1835,6 +1868,13 @@ class _ChartGeometry {
   /// runs, so a figure placed there lands on top of it.
   double y(int v) => 7 + (1 - (v - _lo) / (_hi - _lo)) * (h - 37);
 }
+
+/// [path] closed down to the foot of the plot, so two of them can be cut
+/// from one another to leave the band between the lines.
+Path _closedDown(Path path, double w, double h) => Path.from(path)
+  ..lineTo(w, h + 8)
+  ..lineTo(0, h + 8)
+  ..close();
 
 /// A path through [pts] with its corners rounded, so the staircase reads as
 /// a path rather than a diagram (owner, 2026-11-08: the old one was "wimpy").
@@ -2066,10 +2106,7 @@ class _ForecastChartState extends State<_ForecastChart> {
             child: Align(
               alignment: Alignment.topLeft,
               child: IgnorePointer(
-                child: _BillCard(
-                  lines: _events[at].lines,
-                  owed: widget.f.owed,
-                ),
+                child: _BillCard(lines: _events[at].lines, owed: widget.f.owed),
               ),
             ),
           );
@@ -2092,6 +2129,14 @@ class _ForecastChartState extends State<_ForecastChart> {
                     widget.f,
                     CurrencyScope.of(context),
                     highlightX: at == null ? null : _where.xs[at],
+                    bandLabel: widget.f.spendingTotal > 0
+                        ? context.t.planBandLabel(
+                            formatRounded(
+                              widget.f.spendingTotal,
+                              currency: CurrencyScope.of(context),
+                            ),
+                          )
+                        : null,
                   ),
                 ),
               ),
@@ -2281,9 +2326,15 @@ class _BillCard extends StatelessWidget {
 }
 
 class _ForecastPainter extends CustomPainter {
-  _ForecastPainter(this.f, this.currency, {this.highlightX});
+  _ForecastPainter(this.f, this.currency, {this.highlightX, this.bandLabel});
   final Currency currency;
   final Forecast f;
+
+  /// Names the band at the point where it is widest. Without a name a
+  /// dashed line over shading reads as a second scenario — a balance the
+  /// household might have — rather than as their own money going out
+  /// (budget-app review, #398). Null when there is no band to name.
+  final String? bandLabel;
 
   /// Where the event the pointer or the keyboard is on sits. At a year the
   /// ticks are about a pixel apart, so the card alone doesn't say which one
@@ -2316,6 +2367,88 @@ class _ForecastPainter extends CustomPainter {
     }
     pts.add(Offset(w, y(prev)));
     final path = _roundedThrough(pts, 5);
+
+    // What the budget plans to spend: the band between the line and where
+    // it would run if only the dated rows happened (#398, owner 2026-11-09:
+    // "a way to visualize things on the ledger's forecast that aren't bills
+    // per se"). Groceries and the rest come out a day at a time, so there
+    // is no one place on the line to point at; the gap between the two is
+    // the whole of it, and it widens as the month goes on. Money out is
+    // ordinary ink (rule 2): the band takes no colour of its own.
+    if (f.spendingTotal > 0) {
+      final barePts = <Offset>[Offset(0, y(f.startBalance))];
+      for (var i = 0; i < f.steps.length; i++) {
+        if (f.steps[i].spending) continue;
+        final sx = g.xs[i];
+        barePts
+          ..add(Offset(sx, y(i == 0 ? f.startBalance : g.bare[i - 1])))
+          ..add(Offset(sx, y(g.bare[i])));
+      }
+      barePts.add(Offset(w, y(g.bare.isEmpty ? f.startBalance : g.bare.last)));
+      final barePath = _roundedThrough(barePts, 5);
+      canvas.save();
+      canvas.clipRect(Rect.fromLTRB(0, -4, w, h + 4));
+      // Either of the two can be the upper one, so the band is what they
+      // don't share, not one cut from the other: on a credit account the
+      // steps are what's owed, so budgeted spending takes the line *up*
+      // and the dated-rows-only line runs below it (code review).
+      canvas.drawPath(
+        Path.combine(
+          PathOperation.xor,
+          _closedDown(barePath, w, h),
+          _closedDown(path, w, h),
+        ),
+        Paint()..color = Mid.ink3.withValues(alpha: 0.16),
+      );
+      // Named where it is widest, in the band's own ink: the figure sits
+      // between the two lines, so what it measures is unmistakable.
+      if (bandLabel case final text? when barePts.length > 2) {
+        // The widest point, but kept out of the last stretch, where the
+        // end balance and the final marker already sit.
+        var bestX = 0.0, bestTop = 0.0, bestGap = 0.0;
+        for (var i = 0; i < f.steps.length; i++) {
+          if (g.xs[i] > w * 0.72) break;
+          final a = y(g.bare[i]), b = y(f.steps[i].balance);
+          final gap = (a - b).abs();
+          if (gap > bestGap) {
+            bestGap = gap;
+            bestX = g.xs[i];
+            bestTop = a < b ? a : b;
+          }
+        }
+        final half = _measure(text).width / 2;
+        // Only where it fits inside the band, across and down, without
+        // crowding either line.
+        if (bestGap >= 18 && half * 2 + 16 <= w) {
+          _label(
+            canvas,
+            text,
+            Offset(
+              bestX.clamp(half + 4, w - half - 4),
+              bestTop + bestGap / 2 - 7,
+            ),
+            Mid.ink3,
+            center: true,
+          );
+        }
+      }
+
+      // Its top edge, dashed: nothing is scheduled up there, it is only
+      // where the money would have stayed.
+      final dash = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = Mid.ink3.withValues(alpha: 0.5);
+      for (final m in barePath.computeMetrics()) {
+        for (var d = 0.0; d < m.length; d += 7) {
+          canvas.drawPath(
+            m.extractPath(d, (d + 3.5).clamp(0.0, m.length)),
+            dash,
+          );
+        }
+      }
+      canvas.restore();
+    }
 
     // The wash under the line carries weight near it and fades out, so the
     // shape reads without anyone having to follow the stroke.
@@ -2594,6 +2727,13 @@ class _ForecastPainter extends CustomPainter {
     text: TextSpan(text: text, style: onest(11, tabular: true)),
     textDirection: TextDirection.ltr,
   )..layout()).width;
+
+  /// How wide a chart label comes out, so one can be kept inside the plot
+  /// or left out when there is no room for it.
+  TextPainter _measure(String text) => TextPainter(
+    text: TextSpan(text: text, style: onest(11, tabular: true)),
+    textDirection: TextDirection.ltr,
+  )..layout();
 
   void _label(
     Canvas canvas,

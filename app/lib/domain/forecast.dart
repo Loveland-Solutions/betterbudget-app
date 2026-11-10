@@ -192,7 +192,11 @@ List<({DateTime date, int amount})> projectSpending(
         category.currency != account.currency ||
         plan == null ||
         plan.kind != PlanKind.each ||
-        plan.rollover) {
+        // Money built up for something later sits in the account until a
+        // bill or a row spends it; only what goes out within its period
+        // comes off the line (#404). Until v25 this read the carry-over
+        // answer, which says nothing about whether the money goes out.
+        !plan.spentEach) {
       continue;
     }
     final own = data.payScheduleById(plan.payScheduleId);
@@ -217,11 +221,16 @@ List<({DateTime date, int amount})> projectSpending(
     final line = budget.lines[id];
     final days = daysIn(p.start, p.end), left = daysIn(start, p.end);
     final pace = plan.amountIn(p.start) * left ~/ days;
-    final has = line == null
-        ? 0
-        : line.assigned != 0
-        ? line.left
-        : plan.amountIn(p.start) - line.counted;
+    // Never more than this period's own money still unspent. A category
+    // that carries over holds what earlier periods left in it, and that
+    // money isn't this period's to spend: without the second half, a
+    // household that had already spent all of October's groceries still
+    // had another month's worth taken off the line, out of what September
+    // left behind (code review, #404).
+    final left0 = line == null ? 0 : plan.amountIn(p.start) - line.counted;
+    final has = line != null && line.assigned != 0
+        ? (line.left < left0 ? line.left : left0)
+        : left0;
     // Not before the plan began.
     final begun = !p.end.isBefore(dateOnly(plan.start));
     final now = (pace < has ? pace : has) - scheduledIn(start, p.end);
@@ -525,6 +534,7 @@ Forecast buildForecast({
   ({DateTime date, int amount})? Function(RegisterRow payday)? paydayAfter,
   bool payIsSetUp = false,
   DateTime? until,
+
   /// [until] is a day the person picked themselves (Custom…), not the end of
   /// a fixed length. A day gets picked because something has to be paid
   /// that day, so money due on it is treated the way a pay period treats
@@ -608,7 +618,8 @@ Forecast buildForecast({
   // app's own 30 days, as much nobody's deadline as a length is. On a card
   // nothing is held back at all: owing is never a warning there, so a
   // payment arriving late only ever helps.
-  final holdLastDay = !owed && (untilChosen || (until == null && payday != null));
+  final holdLastDay =
+      !owed && (untilChosen || (until == null && payday != null));
   bool counts(RegisterRow r) {
     if (when(r).isAfter(end)) return false;
     if (!holdLastDay) return true;

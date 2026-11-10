@@ -192,9 +192,19 @@ bool _isDigit(String s, int i) {
   return c >= 0x30 && c <= 0x39;
 }
 
-/// `₮4,182,450` or `−$1,250`: whole units only.
-String formatRounded(int minor, {Currency currency = Currency.mnt}) =>
-    '${minor < 0 ? '−' : ''}${currency.prefix}${formatWhole(minor, currency)}';
+/// `₮4,182,450` or `−$1,250`: whole units only, rounded to the nearest,
+/// as the name says. It used to cut the part under a whole unit off, which
+/// is right where the cents are shown beside it ([formatMoney]) and wrong
+/// on its own: the forecast card's figures are all shown this way, and a
+/// budget spread a day at a time leaves fractions, so the sum the card
+/// draws could land ₮1 from the sum a person adds up (budget-app review;
+/// arithmetic that's right can still confuse).
+String formatRounded(int minor, {Currency currency = Currency.mnt}) {
+  final scale = currency.scale;
+  final whole = ((minor.abs() + scale ~/ 2) ~/ scale) * scale;
+  return '${minor < 0 ? '−' : ''}${currency.prefix}'
+      '${formatWhole(whole, currency)}';
+}
 
 /// Parses what a person types into an amount field, including arithmetic:
 /// `12000+8500`, `3 * 4500`, `1,250.50`. Returns minor units, or null when the

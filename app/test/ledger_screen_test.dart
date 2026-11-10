@@ -6336,10 +6336,7 @@ void main() {
     // doesn't lean on it. The list's header names 10.10 too, so a line
     // says why that one has a balance of its own.
     expect(find.text('+₮2,500,000'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('forecast-not-counted')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('forecast-not-counted')), findsOneWidget);
     expect(
       find.text('Not counted: it may arrive after the bills go out.'),
       findsOneWidget,
@@ -7800,10 +7797,43 @@ void main() {
       await reload();
       expect(data.plans[gifts]!.kind, PlanKind.each);
 
+      // This money is, on its own, is a change worth saving: nothing else
+      // about the plan moves with it, so a Save that only noticed the
+      // other answers wrote nothing at all and the row snapped back
+      // (#404, code review).
+      await tester.ensureVisible(find.byKey(ValueKey('plan-note-$groceries')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
+      await tester.pumpAndSettle();
+      expect(data.plans[groceries]!.spentEach, isTrue);
+      await tester.ensureVisible(find.byKey(const ValueKey('plan-built-up')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('plan-built-up')));
+      await tester.pumpAndSettle();
+      await save();
+      await reload();
+      expect(data.plans[groceries]!.spentEach, isFalse);
+      expect(data.plans[groceries]!.amount, 90000000);
+      // And back again, which is the way the Safety net has to come after
+      // the v25 upgrade decided for it.
+      await tester.ensureVisible(find.byKey(ValueKey('plan-note-$groceries')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('plan-spent-each')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('plan-spent-each')));
+      await tester.pumpAndSettle();
+      await save();
+      await reload();
+      expect(data.plans[groceries]!.spentEach, isTrue);
+
       // Groceries no longer carries over; Esc on another leaves it alone.
       await tester.ensureVisible(find.byKey(ValueKey('plan-note-$groceries')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('plan-carry-off')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('plan-carry-off')));
       await tester.pumpAndSettle();
@@ -9687,6 +9717,92 @@ void main() {
       await settle(tester);
       final ledger = await tester.runAsync(db.loadLedger);
       expect(ledger!.paySchedules, isEmpty);
+      await tidy(tester, db);
+    });
+
+    testWidgets('what the budget plans to spend is a band on the chart '
+        'and its own part of the key line', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        final checking = data.balanceSheetAccounts
+            .firstWhere((a) => a.name == 'TDB Checking')
+            .id;
+        await db.savePaySchedule(
+          accountId: checking,
+          amount: 250000000,
+          rule: PayRule.twiceMonthly,
+          day1: 25,
+          day2: 10,
+          today: DateTime(2026, 9, 16),
+        );
+        // Groceries the way most categories are set: a set amount each
+        // month, left over stays here, paid from checking (#404).
+        final food = data.categories.firstWhere((c) => c.name == 'Groceries');
+        await db.setCategoryPlan(
+          food.id,
+          CategoryPlan(
+            categoryId: food.id,
+            kind: PlanKind.each,
+            amount: 120000000,
+            start: DateTime(2026, 9, 1),
+          ),
+        );
+        await db.setCategoryMoney(
+          food.id,
+          currency: Currency.mnt,
+          paidFrom: checking,
+        );
+      });
+      await settle(tester);
+      // Its own whole part of the line under the chart, beside the bills
+      // and the income: the card's arithmetic ties again (#398).
+      expect(find.textContaining('To spend −'), findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/forecast_budgeted.png'),
+      );
+      await tidy(tester, db);
+    });
+
+    testWidgets('on a card, the band is drawn the way the card runs', (
+      tester,
+    ) async {
+      // A card's steps are what's owed, so budgeted spending takes the
+      // line up and the dated-rows-only line runs below it. The band is
+      // what the two don't share, either way round (code review, #398).
+      final db = await pumpLedger(tester);
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        final card = data.balanceSheetAccounts
+            .firstWhere((a) => a.name == 'Golomt Visa')
+            .id;
+        final food = data.categories.firstWhere((c) => c.name == 'Groceries');
+        await db.setCategoryPlan(
+          food.id,
+          CategoryPlan(
+            categoryId: food.id,
+            kind: PlanKind.each,
+            amount: 120000000,
+            start: DateTime(2026, 9, 1),
+          ),
+        );
+        await db.setCategoryMoney(
+          food.id,
+          currency: Currency.mnt,
+          paidFrom: card,
+        );
+      });
+      await settle(tester);
+      await tester.tap(find.text('Golomt Visa').first); // the sidebar
+      await settle(tester);
+      // A card's own line is a sentence, not the key to a rail, so the
+      // figure is carried by the label inside the band itself.
+      expect(find.textContaining('to spend'), findsNothing);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/forecast_budgeted_card.png'),
+      );
       await tidy(tester, db);
     });
 

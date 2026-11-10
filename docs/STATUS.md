@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-09** · version 0.81.0 · schema v24 · 1050 tests pass
+**Last updated: 2026-11-10** · version 0.82.0 · schema v25 · 1054 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -38,19 +38,24 @@ Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy la
 Apple's encryption question are filled in App Store Connect. The iPhone app waits on
 #112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
 
-**Next:** nothing waits on the phone. #410 is built (0.81.0; ADR 0004 "Money due on a
-day picked with Custom… hasn't arrived"): money in dated the day picked with Custom… —
-a salary, a projected paycheck, a refund — is left out of the forecast the way a pay
-period leaves out the paycheck that ends it, so the balance the chart names for that day
-is what the household has if the money hasn't landed; a transfer on it still counts, on
-both sides. Everything held back is still named past the end of the bill list and shares
-a tick in the chart's gutter (`Forecast.heldBack`), under the line **Not counted: it may
-arrive after the bills go out.** A fixed length (30 days, 90 days, a year) counts
-everything through its end, as before: nobody reads day 30 as a deadline, and neither
-does a card, where owing is not a warning. From the two reviews: a pay period that ends
-*at* its payday now holds back that whole day, not only the paycheck. The computer only. No
-schema change. **#398 is next**: the card says nothing about what the budget plans to
-spend.
+**Next:** nothing waits on the phone. #404 and #398 are built (0.82.0; ADR 0004
+"Groceries reach the forecast, and the chart shows them"). The forecast now takes out
+what the budget plans to spend whatever happens to a category's leftovers: a category's
+Edit asks, under the amount, whether **This money is · Spent each month | Built up for
+something later** (`CategoryPlan.spentEach`, schema v25), defaulting to spent, and the
+forecast reads that instead of **What's left at month's end**, which was never about
+whether the money goes out. The v25 upgrade works the answer out once from what's stored
+— spent each period, except the Safety net — and
+every plan keeps its amount, dates, carry-over answer and cap. The phone doesn't ask; one
+it makes is spent each period. On the card, the chart draws dashed where the line would
+run with only the dated rows and shades the band between the two, which is the whole of
+the budget's spending, widening as the month goes on; the key line names it as its own
+part, `Money out −₮2,790,200 · To spend −₮948,387 · Money in +₮2,500,000`, with no tick on
+the rail because it has no date; the ⓘ gains one sentence while there is a band to see.
+The computer only. **Still on #398**: the bill list's **Balance after** column has each
+row's balance carrying that day's spending, so a −₮350,000 row can be followed by a
+balance that fell ₮480,000. **#389 is next**: a row added while a filter tab is on
+vanishes without saying so.
 
 **The forecast's chart does the talking** (0.78.0, #392; ADR 0004 of the same name): the
 card's picture used to contradict its own figures — the balance ran ₮5,418,682 →

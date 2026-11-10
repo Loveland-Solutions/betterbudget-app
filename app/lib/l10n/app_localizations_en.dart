@@ -1271,6 +1271,10 @@ class WordsEn extends Words {
   String get planForecastWhatThree => 'It starts with today’s working balance.';
 
   @override
+  String get planForecastWhatBand =>
+      'The shaded band is what your budget plans to spend, which has no date of its own.';
+
+  @override
   String get planForecastWhatFour =>
       'You can change how far ahead it looks with the buttons above.';
 
@@ -1298,6 +1302,16 @@ class WordsEn extends Words {
       one: '1 bill −$amount',
     );
     return '$_temp0';
+  }
+
+  @override
+  String planBandLabel(String amount) {
+    return '$amount to spend';
+  }
+
+  @override
+  String planRailSpend(String amount) {
+    return 'To spend −$amount';
   }
 
   @override
@@ -4786,6 +4800,27 @@ class WordsEn extends Words {
 
   @override
   String get planGoesBack => 'Goes back to not assigned';
+
+  @override
+  String get planMoneyIs => 'This money is';
+
+  @override
+  String get planSpentEachMonth => 'Spent each month';
+
+  @override
+  String get planSpentEachPay => 'Spent each pay period';
+
+  @override
+  String get planBuiltUp => 'Built up for something later';
+
+  @override
+  String get planPaidFromNoneSpend =>
+      'Choose an account and this spending comes out of its forecast a day at a time.';
+
+  @override
+  String planPaidFromSaveHint(String account) {
+    return 'It sits in $account until a bill or a row spends it, so the forecast leaves it there.';
+  }
 
   @override
   String get planStopAt => 'Up to';

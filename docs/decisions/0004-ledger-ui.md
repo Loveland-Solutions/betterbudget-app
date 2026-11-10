@@ -5627,3 +5627,99 @@ be a whole paycheck higher than what the household would actually have when it p
   review found it while checking the precedent this decision leans on. The app's own
   30-day fallback, when no payday is known at all, holds back nothing: like a length, it
   is nobody's deadline.
+
+## Groceries reach the forecast, and the chart shows them (owner, 2026-11-10, #404, #398)
+
+Owner, 2026-11-09: "We also need a way to visualize things on the ledger's forecast that
+aren't bills per se. Things like groceries or things we'll spend over the month (gas,
+household, etc). We need to make sure that the ledger understands the different
+categories to be able to show that on the forecast, and if it can't, we make a new
+budget type."
+
+Two things were wrong, and they had to be fixed in order.
+
+**The ledger didn't know which categories are spent.** `projectSpending` (#179) has
+always taken a set amount out of its account a day at a time, but it counted a category
+only when **What's left at month's end** was **Goes back to not assigned**. **Stays here**
+is the default answer for every category, so ₮1,200,000 a month of groceries changed the
+line by nothing. That question is about what *wasn't* spent; it says nothing about
+whether the money goes out at all. Using it as the gate was the bug.
+
+**Stays here** carries two unlike things. Groceries, gas and household are spent every
+month and their leftovers merely carry; car repairs and the new fridge are built up over
+months and deliberately not spent. The forecast must take the first and leave the second,
+and nothing stored told them apart. Three ways were drawn for the owner — a third kind of
+plan, one more question in the Edit, or going by what the category usually spends — and
+they chose the second.
+
+- **"This money is · Spent each month | Built up for something later"**, in a category's
+  Edit under the amount, above the carry-over question (`CategoryPlan.spentEach`, schema
+  v25). It defaults to spent each month, which most categories are. By pay period it
+  reads "Spent each period". The two kinds of plan stay as they are and the Budget page
+  is unchanged.
+- **The forecast reads that answer and nothing else.** Carry-over no longer decides it.
+- **The upgrade works the answer out from what's stored**, once, when the column appears:
+  spent each period, except a category with a cap to stop at (**Up to** — money being
+  built up by definition) and the Safety net, which are built up for later. Every plan
+  keeps its amount, its dates, its carry-over answer and its cap. Nothing else about the
+  owner's rows changes. Rejected: defaulting every category to spent each month, which
+  would have had the Safety net draining the line the first time the app opened.
+- **Beside Paid from, one line says what the answer does there**: what's left of it comes
+  out of that account's forecast a day at a time, or it sits in the account until a bill
+  or a row spends it. The line was already there for a spent-down category; now it says
+  either thing, for either answer.
+- **The phone doesn't ask.** Its New category page is unchanged, and a category it makes
+  is spent each period, which is the right answer for nearly all of them; the computer
+  can change it. A phone that doesn't send the answer is read the same way.
+
+**The card then had to say so.** With the categories reaching it, the card's own
+arithmetic stopped tying: ₮5,418,682 − ₮7,100,000 + ₮5,973,750 = ₮4,292,432 is what the
+key line read, while the line ended near ₮2,442,432 with the groceries and transport in
+it, and nothing on the card accounted for the difference. Custom… multiplied it — over a
+year the unnamed part is twelve months of groceries. Two ways were drawn (a figure in the
+key line, or a row per period in the bill list) and the owner picked a third that was
+open on the issue: draw it, and name it.
+
+- **A band on the chart.** Budgeted spending is spread over every day, so there is no one
+  place on the line to point at — the gentle slope between bills *is* the spending, and
+  nothing named it. The chart now draws, dashed, where the line would run if only the
+  dated rows happened, and shades the gap between the two. The gap is the whole of what
+  the budget plans to spend, and it widens as the month goes on, which is what spending
+  a day at a time looks like. The frame grows to hold the dashed line, so it is never
+  clipped. Either line can be the upper one — on a credit account the steps are what's
+  owed, so budgeted spending takes the line *up* and the dated-rows-only line runs below
+  it — so the band is what the two paths don't share, not one cut from the other.
+- **Named inside itself, where it is widest**, so it cannot be read as a second scenario.
+  A dashed line over shading is the shape every chart uses for "it might land anywhere in
+  here", and the top edge is a balance the household will never have: it is where they buy
+  no food all month. The label sits between the two lines (`₮1,219,355 to spend`), clear of
+  the last stretch where the end balance already is, and is left out where the band is too
+  thin to hold it — there the key line carries the figure alone.
+- **Ordinary ink, no colour of its own.** Money out is ordinary ink with a minus (rule 2),
+  and the logo's colours each already have a job on the chart: blue the line, coral a
+  shortfall, green money in. Dashed says the thing no colour could: nothing up there is
+  scheduled.
+- **Its own whole part of the key line**: `Money out −₮2,790,200 · To spend −₮948,387 ·
+  Money in +₮2,500,000`. No count, and no tick on the rail, because it has no date — the
+  rail is the key to what happened on a day. `spendingTotal` was glued onto the bills line
+  before #392 and removed there because gluing breaks Mongolian word order; it comes back
+  as a message of its own. **Budgeted** was tried and dropped: it is a column header
+  borrowed from other apps, and it isn't what the figure is — what's budgeted is ₮1,200,000
+  a month, while ₮948,387 is the part of it falling inside this window. **To spend** says
+  the thing hasn't happened yet, which is the whole difference between it and the two
+  figures beside it. A card's line is a sentence rather than a key, so there the band's own
+  label carries the figure.
+- **The figures tie on paper.** `formatRounded` cut the part under a whole tugrik off
+  instead of rounding, so the card's own sum could land ₮1 from the sum a person adds up —
+  right arithmetic that still confuses, on the one card made for them to check. It rounds
+  now.
+- **A category's own period caps what the forecast takes.** A category that carries over
+  holds what earlier periods left in it, and that money isn't this period's to spend: a
+  household who had already spent all of October's groceries still had another month's
+  worth taken off the line, out of what September left behind.
+- **The ⓘ gains a sentence**, said only while there is a band to see: the shaded band is
+  what your budget plans to spend, which has no date of its own.
+
+Left for later (#398 keeps it): the bill list's **Balance after** column still has each
+row's balance carrying that day's spending, so a −₮350,000 row can be followed by a
+balance that fell ₮480,000. The chart and the key line now tie; the list's column doesn't.

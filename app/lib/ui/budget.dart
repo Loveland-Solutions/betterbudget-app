@@ -4739,8 +4739,11 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   }
 
   /// Fills the plan's fields from [p], or empties them.
-  void _showPlan(CategoryPlan? p) =>
-      _p.show(p, periodPayId: widget.data.periodSchedule?.id);
+  void _showPlan(CategoryPlan? p) => _p.show(
+    p,
+    periodPayId: widget.data.periodSchedule?.id,
+    builtUp: isSafetyNet(widget.category),
+  );
 
   void _pickDated(bool yes) {
     setState(() {
@@ -5088,6 +5091,28 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         // Shown whether or not an amount is typed: it answers "do we
         // ever zero it out?" (owner, 2026-10-05).
         ...[
+          // Whether the money goes out within its period: the one fact
+          // the forecast was missing, which the carry-over answer below
+          // doesn't carry (#404).
+          _formRow(
+            t.planMoneyIs,
+            _Segmented(
+              items: [
+                (
+                  'plan-spent-each',
+                  byPay ? t.planSpentEachPay : t.planSpentEachMonth,
+                  _p.spentEach,
+                  () => setState(() => _p.spentEach = true),
+                ),
+                (
+                  'plan-built-up',
+                  t.planBuiltUp,
+                  !_p.spentEach,
+                  () => setState(() => _p.spentEach = false),
+                ),
+              ],
+            ),
+          ),
           _formRow(
             byPay ? t.planLeftPeriodEnd : t.planLeftMonthEnd,
             _Segmented(
@@ -5122,11 +5147,24 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         ],
         _accountsRow(
           t,
-          // Spent down within its period: the forecast takes what's left
-          // out of its account a day at a time (#179).
+          // What This money is means for this account: spent within its
+          // period, the forecast takes it out a day at a time (#179);
+          // built up for later, it stays there (#404).
           aside: switch (widget.data.accounts[_paidFrom]) {
-            final a? when _p.kind == PlanKind.each && !_p.rollover =>
-              t.planPaidFromSpendHint(a.name),
+            final a? when _p.kind == PlanKind.each =>
+              _p.spentEach
+                  ? t.planPaidFromSpendHint(a.name)
+                  // Built up and swept back each period: it does not sit
+                  // in the account, so don't say it does (budget-app
+                  // review). The sentence is only for money that stays.
+                  : _p.rollover
+                  ? t.planPaidFromSaveHint(a.name)
+                  : null,
+            // With no account there is nothing for the forecast to take
+            // the money from, so the category changes no chart at all and
+            // nothing on screen would say why (#404).
+            null when _p.kind == PlanKind.each && _p.spentEach =>
+              t.planPaidFromNoneSpend,
             _ => null,
           },
         ),
