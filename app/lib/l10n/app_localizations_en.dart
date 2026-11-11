@@ -3119,8 +3119,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get setupNameMissing =>
-      'Give it a name, like Jenny’s job or Child support.';
+  String get setupNameMissing => 'Enter a name.';
 
   @override
   String get setupNoSetDay => 'No set day';
@@ -5193,7 +5192,7 @@ class WordsEn extends Words {
 
   @override
   String get setupPayArrives =>
-      'The amount that lands in the account, not the amount before tax. A loan payment the bank takes afterwards is a bill.';
+      'The amount that lands in the account, not the amount before tax.';
 
   @override
   String get setupPayNeedsAccount =>

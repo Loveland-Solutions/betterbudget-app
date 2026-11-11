@@ -496,7 +496,7 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('pay-amount')), '900,000');
     await tester.pumpAndSettle();
     expect(
-      find.text('Give it a name, like Jenny’s job or Child support.'),
+      find.text('Enter a name.'),
       findsOneWidget,
     );
     await press(tester, 'pay-save');

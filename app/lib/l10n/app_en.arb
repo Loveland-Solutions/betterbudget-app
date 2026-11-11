@@ -4631,7 +4631,7 @@
       }
     }
   },
-  "setupNameMissing": "Give it a name, like Jenny’s job or Child support.",
+  "setupNameMissing": "Enter a name.",
   "@setupNameMissing": {
     "description": "Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name."
   },
@@ -7618,7 +7618,7 @@
   "@setupBack": {
     "description": "Setup: the button that goes to the step before. Nothing is undone by it."
   },
-  "setupPayArrives": "The amount that lands in the account, not the amount before tax. A loan payment the bank takes afterwards is a bill.",
+  "setupPayArrives": "The amount that lands in the account, not the amount before tax.",
   "@setupPayArrives": {
     "description": "Setup, Pay step, under the amount of a paycheck: the figure wanted is the deposit as the bank statement shows it, not the salary before tax and social insurance. A loan payment the bank takes after the pay lands is entered later as a bill, so it must not be taken off here."
   },

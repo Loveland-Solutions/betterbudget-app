@@ -3027,8 +3027,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get setupNameMissing =>
-      'Нэр өгнө үү, жишээ нь Жений ажил эсвэл Хүүхдийн тэтгэлэг.';
+  String get setupNameMissing => 'Нэрээ оруулна уу.';
 
   @override
   String get setupNoSetDay => 'Тогтсон өдөргүй';
@@ -5032,7 +5031,7 @@ class WordsMn extends Words {
 
   @override
   String get setupPayArrives =>
-      'Дансанд орж ирдэг дүн; татвар, НДШ суутгахаас өмнөх дүн биш. Банк дараа нь татдаг зээлийн төлбөр бол тусдаа төлбөр.';
+      'Дансанд орж ирдэг дүн; татвар, НДШ суутгахаас өмнөх дүн биш.';
 
   @override
   String get setupPayNeedsAccount =>
