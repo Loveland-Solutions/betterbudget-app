@@ -5731,10 +5731,128 @@ void main() {
       DateTime(2026, 11, 20),
     });
 
+    Future<Set<DateTime>> skipped() async {
+      final l = (await tester.runAsync(db.loadLedger))!;
+      return Budget.skippedBills(l, l.plans[id]!);
+    }
+
+    Future<void> keys(LogicalKeyboardKey key) async {
+      await tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(key);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+    }
+
+    // Undo takes the skip back, redo skips again (#363).
+    await keys(LogicalKeyboardKey.keyZ);
+    expect(await skipped(), isEmpty);
+    await keys(LogicalKeyboardKey.keyY);
+    expect(await skipped(), {DateTime(2026, 11, 20)});
+
     await tapAndWrite(tester, find.byKey(ValueKey('plan-back-$id-0')));
     expect(find.text('The Netflix bill on 11.20 is back.'), findsOneWidget);
     await settle(tester);
     expect(find.textContaining('No bill on 11.20'), findsNothing);
+    expect(await skipped(), isEmpty);
+    // Undo of Bring it back skips it again; redo brings it back.
+    await keys(LogicalKeyboardKey.keyZ);
+    expect(await skipped(), {DateTime(2026, 11, 20)});
+    await keys(LogicalKeyboardKey.keyY);
+    expect(await skipped(), isEmpty);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a card’s payment skipped says the balance is still owed, and '
+      'a bill still waiting from a month that is over can be skipped (#363)', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    final plan = await billPlan(
+      tester,
+      db,
+      'Visa card',
+      2000000,
+      DateTime(2026, 9, 20),
+    );
+    final id = plan.category;
+    await tester.runAsync(() async {
+      final card = await db.addAccount(
+        name: 'Visa',
+        type: AccountType.liability,
+      );
+      await db.setPreference('${BudgetKeys.loanPrefix}$card', '$id');
+    });
+    await settle(tester);
+    await tester.tap(find.text('Budget'));
+    await settle(tester);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    final row = find.byKey(ValueKey('category-$id'));
+    await tester.scrollUntilVisible(
+      row,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await mouse.moveTo(tester.getTopLeft(row) + const Offset(60, 20));
+    await tester.pumpAndSettle();
+    await tapAndWrite(tester, find.text('Skip this bill'));
+    expect(
+      find.text(
+        'No Visa card payment on 09.20. The balance is still owed. '
+        'The next one is due 10.20.',
+      ),
+      findsOneWidget,
+    );
+
+    // A bill still waiting from August, which is over, can be skipped on
+    // August's page.
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      final late = await db.createCategory('Water');
+      await db.setCategoryPlan(
+        late,
+        CategoryPlan(
+          categoryId: late,
+          kind: PlanKind.byDate,
+          amount: 1000000,
+          start: DateTime(2026, 8, 1),
+          due: DateTime(2026, 8, 20),
+          everyMonths: 1,
+          paidFrom: checking,
+        ),
+      );
+      await db.postTransaction(
+        date: DateTime(2026, 8, 20),
+        scheduled: true,
+        planCategoryId: late,
+        lines: [
+          (accountId: checking, amount: -1000000, cleared: Cleared.uncleared),
+          (accountId: late, amount: 1000000, cleared: Cleared.uncleared),
+        ],
+      );
+    });
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('period-prev')));
+    await tester.pumpAndSettle();
+    final water = find.byKey(
+      ValueKey(
+        'category-${(await tester.runAsync(db.loadLedger))!.categories.firstWhere((c) => c.name == 'Water').id}',
+      ),
+    );
+    await tester.scrollUntilVisible(
+      water,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await mouse.moveTo(tester.getTopLeft(water) + const Offset(60, 20));
+    await tester.pumpAndSettle();
+    expect(find.text('Skip this bill'), findsOneWidget);
     await tidy(tester, db);
   });
 

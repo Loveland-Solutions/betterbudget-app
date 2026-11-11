@@ -3149,6 +3149,72 @@ void main() {
       expect(row.date, DateTime(2026, 10, 24));
     });
 
+    test('a bill skipped, twice a month, payday by payday, or moved off a '
+        'weekend, is passed over and not scheduled (#357, #363)', () async {
+      final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);
+      Future<DateTime> scheduledAfterSkipping(
+        int category,
+        DateTime skip,
+      ) async {
+        await db.setPreference(
+          billSkippedDayKey(category, skip),
+          billSkippedValue(category, skip),
+        );
+        await db.ensurePlanBills(today, only: category);
+        final coming = [
+          for (final x in (await db.loadLedger()).txns)
+            if (x.planCategoryId == category && x.scheduled) x.date,
+        ];
+        expect(coming, hasLength(1));
+        return coming.single;
+      }
+
+      // Twice a month, on the 1st and the 15th: the 1st is skipped.
+      final school = await db.createCategory('School');
+      await db.setCategoryPlan(
+        school,
+        CategoryPlan(
+          categoryId: school,
+          kind: PlanKind.byDate,
+          amount: 5000000,
+          start: DateTime(2026, 10, 1),
+          due: DateTime(2026, 10, 1),
+          monthDays: const [1, 15],
+          paidFrom: bank,
+        ),
+      );
+      expect(
+        await scheduledAfterSkipping(school, DateTime(2026, 11, 1)),
+        DateTime(2026, 11, 15),
+      );
+
+      // Payday by payday: the 25th is a Sunday, so the day after it is
+      // the 24th; skipping that date leaves the next payday's.
+      final loan = await db.createCategory('Loan');
+      final pay = await db.savePaySchedule(
+        accountId: bank,
+        amount: 210000000,
+        rule: PayRule.monthly,
+        day1: 25,
+        today: today,
+      );
+      await db.setCategoryPlan(
+        loan,
+        CategoryPlan(
+          categoryId: loan,
+          kind: PlanKind.byDate,
+          amount: 15000000,
+          start: today,
+          payScheduleId: pay.after.id,
+          daysAfterPay: 1,
+          paidFrom: bank,
+        ),
+      );
+      final moved = DateTime(2026, 10, 24);
+      final after = await scheduledAfterSkipping(loan, moved);
+      expect(after.isAfter(moved), isTrue);
+    });
+
     test('an amount wanted once is scheduled once', () async {
       final gift = await db.createCategory('Birthday');
       final bank = await db.addAccount(name: 'Bank', type: AccountType.asset);

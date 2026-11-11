@@ -1240,6 +1240,89 @@ void main() {
     },
   );
 
+  test(
+    'a bill that won\u2019t come isn\u2019t the one after: a payment past its '
+    'date is still the overdue bill\u2019s (#363)',
+    () {
+      const phone = 3;
+      TxnData txn(int id, int month, int day, {bool scheduled = false}) =>
+          TxnData(
+            id: id,
+            date: DateTime(2026, month, day),
+            payee: scheduled
+                ? null
+                : '\u041c\u041e\u0411\u0418\u041a\u041e\u041c',
+            scheduled: scheduled,
+            planCategoryId: scheduled ? phone : null,
+            entries: [
+              EntryData(id: id * 10, accountId: 1, amount: -4150000),
+              EntryData(id: id * 10 + 1, accountId: phone, amount: 4150000),
+            ],
+          );
+      final plan = CategoryPlan(
+        categoryId: phone,
+        kind: PlanKind.byDate,
+        amount: 4150000,
+        start: DateTime(2026, 8, 1),
+        due: DateTime(2026, 8, 15),
+        everyMonths: 1,
+        paidFrom: 1,
+      );
+      Iterable<int> paid(Map<String, String> prefs) => billPayments(
+        LedgerData(
+          accounts: [
+            AccountInfo(id: 1, name: 'A1', type: AccountType.asset),
+            AccountInfo(id: phone, name: 'A3', type: AccountType.expense),
+          ],
+          // September's bill is overdue; a payment came on 10.20.
+          txns: [txn(1, 9, 15, scheduled: true), txn(5, 10, 20)],
+          prefs: prefs,
+          plans: [plan],
+        ),
+        DateTime(2026, 10, 25),
+      ).keys;
+      // October's bill is due 10.15, before the payment: it's October's.
+      expect(paid(const {}), isEmpty);
+      // October's skipped: nothing is due between, so it's September's.
+      expect(
+        paid({
+          billSkippedDayKey(phone, DateTime(2026, 10, 15)): billSkippedValue(
+            phone,
+            DateTime(2026, 10, 15),
+          ),
+        }),
+        [1],
+      );
+    },
+  );
+
+  test('the next bill due passes over one that won\u2019t come (#363)', () {
+    final plan = CategoryPlan(
+      categoryId: 3,
+      kind: PlanKind.byDate,
+      amount: 4150000,
+      start: DateTime(2026, 8, 1),
+      due: DateTime(2026, 8, 15),
+      everyMonths: 1,
+    );
+    final today = DateTime(2026, 10, 10);
+    expect(Budget.nextDue(plan, today).date, DateTime(2026, 10, 15));
+    expect(
+      Budget.nextDue(plan, today, skipped: {DateTime(2026, 10, 15)}).date,
+      DateTime(2026, 11, 15),
+    );
+  });
+
+  test('the card or loan a category\u2019s bill pays is found (#363)', () {
+    final data = LedgerData(
+      accounts: [AccountInfo(id: 7, name: 'Visa', type: AccountType.liability)],
+      txns: const [],
+      prefs: {'${BudgetKeys.loanPrefix}7': '3'},
+    );
+    expect(Budget.loanOfCategory(data, 3), 7);
+    expect(Budget.loanOfCategory(data, 4), isNull);
+  });
+
   test('twice a month: once the bill before is settled, a row since pays '
       'the next, however early', () {
     const phone = 3;

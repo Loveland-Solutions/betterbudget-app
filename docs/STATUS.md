@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-11** · version 0.83.3 · schema v25 · 1054 tests pass
+**Last updated: 2026-11-11** · version 0.83.4 · schema v25 · 1054 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -61,7 +61,7 @@ run with only the dated rows and shades the band between the two, which is the w
 the budget's spending, widening as the month goes on; the key line names it as its own
 part, `Money out −₮2,790,200 · To spend −₮948,387 · Money in +₮2,500,000`, with no tick on
 the rail because it has no date; the ⓘ gains one sentence while there is a band to see.
-The computer only. **#398 is built** (0.83.3): the bill list's **Balance after** has a **Day-to-day −₮480,000** line between bills, so each balance follows from the one above. A card's own sentence still doesn't name it. **#389 is built** (0.83.2): a row added while a filter tab
+The computer only. **#398 is built** (0.83.3): the bill list's **Balance after** has a **Day-to-day −₮480,000** line between bills, so each balance follows from the one above. A card's own sentence still doesn't name it. **#363's leftovers are built** (0.83.4; ADR 0004 "Skip a bill": a payment past a skipped date, a past month's waiting bill, a card's "balance is still owed"); the two two-computer cases stay on it. **#389 is built** (0.83.2): a row added while a filter tab
 won't list it says "not in this view" in its toast, as it does for a search.
 
 **The forecast's chart does the talking** (0.78.0, #392; ADR 0004 of the same name): the
