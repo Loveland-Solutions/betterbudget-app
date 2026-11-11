@@ -4458,7 +4458,7 @@ abstract class Words {
   /// Budget page, Income tab, the add button when some pay is already set up.
   ///
   /// In en, this message translates to:
-  /// **'Add other regular income'**
+  /// **'Add regular income'**
   String get setupAddOtherPay;
 
   /// Suggested file name in the Save dialog when saving the recovery key to a text file. Keep .txt.
@@ -7414,11 +7414,65 @@ abstract class Words {
   /// **'The amount that lands in the account, not the amount before tax.'**
   String get setupPayArrives;
 
+  /// Pay setup card, heading of the forecast's part.
+  ///
+  /// In en, this message translates to:
+  /// **'Forecast'**
+  String get setupCardForecast;
+
+  /// Pay setup card, heading of the budget's part.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget'**
+  String get setupCardBudget;
+
+  /// Pay setup card. date is a full date in a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows {amount} coming in on {date}, and on every payday after.'**
+  String setupCardForecastLine(String amount, String date);
+
+  /// Pay setup card, for an amount that varies.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows at least {amount} coming in on {date}, and on every payday after.'**
+  String setupCardForecastLineMin(String amount, String date);
+
+  /// Pay setup card.
+  ///
+  /// In en, this message translates to:
+  /// **'Counts {amount} a month as your income.'**
+  String setupCardBudgetLine(String amount);
+
+  /// Pay setup card, for an amount that varies.
+  ///
+  /// In en, this message translates to:
+  /// **'Counts at least {amount} a month as your income.'**
+  String setupCardBudgetLineMin(String amount);
+
   /// Setup, Pay step, when the only accounts are credit cards or loans. “Accounts” is the first step’s name, “Cash” the account Type.
   ///
   /// In en, this message translates to:
   /// **'Income goes into a bank account or Cash. Add one on Accounts to set up your regular income.'**
   String get setupPayNeedsAccount;
+
+  /// Pay setup card, for pay that differs between its two days. amounts is e.g. '₮500,000 on the 10th and ₮1,600,000 on the 25th'; date is a full date.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows {amounts}, starting {date}.'**
+  String setupCardForecastSplit(String amounts, String date);
+
+  /// Pay setup card, for pay every few weeks, where a month holds two, three or more paydays.
+  ///
+  /// In en, this message translates to:
+  /// **'Counts {amount} for each payday that falls in the month.'**
+  String setupCardBudgetEachPayday(String amount);
+
+  /// Pay setup card, the same for an amount that varies.
+  ///
+  /// In en, this message translates to:
+  /// **'Counts at least {amount} for each payday that falls in the month.'**
+  String setupCardBudgetEachPaydayMin(String amount);
 
   /// Setup, Pay step: the one line shown after “I don’t have regular pay” was chosen, with an “Add your pay” button beside it.
   ///

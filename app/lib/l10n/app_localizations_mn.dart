@@ -3096,7 +3096,7 @@ class WordsMn extends Words {
   String get setupAskAgain => 'Дахин асуух';
 
   @override
-  String get setupAddOtherPay => 'Өөр тогтмол орлого нэмэх';
+  String get setupAddOtherPay => 'Тогтмол орлого нэмэх';
 
   @override
   String get startKeyFileName => 'BetterBudget сэргээх түлхүүр.txt';
@@ -5034,8 +5034,49 @@ class WordsMn extends Words {
       'Дансанд орж ирдэг дүн; татвар, НДШ суутгахаас өмнөх дүн биш.';
 
   @override
+  String get setupCardForecast => 'Төсөөлөл';
+
+  @override
+  String get setupCardBudget => 'Төсөв';
+
+  @override
+  String setupCardForecastLine(String amount, String date) {
+    return '$date-нд $amount орж ирнэ гэж харуулна, түүнээс хойш орлого орох өдөр бүр.';
+  }
+
+  @override
+  String setupCardForecastLineMin(String amount, String date) {
+    return '$date-нд хамгийн багадаа $amount орж ирнэ гэж харуулна, түүнээс хойш орлого орох өдөр бүр.';
+  }
+
+  @override
+  String setupCardBudgetLine(String amount) {
+    return 'Сард $amount-ийг таны орлого гэж тооцно.';
+  }
+
+  @override
+  String setupCardBudgetLineMin(String amount) {
+    return 'Сард хамгийн багадаа $amount-ийг таны орлого гэж тооцно.';
+  }
+
+  @override
   String get setupPayNeedsAccount =>
       'Орлого банкны данс эсвэл бэлэн мөнгөний дансанд орно. Тогтмол орлогоо тохируулахын тулд «Дансууд» алхамд нэгийг нэмээрэй.';
+
+  @override
+  String setupCardForecastSplit(String amounts, String date) {
+    return '$date-аас эхлэн $amounts орж ирнэ гэж харуулна.';
+  }
+
+  @override
+  String setupCardBudgetEachPayday(String amount) {
+    return 'Тухайн сард орох өдөр бүрийн $amount-ийг таны орлого гэж тооцно.';
+  }
+
+  @override
+  String setupCardBudgetEachPaydayMin(String amount) {
+    return 'Тухайн сард орох өдөр бүрийн хамгийн багадаа $amount-ийг таны орлого гэж тооцно.';
+  }
 
   @override
   String get setupNoRegularPayLine => 'Тогтмол орлогогүй';

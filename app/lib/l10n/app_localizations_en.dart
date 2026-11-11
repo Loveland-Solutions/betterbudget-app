@@ -3188,7 +3188,7 @@ class WordsEn extends Words {
   String get setupAskAgain => 'Ask me again';
 
   @override
-  String get setupAddOtherPay => 'Add other regular income';
+  String get setupAddOtherPay => 'Add regular income';
 
   @override
   String get startKeyFileName => 'BetterBudget recovery key.txt';
@@ -5195,8 +5195,49 @@ class WordsEn extends Words {
       'The amount that lands in the account, not the amount before tax.';
 
   @override
+  String get setupCardForecast => 'Forecast';
+
+  @override
+  String get setupCardBudget => 'Budget';
+
+  @override
+  String setupCardForecastLine(String amount, String date) {
+    return 'Shows $amount coming in on $date, and on every payday after.';
+  }
+
+  @override
+  String setupCardForecastLineMin(String amount, String date) {
+    return 'Shows at least $amount coming in on $date, and on every payday after.';
+  }
+
+  @override
+  String setupCardBudgetLine(String amount) {
+    return 'Counts $amount a month as your income.';
+  }
+
+  @override
+  String setupCardBudgetLineMin(String amount) {
+    return 'Counts at least $amount a month as your income.';
+  }
+
+  @override
   String get setupPayNeedsAccount =>
       'Income goes into a bank account or Cash. Add one on Accounts to set up your regular income.';
+
+  @override
+  String setupCardForecastSplit(String amounts, String date) {
+    return 'Shows $amounts, starting $date.';
+  }
+
+  @override
+  String setupCardBudgetEachPayday(String amount) {
+    return 'Counts $amount for each payday that falls in the month.';
+  }
+
+  @override
+  String setupCardBudgetEachPaydayMin(String amount) {
+    return 'Counts at least $amount for each payday that falls in the month.';
+  }
 
   @override
   String get setupNoRegularPayLine => 'No regular income';
