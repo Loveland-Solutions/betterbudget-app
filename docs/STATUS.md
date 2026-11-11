@@ -41,11 +41,11 @@ Apple's encryption question are filled in App Store Connect. The iPhone app wait
 **The header stands forward** (0.83.0, #421; ADR 0004 "The header stands forward:
 Working first, a live chart"): owner's sketch D. Working is first and largest with
 Cleared and Uncleared under it; the line starts at a lit dot beside it; the key is chips
-with a sample of each mark (**Money out · Everyday spending · Money in**) that light
+with a sample of each mark (**Money out · Day-to-day · Money in**) that light
 their part of the chart when pointed at; "Lowest" names the dip; moving over the chart
 reads any day's date and balance, and a bill's card shows within 24 px of it; the chosen
 range is filled blue; the card is lifted off the page. The computer only. No schema
-change. The Mongolian for "Lowest" and "Everyday spending" waits on Tanan (#90).
+change. The Mongolian for "Lowest" and "Day-to-day" waits on Tanan (#90).
 
 **Next:** nothing waits on the phone. #404 and #398 are built (0.82.0; ADR 0004
 "Groceries reach the forecast, and the chart shows them"). The forecast now takes out

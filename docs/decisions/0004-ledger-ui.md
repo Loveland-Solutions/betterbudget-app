@@ -5795,3 +5795,32 @@ and kept it.
 - Not fixed, on #423: tests for the day reading and the chips, "Lowest" as one message,
   the first day under ₮0 has no date, what "Everyday spending" counts, and the rest.
 
+
+## The four kinds of category have names (owner, 2026-11-11)
+
+Decided in conversation. Built so far: the forecast’s chip says "Day-to-day" (0.83.1, #426). A category's kind came out of its answers in
+Edit and had no name; "Everyday spending" in the forecast's key named one of them and
+counted things that aren't everyday.
+
+- **Day-to-day**: an amount each month, spent as the month goes (groceries, gas). The
+  forecast's band counts this kind, so its chip takes the name.
+- **Fund**: an amount each month, built up with no date and used when needed (car
+  repairs).
+- **Bill**: an amount owed to someone on a date, paid in one payment (rent, insurance).
+- **Goal**: an amount wanted ready by a date and then spent by the household itself,
+  once or repeating (Christmas, a laptop). Repeating doesn't make it a bill.
+- Income and Safety net keep their names. A category with no amount set is a
+  Day-to-day one whose amount is left empty, not a fifth kind.
+- **Rejected for Day-to-day:** "Spending" ("I'm not sold on 'Spending'": a bill is
+  spending too); "Allowance" ("sometimes we actually budget an allowance for
+  ourselves"); "Living costs" (rent is one); "Budgeted spending", "Spending from the
+  budget", "Between the bills".
+- **A button says the whole act** (same day: "claude has been writing in a type of
+  shorthand in this app, and it's confusing"). "Done for this year" became "I'm done
+  spending on Christmas this year", and a click that moves money first says where it
+  will go, with the amounts. The design it belongs to is #425.
+- Also decided the same day: one scheduled payment's amount is changed in a table of
+  scheduled payments (#424), not by per-date amounts typed in Edit ("you're kind of
+  asking them to know a lot of features about the app"); a loan to someone or money
+  paid back needs no kind of its own; weekly amounts and income with no set day are
+  not being built.

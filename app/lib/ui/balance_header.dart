@@ -868,7 +868,7 @@ class ForecastPanel extends StatelessWidget {
 
 /// The three things a forecast is made of, as the key names them and the
 /// chart draws them: dated money out (ticks under the rail), the budget's
-/// everyday spending (the band), and money in (green ticks).
+/// day-to-day spending (the band), and money in (green ticks).
 enum _Part { out, spend, income }
 
 /// The key and the chart it explains. They share which part the pointer is
@@ -2592,7 +2592,7 @@ class _ForecastPainter extends CustomPainter {
           _closedDown(barePath, w, h),
           _closedDown(path, w, h),
         ),
-        // Quiet until the key's Everyday spending is pointed at.
+        // Quiet until the key's Day-to-day is pointed at.
         Paint()
           ..color = Mid.ink3.withValues(
             alpha: lit.value == _Part.spend ? 0.5 : 0.26,
