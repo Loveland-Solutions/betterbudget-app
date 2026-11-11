@@ -398,6 +398,18 @@ class Budget {
   static int? loanCategory(LedgerData data, int loanId) =>
       int.tryParse(data.prefs['${BudgetKeys.loanPrefix}$loanId'] ?? '');
 
+  /// The card or loan whose payments come out of category [categoryId], if
+  /// any: skipping its bill leaves the balance owing (#363).
+  static int? loanOfCategory(LedgerData data, int categoryId) {
+    for (final e in data.prefs.entries) {
+      if (!e.key.startsWith(BudgetKeys.loanPrefix)) continue;
+      if (int.tryParse(e.value) != categoryId) continue;
+      final loan = int.tryParse(e.key.substring(BudgetKeys.loanPrefix.length));
+      if (loan != null) return loan;
+    }
+    return null;
+  }
+
   /// The budget for the period [start]–[end], as of [today].
   static Budget of(
     LedgerData data, {
@@ -1057,6 +1069,7 @@ class Budget {
     CategoryPlan plan,
     DateTime today, {
     PaySchedule? pay,
+    Set<DateTime> skipped = const {},
   }) {
     final day = dateOnly(today);
     final last = plan.repeats
@@ -1066,7 +1079,9 @@ class Budget {
     while (n < _mostPeriods) {
       final d = dueAfter(plan, n, pay: pay);
       if (last != null && d.isAfter(last)) break;
-      if (!d.isBefore(day)) return (date: d, passed: false);
+      if (!d.isBefore(day) && !skipped.contains(d)) {
+        return (date: d, passed: false);
+      }
       if (!plan.repeats) break;
       n++;
     }
@@ -1825,9 +1840,12 @@ Map<int, BillPayment> billPayments(
         // the one before.
         DateTime? next, before;
         if (plan.repeats) {
+          // A bill that won't come isn't the one after: a payment past its
+          // date is still this bill's (#363).
+          final skipped = Budget.skippedBills(data, plan);
           for (var n = 0; n < 400; n++) {
             final d = Budget.dueAfter(plan, n, pay: pay);
-            if (d.isAfter(b.date)) {
+            if (d.isAfter(b.date) && !skipped.contains(d)) {
               next = d;
               break;
             }

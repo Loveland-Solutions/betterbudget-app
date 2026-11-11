@@ -6155,6 +6155,21 @@ class WordsMn extends Words {
   }
 
   @override
+  String planNoPaymentOn(String date) {
+    return '$date-нд төлөлтгүй, үлдэгдэл төлөгдөөгүй хэвээр';
+  }
+
+  @override
+  String ledgerNoPaymentNext(String name, String date, String next) {
+    return '$date-нд $name төлөлт хийгдэхгүй. Үлдэгдэл төлөгдөөгүй хэвээр. Дараагийн төлөх өдөр: $next.';
+  }
+
+  @override
+  String ledgerNoPaymentLast(String name, String date) {
+    return '$date-нд $name төлөлт хийгдэхгүй. Үлдэгдэл төлөгдөөгүй хэвээр.';
+  }
+
+  @override
   String get planBringBackBill => 'Буцааж нэмэх';
 
   @override

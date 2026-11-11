@@ -5198,6 +5198,21 @@ Settled in the two reviews:
   early, across a skipped one, is the later one. "Did this pay 2 bills?" names the bills it
   really pays. The ledger's No bill this time says money stays only when some is there.
 
+Leftovers settled (#363, no new question to the owner):
+
+- **A skipped bill isn't the bill after.** A payment made past a skipped date is still the
+  overdue bill's, so "Paid on 10.13?" finds it; and a phone's new bill names the next date
+  that isn't skipped.
+- **A bill still waiting from a month that's over can be skipped on that month's page**, while
+  its row is in the ledger. A month with nothing waiting offers nothing to skip.
+- **A card's or loan's payment says the balance is still owed:** "No payment on 11.20. The
+  balance is still owed" on the line, and "No Visa card payment on 11.20. The balance is still
+  owed. The next one is due 12.20." in the popup, which doesn't say what stays set aside.
+  The Mongolian waits on Tanan (#90).
+- **Left on #363:** the two cases of two computers combining (a bill skipped on one while the
+  other schedules it; a category made on both losing a skip), which are rare and want the
+  combine rules looked at, not a patch here.
+
 ## Amounts group in thousands as they're typed (owner, 2026-10-28, #324)
 
 Owner: "There are big numbers when you're working with tugriks. We need automatic commas

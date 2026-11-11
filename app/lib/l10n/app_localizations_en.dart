@@ -6351,6 +6351,21 @@ class WordsEn extends Words {
   }
 
   @override
+  String planNoPaymentOn(String date) {
+    return 'No payment on $date. The balance is still owed';
+  }
+
+  @override
+  String ledgerNoPaymentNext(String name, String date, String next) {
+    return 'No $name payment on $date. The balance is still owed. The next one is due $next.';
+  }
+
+  @override
+  String ledgerNoPaymentLast(String name, String date) {
+    return 'No $name payment on $date. The balance is still owed.';
+  }
+
+  @override
   String get planBringBackBill => 'Bring it back';
 
   @override

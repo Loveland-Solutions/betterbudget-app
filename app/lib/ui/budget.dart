@@ -508,8 +508,9 @@ class _BudgetPageState extends State<_BudgetPage> {
         assignPlanned: toAssign == 0 ? null : planMoney(toAssign, currency),
         onAssignPlanned: () => widget.onSetAmount(c, period, planLine!.planned),
         // A bill that comes again, due in this period and not paid yet,
-        // in a period not over: a bill further ahead is skipped from its
-        // own period's page.
+        // in a period not over, or one still waiting in the ledger from a
+        // month that's over (#363): a bill further ahead is skipped from
+        // its own period's page.
         onSkipBill: switch ((planLine, planLine?.due)) {
           (final p?, final due?)
               when p.plan.kind == PlanKind.byDate &&
@@ -518,16 +519,27 @@ class _BudgetPageState extends State<_BudgetPage> {
                   !p.ended &&
                   !p.waiting &&
                   line?.paidOn == null &&
-                  !period.end.isBefore(widget.today) =>
+                  (!period.end.isBefore(widget.today) ||
+                      data.txns.any(
+                        (x) =>
+                            x.scheduled &&
+                            x.planCategoryId == c.id &&
+                            x.date == due,
+                      )) =>
             () => widget.onSkipBill(c, due, line?.left ?? 0),
           _ => null,
         },
         noBills: [
           for (final d in planLine?.noBills ?? const <DateTime>[])
             (
-              words: t.planNoBillOn(
-                d.year == widget.today.year ? sayDate(t, d) : sayFullDate(t, d),
-              ),
+              words:
+                  (Budget.loanOfCategory(data, c.id) == null
+                  ? t.planNoBillOn
+                  : t.planNoPaymentOn)(
+                    d.year == widget.today.year
+                        ? sayDate(t, d)
+                        : sayFullDate(t, d),
+                  ),
               onBringBack: () => widget.onBringBackBill(c, d),
             ),
         ],

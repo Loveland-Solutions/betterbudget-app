@@ -9374,6 +9374,42 @@
       }
     }
   },
+  "planNoPaymentOn": "No payment on {date}. The balance is still owed",
+  "@planNoPaymentOn": {
+    "description": "On a card's or loan's Budget line: a skipped payment in this period. The balance stays owing.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerNoPaymentNext": "No {name} payment on {date}. The balance is still owed. The next one is due {next}.",
+  "@ledgerNoPaymentNext": {
+    "description": "Toast after a card's or loan's payment is skipped.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "next": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerNoPaymentLast": "No {name} payment on {date}. The balance is still owed.",
+  "@ledgerNoPaymentLast": {
+    "description": "As ledgerNoPaymentNext, when no payment comes after it.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "planBringBackBill": "Bring it back",
   "@planBringBackBill": {
     "description": "Beside No bill on a date: the bill is expected again."

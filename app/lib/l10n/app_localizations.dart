@@ -8893,6 +8893,24 @@ abstract class Words {
   /// **'No bill on {date}'**
   String planNoBillOn(String date);
 
+  /// On a card's or loan's Budget line: a skipped payment in this period. The balance stays owing.
+  ///
+  /// In en, this message translates to:
+  /// **'No payment on {date}. The balance is still owed'**
+  String planNoPaymentOn(String date);
+
+  /// Toast after a card's or loan's payment is skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'No {name} payment on {date}. The balance is still owed. The next one is due {next}.'**
+  String ledgerNoPaymentNext(String name, String date, String next);
+
+  /// As ledgerNoPaymentNext, when no payment comes after it.
+  ///
+  /// In en, this message translates to:
+  /// **'No {name} payment on {date}. The balance is still owed.'**
+  String ledgerNoPaymentLast(String name, String date);
+
   /// Beside No bill on a date: the bill is expected again.
   ///
   /// In en, this message translates to:

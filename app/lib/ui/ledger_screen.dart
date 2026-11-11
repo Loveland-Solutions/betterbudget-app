@@ -3485,8 +3485,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _clearSelection();
     final name = rowPayee(t, r);
     final stays = has > r.amount.abs() ? r.amount.abs() : has;
+    // A card's or loan's payment skipped leaves the balance owing, which
+    // the popup says instead of what stays set aside (#363).
+    final loan = Budget.loanOfCategory(data, planned) != null;
     _did(
-      next == null
+      loan
+          ? next == null
+                ? t.ledgerNoPaymentLast(name, _billDay(t, due))
+                : t.ledgerNoPaymentNext(
+                    name,
+                    _billDay(t, due),
+                    _billDay(t, next),
+                  )
+          : next == null
           ? t.ledgerNoBillLast(name, _billDay(t, due))
           : stays <= 0
           ? t.ledgerNoBillNext(name, _billDay(t, due), _billDay(t, next))
@@ -3551,8 +3562,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
       skipped: Budget.skippedBills(data, plan),
       pay: pay,
     );
+    final loan = Budget.loanOfCategory(data, category.id) != null;
     _did(
-      next == null
+      loan
+          ? next == null
+                ? t.ledgerNoPaymentLast(category.name, _billDay(t, due))
+                : t.ledgerNoPaymentNext(
+                    category.name,
+                    _billDay(t, due),
+                    _billDay(t, next),
+                  )
+          : next == null
           ? t.ledgerNoBillLast(category.name, _billDay(t, due))
           : t.ledgerNoBillNext(
               category.name,
@@ -9540,6 +9560,7 @@ List<String> phonePlanNotes(
       plan,
       today,
       pay: data.payScheduleById(plan.payScheduleId),
+      skipped: Budget.skippedBills(data, plan),
     ).date,
   );
   for (final l in take.leftOut) {
@@ -9581,6 +9602,7 @@ List<String> phonePlanNotes(
       plan,
       today,
       pay: data.payScheduleById(plan.payScheduleId),
+      skipped: Budget.skippedBills(data, plan),
     );
     // A monthly bill dated a day gone by is overdue there, not at its next.
     final first = Budget.dueAfter(
