@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-11** · version 0.83.5 · schema v25 · 1054 tests pass
+**Last updated: 2026-11-11** · version 0.84.0 · schema v25 · 1054 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -37,6 +37,13 @@ the team's App Store Connect API key in `~/.config/betterbudget/` (0.73.2, #380)
 Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy label and
 Apple's encryption question are filled in App Store Connect. The iPhone app waits on
 #112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
+
+**Setup's Pay step has a card beside it** (0.84.0, #323; ADR 0004 "Setup's Pay step has a
+card beside the form"): owner's sketch A, a Forecast line and a Budget line in the person's
+own figures once an amount is typed; the "Next payday" line is dropped on that page; Budget's
+button reads **Add regular income**. The computer only. #325's other wording is not changed
+yet. **Next: #438**, regular income repeating as many ways as a category's How often (owner's
+pick A: one recurrence code for both; schema v26).
 
 **The header stands forward** (0.83.0, #421; ADR 0004 "The header stands forward:
 Working first, a live chart"): owner's sketch D. Working is first and largest with

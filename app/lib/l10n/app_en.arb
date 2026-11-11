@@ -4736,7 +4736,7 @@
   "@setupAskAgain": {
     "description": "Budget page, Income tab, button that undoes \"I don't have regular pay\"."
   },
-  "setupAddOtherPay": "Add other regular income",
+  "setupAddOtherPay": "Add regular income",
   "@setupAddOtherPay": {
     "description": "Budget page, Income tab, the add button when some pay is already set up."
   },
@@ -7622,6 +7622,18 @@
   "@setupPayArrives": {
     "description": "Setup, Pay step, under the amount of a paycheck: the figure wanted is the deposit as the bank statement shows it, not the salary before tax and social insurance. A loan payment the bank takes after the pay lands is entered later as a bill, so it must not be taken off here."
   },
+  "setupCardForecast": "Forecast",
+  "@setupCardForecast": {"description": "Pay setup card, heading of the forecast's part."},
+  "setupCardBudget": "Budget",
+  "@setupCardBudget": {"description": "Pay setup card, heading of the budget's part."},
+  "setupCardForecastLine": "Shows {amount} coming in on {date}, and on every payday after.",
+  "@setupCardForecastLine": {"description": "Pay setup card. date is a full date in a sentence.", "placeholders": {"amount": {"type": "String"}, "date": {"type": "String"}}},
+  "setupCardForecastLineMin": "Shows at least {amount} coming in on {date}, and on every payday after.",
+  "@setupCardForecastLineMin": {"description": "Pay setup card, for an amount that varies.", "placeholders": {"amount": {"type": "String"}, "date": {"type": "String"}}},
+  "setupCardBudgetLine": "Counts {amount} a month as your income.",
+  "@setupCardBudgetLine": {"description": "Pay setup card.", "placeholders": {"amount": {"type": "String"}}},
+  "setupCardBudgetLineMin": "Counts at least {amount} a month as your income.",
+  "@setupCardBudgetLineMin": {"description": "Pay setup card, for an amount that varies.", "placeholders": {"amount": {"type": "String"}}},
   "setupPayNeedsAccount": "Income goes into a bank account or Cash. Add one on Accounts to set up your regular income.",
   "@setupPayNeedsAccount": {
     "description": "Setup, Pay step, when the only accounts are credit cards or loans. “Accounts” is the first step’s name, “Cash” the account Type."

@@ -525,340 +525,426 @@ class _PayFormState extends State<_PayForm> {
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!widget.page) ...[
-              Text(
-                widget.existing == null ? t.setupAddYourPay : t.setupYourPay,
-                style: onest(17, weight: 600, letterSpacing: -0.2),
-              ),
-              const SizedBox(height: 16),
-            ],
-            // Whose pay (owner, 2026-10-05: two earners): the name
-            // the Budget page's view and a category's "How often"
-            // call it by.
-            line(
-              t.setupName,
-              Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  width: 260,
-                  height: 30,
-                  child: TextField(
-                    key: const ValueKey('pay-name'),
-                    controller: _name,
-                    style: onest(13.5),
-                    decoration: _fieldDecoration(hint: t.setupNameHint),
+        child: _withCard(
+          t,
+          preview,
+          next,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!widget.page) ...[
+                Text(
+                  widget.existing == null ? t.setupAddYourPay : t.setupYourPay,
+                  style: onest(17, weight: 600, letterSpacing: -0.2),
+                ),
+                const SizedBox(height: 16),
+              ],
+              // Whose pay (owner, 2026-10-05: two earners): the name
+              // the Budget page's view and a category's "How often"
+              // call it by.
+              line(
+                t.setupName,
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: 260,
+                    height: 30,
+                    child: TextField(
+                      key: const ValueKey('pay-name'),
+                      controller: _name,
+                      style: onest(13.5),
+                      decoration: _fieldDecoration(hint: t.setupNameHint),
+                    ),
                   ),
                 ),
               ),
-            ),
-            line(
-              t.setupPaidInto,
-              Align(
-                alignment: Alignment.centerLeft,
-                child: pick(widget.accounts, _account, (a) {
-                  setState(() => _account = a);
-                  _loadHistory();
-                }, 'pay-account'),
+              line(
+                t.setupPaidInto,
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: pick(widget.accounts, _account, (a) {
+                    setState(() => _account = a);
+                    _loadHistory();
+                  }, 'pay-account'),
+                ),
               ),
-            ),
-            line(
-              t.setupFrom,
-              Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  width: 260,
-                  height: 30,
-                  child: TextField(
-                    key: const ValueKey('pay-payee'),
-                    controller: _payee,
-                    style: onest(13.5),
-                    decoration: _fieldDecoration(hint: t.setupEmployerHint),
+              line(
+                t.setupFrom,
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: 260,
+                    height: 30,
+                    child: TextField(
+                      key: const ValueKey('pay-payee'),
+                      controller: _payee,
+                      style: onest(13.5),
+                      decoration: _fieldDecoration(hint: t.setupEmployerHint),
+                    ),
                   ),
                 ),
               ),
-            ),
-            line(
-              t.setupPayIs,
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  choice(
-                    t.setupPaySame,
-                    !_varies,
-                    () => setState(() => _varies = false),
-                    'pay-same',
-                  ),
-                  choice(
-                    t.setupPayVaries,
-                    _varies,
-                    () => setState(() => _varies = true),
-                    'pay-varies',
-                  ),
-                ],
-              ),
-            ),
-            if (_varies) hint(t.setupVariesHint),
-            line(
-              // Each payday, not the month: twice a month is two of these.
-              _splitting
-                  ? _onDay(t, false)
-                  : _varies
-                  ? t.setupExpectAtLeast
-                  : t.setupEachPayday,
-              amountField(_amount, 'pay-amount', autofocus: true),
-            ),
-            if (_splitting)
-              line(_onDay(t, true), amountField(_amount2, 'pay-amount2')),
-            // Typed before tax or before a salary loan comes off, the
-            // forecast is too rich every payday (ADR 0004,
-            // "Onboarding"). Said in setup, to someone new to it.
-            if (widget.page && !_account.isCash)
-              hint(t.setupPayArrives, key: const ValueKey('pay-arrives')),
-            // Twice a month: an advance one day, the rest the other.
-            if (_rule == PayRule.twiceMonthly)
-              Padding(
-                padding: const EdgeInsets.only(left: 120, bottom: 10),
-                child: Wrap(
+              line(
+                t.setupPayIs,
+                Wrap(
                   spacing: 8,
                   runSpacing: 6,
                   children: [
                     choice(
-                      t.setupSameEachPaycheck,
-                      !_split,
-                      () => setState(_oneAmount),
-                      'pay-amount-same',
+                      t.setupPaySame,
+                      !_varies,
+                      () => setState(() => _varies = false),
+                      'pay-same',
                     ),
                     choice(
-                      t.setupDifferentEachPaycheck,
-                      _split,
-                      () => setState(() => _split = true),
-                      'pay-amount-split',
+                      t.setupPayVaries,
+                      _varies,
+                      () => setState(() => _varies = true),
+                      'pay-varies',
                     ),
                   ],
                 ),
               ),
-            if (lowest != null)
-              hint(
-                _history.length == 1
-                    ? t.setupLastPaycheck(money(lowest))
-                    : t.setupLastPaychecks(
-                        _history.length,
-                        money(lowest),
-                        money(highest!),
-                      ),
-                key: const ValueKey('pay-history'),
+              if (_varies) hint(t.setupVariesHint),
+              line(
+                // Each payday, not the month: twice a month is two of these.
+                _splitting
+                    ? _onDay(t, false)
+                    : _varies
+                    ? t.setupExpectAtLeast
+                    : t.setupEachPayday,
+                amountField(_amount, 'pay-amount', autofocus: true),
               ),
-            if (_varies) hint(t.setupLowEndSafer),
-            // Warn, don't block: a higher estimate still saves.
-            if (_varies && above > 0)
-              hint(
-                t.setupHigherThan(above, _history.length),
-                color: Mid.note,
-                key: const ValueKey('pay-high'),
-              ),
-            line(
-              t.setupWhen,
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Wraps when the words run long (Mongolian).
-                  Wrap(
+              if (_splitting)
+                line(_onDay(t, true), amountField(_amount2, 'pay-amount2')),
+              // Typed before tax or before a salary loan comes off, the
+              // forecast is too rich every payday (ADR 0004,
+              // "Onboarding"). Said in setup, to someone new to it.
+              if (widget.page && !_account.isCash)
+                hint(t.setupPayArrives, key: const ValueKey('pay-arrives')),
+              // Twice a month: an advance one day, the rest the other.
+              if (_rule == PayRule.twiceMonthly)
+                Padding(
+                  padding: const EdgeInsets.only(left: 120, bottom: 10),
+                  child: Wrap(
                     spacing: 8,
-                    runSpacing: 8,
+                    runSpacing: 6,
                     children: [
                       choice(
-                        t.setupMonthly,
-                        !_noDay && _rule == PayRule.monthly,
-                        () => setState(() {
-                          _oneAmount();
-                          _noDay = false;
-                          _rule = PayRule.monthly;
-                        }),
-                        'pay-monthly',
+                        t.setupSameEachPaycheck,
+                        !_split,
+                        () => setState(_oneAmount),
+                        'pay-amount-same',
                       ),
                       choice(
-                        t.setupTwiceMonthly,
-                        !_noDay && _rule == PayRule.twiceMonthly,
-                        () => setState(() {
-                          _noDay = false;
-                          _rule = PayRule.twiceMonthly;
-                        }),
-                        'pay-twice',
+                        t.setupDifferentEachPaycheck,
+                        _split,
+                        () => setState(() => _split = true),
+                        'pay-amount-split',
                       ),
-                      choice(
-                        t.setupEveryFewWeeks,
-                        !_noDay && _rule == PayRule.everyWeeks,
-                        () => setState(() {
-                          _oneAmount();
-                          _noDay = false;
-                          _rule = PayRule.everyWeeks;
-                        }),
-                        'pay-weeks',
-                      ),
-                      if (_offersNoDay)
-                        choice(
-                          t.setupNoSetDay,
-                          _noDay,
-                          () => setState(() => _noDay = true),
-                          'pay-no-day',
-                        ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  if (!_noDay)
-                    Row(
-                      children: switch (_rule) {
-                        PayRule.monthly => withFields(
-                          t.setupOnDayField(fieldMarks[0]),
-                          [small(_day1, 'pay-day1')],
+                ),
+              if (lowest != null)
+                hint(
+                  _history.length == 1
+                      ? t.setupLastPaycheck(money(lowest))
+                      : t.setupLastPaychecks(
+                          _history.length,
+                          money(lowest),
+                          money(highest!),
                         ),
-                        PayRule.twiceMonthly => withFields(
-                          t.setupOnDaysField(fieldMarks[0], fieldMarks[1]),
-                          [small(_day2, 'pay-day2'), small(_day1, 'pay-day1')],
-                        ),
-                        PayRule.everyWeeks => withFields(
-                          t.setupEveryWeeksField(
-                            _weeksValue ?? 0,
-                            fieldMarks[0],
-                            fieldMarks[1],
-                          ),
-                          [
-                            small(_weeks, 'pay-weeks-n', width: 44),
-                            SizedBox(
-                              width: 130,
-                              height: 30,
-                              child: DateField(
-                                key: const ValueKey('pay-anchor'),
-                                controller: _anchor,
-                                focusNode: _anchorFocus,
-                                today: widget.today,
-                                small: true,
-                                onSubmitted: _save,
-                                onPicked: () {},
-                              ),
-                            ),
-                          ],
-                        ),
-                      },
-                    ),
-                ],
-              ),
-            ),
-            // Both days past the 28th meet in short months: one
-            // payday then, which is worth knowing before it happens.
-            if (!_noDay &&
-                _rule == PayRule.twiceMonthly &&
-                (_days?.$1 ?? 0) >= 28)
-              hint(
-                t.setupDaysMeet,
-                color: Mid.note,
-                key: const ValueKey('pay-days-meet'),
-              ),
-            if (!_noDay)
+                  key: const ValueKey('pay-history'),
+                ),
+              if (_varies) hint(t.setupLowEndSafer),
+              // Warn, don't block: a higher estimate still saves.
+              if (_varies && above > 0)
+                hint(
+                  t.setupHigherThan(above, _history.length),
+                  color: Mid.note,
+                  key: const ValueKey('pay-high'),
+                ),
               line(
-                t.setupOnWeekend,
-                Row(
+                t.setupWhen,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final (w, label, key) in [
-                      (PayWeekend.before, t.setupFridayBefore, 'pay-friday'),
-                      (PayWeekend.after, t.setupMondayAfter, 'pay-monday'),
-                      (PayWeekend.keep, t.setupKeepTheDay, 'pay-keep'),
-                    ]) ...[
-                      if (w != PayWeekend.before) const SizedBox(width: 8),
-                      choice(
-                        label,
-                        _weekend == w,
-                        () => setState(() => _weekend = w),
-                        key,
+                    // Wraps when the words run long (Mongolian).
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        choice(
+                          t.setupMonthly,
+                          !_noDay && _rule == PayRule.monthly,
+                          () => setState(() {
+                            _oneAmount();
+                            _noDay = false;
+                            _rule = PayRule.monthly;
+                          }),
+                          'pay-monthly',
+                        ),
+                        choice(
+                          t.setupTwiceMonthly,
+                          !_noDay && _rule == PayRule.twiceMonthly,
+                          () => setState(() {
+                            _noDay = false;
+                            _rule = PayRule.twiceMonthly;
+                          }),
+                          'pay-twice',
+                        ),
+                        choice(
+                          t.setupEveryFewWeeks,
+                          !_noDay && _rule == PayRule.everyWeeks,
+                          () => setState(() {
+                            _oneAmount();
+                            _noDay = false;
+                            _rule = PayRule.everyWeeks;
+                          }),
+                          'pay-weeks',
+                        ),
+                        if (_offersNoDay)
+                          choice(
+                            t.setupNoSetDay,
+                            _noDay,
+                            () => setState(() => _noDay = true),
+                            'pay-no-day',
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (!_noDay)
+                      Row(
+                        children: switch (_rule) {
+                          PayRule.monthly => withFields(
+                            t.setupOnDayField(fieldMarks[0]),
+                            [small(_day1, 'pay-day1')],
+                          ),
+                          PayRule.twiceMonthly => withFields(
+                            t.setupOnDaysField(fieldMarks[0], fieldMarks[1]),
+                            [
+                              small(_day2, 'pay-day2'),
+                              small(_day1, 'pay-day1'),
+                            ],
+                          ),
+                          PayRule.everyWeeks => withFields(
+                            t.setupEveryWeeksField(
+                              _weeksValue ?? 0,
+                              fieldMarks[0],
+                              fieldMarks[1],
+                            ),
+                            [
+                              small(_weeks, 'pay-weeks-n', width: 44),
+                              SizedBox(
+                                width: 130,
+                                height: 30,
+                                child: DateField(
+                                  key: const ValueKey('pay-anchor'),
+                                  controller: _anchor,
+                                  focusNode: _anchorFocus,
+                                  today: widget.today,
+                                  small: true,
+                                  onSubmitted: _save,
+                                  onPicked: () {},
+                                ),
+                              ),
+                            ],
+                          ),
+                        },
                       ),
-                    ],
                   ],
                 ),
               ),
-            if (!_noDay && preview != null && preview.perYear > 24)
-              hint(
-                t.setupPaydaysAYear(preview.perYear),
-                key: const ValueKey('pay-26'),
-              ),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.only(left: 120),
-              child: Text(
-                _noDay
-                    ? t.setupNoSetDayMeans
-                    : _problem ??
-                          switch ((
-                            _varies,
-                            // A doubled monthly figure shows before saving.
-                            preview!.rule == PayRule.monthly,
-                          )) {
-                            (false, true) => t.setupNextPayday(
-                              sayFullDate(t, next!),
-                              money(preview.amountOn(next)),
-                            ),
-                            (true, true) => t.setupNextPaydayOrMore(
-                              sayFullDate(t, next!),
-                              money(preview.amountOn(next)),
-                            ),
-                            (false, false) => t.setupNextPaydayMonthly(
-                              sayFullDate(t, next!),
-                              money(preview.amountOn(next)),
-                              money(preview.perMonth),
-                            ),
-                            (true, false) => t.setupNextPaydayOrMoreMonthly(
-                              sayFullDate(t, next!),
-                              money(preview.amountOn(next)),
-                              money(preview.perMonth),
-                            ),
-                          },
-                key: const ValueKey('pay-summary'),
-                style: onest(13, color: _problem == null ? Mid.ink2 : Mid.ink3),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                // Self-employed or between jobs: say so once, and
-                // nothing asks for pay again (Settings undoes it).
-                if (widget.existing == null && widget.offerNoPay)
-                  BarButton(
-                    key: const ValueKey('pay-none'),
-                    label: t.setupNoRegularPay,
-                    onTap: () => widget.onResult(const PayNone()),
-                  ),
-                if (widget.existing != null)
-                  BarButton(
-                    key: const ValueKey('pay-stop'),
-                    label: t.setupStopPay,
-                    color: Mid.coral,
-                    onTap: _stop,
-                  ),
-                const Spacer(),
-                if (widget.onCancel case final cancel?)
-                  BarButton(
-                    key: const ValueKey('pay-cancel'),
-                    label: t.setupCancel,
-                    onTap: cancel,
-                  ),
-                Opacity(
-                  opacity: _problem == null ? 1 : 0.5,
-                  child: _PrimaryButton(
-                    key: const ValueKey('pay-save'),
-                    label: t.setupSavePay,
-                    icon: Icons.check_rounded,
-                    tooltip: 'Enter',
-                    onTap: _save,
+              // Both days past the 28th meet in short months: one
+              // payday then, which is worth knowing before it happens.
+              if (!_noDay &&
+                  _rule == PayRule.twiceMonthly &&
+                  (_days?.$1 ?? 0) >= 28)
+                hint(
+                  t.setupDaysMeet,
+                  color: Mid.note,
+                  key: const ValueKey('pay-days-meet'),
+                ),
+              if (!_noDay)
+                line(
+                  t.setupOnWeekend,
+                  Row(
+                    children: [
+                      for (final (w, label, key) in [
+                        (PayWeekend.before, t.setupFridayBefore, 'pay-friday'),
+                        (PayWeekend.after, t.setupMondayAfter, 'pay-monday'),
+                        (PayWeekend.keep, t.setupKeepTheDay, 'pay-keep'),
+                      ]) ...[
+                        if (w != PayWeekend.before) const SizedBox(width: 8),
+                        choice(
+                          label,
+                          _weekend == w,
+                          () => setState(() => _weekend = w),
+                          key,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ],
+              if (!_noDay && preview != null && preview.perYear > 24)
+                hint(
+                  t.setupPaydaysAYear(preview.perYear),
+                  key: const ValueKey('pay-26'),
+                ),
+              const SizedBox(height: 4),
+              // On setup's page the card beside the form says what comes
+              // and when, so this line speaks only when something's wrong
+              // (owner, 2026-11-11, #323: "drop it").
+              if (!widget.page || _noDay || _problem != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 120),
+                  child: Text(
+                    _noDay
+                        ? t.setupNoSetDayMeans
+                        : _problem ??
+                              switch ((
+                                _varies,
+                                // A doubled monthly figure shows before saving.
+                                preview!.rule == PayRule.monthly,
+                              )) {
+                                (false, true) => t.setupNextPayday(
+                                  sayFullDate(t, next!),
+                                  money(preview.amountOn(next)),
+                                ),
+                                (true, true) => t.setupNextPaydayOrMore(
+                                  sayFullDate(t, next!),
+                                  money(preview.amountOn(next)),
+                                ),
+                                (false, false) => t.setupNextPaydayMonthly(
+                                  sayFullDate(t, next!),
+                                  money(preview.amountOn(next)),
+                                  money(preview.perMonth),
+                                ),
+                                (true, false) => t.setupNextPaydayOrMoreMonthly(
+                                  sayFullDate(t, next!),
+                                  money(preview.amountOn(next)),
+                                  money(preview.perMonth),
+                                ),
+                              },
+                    key: const ValueKey('pay-summary'),
+                    style: onest(
+                      13,
+                      color: _problem == null ? Mid.ink2 : Mid.ink3,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  // Self-employed or between jobs: say so once, and
+                  // nothing asks for pay again (Settings undoes it).
+                  if (widget.existing == null && widget.offerNoPay)
+                    BarButton(
+                      key: const ValueKey('pay-none'),
+                      label: t.setupNoRegularPay,
+                      onTap: () => widget.onResult(const PayNone()),
+                    ),
+                  if (widget.existing != null)
+                    BarButton(
+                      key: const ValueKey('pay-stop'),
+                      label: t.setupStopPay,
+                      color: Mid.coral,
+                      onTap: _stop,
+                    ),
+                  const Spacer(),
+                  if (widget.onCancel case final cancel?)
+                    BarButton(
+                      key: const ValueKey('pay-cancel'),
+                      label: t.setupCancel,
+                      onTap: cancel,
+                    ),
+                  Opacity(
+                    opacity: _problem == null ? 1 : 0.5,
+                    child: _PrimaryButton(
+                      key: const ValueKey('pay-save'),
+                      label: t.setupSavePay,
+                      icon: Icons.check_rounded,
+                      tooltip: 'Enter',
+                      onTap: _save,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  /// On setup's page the form has the card beside it, in the person's own
+  /// figures (owner, 2026-10-28, #323: "a teaching moment"); a dialog has
+  /// no room for it.
+  Widget _withCard(Words t, PaySchedule? preview, DateTime? next, Widget form) {
+    if (!widget.page) return form;
+    String money(int v) => formatShort(v, currency: _account.currency);
+    final amount = preview == null || next == null
+        ? null
+        : money(preview.amountOn(next));
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: 560, child: form),
+        const SizedBox(width: 24),
+        if (!_noDay && preview != null && next != null && amount != null)
+          SizedBox(
+            width: 340,
+            child: _PayCard(
+              key: const ValueKey('pay-card'),
+              forecast: _varies
+                  ? t.setupCardForecastLineMin(amount, sayFullDate(t, next))
+                  : t.setupCardForecastLine(amount, sayFullDate(t, next)),
+              budget: _varies
+                  ? t.setupCardBudgetLineMin(money(preview.perMonth))
+                  : t.setupCardBudgetLine(money(preview.perMonth)),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// What the app does with the pay being typed: one line each for the
+/// forecast and the budget.
+class _PayCard extends StatelessWidget {
+  const _PayCard({super.key, required this.forecast, required this.budget});
+
+  final String forecast;
+  final String budget;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    Widget part(String head, String line) => Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(head, style: onest(12.5, weight: 600, color: Mid.ink3)),
+          const SizedBox(height: 2),
+          Text(line, style: onest(13.5, color: Mid.ink)),
+        ],
+      ),
+    );
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      decoration: BoxDecoration(
+        color: Mid.raised,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Mid.ink2.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          part(t.setupCardForecast, forecast),
+          part(t.setupCardBudget, budget),
+        ],
       ),
     );
   }

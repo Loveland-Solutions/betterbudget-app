@@ -378,6 +378,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('pay-arrives')), findsOneWidget);
+    // Nothing to say about it until there is an amount.
+    expect(find.byKey(const ValueKey('pay-card')), findsNothing);
     // Two answers and nothing else: no Cancel, no Open my ledger.
     expect(find.byKey(const ValueKey('pay-none')), findsOneWidget);
     expect(find.byKey(const ValueKey('pay-cancel')), findsNothing);
@@ -387,6 +389,22 @@ void main() {
       find.byKey(const ValueKey('pay-amount')),
       '2,100,000',
     );
+    await tester.pumpAndSettle();
+    // The card says what the forecast and the budget do with it, in these
+    // figures (#323).
+    expect(find.byKey(const ValueKey('pay-card')), findsOneWidget);
+    expect(find.textContaining('coming in on'), findsOneWidget);
+    expect(
+      find.text('Counts ₮2,100,000 a month as your income.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('pay-varies')));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Shows at least ₮2,100,000 coming in'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('pay-same')));
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(LedgerScreen),
@@ -495,10 +513,7 @@ void main() {
     // Every paycheck has a name: Save waits, and says so.
     await tester.enterText(find.byKey(const ValueKey('pay-amount')), '900,000');
     await tester.pumpAndSettle();
-    expect(
-      find.text('Enter a name.'),
-      findsOneWidget,
-    );
+    expect(find.text('Enter a name.'), findsOneWidget);
     await press(tester, 'pay-save');
     expect((await ledger(tester, db)).paySchedules, isEmpty);
     // It varies, and comes when it comes.

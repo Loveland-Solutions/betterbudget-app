@@ -3096,7 +3096,7 @@ class WordsMn extends Words {
   String get setupAskAgain => 'Дахин асуух';
 
   @override
-  String get setupAddOtherPay => 'Өөр тогтмол орлого нэмэх';
+  String get setupAddOtherPay => 'Тогтмол орлого нэмэх';
 
   @override
   String get startKeyFileName => 'BetterBudget сэргээх түлхүүр.txt';
@@ -5032,6 +5032,32 @@ class WordsMn extends Words {
   @override
   String get setupPayArrives =>
       'Дансанд орж ирдэг дүн; татвар, НДШ суутгахаас өмнөх дүн биш.';
+
+  @override
+  String get setupCardForecast => 'Төсөөлөл';
+
+  @override
+  String get setupCardBudget => 'Төсөв';
+
+  @override
+  String setupCardForecastLine(String amount, String date) {
+    return '$date-нд $amount орж ирнэ гэж харуулна, түүнээс хойш орлого орох өдөр бүр.';
+  }
+
+  @override
+  String setupCardForecastLineMin(String amount, String date) {
+    return '$date-нд хамгийн багадаа $amount орж ирнэ гэж харуулна, түүнээс хойш орлого орох өдөр бүр.';
+  }
+
+  @override
+  String setupCardBudgetLine(String amount) {
+    return 'Сард $amount-ийг таны орлого гэж тооцно.';
+  }
+
+  @override
+  String setupCardBudgetLineMin(String amount) {
+    return 'Сард хамгийн багадаа $amount-ийг таны орлого гэж тооцно.';
+  }
 
   @override
   String get setupPayNeedsAccount =>

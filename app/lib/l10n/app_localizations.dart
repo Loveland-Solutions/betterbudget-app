@@ -4458,7 +4458,7 @@ abstract class Words {
   /// Budget page, Income tab, the add button when some pay is already set up.
   ///
   /// In en, this message translates to:
-  /// **'Add other regular income'**
+  /// **'Add regular income'**
   String get setupAddOtherPay;
 
   /// Suggested file name in the Save dialog when saving the recovery key to a text file. Keep .txt.
@@ -7413,6 +7413,42 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'The amount that lands in the account, not the amount before tax.'**
   String get setupPayArrives;
+
+  /// Pay setup card, heading of the forecast's part.
+  ///
+  /// In en, this message translates to:
+  /// **'Forecast'**
+  String get setupCardForecast;
+
+  /// Pay setup card, heading of the budget's part.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget'**
+  String get setupCardBudget;
+
+  /// Pay setup card. date is a full date in a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows {amount} coming in on {date}, and on every payday after.'**
+  String setupCardForecastLine(String amount, String date);
+
+  /// Pay setup card, for an amount that varies.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows at least {amount} coming in on {date}, and on every payday after.'**
+  String setupCardForecastLineMin(String amount, String date);
+
+  /// Pay setup card.
+  ///
+  /// In en, this message translates to:
+  /// **'Counts {amount} a month as your income.'**
+  String setupCardBudgetLine(String amount);
+
+  /// Pay setup card, for an amount that varies.
+  ///
+  /// In en, this message translates to:
+  /// **'Counts at least {amount} a month as your income.'**
+  String setupCardBudgetLineMin(String amount);
 
   /// Setup, Pay step, when the only accounts are credit cards or loans. “Accounts” is the first step’s name, “Cash” the account Type.
   ///

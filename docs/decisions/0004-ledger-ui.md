@@ -5012,6 +5012,22 @@ languages. (The 0.15.0 note above records why the line exists.) The same day: th
 under a form with no name said "Give it a name, like Jenny's job or Child support.", which
 repeated the Name field's own hint, so it is **Enter a name.**
 
+## Setup's Pay step has a card beside the form (owner, 2026-11-11, #323)
+
+The owner: setting up the first income "should be a teaching moment". Offered three
+sketches, they chose **A**: a card to the right of the form, in setup only, filled in as
+the amount is typed and shown only once there is one. It says what the forecast does
+("Shows ₮2,100,000 coming in on 10.23, and on every payday after.") and what Budget does
+("Counts ₮2,100,000 a month as your income."), in their figures; under **It varies** both
+say "at least". Their corrections on seeing it: the line under the form ("Next payday …")
+is dropped on this page, since the card says it; the card's first wording ("Your plans
+are checked against it", a title "What BetterBudget does with this") "is kind of
+worthless and in AI-speak", so there is no title and the lines say plain facts. Not on
+Budget's window (too narrow), not on the phone (it has no setup). *Rejected:* a line
+under each field (B), teaching only after Save (C). The Mongolian waits on Tanan (#90).
+The button on Budget's Income tab says **Add regular income**, not "Add other…" (owner:
+"What is 'other regular income'?"); its place is #436.
+
 ## The phone says what hasn't reached the computer (owner, 2026-10-30)
 
 On "1 entry isn't in your ledger yet" under the phone's Save: "ledger isn't a common

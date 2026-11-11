@@ -352,7 +352,7 @@ class _SetupPageState extends State<_SetupPage> {
         const SizedBox(height: 16),
         if (open)
           SizedBox(
-            width: 560,
+            width: 924,
             child: _PayForm(
               key: ValueKey('setup-pay-form-${editing?.id}'),
               page: true,
