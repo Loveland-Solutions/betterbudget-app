@@ -7638,6 +7638,12 @@
   "@setupPayNeedsAccount": {
     "description": "Setup, Pay step, when the only accounts are credit cards or loans. “Accounts” is the first step’s name, “Cash” the account Type."
   },
+  "setupCardForecastSplit": "Shows {amounts}, starting {date}.",
+  "@setupCardForecastSplit": {"description": "Pay setup card, for pay that differs between its two days. amounts is e.g. '₮500,000 on the 10th and ₮1,600,000 on the 25th'; date is a full date.", "placeholders": {"amounts": {"type": "String"}, "date": {"type": "String"}}},
+  "setupCardBudgetEachPayday": "Counts {amount} for each payday that falls in the month.",
+  "@setupCardBudgetEachPayday": {"description": "Pay setup card, for pay every few weeks, where a month holds two, three or more paydays.", "placeholders": {"amount": {"type": "String"}}},
+  "setupCardBudgetEachPaydayMin": "Counts at least {amount} for each payday that falls in the month.",
+  "@setupCardBudgetEachPaydayMin": {"description": "Pay setup card, the same for an amount that varies.", "placeholders": {"amount": {"type": "String"}}},
   "setupNoRegularPayLine": "No regular income",
   "@setupNoRegularPayLine": {
     "description": "Setup, Pay step: the one line shown after “I don’t have regular pay” was chosen, with an “Add your pay” button beside it."

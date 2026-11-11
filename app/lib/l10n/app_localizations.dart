@@ -7456,6 +7456,24 @@ abstract class Words {
   /// **'Income goes into a bank account or Cash. Add one on Accounts to set up your regular income.'**
   String get setupPayNeedsAccount;
 
+  /// Pay setup card, for pay that differs between its two days. amounts is e.g. '₮500,000 on the 10th and ₮1,600,000 on the 25th'; date is a full date.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows {amounts}, starting {date}.'**
+  String setupCardForecastSplit(String amounts, String date);
+
+  /// Pay setup card, for pay every few weeks, where a month holds two, three or more paydays.
+  ///
+  /// In en, this message translates to:
+  /// **'Counts {amount} for each payday that falls in the month.'**
+  String setupCardBudgetEachPayday(String amount);
+
+  /// Pay setup card, the same for an amount that varies.
+  ///
+  /// In en, this message translates to:
+  /// **'Counts at least {amount} for each payday that falls in the month.'**
+  String setupCardBudgetEachPaydayMin(String amount);
+
   /// Setup, Pay step: the one line shown after “I don’t have regular pay” was chosen, with an “Add your pay” button beside it.
   ///
   /// In en, this message translates to:

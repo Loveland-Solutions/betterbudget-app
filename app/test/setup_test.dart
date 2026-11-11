@@ -356,6 +356,48 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('the card names both amounts of split pay, and counts every '
+      'payday of pay every few weeks (#323)', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await toPay(tester);
+    await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
+    await tester.enterText(find.byKey(const ValueKey('pay-amount')), '500000');
+    await tester.tap(find.byKey(const ValueKey('pay-twice')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('pay-amount-split')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('pay-amount2')),
+      '1600000',
+    );
+    await tester.pumpAndSettle();
+    // Not "₮500,000 on every payday": the two days' amounts differ.
+    expect(
+      find.textContaining('₮500,000 on the 10th and ₮1,600,000 on the 25th'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Counts ₮2,100,000 a month as your income.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('pay-weeks')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('pay-weeks-n')), '2');
+    await tester.enterText(find.byKey(const ValueKey('pay-anchor')), '10.30');
+    await tester.enterText(find.byKey(const ValueKey('pay-amount')), '500000');
+    await tester.pumpAndSettle();
+    // A month holds two paydays, or three: not "a month".
+    expect(
+      find.text('Counts ₮500,000 for each payday that falls in the month.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('pay-none')));
+    await tester.pumpAndSettle();
+    await tidy(tester, db);
+  });
+
   testWidgets('Continue goes on to Your pay, the form on the page, and Save '
       'pay lists it', (tester) async {
     final db = AppDatabase(NativeDatabase.memory());

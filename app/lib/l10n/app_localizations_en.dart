@@ -5225,6 +5225,21 @@ class WordsEn extends Words {
       'Income goes into a bank account or Cash. Add one on Accounts to set up your regular income.';
 
   @override
+  String setupCardForecastSplit(String amounts, String date) {
+    return 'Shows $amounts, starting $date.';
+  }
+
+  @override
+  String setupCardBudgetEachPayday(String amount) {
+    return 'Counts $amount for each payday that falls in the month.';
+  }
+
+  @override
+  String setupCardBudgetEachPaydayMin(String amount) {
+    return 'Counts at least $amount for each payday that falls in the month.';
+  }
+
+  @override
   String get setupNoRegularPayLine => 'No regular income';
 
   @override

@@ -897,10 +897,21 @@ class _PayFormState extends State<_PayForm> {
             width: 340,
             child: _PayCard(
               key: const ValueKey('pay-card'),
-              forecast: _varies
+              forecast: preview.split
+                  ? t.setupCardForecastSplit(
+                      payAmounts(t, preview, money),
+                      sayFullDate(t, next),
+                    )
+                  : _varies
                   ? t.setupCardForecastLineMin(amount, sayFullDate(t, next))
                   : t.setupCardForecastLine(amount, sayFullDate(t, next)),
-              budget: _varies
+              // Every few weeks a month holds two paydays, or three: Budget
+              // counts the ones that fall in it, so it isn't "a month".
+              budget: preview.rule == PayRule.everyWeeks
+                  ? (_varies
+                        ? t.setupCardBudgetEachPaydayMin(amount)
+                        : t.setupCardBudgetEachPayday(amount))
+                  : _varies
                   ? t.setupCardBudgetLineMin(money(preview.perMonth))
                   : t.setupCardBudgetLine(money(preview.perMonth)),
             ),

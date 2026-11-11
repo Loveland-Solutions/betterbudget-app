@@ -5064,6 +5064,21 @@ class WordsMn extends Words {
       'Орлого банкны данс эсвэл бэлэн мөнгөний дансанд орно. Тогтмол орлогоо тохируулахын тулд «Дансууд» алхамд нэгийг нэмээрэй.';
 
   @override
+  String setupCardForecastSplit(String amounts, String date) {
+    return '$date-аас эхлэн $amounts орж ирнэ гэж харуулна.';
+  }
+
+  @override
+  String setupCardBudgetEachPayday(String amount) {
+    return 'Тухайн сард орох өдөр бүрийн $amount-ийг таны орлого гэж тооцно.';
+  }
+
+  @override
+  String setupCardBudgetEachPaydayMin(String amount) {
+    return 'Тухайн сард орох өдөр бүрийн хамгийн багадаа $amount-ийг таны орлого гэж тооцно.';
+  }
+
+  @override
   String get setupNoRegularPayLine => 'Тогтмол орлогогүй';
 
   @override
