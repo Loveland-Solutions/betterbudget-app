@@ -5721,9 +5721,13 @@ open on the issue: draw it, and name it.
 - **The ⓘ gains a sentence**, said only while there is a band to see: the shaded band is
   what your budget plans to spend, which has no date of its own.
 
-Left for later (#398 keeps it): the bill list's **Balance after** column still has each
-row's balance carrying that day's spending, so a −₮350,000 row can be followed by a
-balance that fell ₮480,000. The chart and the key line now tie; the list's column doesn't.
+**The bill list's Balance after ties too** (0.83.3, #398; a refinement of the owner's
+call, not a new one): the budget's spending is a quiet line of its own between the bills
+(**Day-to-day −₮480,000**, the date it runs to, the balance it leaves, nothing to open),
+one for each stretch of it between two bills. Every balance in the list now follows from
+the one above, and the last ties to the end balance. Rejected: showing balances from the
+dated rows alone, which would have left the list's last balance short of the header's.
+The chart's hover card for a bill still shows the balance with spending before it counted.
 
 ## The header stands forward: Working first, a live chart (owner, 2026-11-10, #421)
 
