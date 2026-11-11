@@ -997,7 +997,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                   _StartOffer(
                     text: t.planStartOffer(
                       money(budget.unassignedSpent.amount),
-                      '${budget.unassignedSpent.count}',
+                      budget.unassignedSpent.count,
                     ),
                     later: t.planStartLater(
                       sayDate(t, nextBudgetPeriod(period, by).start),
