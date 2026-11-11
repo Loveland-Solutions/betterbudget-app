@@ -16,7 +16,15 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'forecast.dart' show ForecastSpan;
-import 'ledger.dart' show alreadyInDays, billNotItPrefix, billPrefsPrefix;
+import 'ledger.dart'
+    show
+        alreadyInDays,
+        billNotItPrefix,
+        billPrefsPrefix,
+        billSkippedPrefix,
+        billSkippedValue,
+        dateKey,
+        decodeBillSkipped;
 import 'phone.dart'
     show
         PhoneTaken,
@@ -355,6 +363,30 @@ const _keyedById = [
 bool _valueIsId(String key) =>
     key == 'ready.fundCategories' || key.startsWith('budget.loan.');
 
+/// A skipped bill's setting (#357) after the category it names, [from],
+/// has become [to]: its value holds the category, and one for a bill with
+/// no row yet holds it in its key too. Any other setting comes back as it
+/// was.
+(String, String) _skipNames(
+  String key,
+  String value,
+  Object? from,
+  Object? to,
+) {
+  if (!key.startsWith(billSkippedPrefix)) return (key, value);
+  final skip = decodeBillSkipped(value);
+  if (skip == null || '${skip.category}' != '$from') return (key, value);
+  final toId = int.tryParse('$to');
+  if (toId == null) return (key, value);
+  final day = '${billSkippedPrefix}day.$from.';
+  return (
+    key.startsWith(day)
+        ? '${billSkippedPrefix}day.$to.${key.substring(day.length)}'
+        : key,
+    billSkippedValue(toId, skip.date),
+  );
+}
+
 bool _same(Row? a, Row? b) {
   if (a == null || b == null) return a == null && b == null;
   if (a.length != b.length) return false;
@@ -572,6 +604,7 @@ class _Combine {
     }
     _resolve();
     _moveToReplacements();
+    _skipScheduled();
     _checkTransactions();
     // Against what the other computer really has: a version chosen from it
     // mustn't put a row in a deleted account or inside a statement.
@@ -906,6 +939,55 @@ class _Combine {
         }
       }
     }
+    // A bill skipped here for a category the other computer has since made
+    // one with its own.
+    for (final e in (_replaced['accounts'] ?? const {}).entries) {
+      for (final r in result['preferences']!.values.toList()) {
+        final (key, value) = _skipNames(
+          r['key'] as String,
+          r['value'] as String,
+          e.key,
+          e.value,
+        );
+        if (value == r['value']) continue;
+        if (key == r['key']) {
+          _update('preferences', {...r, 'value': value});
+        } else {
+          _delete('preferences', r);
+          _insert('preferences', {'key': key, 'value': value});
+        }
+      }
+    }
+  }
+
+  /// One computer skipped a bill that had no row yet (a setting by the
+  /// bill's date) while the other scheduled its row: the person's skip
+  /// stands, as it does on a bill with a row. The row is put away and the
+  /// setting becomes the one a skip of a row makes (#363).
+  void _skipScheduled() {
+    const day = '${billSkippedPrefix}day.';
+    for (final p in result['preferences']!.values.toList()) {
+      final key = p['key'] as String;
+      if (!key.startsWith(day)) continue;
+      final skip = decodeBillSkipped('${p['value']}');
+      if (skip == null) continue;
+      final date = dateKey(skip.date);
+      final rows = result['transactions']!.values.where(
+        (t) =>
+            t['scheduled'] == 1 &&
+            t['deleted_at'] == null &&
+            '${t['plan_category_id']}' == '${skip.category}' &&
+            '${t['date']}'.startsWith(date),
+      );
+      final row = rows.firstOrNull;
+      if (row == null) continue;
+      _update('transactions', {...row, 'deleted_at': row['updated_at']});
+      _delete('preferences', p);
+      _insert('preferences', {
+        'key': '$billSkippedPrefix${row['id']}',
+        'value': '${p['value']}',
+      });
+    }
   }
 
   /// The folder's ledger has to have come from the agreed one by ordinary
@@ -1026,6 +1108,7 @@ class _Combine {
         if (key == '$prefix$from') key = '$prefix$to';
       }
       if (_valueIsId(key) && value == '$from') value = '$to';
+      (key, value) = _skipNames(key, value, from, to);
       if (key == phoneTakenKey) {
         final taken = PhoneTaken.decode(value);
         value = PhoneTaken.encode({

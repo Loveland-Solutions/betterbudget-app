@@ -697,6 +697,68 @@ void main() {
       );
     });
 
+    test('a bill skipped for a category both made keeps its skip (#363)', () {
+      mine['accounts']!.add(account(51, 'Coffee', type: 'expense'));
+      theirs['accounts']!.add(account(52, 'coffee', type: 'expense'));
+      theirs['preferences']!
+        ..add(pref('bill.skipped.70', '52;2026-12-15'))
+        ..add(pref('bill.skipped.day.52.2027-01-15', '52;2027-01-15'));
+      final result = combined();
+      final prefs = {
+        for (final p in result['preferences']!) p['key']: p['value'],
+      };
+      expect(prefs['bill.skipped.70'], '51;2026-12-15');
+      expect(prefs['bill.skipped.day.51.2027-01-15'], '51;2027-01-15');
+      expect(prefs.keys, isNot(contains('bill.skipped.day.52.2027-01-15')));
+    });
+
+    test('a skipped bill here, for a category the other made one with its '
+        'own, follows it (#363)', () {
+      base['accounts']!.add(account(51, 'Coffee', type: 'expense'));
+      base['preferences']!.add(
+        pref('bill.skipped.day.51.2027-01-15', '51;2027-01-15'),
+      );
+      mine = copy(base);
+      theirs = copy(base);
+      theirs['accounts']!
+        ..removeWhere((a) => a['id'] == 51)
+        ..add(account(52, 'Coffee', type: 'expense'));
+      mine['preferences']!.add(pref('bill.skipped.71', '51;2026-12-15'));
+      final found = run();
+      expect(found.conflict, isNull);
+      final prefs = {
+        for (final p in after(mine, found.ops)['preferences']!)
+          p['key']: p['value'],
+      };
+      expect(prefs['bill.skipped.71'], '52;2026-12-15');
+      expect(prefs['bill.skipped.day.52.2027-01-15'], '52;2027-01-15');
+    });
+
+    test('a bill skipped here before it had a row, scheduled there: the skip '
+        'stands and the row is put away (#363)', () {
+      base['accounts']!.add(account(51, 'Rent', type: 'expense'));
+      mine = copy(base);
+      theirs = copy(base);
+      mine['preferences']!.add(
+        pref('bill.skipped.day.51.2026-12-15', '51;2026-12-15'),
+      );
+      theirs['transactions']!.add(
+        txn(80, '2026-12-15', scheduled: 1, plan: 51),
+      );
+      theirs['entries']!
+        ..add(entry(800, 80, 1, -90000))
+        ..add(entry(801, 80, 51, 90000));
+      final found = run();
+      expect(found.conflict, isNull);
+      final result = after(mine, found.ops);
+      expect(row(result, 'transactions', 80)['deleted_at'], isNotNull);
+      final prefs = {
+        for (final p in result['preferences']!) p['key']: p['value'],
+      };
+      expect(prefs['bill.skipped.80'], '51;2026-12-15');
+      expect(prefs.keys, isNot(contains('bill.skipped.day.51.2026-12-15')));
+    });
+
     test('a phone’s entry both took in and one changed is asked about', () {
       String taken(String entry) => PhoneTaken.encode({
         'pixel': PhoneTaken(entries: {entry}),

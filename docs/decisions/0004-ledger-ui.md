@@ -5209,9 +5209,11 @@ Leftovers settled (#363, no new question to the owner):
   balance is still owed" on the line, and "No Visa card payment on 11.20. The balance is still
   owed. The next one is due 12.20." in the popup, which doesn't say what stays set aside.
   The Mongolian waits on Tanan (#90).
-- **Left on #363:** the two cases of two computers combining (a bill skipped on one while the
-  other schedules it; a category made on both losing a skip), which are rare and want the
-  combine rules looked at, not a patch here.
+- **Two computers combining** (#363's last two): a bill skipped on one before it had a row,
+  while the other scheduled its row, ends skipped on both: the skip is the person's decision,
+  so the row is put away as a skip of a row does it. A category made on both under two ids (one a
+  phone made, taken in by both) keeps its skipped bills, which name the category by id.
+  Nothing new is asked or said (`_skipScheduled`, `_skipNames` in `domain/combine.dart`).
 
 ## Amounts group in thousands as they're typed (owner, 2026-10-28, #324)
 
