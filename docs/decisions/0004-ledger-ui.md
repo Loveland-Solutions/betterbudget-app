@@ -5002,6 +5002,16 @@ a pension or a benefit too. "Pay a bill", the debt steps' "pay off", and the ret
 step's "from your pay" and employer match, which are about a job, stay. *Rejected:*
 "planned income" (the app's word, not the one people say).
 
+## The amount's hint is one sentence (owner, 2026-11-11, #325)
+
+Under the pay form's amount: "The amount that lands in the account, not the amount before
+tax. A loan payment the bank takes afterwards is a bill." The owner: the second sentence
+"is nonsensical". It answered a case most people don't have in the app's own word, "bill",
+which a newcomer hasn't learned. The hint is now only the first sentence, in both
+languages. (The 0.15.0 note above records why the line exists.) The same day: the line
+under a form with no name said "Give it a name, like Jenny's job or Child support.", which
+repeated the Name field's own hint, so it is **Enter a name.**
+
 ## The phone says what hasn't reached the computer (owner, 2026-10-30)
 
 On "1 entry isn't in your ledger yet" under the phone's Save: "ledger isn't a common

@@ -4356,7 +4356,7 @@ abstract class Words {
   /// Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name.
   ///
   /// In en, this message translates to:
-  /// **'Give it a name, like Jenny’s job or Child support.'**
+  /// **'Enter a name.'**
   String get setupNameMissing;
 
   /// Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”.
@@ -7411,7 +7411,7 @@ abstract class Words {
   /// Setup, Pay step, under the amount of a paycheck: the figure wanted is the deposit as the bank statement shows it, not the salary before tax and social insurance. A loan payment the bank takes after the pay lands is entered later as a bill, so it must not be taken off here.
   ///
   /// In en, this message translates to:
-  /// **'The amount that lands in the account, not the amount before tax. A loan payment the bank takes afterwards is a bill.'**
+  /// **'The amount that lands in the account, not the amount before tax.'**
   String get setupPayArrives;
 
   /// Setup, Pay step, when the only accounts are credit cards or loans. “Accounts” is the first step’s name, “Cash” the account Type.
