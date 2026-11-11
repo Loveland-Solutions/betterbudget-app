@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-10** · version 0.83.0 · schema v25 · 1054 tests pass
+**Last updated: 2026-11-11** · version 0.83.2 · schema v25 · 1054 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -63,8 +63,8 @@ part, `Money out −₮2,790,200 · To spend −₮948,387 · Money in +₮2,500
 the rail because it has no date; the ⓘ gains one sentence while there is a band to see.
 The computer only. **Still on #398**: the bill list's **Balance after** column has each
 row's balance carrying that day's spending, so a −₮350,000 row can be followed by a
-balance that fell ₮480,000. **#389 is next**: a row added while a filter tab is on
-vanishes without saying so.
+balance that fell ₮480,000. **#389 is built** (0.83.2): a row added while a filter tab
+won't list it says "not in this view" in its toast, as it does for a search.
 
 **The forecast's chart does the talking** (0.78.0, #392; ADR 0004 of the same name): the
 card's picture used to contradict its own figures — the balance ran ₮5,418,682 →
@@ -118,8 +118,7 @@ categorized** coral, the one you're on filled deeper with a full outline and its
 in 600. The closable Cleared and Reconciled tab keeps the plain ink chip and leads with
 its glyph, so gold still says "done" on the diamond. By day gold is `#866100`, so
 Scheduled reads brown-olive; at night it is the coins' gold. The computer only. No
-schema change. Known and not fixed here: a row added while a filter is on saves,
-doesn't appear and says nothing (#389).
+schema change.
 
 **Amounts group as they're typed** (0.74.0, #324; ADR 0004 "Amounts group in thousands as
 they're typed"): every money field on the computer, and the phone's New category, shows
