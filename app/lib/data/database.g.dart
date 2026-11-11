@@ -1017,6 +1017,103 @@ class $PaySchedulesTable extends PaySchedules
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _everyMonthsMeta = const VerificationMeta(
+    'everyMonths',
+  );
+  @override
+  late final GeneratedColumn<int> everyMonths = GeneratedColumn<int>(
+    'every_months',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _everyDaysMeta = const VerificationMeta(
+    'everyDays',
+  );
+  @override
+  late final GeneratedColumn<int> everyDays = GeneratedColumn<int>(
+    'every_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _onDatesMeta = const VerificationMeta(
+    'onDates',
+  );
+  @override
+  late final GeneratedColumn<String> onDates = GeneratedColumn<String>(
+    'on_dates',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _monthDaysMeta = const VerificationMeta(
+    'monthDays',
+  );
+  @override
+  late final GeneratedColumn<String> monthDays = GeneratedColumn<String>(
+    'month_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _weekdaysMeta = const VerificationMeta(
+    'weekdays',
+  );
+  @override
+  late final GeneratedColumn<String> weekdays = GeneratedColumn<String>(
+    'weekdays',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nthMeta = const VerificationMeta('nth');
+  @override
+  late final GeneratedColumn<int> nth = GeneratedColumn<int>(
+    'nth',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nthWeekdayMeta = const VerificationMeta(
+    'nthWeekday',
+  );
+  @override
+  late final GeneratedColumn<int> nthWeekday = GeneratedColumn<int>(
+    'nth_weekday',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<String> endDate = GeneratedColumn<String>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endCountMeta = const VerificationMeta(
+    'endCount',
+  );
+  @override
+  late final GeneratedColumn<int> endCount = GeneratedColumn<int>(
+    'end_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1057,6 +1154,15 @@ class $PaySchedulesTable extends PaySchedules
     weekendBefore,
     weekendKeep,
     definesPeriod,
+    everyMonths,
+    everyDays,
+    onDates,
+    monthDays,
+    weekdays,
+    nth,
+    nthWeekday,
+    endDate,
+    endCount,
     createdAt,
     deletedAt,
   ];
@@ -1180,6 +1286,63 @@ class $PaySchedulesTable extends PaySchedules
         ),
       );
     }
+    if (data.containsKey('every_months')) {
+      context.handle(
+        _everyMonthsMeta,
+        everyMonths.isAcceptableOrUnknown(
+          data['every_months']!,
+          _everyMonthsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('every_days')) {
+      context.handle(
+        _everyDaysMeta,
+        everyDays.isAcceptableOrUnknown(data['every_days']!, _everyDaysMeta),
+      );
+    }
+    if (data.containsKey('on_dates')) {
+      context.handle(
+        _onDatesMeta,
+        onDates.isAcceptableOrUnknown(data['on_dates']!, _onDatesMeta),
+      );
+    }
+    if (data.containsKey('month_days')) {
+      context.handle(
+        _monthDaysMeta,
+        monthDays.isAcceptableOrUnknown(data['month_days']!, _monthDaysMeta),
+      );
+    }
+    if (data.containsKey('weekdays')) {
+      context.handle(
+        _weekdaysMeta,
+        weekdays.isAcceptableOrUnknown(data['weekdays']!, _weekdaysMeta),
+      );
+    }
+    if (data.containsKey('nth')) {
+      context.handle(
+        _nthMeta,
+        nth.isAcceptableOrUnknown(data['nth']!, _nthMeta),
+      );
+    }
+    if (data.containsKey('nth_weekday')) {
+      context.handle(
+        _nthWeekdayMeta,
+        nthWeekday.isAcceptableOrUnknown(data['nth_weekday']!, _nthWeekdayMeta),
+      );
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('end_count')) {
+      context.handle(
+        _endCountMeta,
+        endCount.isAcceptableOrUnknown(data['end_count']!, _endCountMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1269,6 +1432,42 @@ class $PaySchedulesTable extends PaySchedules
         DriftSqlType.bool,
         data['${effectivePrefix}defines_period'],
       )!,
+      everyMonths: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}every_months'],
+      ),
+      everyDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}every_days'],
+      ),
+      onDates: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}on_dates'],
+      ),
+      monthDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}month_days'],
+      ),
+      weekdays: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}weekdays'],
+      ),
+      nth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nth'],
+      ),
+      nthWeekday: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nth_weekday'],
+      ),
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_date'],
+      ),
+      endCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}end_count'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -1319,6 +1518,18 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
   /// is). Since v17 a view only: each set amount's own period is in its
   /// plan ([CategoryPlans.payScheduleId]).
   final bool definesPeriod;
+
+  /// How a custom pay repeats, as a category's plan says it; null unless
+  /// [rule] is custom (v26, #438). The first payday is [anchor].
+  final int? everyMonths;
+  final int? everyDays;
+  final String? onDates;
+  final String? monthDays;
+  final String? weekdays;
+  final int? nth;
+  final int? nthWeekday;
+  final String? endDate;
+  final int? endCount;
   final int createdAt;
   final int? deletedAt;
   const PayScheduleRow({
@@ -1338,6 +1549,15 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     required this.weekendBefore,
     required this.weekendKeep,
     required this.definesPeriod,
+    this.everyMonths,
+    this.everyDays,
+    this.onDates,
+    this.monthDays,
+    this.weekdays,
+    this.nth,
+    this.nthWeekday,
+    this.endDate,
+    this.endCount,
     required this.createdAt,
     this.deletedAt,
   });
@@ -1372,6 +1592,33 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     map['weekend_before'] = Variable<bool>(weekendBefore);
     map['weekend_keep'] = Variable<bool>(weekendKeep);
     map['defines_period'] = Variable<bool>(definesPeriod);
+    if (!nullToAbsent || everyMonths != null) {
+      map['every_months'] = Variable<int>(everyMonths);
+    }
+    if (!nullToAbsent || everyDays != null) {
+      map['every_days'] = Variable<int>(everyDays);
+    }
+    if (!nullToAbsent || onDates != null) {
+      map['on_dates'] = Variable<String>(onDates);
+    }
+    if (!nullToAbsent || monthDays != null) {
+      map['month_days'] = Variable<String>(monthDays);
+    }
+    if (!nullToAbsent || weekdays != null) {
+      map['weekdays'] = Variable<String>(weekdays);
+    }
+    if (!nullToAbsent || nth != null) {
+      map['nth'] = Variable<int>(nth);
+    }
+    if (!nullToAbsent || nthWeekday != null) {
+      map['nth_weekday'] = Variable<int>(nthWeekday);
+    }
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<String>(endDate);
+    }
+    if (!nullToAbsent || endCount != null) {
+      map['end_count'] = Variable<int>(endCount);
+    }
     map['created_at'] = Variable<int>(createdAt);
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<int>(deletedAt);
@@ -1403,6 +1650,31 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       weekendBefore: Value(weekendBefore),
       weekendKeep: Value(weekendKeep),
       definesPeriod: Value(definesPeriod),
+      everyMonths: everyMonths == null && nullToAbsent
+          ? const Value.absent()
+          : Value(everyMonths),
+      everyDays: everyDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(everyDays),
+      onDates: onDates == null && nullToAbsent
+          ? const Value.absent()
+          : Value(onDates),
+      monthDays: monthDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(monthDays),
+      weekdays: weekdays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weekdays),
+      nth: nth == null && nullToAbsent ? const Value.absent() : Value(nth),
+      nthWeekday: nthWeekday == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nthWeekday),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      endCount: endCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endCount),
       createdAt: Value(createdAt),
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
@@ -1434,6 +1706,15 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       weekendBefore: serializer.fromJson<bool>(json['weekendBefore']),
       weekendKeep: serializer.fromJson<bool>(json['weekendKeep']),
       definesPeriod: serializer.fromJson<bool>(json['definesPeriod']),
+      everyMonths: serializer.fromJson<int?>(json['everyMonths']),
+      everyDays: serializer.fromJson<int?>(json['everyDays']),
+      onDates: serializer.fromJson<String?>(json['onDates']),
+      monthDays: serializer.fromJson<String?>(json['monthDays']),
+      weekdays: serializer.fromJson<String?>(json['weekdays']),
+      nth: serializer.fromJson<int?>(json['nth']),
+      nthWeekday: serializer.fromJson<int?>(json['nthWeekday']),
+      endDate: serializer.fromJson<String?>(json['endDate']),
+      endCount: serializer.fromJson<int?>(json['endCount']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       deletedAt: serializer.fromJson<int?>(json['deletedAt']),
     );
@@ -1460,6 +1741,15 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       'weekendBefore': serializer.toJson<bool>(weekendBefore),
       'weekendKeep': serializer.toJson<bool>(weekendKeep),
       'definesPeriod': serializer.toJson<bool>(definesPeriod),
+      'everyMonths': serializer.toJson<int?>(everyMonths),
+      'everyDays': serializer.toJson<int?>(everyDays),
+      'onDates': serializer.toJson<String?>(onDates),
+      'monthDays': serializer.toJson<String?>(monthDays),
+      'weekdays': serializer.toJson<String?>(weekdays),
+      'nth': serializer.toJson<int?>(nth),
+      'nthWeekday': serializer.toJson<int?>(nthWeekday),
+      'endDate': serializer.toJson<String?>(endDate),
+      'endCount': serializer.toJson<int?>(endCount),
       'createdAt': serializer.toJson<int>(createdAt),
       'deletedAt': serializer.toJson<int?>(deletedAt),
     };
@@ -1482,6 +1772,15 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     bool? weekendBefore,
     bool? weekendKeep,
     bool? definesPeriod,
+    Value<int?> everyMonths = const Value.absent(),
+    Value<int?> everyDays = const Value.absent(),
+    Value<String?> onDates = const Value.absent(),
+    Value<String?> monthDays = const Value.absent(),
+    Value<String?> weekdays = const Value.absent(),
+    Value<int?> nth = const Value.absent(),
+    Value<int?> nthWeekday = const Value.absent(),
+    Value<String?> endDate = const Value.absent(),
+    Value<int?> endCount = const Value.absent(),
     int? createdAt,
     Value<int?> deletedAt = const Value.absent(),
   }) => PayScheduleRow(
@@ -1501,6 +1800,15 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     weekendBefore: weekendBefore ?? this.weekendBefore,
     weekendKeep: weekendKeep ?? this.weekendKeep,
     definesPeriod: definesPeriod ?? this.definesPeriod,
+    everyMonths: everyMonths.present ? everyMonths.value : this.everyMonths,
+    everyDays: everyDays.present ? everyDays.value : this.everyDays,
+    onDates: onDates.present ? onDates.value : this.onDates,
+    monthDays: monthDays.present ? monthDays.value : this.monthDays,
+    weekdays: weekdays.present ? weekdays.value : this.weekdays,
+    nth: nth.present ? nth.value : this.nth,
+    nthWeekday: nthWeekday.present ? nthWeekday.value : this.nthWeekday,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    endCount: endCount.present ? endCount.value : this.endCount,
     createdAt: createdAt ?? this.createdAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
@@ -1534,6 +1842,19 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
       definesPeriod: data.definesPeriod.present
           ? data.definesPeriod.value
           : this.definesPeriod,
+      everyMonths: data.everyMonths.present
+          ? data.everyMonths.value
+          : this.everyMonths,
+      everyDays: data.everyDays.present ? data.everyDays.value : this.everyDays,
+      onDates: data.onDates.present ? data.onDates.value : this.onDates,
+      monthDays: data.monthDays.present ? data.monthDays.value : this.monthDays,
+      weekdays: data.weekdays.present ? data.weekdays.value : this.weekdays,
+      nth: data.nth.present ? data.nth.value : this.nth,
+      nthWeekday: data.nthWeekday.present
+          ? data.nthWeekday.value
+          : this.nthWeekday,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      endCount: data.endCount.present ? data.endCount.value : this.endCount,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
@@ -1558,6 +1879,15 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
           ..write('weekendBefore: $weekendBefore, ')
           ..write('weekendKeep: $weekendKeep, ')
           ..write('definesPeriod: $definesPeriod, ')
+          ..write('everyMonths: $everyMonths, ')
+          ..write('everyDays: $everyDays, ')
+          ..write('onDates: $onDates, ')
+          ..write('monthDays: $monthDays, ')
+          ..write('weekdays: $weekdays, ')
+          ..write('nth: $nth, ')
+          ..write('nthWeekday: $nthWeekday, ')
+          ..write('endDate: $endDate, ')
+          ..write('endCount: $endCount, ')
           ..write('createdAt: $createdAt, ')
           ..write('deletedAt: $deletedAt')
           ..write(')'))
@@ -1565,7 +1895,7 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     categoryId,
     accountId,
@@ -1582,9 +1912,18 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
     weekendBefore,
     weekendKeep,
     definesPeriod,
+    everyMonths,
+    everyDays,
+    onDates,
+    monthDays,
+    weekdays,
+    nth,
+    nthWeekday,
+    endDate,
+    endCount,
     createdAt,
     deletedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1605,6 +1944,15 @@ class PayScheduleRow extends DataClass implements Insertable<PayScheduleRow> {
           other.weekendBefore == this.weekendBefore &&
           other.weekendKeep == this.weekendKeep &&
           other.definesPeriod == this.definesPeriod &&
+          other.everyMonths == this.everyMonths &&
+          other.everyDays == this.everyDays &&
+          other.onDates == this.onDates &&
+          other.monthDays == this.monthDays &&
+          other.weekdays == this.weekdays &&
+          other.nth == this.nth &&
+          other.nthWeekday == this.nthWeekday &&
+          other.endDate == this.endDate &&
+          other.endCount == this.endCount &&
           other.createdAt == this.createdAt &&
           other.deletedAt == this.deletedAt);
 }
@@ -1626,6 +1974,15 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
   final Value<bool> weekendBefore;
   final Value<bool> weekendKeep;
   final Value<bool> definesPeriod;
+  final Value<int?> everyMonths;
+  final Value<int?> everyDays;
+  final Value<String?> onDates;
+  final Value<String?> monthDays;
+  final Value<String?> weekdays;
+  final Value<int?> nth;
+  final Value<int?> nthWeekday;
+  final Value<String?> endDate;
+  final Value<int?> endCount;
   final Value<int> createdAt;
   final Value<int?> deletedAt;
   const PaySchedulesCompanion({
@@ -1645,6 +2002,15 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     this.weekendBefore = const Value.absent(),
     this.weekendKeep = const Value.absent(),
     this.definesPeriod = const Value.absent(),
+    this.everyMonths = const Value.absent(),
+    this.everyDays = const Value.absent(),
+    this.onDates = const Value.absent(),
+    this.monthDays = const Value.absent(),
+    this.weekdays = const Value.absent(),
+    this.nth = const Value.absent(),
+    this.nthWeekday = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.endCount = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
   });
@@ -1665,6 +2031,15 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     this.weekendBefore = const Value.absent(),
     this.weekendKeep = const Value.absent(),
     this.definesPeriod = const Value.absent(),
+    this.everyMonths = const Value.absent(),
+    this.everyDays = const Value.absent(),
+    this.onDates = const Value.absent(),
+    this.monthDays = const Value.absent(),
+    this.weekdays = const Value.absent(),
+    this.nth = const Value.absent(),
+    this.nthWeekday = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.endCount = const Value.absent(),
     required int createdAt,
     this.deletedAt = const Value.absent(),
   }) : categoryId = Value(categoryId),
@@ -1689,6 +2064,15 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     Expression<bool>? weekendBefore,
     Expression<bool>? weekendKeep,
     Expression<bool>? definesPeriod,
+    Expression<int>? everyMonths,
+    Expression<int>? everyDays,
+    Expression<String>? onDates,
+    Expression<String>? monthDays,
+    Expression<String>? weekdays,
+    Expression<int>? nth,
+    Expression<int>? nthWeekday,
+    Expression<String>? endDate,
+    Expression<int>? endCount,
     Expression<int>? createdAt,
     Expression<int>? deletedAt,
   }) {
@@ -1709,6 +2093,15 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
       if (weekendBefore != null) 'weekend_before': weekendBefore,
       if (weekendKeep != null) 'weekend_keep': weekendKeep,
       if (definesPeriod != null) 'defines_period': definesPeriod,
+      if (everyMonths != null) 'every_months': everyMonths,
+      if (everyDays != null) 'every_days': everyDays,
+      if (onDates != null) 'on_dates': onDates,
+      if (monthDays != null) 'month_days': monthDays,
+      if (weekdays != null) 'weekdays': weekdays,
+      if (nth != null) 'nth': nth,
+      if (nthWeekday != null) 'nth_weekday': nthWeekday,
+      if (endDate != null) 'end_date': endDate,
+      if (endCount != null) 'end_count': endCount,
       if (createdAt != null) 'created_at': createdAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
     });
@@ -1731,6 +2124,15 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     Value<bool>? weekendBefore,
     Value<bool>? weekendKeep,
     Value<bool>? definesPeriod,
+    Value<int?>? everyMonths,
+    Value<int?>? everyDays,
+    Value<String?>? onDates,
+    Value<String?>? monthDays,
+    Value<String?>? weekdays,
+    Value<int?>? nth,
+    Value<int?>? nthWeekday,
+    Value<String?>? endDate,
+    Value<int?>? endCount,
     Value<int>? createdAt,
     Value<int?>? deletedAt,
   }) {
@@ -1751,6 +2153,15 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
       weekendBefore: weekendBefore ?? this.weekendBefore,
       weekendKeep: weekendKeep ?? this.weekendKeep,
       definesPeriod: definesPeriod ?? this.definesPeriod,
+      everyMonths: everyMonths ?? this.everyMonths,
+      everyDays: everyDays ?? this.everyDays,
+      onDates: onDates ?? this.onDates,
+      monthDays: monthDays ?? this.monthDays,
+      weekdays: weekdays ?? this.weekdays,
+      nth: nth ?? this.nth,
+      nthWeekday: nthWeekday ?? this.nthWeekday,
+      endDate: endDate ?? this.endDate,
+      endCount: endCount ?? this.endCount,
       createdAt: createdAt ?? this.createdAt,
       deletedAt: deletedAt ?? this.deletedAt,
     );
@@ -1809,6 +2220,33 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
     if (definesPeriod.present) {
       map['defines_period'] = Variable<bool>(definesPeriod.value);
     }
+    if (everyMonths.present) {
+      map['every_months'] = Variable<int>(everyMonths.value);
+    }
+    if (everyDays.present) {
+      map['every_days'] = Variable<int>(everyDays.value);
+    }
+    if (onDates.present) {
+      map['on_dates'] = Variable<String>(onDates.value);
+    }
+    if (monthDays.present) {
+      map['month_days'] = Variable<String>(monthDays.value);
+    }
+    if (weekdays.present) {
+      map['weekdays'] = Variable<String>(weekdays.value);
+    }
+    if (nth.present) {
+      map['nth'] = Variable<int>(nth.value);
+    }
+    if (nthWeekday.present) {
+      map['nth_weekday'] = Variable<int>(nthWeekday.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<String>(endDate.value);
+    }
+    if (endCount.present) {
+      map['end_count'] = Variable<int>(endCount.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1837,6 +2275,15 @@ class PaySchedulesCompanion extends UpdateCompanion<PayScheduleRow> {
           ..write('weekendBefore: $weekendBefore, ')
           ..write('weekendKeep: $weekendKeep, ')
           ..write('definesPeriod: $definesPeriod, ')
+          ..write('everyMonths: $everyMonths, ')
+          ..write('everyDays: $everyDays, ')
+          ..write('onDates: $onDates, ')
+          ..write('monthDays: $monthDays, ')
+          ..write('weekdays: $weekdays, ')
+          ..write('nth: $nth, ')
+          ..write('nthWeekday: $nthWeekday, ')
+          ..write('endDate: $endDate, ')
+          ..write('endCount: $endCount, ')
           ..write('createdAt: $createdAt, ')
           ..write('deletedAt: $deletedAt')
           ..write(')'))
@@ -8287,6 +8734,15 @@ typedef $$PaySchedulesTableCreateCompanionBuilder =
       Value<bool> weekendBefore,
       Value<bool> weekendKeep,
       Value<bool> definesPeriod,
+      Value<int?> everyMonths,
+      Value<int?> everyDays,
+      Value<String?> onDates,
+      Value<String?> monthDays,
+      Value<String?> weekdays,
+      Value<int?> nth,
+      Value<int?> nthWeekday,
+      Value<String?> endDate,
+      Value<int?> endCount,
       required int createdAt,
       Value<int?> deletedAt,
     });
@@ -8308,6 +8764,15 @@ typedef $$PaySchedulesTableUpdateCompanionBuilder =
       Value<bool> weekendBefore,
       Value<bool> weekendKeep,
       Value<bool> definesPeriod,
+      Value<int?> everyMonths,
+      Value<int?> everyDays,
+      Value<String?> onDates,
+      Value<String?> monthDays,
+      Value<String?> weekdays,
+      Value<int?> nth,
+      Value<int?> nthWeekday,
+      Value<String?> endDate,
+      Value<int?> endCount,
       Value<int> createdAt,
       Value<int?> deletedAt,
     });
@@ -8482,6 +8947,51 @@ class $$PaySchedulesTableFilterComposer
 
   ColumnFilters<bool> get definesPeriod => $composableBuilder(
     column: $table.definesPeriod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get everyMonths => $composableBuilder(
+    column: $table.everyMonths,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get everyDays => $composableBuilder(
+    column: $table.everyDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get onDates => $composableBuilder(
+    column: $table.onDates,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get monthDays => $composableBuilder(
+    column: $table.monthDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get weekdays => $composableBuilder(
+    column: $table.weekdays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nth => $composableBuilder(
+    column: $table.nth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nthWeekday => $composableBuilder(
+    column: $table.nthWeekday,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endCount => $composableBuilder(
+    column: $table.endCount,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8696,6 +9206,51 @@ class $$PaySchedulesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get everyMonths => $composableBuilder(
+    column: $table.everyMonths,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get everyDays => $composableBuilder(
+    column: $table.everyDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get onDates => $composableBuilder(
+    column: $table.onDates,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get monthDays => $composableBuilder(
+    column: $table.monthDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get weekdays => $composableBuilder(
+    column: $table.weekdays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nth => $composableBuilder(
+    column: $table.nth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nthWeekday => $composableBuilder(
+    column: $table.nthWeekday,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endCount => $composableBuilder(
+    column: $table.endCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -8813,6 +9368,37 @@ class $$PaySchedulesTableAnnotationComposer
     column: $table.definesPeriod,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get everyMonths => $composableBuilder(
+    column: $table.everyMonths,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get everyDays =>
+      $composableBuilder(column: $table.everyDays, builder: (column) => column);
+
+  GeneratedColumn<String> get onDates =>
+      $composableBuilder(column: $table.onDates, builder: (column) => column);
+
+  GeneratedColumn<String> get monthDays =>
+      $composableBuilder(column: $table.monthDays, builder: (column) => column);
+
+  GeneratedColumn<String> get weekdays =>
+      $composableBuilder(column: $table.weekdays, builder: (column) => column);
+
+  GeneratedColumn<int> get nth =>
+      $composableBuilder(column: $table.nth, builder: (column) => column);
+
+  GeneratedColumn<int> get nthWeekday => $composableBuilder(
+    column: $table.nthWeekday,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<int> get endCount =>
+      $composableBuilder(column: $table.endCount, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -8992,6 +9578,15 @@ class $$PaySchedulesTableTableManager
                 Value<bool> weekendBefore = const Value.absent(),
                 Value<bool> weekendKeep = const Value.absent(),
                 Value<bool> definesPeriod = const Value.absent(),
+                Value<int?> everyMonths = const Value.absent(),
+                Value<int?> everyDays = const Value.absent(),
+                Value<String?> onDates = const Value.absent(),
+                Value<String?> monthDays = const Value.absent(),
+                Value<String?> weekdays = const Value.absent(),
+                Value<int?> nth = const Value.absent(),
+                Value<int?> nthWeekday = const Value.absent(),
+                Value<String?> endDate = const Value.absent(),
+                Value<int?> endCount = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
               }) => PaySchedulesCompanion(
@@ -9011,6 +9606,15 @@ class $$PaySchedulesTableTableManager
                 weekendBefore: weekendBefore,
                 weekendKeep: weekendKeep,
                 definesPeriod: definesPeriod,
+                everyMonths: everyMonths,
+                everyDays: everyDays,
+                onDates: onDates,
+                monthDays: monthDays,
+                weekdays: weekdays,
+                nth: nth,
+                nthWeekday: nthWeekday,
+                endDate: endDate,
+                endCount: endCount,
                 createdAt: createdAt,
                 deletedAt: deletedAt,
               ),
@@ -9032,6 +9636,15 @@ class $$PaySchedulesTableTableManager
                 Value<bool> weekendBefore = const Value.absent(),
                 Value<bool> weekendKeep = const Value.absent(),
                 Value<bool> definesPeriod = const Value.absent(),
+                Value<int?> everyMonths = const Value.absent(),
+                Value<int?> everyDays = const Value.absent(),
+                Value<String?> onDates = const Value.absent(),
+                Value<String?> monthDays = const Value.absent(),
+                Value<String?> weekdays = const Value.absent(),
+                Value<int?> nth = const Value.absent(),
+                Value<int?> nthWeekday = const Value.absent(),
+                Value<String?> endDate = const Value.absent(),
+                Value<int?> endCount = const Value.absent(),
                 required int createdAt,
                 Value<int?> deletedAt = const Value.absent(),
               }) => PaySchedulesCompanion.insert(
@@ -9051,6 +9664,15 @@ class $$PaySchedulesTableTableManager
                 weekendBefore: weekendBefore,
                 weekendKeep: weekendKeep,
                 definesPeriod: definesPeriod,
+                everyMonths: everyMonths,
+                everyDays: everyDays,
+                onDates: onDates,
+                monthDays: monthDays,
+                weekdays: weekdays,
+                nth: nth,
+                nthWeekday: nthWeekday,
+                endDate: endDate,
+                endCount: endCount,
                 createdAt: createdAt,
                 deletedAt: deletedAt,
               ),

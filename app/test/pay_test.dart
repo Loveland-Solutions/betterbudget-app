@@ -173,4 +173,101 @@ void main() {
       DateTime(2026, 11, 2),
     );
   });
+
+  group('a pay on the kinds of repeat a category has (#438)', () {
+    PaySchedule custom(
+      PayRepeat r, {
+      DateTime? first,
+      PayWeekend weekend = PayWeekend.keep,
+      int amount = 100,
+    }) => PaySchedule(
+      id: 1,
+      categoryId: 1,
+      accountId: 1,
+      amount: amount,
+      rule: PayRule.custom,
+      anchor: first ?? DateTime(2026, 10, 2),
+      repeat: r,
+      weekend: weekend,
+    );
+
+    test('every few days, from its first date', () {
+      final p = custom(const PayRepeat(everyDays: 10));
+      expect(p.nextAfter(DateTime(2026, 9, 1)), DateTime(2026, 10, 2));
+      expect(p.nextAfter(DateTime(2026, 10, 2)), DateTime(2026, 10, 12));
+      expect(p.nextAfter(DateTime(2027, 3, 1)), DateTime(2027, 3, 11));
+      expect(p.lastOnOrBefore(DateTime(2026, 10, 25)), DateTime(2026, 10, 22));
+      expect(p.lastOnOrBefore(DateTime(2026, 9, 1)), isNull);
+    });
+
+    test('chosen weekdays every other week', () {
+      // Monday and Thursday, every 2 weeks, from Mon 2026.10.05.
+      final p = custom(
+        const PayRepeat(everyDays: 14, weekdays: [1, 4]),
+        first: DateTime(2026, 10, 5),
+      );
+      expect(p.nextAfter(DateTime(2026, 10, 5)), DateTime(2026, 10, 8));
+      expect(p.nextAfter(DateTime(2026, 10, 8)), DateTime(2026, 10, 19));
+      expect(p.nextAfter(DateTime(2026, 10, 19)), DateTime(2026, 10, 22));
+      expect(p.perYear, 52);
+    });
+
+    test('the nth weekday of the month, the last Friday', () {
+      final p = custom(
+        const PayRepeat(everyMonths: 1, nth: -1, nthWeekday: 5),
+        first: DateTime(2026, 10, 30),
+      );
+      expect(p.nextAfter(DateTime(2026, 10, 30)), DateTime(2026, 11, 27));
+      expect(p.nextAfter(DateTime(2026, 11, 27)), DateTime(2026, 12, 25));
+    });
+
+    test('every quarter, and dates in a year, with the weekend rule', () {
+      final quarterly = custom(
+        const PayRepeat(everyMonths: 3),
+        first: DateTime(2026, 10, 31),
+        weekend: PayWeekend.before,
+      );
+      // 2027.01.31 is a Sunday: the Friday before.
+      expect(
+        quarterly.nextAfter(DateTime(2026, 10, 31)),
+        DateTime(2027, 1, 29),
+      );
+      expect(quarterly.perYear, 4);
+      final taxes = custom(
+        const PayRepeat(onDates: [(3, 15), (9, 15)]),
+        first: DateTime(2026, 9, 15),
+      );
+      expect(taxes.nextAfter(DateTime(2026, 9, 15)), DateTime(2027, 3, 15));
+      expect(taxes.nextAfter(DateTime(2027, 3, 15)), DateTime(2027, 9, 15));
+    });
+
+    test('it ends, by a date or by a count, and then has no payday', () {
+      final byDate = custom(
+        PayRepeat(everyMonths: 1, endDate: DateTime(2026, 12, 31)),
+        first: DateTime(2026, 10, 10),
+      );
+      expect(byDate.nextAfter(DateTime(2026, 11, 10)), DateTime(2026, 12, 10));
+      expect(byDate.nextAfter(DateTime(2026, 12, 10)), payNever);
+      final byCount = custom(
+        const PayRepeat(everyDays: 7, endCount: 3),
+        first: DateTime(2026, 10, 2),
+      );
+      expect(byCount.nextAfter(DateTime(2026, 10, 9)), DateTime(2026, 10, 16));
+      expect(byCount.nextAfter(DateTime(2026, 10, 16)), payNever);
+      // The last one it had is still the last on or before a later day.
+      expect(
+        byCount.lastOnOrBefore(DateTime(2027, 5, 1)),
+        DateTime(2026, 10, 16),
+      );
+    });
+
+    test('a far date is a few steps, and the monthly figure is about', () {
+      final p = custom(const PayRepeat(everyDays: 14), amount: 1200);
+      expect(
+        p.nextAfter(DateTime(2056, 1, 1)).isAfter(DateTime(2056, 1, 1)),
+        isTrue,
+      );
+      expect(p.perMonth, 1200 * 26 ~/ 12);
+    });
+  });
 }

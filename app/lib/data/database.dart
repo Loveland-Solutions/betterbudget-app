@@ -100,6 +100,18 @@ class PaySchedules extends Table {
   /// plan ([CategoryPlans.payScheduleId]).
   BoolColumn get definesPeriod =>
       boolean().withDefault(const Constant(false))();
+
+  /// How a custom pay repeats, as a category's plan says it; null unless
+  /// [rule] is custom (v26, #438). The first payday is [anchor].
+  IntColumn get everyMonths => integer().nullable()();
+  IntColumn get everyDays => integer().nullable()();
+  TextColumn get onDates => text().nullable()();
+  TextColumn get monthDays => text().nullable()();
+  TextColumn get weekdays => text().nullable()();
+  IntColumn get nth => integer().nullable()();
+  IntColumn get nthWeekday => integer().nullable()();
+  TextColumn get endDate => text().nullable()();
+  IntColumn get endCount => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get deletedAt => integer().nullable()();
 }
@@ -1069,7 +1081,7 @@ class AppDatabase extends _$AppDatabase {
   String? thisComputer;
 
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 26;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1299,6 +1311,24 @@ class AppDatabase extends _$AppDatabase {
               'AND category_id IN (SELECT id FROM accounts WHERE role = '
               '\'emergencyFund\')',
             );
+          }
+        }
+        if (from < 26) {
+          // A pay can repeat any way a category's How often does (#438).
+          // Nine empty columns: every pay already here keeps its rule, its
+          // days and its amounts as they are.
+          for (final c in [
+            paySchedules.everyMonths,
+            paySchedules.everyDays,
+            paySchedules.onDates,
+            paySchedules.monthDays,
+            paySchedules.weekdays,
+            paySchedules.nth,
+            paySchedules.nthWeekday,
+            paySchedules.endDate,
+            paySchedules.endCount,
+          ]) {
+            await _addColumnOnce(m, paySchedules, c);
           }
         }
         // Each trigger names its table's columns: made afresh after every
@@ -4569,6 +4599,31 @@ class AppDatabase extends _$AppDatabase {
     day2: p.day2,
     weeks: p.weeks,
     anchor: p.anchor == null ? null : parseDateKey(p.anchor!),
+    repeat: p.rule != PayRule.custom
+        ? null
+        : PayRepeat(
+            everyMonths: p.everyMonths,
+            everyDays: p.everyDays,
+            onDates: p.onDates == null || p.onDates!.isEmpty
+                ? null
+                : [
+                    for (final piece in p.onDates!.split(','))
+                      (
+                        int.parse(piece.split('-')[0]),
+                        int.parse(piece.split('-')[1]),
+                      ),
+                  ],
+            monthDays: p.monthDays == null || p.monthDays!.isEmpty
+                ? null
+                : [for (final x in p.monthDays!.split(',')) int.parse(x)],
+            weekdays: p.weekdays == null || p.weekdays!.isEmpty
+                ? null
+                : [for (final x in p.weekdays!.split(',')) int.parse(x)],
+            nth: p.nth,
+            nthWeekday: p.nthWeekday,
+            endDate: p.endDate == null ? null : parseDateKey(p.endDate!),
+            endCount: p.endCount,
+          ),
     weekend: p.weekendKeep
         ? PayWeekend.keep
         : p.weekendBefore
@@ -4634,6 +4689,7 @@ class AppDatabase extends _$AppDatabase {
     int day2 = 10,
     int weeks = 2,
     DateTime? anchor,
+    PayRepeat? repeat,
     PayWeekend weekend = PayWeekend.before,
     bool definesPeriod = false,
   }) => transaction(() async {
@@ -4665,6 +4721,32 @@ class AppDatabase extends _$AppDatabase {
       day2: Value(day2),
       weeks: Value(weeks),
       anchor: Value(anchor == null ? null : dateKey(dateOnly(anchor))),
+      // Only a custom pay has a repeat of its own; the others keep theirs
+      // in the days and weeks above.
+      everyMonths: Value(rule == PayRule.custom ? repeat?.everyMonths : null),
+      everyDays: Value(rule == PayRule.custom ? repeat?.everyDays : null),
+      onDates: Value(
+        rule == PayRule.custom && repeat?.onDates != null
+            ? [
+                for (final (m, d) in repeat!.onDates!)
+                  '${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}',
+              ].join(',')
+            : null,
+      ),
+      monthDays: Value(
+        rule == PayRule.custom ? repeat?.monthDays?.join(',') : null,
+      ),
+      weekdays: Value(
+        rule == PayRule.custom ? repeat?.weekdays?.join(',') : null,
+      ),
+      nth: Value(rule == PayRule.custom ? repeat?.nth : null),
+      nthWeekday: Value(rule == PayRule.custom ? repeat?.nthWeekday : null),
+      endDate: Value(
+        rule == PayRule.custom && repeat?.endDate != null
+            ? dateKey(dateOnly(repeat!.endDate!))
+            : null,
+      ),
+      endCount: Value(rule == PayRule.custom ? repeat?.endCount : null),
       // Keep also writes weekend_before as true (before, the default), so an
       // older reading of the row alone would move it to the Friday before.
       weekendBefore: Value(weekend != PayWeekend.after),
@@ -5088,6 +5170,8 @@ class AppDatabase extends _$AppDatabase {
               ? yesterday
               : latest;
           final date = schedule.nextAfter(from);
+          // A pay that has ended has no payday left to schedule.
+          if (date == payNever) continue;
           final amount = schedule.amountOn(date);
           created.add(
             await postTransaction(

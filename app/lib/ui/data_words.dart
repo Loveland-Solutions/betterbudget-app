@@ -132,6 +132,8 @@ String payWhen(Words t, PaySchedule p) {
       return t.startPayTwiceMonthly(payDay(t, a), payDay(t, b), a);
     case PayRule.everyWeeks:
       return p.weeks == 1 ? t.startPayEveryWeek : t.startPayEveryWeeks(p.weeks);
+    case PayRule.custom:
+      return p.describe;
   }
 }
 

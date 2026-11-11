@@ -258,7 +258,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v25-from-v22-')),
+        contains(startsWith('betterbudget.before-v26-from-v22-')),
       );
     },
   );
@@ -335,8 +335,106 @@ void main() {
     expect((await db.loadLedger()).plans[groceries.id]!.spentEach, isTrue);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v24-')),
+      contains(startsWith('betterbudget.before-v26-from-v24-')),
     );
+  });
+
+  test('upgrades a v25 file: every pay stays as it was, and a pay can repeat '
+      'any way a category does', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/betterbudget.sqlite');
+
+    var db = AppDatabase(NativeDatabase(file));
+    await seedDemoIfEmpty(db, today);
+    final bank = (await db.loadLedger()).balanceSheetAccounts
+        .firstWhere((a) => a.name == 'TDB Checking')
+        .id;
+    await db.savePaySchedule(
+      accountId: bank,
+      amount: 2100000,
+      rule: PayRule.monthly,
+      today: today,
+      name: 'Monthly',
+      day1: 25,
+    );
+    await db.savePaySchedule(
+      accountId: bank,
+      amount: 500000,
+      amount2: 1600000,
+      rule: PayRule.twiceMonthly,
+      today: today,
+      name: 'Twice',
+      day1: 25,
+      day2: 10,
+    );
+    await db.savePaySchedule(
+      accountId: bank,
+      amount: 900000,
+      rule: PayRule.everyWeeks,
+      today: today,
+      name: 'Weeks',
+      weeks: 2,
+      anchor: DateTime(2026, 10, 2),
+    );
+    Future<List<Map<String, Object?>>> pays(AppDatabase d) async => [
+      for (final r
+          in await d
+              .customSelect(
+                'SELECT id, name, amount_minor, amount2_minor, varies, rule, day1, '
+                'day2, weeks, anchor, weekend_before, weekend_keep FROM '
+                'pay_schedules ORDER BY id',
+              )
+              .get())
+        r.data,
+    ];
+    final before = await pays(db);
+    expect(before, hasLength(3));
+
+    await dropAddedInV25(db);
+    await db.customStatement('PRAGMA user_version = 25');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await expectAllColumns(db);
+    // Every pay, field by field.
+    expect(await pays(db), before);
+    expect(
+      dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+      contains(startsWith('betterbudget.before-v26-from-v25-')),
+    );
+    // None of them has a repeat of its own.
+    for (final p in (await db.loadLedger()).paySchedules) {
+      expect(p.repeat, isNull);
+    }
+
+    // And a pay on a category's kind of repeat saves and reads back: the
+    // first and third Friday of each month, until the end of next year.
+    await db.savePaySchedule(
+      accountId: bank,
+      amount: 700000,
+      rule: PayRule.custom,
+      today: today,
+      name: 'Odd',
+      anchor: DateTime(2026, 10, 2),
+      weekend: PayWeekend.keep,
+      repeat: PayRepeat(
+        everyMonths: 1,
+        nth: 1,
+        nthWeekday: DateTime.friday,
+        endDate: DateTime(2027, 12, 31),
+      ),
+    );
+    final odd = (await db.loadLedger()).paySchedules.firstWhere(
+      (p) => p.rule == PayRule.custom,
+    );
+    expect(odd.repeat?.everyMonths, 1);
+    expect(odd.repeat?.nth, 1);
+    expect(odd.repeat?.nthWeekday, DateTime.friday);
+    expect(odd.repeat?.endDate, DateTime(2027, 12, 31));
+    expect(odd.nextAfter(DateTime(2026, 10, 2)), DateTime(2026, 11, 6));
+    expect(odd.nextAfter(DateTime(2027, 12, 3)), payNever);
   });
 
   test('upgrades a v23 file: every plan stays as it was, and a bill can '
@@ -389,7 +487,7 @@ void main() {
     expect(ledger.plans[category.id]!.monthDays, [1, 15]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v23-')),
+      contains(startsWith('betterbudget.before-v26-from-v23-')),
     );
   });
 
@@ -450,7 +548,7 @@ void main() {
     expect(ledger.accounts[groceries.id]!.note, 'Market');
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v21-')),
+      contains(startsWith('betterbudget.before-v26-from-v21-')),
     );
   });
 
@@ -489,7 +587,7 @@ void main() {
     expect(await db.lastChangeSeq(), 1);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v19-')),
+      contains(startsWith('betterbudget.before-v26-from-v19-')),
     );
     await db.close();
 
@@ -505,13 +603,13 @@ void main() {
     expect(await db.lastChangeSeq(), 2);
     // A newer build's file is refused and left as it is; this build then
     // opens it again with everything in place.
-    await db.customStatement('PRAGMA user_version = 26');
+    await db.customStatement('PRAGMA user_version = 27');
     await db.close();
     db = AppDatabase(NativeDatabase(file));
     await expectLater(db.loadLedger(), throwsA(isA<NewerLedgerException>()));
     await db.close();
     final raw = sqlite3.open(file.path);
-    raw.execute('PRAGMA user_version = 25');
+    raw.execute('PRAGMA user_version = 26');
     raw.close();
     db = AppDatabase(NativeDatabase(file));
     await expectAllColumns(db);
@@ -567,7 +665,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v18-')),
+      contains(startsWith('betterbudget.before-v26-from-v18-')),
     );
   });
 
@@ -605,7 +703,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v17-')),
+      contains(startsWith('betterbudget.before-v26-from-v17-')),
     );
   });
 
@@ -669,7 +767,7 @@ void main() {
       expect(after.paySchedules.single.name, isNull);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v25-from-v16-')),
+        contains(startsWith('betterbudget.before-v26-from-v16-')),
       );
     },
   );
@@ -729,7 +827,7 @@ void main() {
     expect(plan.nth, isNull);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v15-')),
+      contains(startsWith('betterbudget.before-v26-from-v15-')),
     );
   });
 
@@ -762,7 +860,7 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v6-')),
+      contains(startsWith('betterbudget.before-v26-from-v6-')),
     );
   });
 
@@ -819,7 +917,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v25-from-v11-')),
+        contains(startsWith('betterbudget.before-v26-from-v11-')),
       );
     });
   }
@@ -903,7 +1001,7 @@ void main() {
       expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v25-from-v12-')),
+        contains(startsWith('betterbudget.before-v26-from-v12-')),
       );
     },
   );
@@ -958,7 +1056,7 @@ void main() {
     expect(plans[ids[3]]!.due, DateTime(2027, 1, 15));
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v13-')),
+      contains(startsWith('betterbudget.before-v26-from-v13-')),
     );
   });
 
@@ -999,7 +1097,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v10-')),
+      contains(startsWith('betterbudget.before-v26-from-v10-')),
     );
   });
 
@@ -1035,7 +1133,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v25-from-v9-')),
+        contains(startsWith('betterbudget.before-v26-from-v9-')),
       );
     },
   );
@@ -1073,7 +1171,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v25-from-v8-')),
+      contains(startsWith('betterbudget.before-v26-from-v8-')),
     );
   });
 
@@ -1183,7 +1281,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v25-from-v5-')),
+        contains(startsWith('betterbudget.before-v26-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
@@ -1385,6 +1483,28 @@ Future<void> dropAddedInV5(AppDatabase db) async {
 }
 
 /// v25: whether a set amount's money is spent within its period.
+/// v26: how a custom pay repeats.
+Future<void> dropAddedInV25(AppDatabase db) async {
+  // The triggers name the columns; the change log itself stays.
+  for (final name in await db.changeTriggersPresent()) {
+    await db.customStatement('DROP TRIGGER IF EXISTS temp."$name"');
+  }
+  for (final c in [
+    'every_months',
+    'every_days',
+    'on_dates',
+    'month_days',
+    'weekdays',
+    'nth',
+    'nth_weekday',
+    'end_date',
+    'end_count',
+  ]) {
+    await db.customStatement('ALTER TABLE pay_schedules DROP COLUMN $c');
+  }
+}
+
+/// v25: whether a set amount goes out within its period.
 Future<void> dropAddedInV24(AppDatabase db) async {
   // The triggers name the columns; the change log itself stays.
   for (final name in await db.changeTriggersPresent()) {

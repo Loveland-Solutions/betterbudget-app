@@ -2532,6 +2532,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // From the payday it was planned as, by amount for split pay: one moved
     // a few days by hand mustn't make that same payday the next.
     final next = plan.nextAfter(plan.plannedFor(row.date, paid: row.amount));
+    // A pay that ends has no next payday after its last.
+    if (next == payNever) return null;
     return (date: next, amount: plan.amountOn(next));
   }
 

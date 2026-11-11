@@ -2,9 +2,80 @@
 /// day falls in. Pure Dart: no database, no Flutter (ADR 0004, rule 24).
 library;
 
+import 'budget.dart' show Budget;
 import 'ledger.dart';
 
-enum PayRule { monthly, twiceMonthly, everyWeeks }
+/// [custom] is every other way a category's How often can repeat: its dates
+/// come from the same code a category's bills do ([PayRepeat], #438); the
+/// first three are the shapes a pay had before and keep their own maths.
+enum PayRule { monthly, twiceMonthly, everyWeeks, custom }
+
+/// How a [PayRule.custom] pay repeats, in the words of a category's plan:
+/// every so many days or months, on chosen weekdays, the nth weekday, on
+/// dates in a year, on days of the month, and when it ends. The first
+/// payday is the schedule's [PaySchedule.anchor].
+class PayRepeat {
+  const PayRepeat({
+    this.everyMonths,
+    this.everyDays,
+    this.onDates,
+    this.monthDays,
+    this.weekdays,
+    this.nth,
+    this.nthWeekday,
+    this.endDate,
+    this.endCount,
+  });
+
+  final int? everyMonths;
+  final int? everyDays;
+  final List<(int, int)>? onDates;
+  final List<int>? monthDays;
+  final List<int>? weekdays;
+  final int? nth;
+  final int? nthWeekday;
+  final DateTime? endDate;
+  final int? endCount;
+
+  /// Paydays a year, about, for the monthly figure.
+  int get perYear {
+    if (onDates case final d? when d.isNotEmpty) return d.length;
+    if (monthDays case final d? when d.isNotEmpty) return 12 * d.length;
+    if (everyDays case final days?) {
+      final per = (weekdays?.isNotEmpty ?? false) ? weekdays!.length : 1;
+      return days <= 0 ? 0 : (365 * per / days).round();
+    }
+    if (everyMonths case final m? when m > 0) return (12 / m).round();
+    return 1;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is PayRepeat &&
+      everyMonths == other.everyMonths &&
+      everyDays == other.everyDays &&
+      nth == other.nth &&
+      nthWeekday == other.nthWeekday &&
+      endDate == other.endDate &&
+      endCount == other.endCount &&
+      '$onDates|$monthDays|$weekdays' ==
+          '${other.onDates}|${other.monthDays}|${other.weekdays}';
+
+  @override
+  int get hashCode => Object.hash(
+    everyMonths,
+    everyDays,
+    nth,
+    nthWeekday,
+    endDate,
+    endCount,
+    '$onDates|$monthDays|$weekdays',
+  );
+}
+
+/// What [PaySchedule.nextAfter] says when a pay that ends has no payday
+/// left: a day so far off that nothing reaches it.
+final payNever = DateTime(9999, 12, 31);
 
 /// Where a payday that falls on a Saturday or Sunday goes: the Friday
 /// before, the Monday after, or nowhere (some are paid on a Saturday).
@@ -29,6 +100,7 @@ class PaySchedule {
     this.day2 = 10,
     this.weeks = 2,
     this.anchor,
+    this.repeat,
     this.weekend = PayWeekend.before,
     this.definesPeriod = false,
   });
@@ -68,7 +140,12 @@ class PaySchedule {
 
   /// Every [weeks] weeks, counting from [anchor] (a payday).
   final int weeks;
+
+  /// Every N weeks: the payday it counts from. [PayRule.custom]: the first.
   final DateTime? anchor;
+
+  /// [PayRule.custom] only: how it repeats.
+  final PayRepeat? repeat;
 
   /// Where a payday on a Saturday or Sunday goes.
   final PayWeekend weekend;
@@ -110,6 +187,7 @@ class PaySchedule {
     PayRule.monthly => amount,
     PayRule.twiceMonthly => amount + (amount2 ?? amount),
     PayRule.everyWeeks => amount * perYear ~/ 12,
+    PayRule.custom => amount * perYear ~/ 12,
   };
 
   /// Paydays a year, for the "26 paydays" note.
@@ -117,6 +195,7 @@ class PaySchedule {
     PayRule.monthly => 12,
     PayRule.twiceMonthly => 24,
     PayRule.everyWeeks => (52 / weeks).round(),
+    PayRule.custom => repeat?.perYear ?? 1,
   };
 
   /// The first payday strictly after [after], weekend rule applied. An
@@ -134,7 +213,8 @@ class PaySchedule {
       final moved = _offWeekend(d);
       if (moved.isAfter(a)) return moved;
     }
-    throw StateError('unreachable');
+    // Only a pay that ends runs out of paydays.
+    return payNever;
   }
 
   /// The last payday on or before [day] (the schedule's rhythm, even before
@@ -142,7 +222,9 @@ class PaySchedule {
   DateTime? lastOnOrBefore(DateTime day) {
     final d = dateOnly(day);
     // Far enough back to hold one whole interval, whatever the weeks.
-    final back = 7 * weeks + 14 > 70 ? 7 * weeks + 14 : 70;
+    final back = rule == PayRule.custom
+        ? 800
+        : (7 * weeks + 14 > 70 ? 7 * weeks + 14 : 70);
     DateTime? last;
     for (final n in _nominalFrom(_addDays(d, -back))) {
       final moved = _offWeekend(n);
@@ -212,6 +294,19 @@ class PaySchedule {
             y++;
           }
         }
+      case PayRule.custom:
+        // The same dates a category's bills have (Budget.dueAfter): the
+        // first at or after [from], then on, until it ends.
+        final plan = _repeatPlan;
+        final last = Budget.lastDue(plan);
+        var i = _firstFrom(plan, from);
+        while (true) {
+          final d = Budget.dueAfter(plan, i++);
+          if (last != null && d.isAfter(last)) return;
+          yield (date: d, day: 0);
+          // A repeat with nothing to repeat has its one date.
+          if (!plan.repeats) return;
+        }
       case PayRule.everyWeeks:
         final step = 7 * weeks;
         var d = dateOnly(anchor ?? from);
@@ -237,6 +332,53 @@ class PaySchedule {
           d = DateTime(d.year, d.month, d.day + 7 * weeks);
         }
     }
+  }
+
+  static final _plans = Expando<CategoryPlan>();
+
+  /// This pay's repeat as a category's plan: the same dates come from it.
+  /// The weekend rule is the pay's own, applied after, so not here.
+  CategoryPlan get _repeatPlan => _plans[this] ??= () {
+    final r = repeat ?? const PayRepeat(everyMonths: 1);
+    final first = dateOnly(anchor ?? DateTime.now());
+    return CategoryPlan(
+      categoryId: categoryId,
+      kind: PlanKind.byDate,
+      amount: amount,
+      start: first,
+      due: first,
+      everyMonths: r.everyMonths,
+      everyDays: r.everyDays,
+      onDates: r.onDates,
+      monthDays: r.monthDays,
+      weekdays: r.weekdays,
+      nth: r.nth,
+      nthWeekday: r.nthWeekday,
+      endDate: r.endDate,
+      endCount: r.endCount,
+    );
+  }();
+
+  /// The index of the first date of [plan] on or after [from]: found by
+  /// doubling and halving, so a date years ahead costs a few steps.
+  static int _firstFrom(CategoryPlan plan, DateTime from) {
+    const most = 5200;
+    if (!plan.repeats || !Budget.dueAfter(plan, 0).isBefore(from)) return 0;
+    var hi = 1;
+    while (hi < most && Budget.dueAfter(plan, hi).isBefore(from)) {
+      hi *= 2;
+    }
+    var lo = hi ~/ 2;
+    hi = hi < most ? hi : most;
+    while (lo < hi) {
+      final mid = (lo + hi) ~/ 2;
+      if (Budget.dueAfter(plan, mid).isBefore(from)) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
   }
 
   static int _clampDay(int y, int m, int day) {
@@ -266,6 +408,7 @@ class PaySchedule {
       'on the ${_ordinal(day1 < day2 ? day1 : day2)} and '
           '${_ordinal(day1 < day2 ? day2 : day1)}',
     PayRule.everyWeeks => weeks == 1 ? 'every week' : 'every $weeks weeks',
+    PayRule.custom => 'on its own dates',
   };
 
   static String ordinal(int n) => _ordinal(n);

@@ -717,7 +717,7 @@ class _PayFormState extends State<_PayForm> {
                     if (!_noDay)
                       Row(
                         children: switch (_rule) {
-                          PayRule.monthly => withFields(
+                          PayRule.monthly || PayRule.custom => withFields(
                             t.setupOnDayField(fieldMarks[0]),
                             [small(_day1, 'pay-day1')],
                           ),
