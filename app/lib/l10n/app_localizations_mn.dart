@@ -3030,7 +3030,19 @@ class WordsMn extends Words {
   String get setupNameMissing => 'Нэрээ оруулна уу.';
 
   @override
+  String get setupFirstPayday => 'Анхны орлого орох өдөр';
+
+  @override
+  String get setupHowOftenMissing => 'Хэр олон удаа орохыг оруулна уу.';
+
+  @override
+  String get setupEndsMissing => 'Хэзээ дуусахыг оруулна уу.';
+
+  @override
   String get setupNoSetDay => 'Тогтсон өдөргүй';
+
+  @override
+  String get setupPaydays => 'Орлого орох өдрүүд';
 
   @override
   String get setupNoSetDayMeans =>

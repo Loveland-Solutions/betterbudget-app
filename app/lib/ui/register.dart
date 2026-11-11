@@ -900,9 +900,7 @@ class _Tab extends StatelessWidget {
                   ? 0.16
                   : 0.10,
             ),
-            border: Border.all(
-              color: c.withValues(alpha: active ? 0.9 : 0.25),
-            ),
+            border: Border.all(color: c.withValues(alpha: active ? 0.9 : 0.25)),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -915,10 +913,7 @@ class _Tab extends StatelessWidget {
               ),
               if (count != null && count! > 0) ...[
                 const SizedBox(width: 4),
-                Text(
-                  '($count)',
-                  style: onest(11.5, color: c, tabular: true),
-                ),
+                Text('($count)', style: onest(11.5, color: c, tabular: true)),
               ],
               if (closable) ...[
                 const SizedBox(width: 6),

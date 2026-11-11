@@ -17,6 +17,7 @@ typedef PayDraft = ({
   int day2,
   int weeks,
   DateTime anchor,
+  PayRepeat? repeat,
   PayWeekend weekend,
 });
 
@@ -151,29 +152,50 @@ class _PayFormState extends State<_PayForm> {
   String _typed(int? v) =>
       v == null ? '' : typedAmount(v, widget.account.currency);
   late bool _varies = widget.existing?.varies ?? false;
-  late PayRule _rule = widget.existing?.rule ?? PayRule.monthly;
 
   /// When: "No set day" (owner, 2026-10-28, #175), for pay that comes when
   /// it comes. Saving it is "I don't have regular pay": nothing is
   /// scheduled. Only where that's offered: a new pay.
   bool _noDay = false;
   bool get _offersNoDay => widget.existing == null && widget.offerNoPay;
-  late final _day1 = TextEditingController(
-    text: '${widget.existing?.day1 ?? 25}',
-  );
-  late final _day2 = TextEditingController(
-    text: '${widget.existing?.day2 ?? 10}',
-  );
-  late final _weeks = TextEditingController(
-    text: '${widget.existing?.weeks ?? 2}',
-  );
-  late final _anchor = TextEditingController(
-    text: fullDate(widget.existing?.anchor ?? widget.today),
-  );
-  final _anchorFocus = FocusNode(debugLabel: 'pay-anchor');
+
+  /// How often it comes: the answers a category's How often asks, from the
+  /// same widget (#438). [shapeOf] keeps what they come to.
+  late final PlanAnswers _how = _initialHow();
+  final _menus = _HowOftenMenus();
+  final _dateFocus = FocusNode(debugLabel: 'pay-date');
   final _amountFocus = FocusNode(debugLabel: 'pay-amount');
-  late PayWeekend _weekend = widget.existing?.weekend ?? PayWeekend.before;
   List<int> _history = const [];
+
+  PlanAnswers _initialHow() {
+    final p = PlanAnswers(
+      today: widget.today,
+      currency: widget.account.currency,
+    );
+    final e = widget.existing;
+    if (e != null) {
+      p.show(e.asPlan(widget.today));
+    } else {
+      // A new one starts monthly on the 25th, as it always has.
+      final t = widget.today;
+      var d = DateTime(t.year, t.month, 25);
+      if (d.isBefore(DateTime(t.year, t.month, t.day))) {
+        d = DateTime(t.year, t.month + 1, 25);
+      }
+      p.show(
+        CategoryPlan(
+          categoryId: 0,
+          kind: PlanKind.byDate,
+          amount: 0,
+          start: t,
+          due: d,
+          everyMonths: 1,
+          weekend: PayWeekend.before,
+        ),
+      );
+    }
+    return p;
+  }
 
   @override
   void initState() {
@@ -185,26 +207,23 @@ class _PayFormState extends State<_PayForm> {
       });
     }
     _loadHistory();
-    for (final c in [_amount, _amount2, _day1, _day2, _weeks, _anchor]) {
-      c.addListener(() => setState(() {}));
-    }
+    _how.amount.text = _amount.text;
+    _amount.addListener(() {
+      // How often's answers read the amount typed here.
+      if (_how.amount.text != _amount.text) _how.amount.text = _amount.text;
+      setState(() {});
+    });
+    _amount2.addListener(() => setState(() {}));
+    _how.typing.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
-    for (final c in [
-      _name,
-      _payee,
-      _amount,
-      _amount2,
-      _day1,
-      _day2,
-      _weeks,
-      _anchor,
-    ]) {
+    for (final c in [_name, _payee, _amount, _amount2]) {
       c.dispose();
     }
-    _anchorFocus.dispose();
+    _how.dispose();
+    _dateFocus.dispose();
     _amountFocus.dispose();
     super.dispose();
   }
@@ -221,20 +240,19 @@ class _PayFormState extends State<_PayForm> {
   /// Back to one amount (the same both days, or another rule): the larger
   /// of the two stays, since the advance alone would undercount pay.
   void _oneAmount() {
-    if (!_splitting) return;
+    if (!_split) return;
     final a = _amountValue, b = _amount2Value;
     if (b != null && (a == null || b > a)) _amount.text = _amount2.text;
     _split = false;
   }
 
   int? get _amount2Value => parseAmount(_amount2.text, _account.currency);
-  bool get _splitting => _split && _rule == PayRule.twiceMonthly;
+  bool get _splitting => _split && _how.repeat == PlanRepeat.twice;
 
   /// The two days of the month, earlier first, when both read.
   (int, int)? get _days {
-    final a = _day(_day1), b = _day(_day2);
-    if (a == null || b == null) return null;
-    return a < b ? (a, b) : (b, a);
+    final d = _how.typedMonthDays;
+    return d == null ? null : (d[0], d[1]);
   }
 
   /// The label beside one payday's amount: "On the 10th" or, before the
@@ -259,37 +277,19 @@ class _PayFormState extends State<_PayForm> {
     null => later ? t.setupAmountMissingSecond : t.setupAmountMissingFirst,
   };
 
-  /// What's saved: twice a month keeps the earlier day as [day2] and its
-  /// amount as amount2, the order the setup shows them in.
-  ({int amount, int? amount2, int day1, int day2}) get _plan {
-    final days = _days;
-    if (_rule != PayRule.twiceMonthly || days == null) {
-      return (
-        amount: _amountValue!,
-        amount2: null,
-        day1: _day(_day1) ?? 25,
-        day2: _day(_day2) ?? 10,
-      );
-    }
-    return (
-      amount: _splitting ? _amount2Value! : _amountValue!,
-      amount2: _splitting ? _amountValue : null,
-      day1: days.$2,
-      day2: days.$1,
-    );
-  }
+  /// What's saved for the amounts: twice a month keeps the earlier day's
+  /// as amount2 and the later day's as amount, the order the setup shows
+  /// them in.
+  ({int amount, int? amount2}) get _plan => (
+    amount: _splitting && _days != null ? _amount2Value! : _amountValue!,
+    amount2: _splitting && _days != null ? _amountValue : null,
+  );
 
-  int? _day(TextEditingController c) {
-    final v = int.tryParse(c.text.trim());
-    return v == null || v < 1 || v > 31 ? null : v;
+  /// The plan the answers make: how often, from when, the weekend rule.
+  CategoryPlan? get _draftPlan {
+    _how.currency = _account.currency;
+    return _how.draft(categoryId: widget.category?.id ?? 0);
   }
-
-  int? get _weeksValue {
-    final v = int.tryParse(_weeks.text.trim());
-    return v == null || v < 1 || v > 8 ? null : v;
-  }
-
-  DateTime? get _anchorValue => parseEntryDate(_anchor.text, widget.today);
 
   /// What's missing or unreadable, first thing only; null when it can save.
   String? get _problem => _problemIn(context.t);
@@ -307,36 +307,44 @@ class _PayFormState extends State<_PayForm> {
     if (_splitting && (b == null || b <= 0)) {
       return _amountMissing(t, true);
     }
-    return switch (_rule) {
-      PayRule.monthly when _day(_day1) == null => t.setupWhichDay,
-      PayRule.twiceMonthly when _day(_day1) == null || _day(_day2) == null =>
-        t.setupWhichTwoDays,
-      PayRule.twiceMonthly when _day(_day1) == _day(_day2) =>
-        t.setupTwoDifferentDays,
-      PayRule.everyWeeks when _weeksValue == null => t.setupHowManyWeeks,
-      PayRule.everyWeeks when _anchorValue == null => t.setupWhenPayday(
-        fullDate(widget.today),
-      ),
+    _how.currency = _account.currency;
+    return switch (_how.missing) {
+      PlanMissing.date ||
+      PlanMissing.dates => t.setupWhenPayday(fullDate(widget.today)),
+      PlanMissing.days when _how.typedMonthDays == null =>
+        _days == null &&
+                int.tryParse(_how.day1.text.trim()) ==
+                    int.tryParse(_how.day2.text.trim()) &&
+                _how.day1.text.trim().isNotEmpty
+            ? t.setupTwoDifferentDays
+            : t.setupWhichTwoDays,
+      PlanMissing.everyN => t.setupHowOftenMissing,
+      PlanMissing.endDate || PlanMissing.endCount => t.setupEndsMissing,
       _ => null,
     };
   }
 
-  PaySchedule? get _preview => _problem != null
-      ? null
-      : PaySchedule(
-          id: 0,
-          categoryId: widget.category?.id ?? 0,
-          accountId: _account.id,
-          amount: _plan.amount,
-          amount2: _plan.amount2,
-          varies: _varies,
-          rule: _rule,
-          day1: _plan.day1,
-          day2: _plan.day2,
-          weeks: _weeksValue ?? 2,
-          anchor: _anchorValue,
-          weekend: _weekend,
-        );
+  PaySchedule? get _preview {
+    if (_problem != null) return null;
+    final plan = _draftPlan;
+    if (plan == null) return null;
+    final shape = PaySchedule.shapeOf(plan);
+    return PaySchedule(
+      id: 0,
+      categoryId: widget.category?.id ?? 0,
+      accountId: _account.id,
+      amount: _plan.amount,
+      amount2: _plan.amount2,
+      varies: _varies,
+      rule: shape.rule,
+      day1: shape.day1,
+      day2: shape.day2,
+      weeks: shape.weeks,
+      anchor: shape.anchor,
+      repeat: shape.repeat,
+      weekend: plan.weekend,
+    );
+  }
 
   /// Stop this pay. With categories budgeted per it, first say so and
   /// ask where they go: another pay, or the month (warn, don't block).
@@ -366,6 +374,9 @@ class _PayFormState extends State<_PayForm> {
   void _save() {
     if (_noDay) return widget.onResult(const PayNone());
     if (_problem != null) return;
+    final plan = _draftPlan;
+    if (plan == null) return;
+    final shape = PaySchedule.shapeOf(plan);
     widget.onResult(
       PaySave((
         accountId: _account.id,
@@ -374,15 +385,23 @@ class _PayFormState extends State<_PayForm> {
         amount: _plan.amount,
         amount2: _plan.amount2,
         varies: _varies,
-        rule: _rule,
-        day1: _plan.day1,
-        day2: _plan.day2,
-        weeks: _weeksValue ?? 2,
-        anchor: _anchorValue ?? widget.today,
-        weekend: _weekend,
+        rule: shape.rule,
+        day1: shape.day1,
+        day2: shape.day2,
+        weeks: shape.weeks,
+        anchor: shape.anchor,
+        repeat: shape.repeat,
+        weekend: plan.weekend,
       )),
     );
   }
+
+  /// An answer in How often changed: picking any of its choices ends "No
+  /// set day", and a choice that isn't twice a month is one amount.
+  void _howChanged() => setState(() {
+    if (_noDay && _how.repeat != PlanRepeat.once) _noDay = false;
+    if (_how.repeat != PlanRepeat.twice) _oneAmount();
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -430,19 +449,6 @@ class _PayFormState extends State<_PayForm> {
         ),
       ),
     );
-
-    Widget small(TextEditingController c, String key, {double width = 56}) =>
-        SizedBox(
-          width: width,
-          height: 30,
-          child: TextField(
-            key: ValueKey(key),
-            controller: c,
-            textAlign: TextAlign.center,
-            style: onest(13.5, tabular: true),
-            decoration: _fieldDecoration(),
-          ),
-        );
 
     Widget amountField(
       TextEditingController c,
@@ -624,7 +630,7 @@ class _PayFormState extends State<_PayForm> {
               if (widget.page && !_account.isCash)
                 hint(t.setupPayArrives, key: const ValueKey('pay-arrives')),
               // Twice a month: an advance one day, the rest the other.
-              if (_rule == PayRule.twiceMonthly)
+              if (_how.repeat == PlanRepeat.twice)
                 Padding(
                   padding: const EdgeInsets.only(left: 120, bottom: 10),
                   child: Wrap(
@@ -665,93 +671,36 @@ class _PayFormState extends State<_PayForm> {
                   color: Mid.note,
                   key: const ValueKey('pay-high'),
                 ),
-              line(
-                t.setupWhen,
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Wraps when the words run long (Mongolian).
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        choice(
-                          t.setupMonthly,
-                          !_noDay && _rule == PayRule.monthly,
-                          () => setState(() {
-                            _oneAmount();
-                            _noDay = false;
-                            _rule = PayRule.monthly;
-                          }),
-                          'pay-monthly',
-                        ),
-                        choice(
-                          t.setupTwiceMonthly,
-                          !_noDay && _rule == PayRule.twiceMonthly,
-                          () => setState(() {
-                            _noDay = false;
-                            _rule = PayRule.twiceMonthly;
-                          }),
-                          'pay-twice',
-                        ),
-                        choice(
-                          t.setupEveryFewWeeks,
-                          !_noDay && _rule == PayRule.everyWeeks,
-                          () => setState(() {
-                            _oneAmount();
-                            _noDay = false;
-                            _rule = PayRule.everyWeeks;
-                          }),
-                          'pay-weeks',
-                        ),
-                        if (_offersNoDay)
-                          choice(
-                            t.setupNoSetDay,
-                            _noDay,
-                            () => setState(() => _noDay = true),
-                            'pay-no-day',
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (!_noDay)
-                      Row(
-                        children: switch (_rule) {
-                          PayRule.monthly || PayRule.custom => withFields(
-                            t.setupOnDayField(fieldMarks[0]),
-                            [small(_day1, 'pay-day1')],
-                          ),
-                          PayRule.twiceMonthly => withFields(
-                            t.setupOnDaysField(fieldMarks[0], fieldMarks[1]),
-                            [
-                              small(_day2, 'pay-day2'),
-                              small(_day1, 'pay-day1'),
-                            ],
-                          ),
-                          PayRule.everyWeeks => withFields(
-                            t.setupEveryWeeksField(
-                              _weeksValue ?? 0,
-                              fieldMarks[0],
-                              fieldMarks[1],
-                            ),
-                            [
-                              small(_weeks, 'pay-weeks-n', width: 44),
-                              SizedBox(
-                                width: 130,
-                                height: 30,
-                                child: DateField(
-                                  key: const ValueKey('pay-anchor'),
-                                  controller: _anchor,
-                                  focusNode: _anchorFocus,
-                                  today: widget.today,
-                                  small: true,
-                                  onSubmitted: _save,
-                                  onPicked: () {},
-                                ),
-                              ),
-                            ],
-                          ),
-                        },
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: _HowOftenRows(
+                  p: _how,
+                  data: widget.data,
+                  today: widget.today,
+                  tried: false,
+                  menus: _menus,
+                  onSave: _save,
+                  onChanged: _howChanged,
+                  dateFocus: _dateFocus,
+                  offerOnce: false,
+                  offerPayday: false,
+                  labelWidth: 120,
+                  dateLabel: t.setupFirstPayday,
+                  daysLabel: t.setupPaydays,
+                  showRest: !_noDay,
+                  repeatLabel: _noDay ? t.setupNoSetDay : null,
+                  extra: [
+                    if (_offersNoDay)
+                      (
+                        key: 'pay-no-day',
+                        label: t.setupNoSetDay,
+                        on: _noDay,
+                        onTap: () => setState(() {
+                          _oneAmount();
+                          _noDay = true;
+                          // "Once" isn't a choice here: it marks this one.
+                          _how.repeat = PlanRepeat.once;
+                        }),
                       ),
                   ],
                 ),
@@ -759,33 +708,12 @@ class _PayFormState extends State<_PayForm> {
               // Both days past the 28th meet in short months: one
               // payday then, which is worth knowing before it happens.
               if (!_noDay &&
-                  _rule == PayRule.twiceMonthly &&
+                  _how.repeat == PlanRepeat.twice &&
                   (_days?.$1 ?? 0) >= 28)
                 hint(
                   t.setupDaysMeet,
                   color: Mid.note,
                   key: const ValueKey('pay-days-meet'),
-                ),
-              if (!_noDay)
-                line(
-                  t.setupOnWeekend,
-                  Row(
-                    children: [
-                      for (final (w, label, key) in [
-                        (PayWeekend.before, t.setupFridayBefore, 'pay-friday'),
-                        (PayWeekend.after, t.setupMondayAfter, 'pay-monday'),
-                        (PayWeekend.keep, t.setupKeepTheDay, 'pay-keep'),
-                      ]) ...[
-                        if (w != PayWeekend.before) const SizedBox(width: 8),
-                        choice(
-                          label,
-                          _weekend == w,
-                          () => setState(() => _weekend = w),
-                          key,
-                        ),
-                      ],
-                    ],
-                  ),
                 ),
               if (!_noDay && preview != null && preview.perYear > 24)
                 hint(

@@ -4635,10 +4635,18 @@
   "@setupNameMissing": {
     "description": "Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name."
   },
+  "setupFirstPayday": "First payday",
+  "@setupFirstPayday": {"description": "Pay form, the date a repeating income starts from."},
+  "setupHowOftenMissing": "Say how often it comes.",
+  "@setupHowOftenMissing": {"description": "Pay form, when how often has a number or dates still missing."},
+  "setupEndsMissing": "Say when it ends.",
+  "@setupEndsMissing": {"description": "Pay form, when Ends says a date or a number of times and none is typed."},
   "setupNoSetDay": "No set day",
   "@setupNoSetDay": {
     "description": "Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”."
   },
+  "setupPaydays": "Paydays",
+  "@setupPaydays": {"description": "Pay form, the label of the two days of the month for pay twice a month."},
   "setupNoSetDayMeans": "With no set day, the forecast doesn’t expect it. When it comes, file it under Income.",
   "@setupNoSetDayMeans": {
     "description": "Pay setup, under the form when When is No set day: what saving it does."

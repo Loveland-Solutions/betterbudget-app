@@ -3122,7 +3122,19 @@ class WordsEn extends Words {
   String get setupNameMissing => 'Enter a name.';
 
   @override
+  String get setupFirstPayday => 'First payday';
+
+  @override
+  String get setupHowOftenMissing => 'Say how often it comes.';
+
+  @override
+  String get setupEndsMissing => 'Say when it ends.';
+
+  @override
   String get setupNoSetDay => 'No set day';
+
+  @override
+  String get setupPaydays => 'Paydays';
 
   @override
   String get setupNoSetDayMeans =>

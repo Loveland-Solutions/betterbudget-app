@@ -14,15 +14,21 @@ class _HowOftenMenus {
 
 /// One line of a form: a label in its column, the control, and a quiet
 /// note beside it when one is needed.
-Widget _formRow(String label, Widget child, {String? aside}) => Padding(
+Widget _formRow(
+  String label,
+  Widget child, {
+  String? aside,
+  double labelWidth = 214,
+  bool flexible = false,
+}) => Padding(
   padding: const EdgeInsets.only(bottom: 12),
   child: Row(
     children: [
       SizedBox(
-        width: 214,
+        width: labelWidth,
         child: Text(label, style: onest(13, color: Mid.ink2)),
       ),
-      child,
+      flexible ? Flexible(child: child) : child,
       if (aside != null)
         Flexible(
           child: Padding(
@@ -90,6 +96,9 @@ class _HowOftenRows extends StatelessWidget {
     this.extra = const [],
     this.dateLabel,
     this.showRest = true,
+    this.labelWidth = 214,
+    this.repeatLabel,
+    this.daysLabel,
   });
 
   final PlanAnswers p;
@@ -124,9 +133,30 @@ class _HowOftenRows extends StatelessWidget {
   /// False when [extra]'s choice was picked and says it needs nothing more.
   final bool showRest;
 
+  /// The label column's width: a form lays its own out.
+  final double labelWidth;
+
+  /// What the two days of a month are called; null: the first date's label.
+  final String? daysLabel;
+
+  /// What the dropdown says when [extra]'s choice is the one picked.
+  final String? repeatLabel;
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    Widget formRow(
+      String label,
+      Widget child, {
+      String? aside,
+      bool flexible = false,
+    }) => _formRow(
+      label,
+      child,
+      aside: aside,
+      labelWidth: labelWidth,
+      flexible: flexible,
+    );
     void setState(VoidCallback f) {
       f();
       onChanged();
@@ -201,7 +231,7 @@ class _HowOftenRows extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _formRow(
+        formRow(
           t.planHowOften,
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -209,7 +239,7 @@ class _HowOftenRows extends StatelessWidget {
               menu(
                 menus.repeat,
                 key: 'plan-repeat',
-                label: planRepeatLabel(t, data, p),
+                label: repeatLabel ?? planRepeatLabel(t, data, p),
                 items: [
                   if (offerOnce)
                     item(
@@ -306,7 +336,7 @@ class _HowOftenRows extends StatelessWidget {
         ),
         if (showRest) ...[
           if (p.repeat == PlanRepeat.payday)
-            _formRow(
+            formRow(
               t.planLabelDueDate,
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -333,12 +363,17 @@ class _HowOftenRows extends StatelessWidget {
               aside: p.daysAfterNow == 0 ? t.planOnPayday : null,
             )
           else
-            _formRow(
+            formRow(
               p.repeat == PlanRepeat.dates
                   ? t.planDatesLabel
+                  : p.repeat == PlanRepeat.twice && daysLabel != null
+                  ? daysLabel!
                   : dateLabel ?? t.planLabelDueDate,
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              flexible: true,
+              // Wraps: in a narrow window the weekend rule goes under the date.
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 8,
                 children: [
                   if (p.repeat == PlanRepeat.dates)
                     SizedBox(
@@ -414,7 +449,7 @@ class _HowOftenRows extends StatelessWidget {
           // which unit, the weekdays or the nth weekday when the unit has
           // them, and when it ends.
           if (p.customOn) ...[
-            _formRow(
+            formRow(
               t.planRepeatEvery,
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -452,7 +487,7 @@ class _HowOftenRows extends StatelessWidget {
               ),
             ),
             if (p.unit == PlanUnit.weeks)
-              _formRow(
+              formRow(
                 t.planOnWeekdays,
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -474,7 +509,7 @@ class _HowOftenRows extends StatelessWidget {
                 aside: p.weekdays.isEmpty ? t.planWeekdaysHint : null,
               ),
             if (p.unit == PlanUnit.months || p.unit == PlanUnit.years)
-              _formRow(
+              formRow(
                 t.planOnLabel,
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -532,7 +567,7 @@ class _HowOftenRows extends StatelessWidget {
               ),
           ],
           if (p.endsOn)
-            _formRow(
+            formRow(
               t.planEnds,
               Row(
                 mainAxisSize: MainAxisSize.min,

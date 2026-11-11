@@ -1463,9 +1463,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             RegisterFilter.cleared || RegisterFilter.reconciled => true,
             RegisterFilter.scheduled => !future,
             RegisterFilter.uncategorized =>
-              future ||
-                  d.splits != null ||
-                  landed != _uncategorizedId(_data!),
+              future || d.splits != null || landed != _uncategorizedId(_data!),
           } ||
           (_all &&
               _categoryFilter != null &&
@@ -3926,6 +3924,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             day2: draft.day2,
             weeks: draft.weeks,
             anchor: draft.anchor,
+            repeat: draft.repeat,
             weekend: draft.weekend,
             // The Budget page's view is chosen there; editing a pay
             // leaves it as it is.

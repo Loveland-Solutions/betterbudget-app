@@ -9766,10 +9766,9 @@ void main() {
         find.byKey(const ValueKey('pay-amount')),
         '2100000',
       );
-      await tester.tap(find.byKey(const ValueKey('pay-weeks')));
-      await tester.pumpAndSettle();
+      await howOften(tester, 'plan-repeat-d14');
       await tester.enterText(
-        find.byKey(const ValueKey('pay-anchor')),
+        find.byKey(const ValueKey('plan-date')),
         '2026.09.11',
       );
       await tester.pumpAndSettle();
@@ -9996,7 +9995,9 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('pay-twice')));
+      await howOften(tester, 'plan-repeat-twice');
+      await tester.enterText(find.byKey(const ValueKey('plan-day1')), '10');
+      await tester.enterText(find.byKey(const ValueKey('plan-day2')), '25');
       await tester.pumpAndSettle();
       // The same both days until asked otherwise.
       expect(find.byKey(const ValueKey('pay-amount2')), findsNothing);
@@ -10048,8 +10049,7 @@ void main() {
       });
       await tester.pumpAndSettle();
       expect(find.text('On the 10th'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('pay-monthly')));
-      await tester.pumpAndSettle();
+      await howOften(tester, 'plan-repeat-1');
       expect(find.text('Each payday'), findsOneWidget);
       expect(find.text('1,600,000'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('pay-cancel')));
@@ -13192,4 +13192,12 @@ List<String> _catchClipboard(WidgetTester tester) {
     ),
   );
   return copied;
+}
+
+/// Picks one of How often's choices on the income form.
+Future<void> howOften(WidgetTester tester, String item) async {
+  await tester.tap(find.byKey(const ValueKey('plan-repeat')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey(item)));
+  await tester.pumpAndSettle();
 }

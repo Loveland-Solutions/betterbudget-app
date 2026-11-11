@@ -334,6 +334,149 @@ class PaySchedule {
     }
   }
 
+  /// This pay as a category's plan says it, the answers How often asks: the
+  /// form shows and changes it as a plan, [shapeOf] turns it back. Its first
+  /// date is the next payday's day (the nominal one, before the weekend rule)
+  /// from [today], or the first of a custom pay.
+  CategoryPlan asPlan(DateTime today) {
+    final t = dateOnly(today);
+    DateTime onOrAfter(int day) {
+      var d = DateTime(t.year, t.month, _clampDay(t.year, t.month, day));
+      if (d.isBefore(t)) {
+        d = DateTime(t.year, t.month + 1, _clampDay(t.year, t.month + 1, day));
+      }
+      return d;
+    }
+
+    final days = [day1, day2]..sort();
+    return switch (rule) {
+      PayRule.custom => CategoryPlan(
+        categoryId: categoryId,
+        kind: PlanKind.byDate,
+        amount: amount,
+        start: t,
+        due: dateOnly(anchor ?? t),
+        everyMonths: repeat?.everyMonths,
+        everyDays: repeat?.everyDays,
+        onDates: repeat?.onDates,
+        monthDays: repeat?.monthDays,
+        weekdays: repeat?.weekdays,
+        nth: repeat?.nth,
+        nthWeekday: repeat?.nthWeekday,
+        endDate: repeat?.endDate,
+        endCount: repeat?.endCount,
+        weekend: weekend,
+      ),
+      PayRule.monthly => CategoryPlan(
+        categoryId: categoryId,
+        kind: PlanKind.byDate,
+        amount: amount,
+        start: t,
+        due: onOrAfter(day1),
+        everyMonths: 1,
+        weekend: weekend,
+      ),
+      PayRule.twiceMonthly => CategoryPlan(
+        categoryId: categoryId,
+        kind: PlanKind.byDate,
+        amount: amount,
+        start: t,
+        due: onOrAfter(days.first),
+        monthDays: days,
+        weekend: weekend,
+      ),
+      PayRule.everyWeeks => CategoryPlan(
+        categoryId: categoryId,
+        kind: PlanKind.byDate,
+        amount: amount,
+        start: t,
+        due: dateOnly(anchor ?? t),
+        everyDays: 7 * weeks,
+        weekend: weekend,
+      ),
+    };
+  }
+
+  /// How [plan], as How often's answers made it, is kept: the three shapes
+  /// a pay had before keep their own rule and days (they are exact and
+  /// every pay already saved is one), anything else is [PayRule.custom].
+  /// Twice a month keeps the later day as [day1], as it always has.
+  static ({
+    PayRule rule,
+    int day1,
+    int day2,
+    int weeks,
+    DateTime anchor,
+    PayRepeat? repeat,
+  })
+  shapeOf(CategoryPlan plan) {
+    final due = dateOnly(plan.due ?? plan.start);
+    final ends = plan.endDate != null || plan.endCount != null;
+    final plain =
+        !ends &&
+        plan.onDates == null &&
+        plan.weekdays == null &&
+        plan.nth == null;
+    if (plain && plan.monthDays?.length == 2 && plan.everyDays == null) {
+      final d = [...plan.monthDays!]..sort();
+      return (
+        rule: PayRule.twiceMonthly,
+        day1: d.last,
+        day2: d.first,
+        weeks: 2,
+        anchor: due,
+        repeat: null,
+      );
+    }
+    if (plain &&
+        plan.monthDays == null &&
+        plan.everyMonths == 1 &&
+        plan.everyDays == null) {
+      return (
+        rule: PayRule.monthly,
+        day1: due.day,
+        day2: 10,
+        weeks: 2,
+        anchor: due,
+        repeat: null,
+      );
+    }
+    final days = plan.everyDays;
+    if (plain &&
+        plan.monthDays == null &&
+        plan.everyMonths == null &&
+        days != null &&
+        days % 7 == 0 &&
+        days <= 56) {
+      return (
+        rule: PayRule.everyWeeks,
+        day1: 25,
+        day2: 10,
+        weeks: days ~/ 7,
+        anchor: due,
+        repeat: null,
+      );
+    }
+    return (
+      rule: PayRule.custom,
+      day1: 25,
+      day2: 10,
+      weeks: 2,
+      anchor: due,
+      repeat: PayRepeat(
+        everyMonths: plan.everyMonths,
+        everyDays: plan.everyDays,
+        onDates: plan.onDates,
+        monthDays: plan.monthDays,
+        weekdays: plan.weekdays,
+        nth: plan.nth,
+        nthWeekday: plan.nthWeekday,
+        endDate: plan.endDate,
+        endCount: plan.endCount,
+      ),
+    );
+  }
+
   static final _plans = Expando<CategoryPlan>();
 
   /// This pay's repeat as a category's plan: the same dates come from it.

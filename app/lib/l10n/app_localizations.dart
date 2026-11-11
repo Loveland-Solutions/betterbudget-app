@@ -4359,11 +4359,35 @@ abstract class Words {
   /// **'Enter a name.'**
   String get setupNameMissing;
 
+  /// Pay form, the date a repeating income starts from.
+  ///
+  /// In en, this message translates to:
+  /// **'First payday'**
+  String get setupFirstPayday;
+
+  /// Pay form, when how often has a number or dates still missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Say how often it comes.'**
+  String get setupHowOftenMissing;
+
+  /// Pay form, when Ends says a date or a number of times and none is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Say when it ends.'**
+  String get setupEndsMissing;
+
   /// Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”.
   ///
   /// In en, this message translates to:
   /// **'No set day'**
   String get setupNoSetDay;
+
+  /// Pay form, the label of the two days of the month for pay twice a month.
+  ///
+  /// In en, this message translates to:
+  /// **'Paydays'**
+  String get setupPaydays;
 
   /// Pay setup, under the form when When is No set day: what saving it does.
   ///
