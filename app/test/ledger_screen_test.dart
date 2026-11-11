@@ -9789,6 +9789,14 @@ void main() {
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/forecast_budgeted.png'),
       );
+      // The bill list carries it as lines of its own between the bills, so
+      // no balance falls by more than the line above it says (#398).
+      await tester.tap(find.byKey(const ValueKey('forecast-bills')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('forecast-spending-line')),
+        findsWidgets,
+      );
       await tidy(tester, db);
     });
 

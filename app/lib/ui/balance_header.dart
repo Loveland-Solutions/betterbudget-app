@@ -1733,15 +1733,31 @@ class _BillsCard extends StatelessWidget {
                   ],
                 ),
               ),
-              for (final s in f.rowSteps)
-                _BillLine(
-                  row: s.row,
-                  date: s.date,
-                  years: years,
-                  balanceAfter: s.balance,
-                  owed: f.owed,
-                  onTap: open == null ? null : () => open(s.row),
-                ),
+              // The budget's spending falls between the bills a day at a
+              // time; with it left out of the list, a balance fell by more
+              // than the bill above it. Each stretch of it is a line of its
+              // own, so every balance follows from the one before (#398).
+              for (final (i, s) in f.steps.indexed)
+                if (!s.spending)
+                  _BillLine(
+                    row: s.row,
+                    date: s.date,
+                    years: years,
+                    balanceAfter: s.balance,
+                    owed: f.owed,
+                    onTap: open == null ? null : () => open(s.row),
+                  )
+                else if (i + 1 == f.steps.length || !f.steps[i + 1].spending)
+                  _SpendingLine(
+                    date: s.date,
+                    years: years,
+                    spent: -[
+                      for (var j = i; j >= 0 && f.steps[j].spending; j--)
+                        f.steps[j].row.amount,
+                    ].fold(0, (a, b) => a + b),
+                    balanceAfter: s.balance,
+                    owed: f.owed,
+                  ),
               // Money due on the last day that the forecast doesn't count
               // as arrived: the paycheck a pay period ends at, and on a day
               // picked with Custom… everything money in that falls there
@@ -1776,6 +1792,69 @@ class _BillsCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The budget's spending between two bills, in the list, as one quiet line
+/// with the balance it leaves. Nothing to open: it has no row.
+class _SpendingLine extends StatelessWidget {
+  const _SpendingLine({
+    required this.date,
+    required this.years,
+    required this.spent,
+    required this.balanceAfter,
+    required this.owed,
+  });
+
+  final DateTime date;
+  final bool years, owed;
+
+  /// How much it comes to, positive.
+  final int spent, balanceAfter;
+
+  @override
+  Widget build(BuildContext context) {
+    final b = balanceAfter;
+    return Padding(
+      key: const ValueKey('forecast-spending-line'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 44,
+            child: Text(
+              years ? fullDate(date) : shortDate(date),
+              style: onest(12.5, color: Mid.ink3, tabular: true),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              context.t.planRailSpend(
+                moneyIn(context, spent, showCents: false),
+              ),
+              style: onest(12.5, color: Mid.ink3),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // The amount is in the words; this column keeps the balances lined up.
+          const SizedBox(width: 104),
+          SizedBox(
+            width: 110,
+            child: Text(
+              roundedIn(context, b),
+              textAlign: TextAlign.right,
+              style: onest(
+                12.5,
+                color: !owed && b < 0 ? Mid.coral : Mid.ink3,
+                tabular: true,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
