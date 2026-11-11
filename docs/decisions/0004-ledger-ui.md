@@ -5295,9 +5295,10 @@ having been shown that every hue in the palette already has a job.
 - **The words are unchanged.** English "Uncleared" against Mongolian `Хүлээгдэж буй`
   ("pending", the banks' own word) was put to the owner with "Not cleared" and "Pending"
   as alternatives; the owner kept **Uncleared**.
-- **Not built, and filed instead:** a row added while a filter is on saves, does not
-  appear and says nothing (#389); `ledgerNotInThisView` exists in both languages and is
-  not reached.
+- **Not built here, built later (0.83.2, #389):** a row added while a filter tab won't
+  list it (Cleared and Reconciled always; Scheduled unless dated ahead; the others when
+  it's dated ahead, and Not categorized unless it lands there) says "not in this view"
+  in its toast, as a search does.
 
 ## The forecast's chart does the talking (owner, 2026-11-08, #392)
 

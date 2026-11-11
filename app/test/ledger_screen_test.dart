@@ -2543,6 +2543,30 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('a row added under a filter tab that won\'t list it says so', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Scheduled').first);
+      await tester.pumpAndSettle();
+      await openEntry(tester);
+      await tester.enterText(field('Category'), 'Dining out');
+      await tester.enterText(field('New transaction — payee'), 'Modern Nomads');
+      await tester.enterText(field('₮0.00'), '42000');
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.tap(find.widgetWithText(GestureDetector, 'Add').last);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
+      // Dated today, so not a scheduled row: saved, and not in this view.
+      expect(
+        find.textContaining('Modern Nomads added · not in this view'),
+        findsOneWidget,
+      );
+      await tidy(tester, db);
+    });
+
     testWidgets('a long memo is whole on the row, which grows to hold it', (
       tester,
     ) async {

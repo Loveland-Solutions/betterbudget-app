@@ -1450,8 +1450,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
       final kept = remembered == null ? null : _rememberedWords(remembered!);
       // A row that won't show under the filter or search in force says where
       // it went, or it looks lost and gets typed again.
+      final future = d.date.isAfter(today);
+      final landed = made ?? d.counter?.id;
       final hidden =
           _search.text.trim().isNotEmpty ||
+          // The tab: a new row is posted and uncleared, or scheduled when
+          // dated ahead, and only Scheduled lists those.
+          switch (_filter) {
+            RegisterFilter.all => false,
+            RegisterFilter.uncleared => future,
+            RegisterFilter.cleared || RegisterFilter.reconciled => true,
+            RegisterFilter.scheduled => !future,
+            RegisterFilter.uncategorized =>
+              future ||
+                  d.splits != null ||
+                  landed != _uncategorizedId(_data!),
+          } ||
           (_all &&
               _categoryFilter != null &&
               (made ?? d.counter?.id) != _categoryFilter &&
