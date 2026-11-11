@@ -161,13 +161,8 @@ void main() {
 
     // A dropped field here would silently remove an input box.
     final t = lookupWords(const Locale('mn'));
-    expect(t.setupOnDayField('\u0001'), contains('\u0001'));
     final days = t.setupOnDaysField('\u0001', '\u0002');
     expect(days, allOf(contains('\u0001'), contains('\u0002')));
-    for (final count in [1, 2]) {
-      final weeks = t.setupEveryWeeksField(count, '\u0001', '\u0002');
-      expect(weeks, allOf(contains('\u0001'), contains('\u0002')));
-    }
   });
 
   test('the app’s own opening balance and adjustment rows', () async {

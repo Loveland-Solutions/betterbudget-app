@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/setup.dart';
 import 'package:betterbudget/ui/fit_window.dart';
 import 'package:betterbudget/ui/ledger_screen.dart';
@@ -395,6 +396,25 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('pay-none')));
     await tester.pumpAndSettle();
+    await tidy(tester, db);
+  });
+
+  testWidgets('an income on a repeat a category has saves, and its line says '
+      'how often (#438)', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await toPay(tester);
+    await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Pension');
+    await tester.enterText(find.byKey(const ValueKey('pay-amount')), '300,000');
+    await howOften(tester, 'plan-repeat-3');
+    await tester.enterText(find.byKey(const ValueKey('plan-date')), '11.20');
+    await tester.pumpAndSettle();
+    await press(tester, 'pay-save');
+    expect(find.textContaining('every 3 months'), findsOneWidget);
+    final pay = (await ledger(tester, db)).paySchedules.single;
+    expect(pay.rule, PayRule.custom);
+    expect(pay.repeat?.everyMonths, 3);
     await tidy(tester, db);
   });
 
