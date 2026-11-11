@@ -1272,7 +1272,7 @@ class WordsEn extends Words {
 
   @override
   String get planForecastWhatBand =>
-      'The shaded band is the budget’s everyday spending, spread over the days.';
+      'The shaded band is the budget’s day-to-day spending, spread over the days.';
 
   @override
   String get planForecastWhatFour =>
@@ -1311,7 +1311,7 @@ class WordsEn extends Words {
 
   @override
   String planRailSpend(String amount) {
-    return 'Everyday spending −$amount';
+    return 'Day-to-day −$amount';
   }
 
   @override

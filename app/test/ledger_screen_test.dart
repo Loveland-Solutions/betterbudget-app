@@ -9760,7 +9760,7 @@ void main() {
       await settle(tester);
       // Its own whole part of the line under the chart, beside the bills
       // and the income: the card's arithmetic ties again (#398).
-      expect(find.textContaining('Everyday spending −'), findsOneWidget);
+      expect(find.textContaining('Day-to-day −'), findsOneWidget);
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/forecast_budgeted.png'),
