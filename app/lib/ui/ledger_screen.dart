@@ -56,6 +56,7 @@ import 'theme.dart';
 
 part 'accounts.dart';
 part 'budget.dart';
+part 'how_often.dart';
 part 'import_dialog.dart';
 part 'pay_setup.dart';
 part 'payees.dart';
