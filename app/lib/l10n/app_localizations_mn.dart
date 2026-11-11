@@ -3882,8 +3882,14 @@ class WordsMn extends Words {
   }
 
   @override
-  String planStartOffer(String amount, String count) {
-    return 'Юу ч хуваарилахаас өмнө $count ангилалд $amount зарцуулсан байна. Энэ үед тэдгээрээс хасагдана.';
+  String planStartOffer(String amount, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Юу ч хуваарилахаас өмнө $count ангилалд $amount зарцуулсан байна. Энэ үед тэдгээрээс хасагдана.',
+    );
+    return '$_temp0';
   }
 
   @override

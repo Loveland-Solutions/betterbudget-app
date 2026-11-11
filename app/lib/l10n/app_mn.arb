@@ -903,7 +903,7 @@
   "planAssignTip": "Дарж хуваарилах дүнгээ бичих · Tab дараагийнх",
   "planAssignUndo": "{category}: {amount} хуваарилсан",
   "planShowAllRows": "{usage} · харуулах",
-  "planStartOffer": "Юу ч хуваарилахаас өмнө {count} ангилалд {amount} зарцуулсан байна. Энэ үед тэдгээрээс хасагдана.",
+  "planStartOffer": "{count, plural, other{Юу ч хуваарилахаас өмнө {count} ангилалд {amount} зарцуулсан байна. Энэ үед тэдгээрээс хасагдана.}}",
   "planStartLater": "Оронд нь төсөв эхлэх өдрийг {date} болгох",
   "planStartKeep": "Хэвээр үлдээх",
   "planStartLaterUndo": "Төсөв эхлэх өдөр: {date}",

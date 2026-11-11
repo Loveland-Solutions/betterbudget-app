@@ -4035,8 +4035,16 @@ class WordsEn extends Words {
   }
 
   @override
-  String planStartOffer(String amount, String count) {
-    return '$amount was spent in $count categories before anything was assigned. It counts against them this period.';
+  String planStartOffer(String amount, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$amount was spent in $count categories before anything was assigned. It counts against them this period.',
+      one:
+          '$amount was spent in 1 category before anything was assigned. It counts against it this period.',
+    );
+    return '$_temp0';
   }
 
   @override

@@ -5576,8 +5576,8 @@ abstract class Words {
   /// Budget page, gold note after the first amount is assigned in a period that already started (owner's call: offer to start next period)
   ///
   /// In en, this message translates to:
-  /// **'{amount} was spent in {count} categories before anything was assigned. It counts against them this period.'**
-  String planStartOffer(String amount, String count);
+  /// **'{count, plural, =1{{amount} was spent in 1 category before anything was assigned. It counts against it this period.} other{{amount} was spent in {count} categories before anything was assigned. It counts against them this period.}}'**
+  String planStartOffer(String amount, int count);
 
   /// Budget page: button on the first-period note; moves what was assigned to the next period, which is where the budget then starts
   ///
