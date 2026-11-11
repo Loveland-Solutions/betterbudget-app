@@ -4585,6 +4585,8 @@
   "@setupNoSetDay": {
     "description": "Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”."
   },
+  "setupEndsEarly": "It ends before its first payday.",
+  "@setupEndsEarly": {"description": "Pay form, when the end date is before the first payday."},
   "setupPaydays": "Paydays",
   "@setupPaydays": {"description": "Pay form, the label of the two days of the month for pay twice a month."},
   "setupNoSetDayMeans": "With no set day, the forecast doesn’t expect it. When it comes, file it under Income.",
@@ -7596,6 +7598,10 @@
   "@setupNoRegularPayLine": {
     "description": "Setup, Pay step: the one line shown after “I don’t have regular pay” was chosen, with an “Add your pay” button beside it."
   },
+  "setupCardForecastEnds": "Shows {amount} coming in on {date}, and on each payday until it ends.",
+  "@setupCardForecastEnds": {"description": "Pay setup card, for an income that ends.", "placeholders": {"amount": {"type": "String"}, "date": {"type": "String"}}},
+  "setupCardForecastEndsMin": "Shows at least {amount} coming in on {date}, and on each payday until it ends.",
+  "@setupCardForecastEndsMin": {"description": "Pay setup card, for an income that ends and varies.", "placeholders": {"amount": {"type": "String"}, "date": {"type": "String"}}},
   "phoneLeftIn": "Left in {month}",
   "@phoneLeftIn": {
     "description": "Phone app, the first screen’s heading above the list of categories and what is left in each. {month} is a month’s name from monthNames.",

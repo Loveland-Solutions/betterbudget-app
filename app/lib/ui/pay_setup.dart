@@ -320,8 +320,19 @@ class _PayFormState extends State<_PayForm> {
             : t.setupWhichTwoDays,
       PlanMissing.everyN => t.setupHowOftenMissing,
       PlanMissing.endDate || PlanMissing.endCount => t.setupEndsMissing,
-      _ => null,
+      _ => _endsBeforeStart(),
     };
+  }
+
+  /// An end date before the first payday leaves nothing to schedule.
+  String? _endsBeforeStart() {
+    final plan = _draftPlan;
+    final end = plan?.endDate;
+    if (plan == null || end == null) return null;
+    final first = plan.due ?? plan.start;
+    return dateOnly(end).isBefore(dateOnly(first))
+        ? context.t.setupEndsEarly
+        : null;
   }
 
   PaySchedule? get _preview {
@@ -830,12 +841,22 @@ class _PayFormState extends State<_PayForm> {
                       payAmounts(t, preview, money),
                       sayFullDate(t, next),
                     )
+                  : preview.repeat?.endDate != null ||
+                        preview.repeat?.endCount != null
+                  ? (_varies
+                        ? t.setupCardForecastEndsMin(
+                            amount,
+                            sayFullDate(t, next),
+                          )
+                        : t.setupCardForecastEnds(amount, sayFullDate(t, next)))
                   : _varies
                   ? t.setupCardForecastLineMin(amount, sayFullDate(t, next))
                   : t.setupCardForecastLine(amount, sayFullDate(t, next)),
               // Every few weeks a month holds two paydays, or three: Budget
               // counts the ones that fall in it, so it isn't "a month".
-              budget: preview.rule == PayRule.everyWeeks
+              budget:
+                  preview.rule == PayRule.everyWeeks ||
+                      preview.rule == PayRule.custom
                   ? (_varies
                         ? t.setupCardBudgetEachPaydayMin(amount)
                         : t.setupCardBudgetEachPayday(amount))

@@ -3091,6 +3091,9 @@ class WordsEn extends Words {
   String get setupNoSetDay => 'No set day';
 
   @override
+  String get setupEndsEarly => 'It ends before its first payday.';
+
+  @override
   String get setupPaydays => 'Paydays';
 
   @override
@@ -5210,6 +5213,16 @@ class WordsEn extends Words {
 
   @override
   String get setupNoRegularPayLine => 'No regular income';
+
+  @override
+  String setupCardForecastEnds(String amount, String date) {
+    return 'Shows $amount coming in on $date, and on each payday until it ends.';
+  }
+
+  @override
+  String setupCardForecastEndsMin(String amount, String date) {
+    return 'Shows at least $amount coming in on $date, and on each payday until it ends.';
+  }
 
   @override
   String phoneLeftIn(String month) {

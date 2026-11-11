@@ -223,7 +223,7 @@ class PaySchedule {
     final d = dateOnly(day);
     // Far enough back to hold one whole interval, whatever the weeks.
     final back = rule == PayRule.custom
-        ? 800
+        ? _customLookBack
         : (7 * weeks + 14 > 70 ? 7 * weeks + 14 : 70);
     DateTime? last;
     for (final n in _nominalFrom(_addDays(d, -back))) {
@@ -246,6 +246,8 @@ class PaySchedule {
     final p = dateOnly(posted);
     final before = lastOnOrBefore(p);
     final after = nextAfter(p);
+    // An income that has ended has no payday after its last.
+    if (after == payNever) return before ?? p;
     if (before == null) return after;
     if (split && paid != null && before != p) {
       final b = (amountOn(before) - paid).abs();
@@ -263,6 +265,9 @@ class PaySchedule {
     final start = lastOnOrBefore(day);
     if (start == null) return null;
     final next = nextAfter(day);
+    // An income that has ended has no period to run the budget by: the
+    // caller falls back to calendar months.
+    if (next == payNever) return null;
     return (start: start, end: _addDays(next, -1));
   }
 
@@ -298,7 +303,7 @@ class PaySchedule {
         // The same dates a category's bills have (Budget.dueAfter): the
         // first at or after [from], then on, until it ends.
         final plan = _repeatPlan;
-        final last = Budget.lastDue(plan);
+        final last = _lastPayday;
         var i = _firstFrom(plan, from);
         while (true) {
           final d = Budget.dueAfter(plan, i++);
@@ -340,12 +345,15 @@ class PaySchedule {
   /// from [today], or the first of a custom pay.
   CategoryPlan asPlan(DateTime today) {
     final t = dateOnly(today);
+    // The next date on or after [today] that really is [day] of its month:
+    // a pay on the 31st is shown from a month that has one, so saving the
+    // form can't turn it into the 28th.
     DateTime onOrAfter(int day) {
-      var d = DateTime(t.year, t.month, _clampDay(t.year, t.month, day));
-      if (d.isBefore(t)) {
-        d = DateTime(t.year, t.month + 1, _clampDay(t.year, t.month + 1, day));
+      for (var m = 0; m < 14; m++) {
+        final d = DateTime(t.year, t.month + m, day);
+        if (d.day == day && !d.isBefore(t)) return d;
       }
-      return d;
+      return DateTime(t.year, t.month, _clampDay(t.year, t.month, day));
     }
 
     final days = [day1, day2]..sort();
@@ -478,6 +486,22 @@ class PaySchedule {
   }
 
   static final _plans = Expando<CategoryPlan>();
+  static final _lasts = Expando<List<DateTime?>>();
+
+  /// The last payday of a custom pay that ends, or null; worked out once.
+  DateTime? get _lastPayday =>
+      (_lasts[this] ??= [Budget.lastDue(_repeatPlan)]).first;
+
+  /// How far back to look for the payday before a day: more than one gap.
+  int get _customLookBack {
+    final r = repeat;
+    final gap = [
+      800,
+      (r?.everyMonths ?? 0) * 31 + 35,
+      (r?.everyDays ?? 0) + 35,
+    ];
+    return gap.reduce((a, b) => a > b ? a : b);
+  }
 
   /// This pay's repeat as a category's plan: the same dates come from it.
   /// The weekend rule is the pay's own, applied after, so not here.

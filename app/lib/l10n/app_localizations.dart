@@ -4317,6 +4317,12 @@ abstract class Words {
   /// **'No set day'**
   String get setupNoSetDay;
 
+  /// Pay form, when the end date is before the first payday.
+  ///
+  /// In en, this message translates to:
+  /// **'It ends before its first payday.'**
+  String get setupEndsEarly;
+
   /// Pay form, the label of the two days of the month for pay twice a month.
   ///
   /// In en, this message translates to:
@@ -7437,6 +7443,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'No regular income'**
   String get setupNoRegularPayLine;
+
+  /// Pay setup card, for an income that ends.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows {amount} coming in on {date}, and on each payday until it ends.'**
+  String setupCardForecastEnds(String amount, String date);
+
+  /// Pay setup card, for an income that ends and varies.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows at least {amount} coming in on {date}, and on each payday until it ends.'**
+  String setupCardForecastEndsMin(String amount, String date);
 
   /// Phone app, the first screen’s heading above the list of categories and what is left in each. {month} is a month’s name from monthNames.
   ///

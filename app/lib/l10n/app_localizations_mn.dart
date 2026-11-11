@@ -3000,6 +3000,9 @@ class WordsMn extends Words {
   String get setupNoSetDay => 'Тогтсон өдөргүй';
 
   @override
+  String get setupEndsEarly => 'Анхны орлого орохоос өмнө дуусаж байна.';
+
+  @override
   String get setupPaydays => 'Орлого орох өдрүүд';
 
   @override
@@ -5050,6 +5053,16 @@ class WordsMn extends Words {
 
   @override
   String get setupNoRegularPayLine => 'Тогтмол орлогогүй';
+
+  @override
+  String setupCardForecastEnds(String amount, String date) {
+    return '$date-нд $amount орж ирнэ гэж харуулна, дуустал орлого орох өдөр бүр.';
+  }
+
+  @override
+  String setupCardForecastEndsMin(String amount, String date) {
+    return '$date-нд хамгийн багадаа $amount орж ирнэ гэж харуулна, дуустал орлого орох өдөр бүр.';
+  }
 
   @override
   String phoneLeftIn(String month) {

@@ -3863,7 +3863,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         // pay's periods, or the month; one undo with the stop.
         final moved = <int, CategoryPlan>{};
         if (movePlans) {
-          final next = existing!.nextAfter(today);
+          // One that has ended has no next payday: from today.
+          final after = existing!.nextAfter(today);
+          final next = after == payNever ? today : after;
           for (final p in data.plans.values) {
             if (p.payScheduleId == existing.id) {
               moved[p.categoryId] = p.movedToPay(moveTo, nextPayday: next);
