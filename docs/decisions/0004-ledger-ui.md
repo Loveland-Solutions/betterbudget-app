@@ -5809,6 +5809,9 @@ counted things that aren't everyday.
 - **Bill**: an amount owed to someone on a date, paid in one payment (rent, insurance).
 - **Goal**: an amount wanted ready by a date and then spent by the household itself,
   once or repeating (Christmas, a laptop). Repeating doesn't make it a bill.
+  **This is a new direction** (owner: "this is a new direction we'll be going"): as
+  built, only a date that happens once can be marked a goal, so a yearly Christmas is
+  held as a bill. A goal will be able to repeat, at any length; #429 and #425 build it.
 - Income and Safety net keep their names. A category with no amount set is a
   Day-to-day one whose amount is left empty, not a fifth kind.
 - **Rejected for Day-to-day:** "Spending" ("I'm not sold on 'Spending'": a bill is
