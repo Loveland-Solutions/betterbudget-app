@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-12** · version 0.88.0 · schema v26 · 1080 tests pass
+**Last updated: 2026-11-12** · version 0.88.1 · schema v26 · 1091 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -36,6 +36,13 @@ the team's App Store Connect API key in `~/.config/betterbudget/` (0.73.2, #380)
 Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy label and
 Apple's encryption question are filled in App Store Connect. The iPhone app waits on
 #112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
+
+**The top of the Mac window acts as its title bar** (0.88.1, #428): a double-click on the
+thin strip by the three buttons, or on the page's top row where nothing is clickable (the
+logo, the space beside an account's name), does what System Settings → Desktop & Dock says
+(fill, zoom or minimize), and a drag there moves the window. Buttons, the name and menus
+keep their clicks; a dialog or menu over the top row isn't title bar
+(`ui/window_title_area.dart`, `MainFlutterWindow.swift`).
 
 **A bill twice a month can start later** (0.88.0, #356; ADR 0004 "A bill twice a month",
 its last point): a **Starts** row under the two days, on the computer and the phone, reads
