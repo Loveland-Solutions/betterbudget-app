@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-11** · version 0.85.0 · schema v26 · 1076 tests pass
+**Last updated: 2026-11-12** · version 0.85.0 · schema v26 · 1076 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -25,13 +25,12 @@ than stopping; 0.66.3, passed and waiting for Publish now, and then 0.69.0 went 
 **Mac App Store (#108):** the paid team "Loveland Solutions, LLC" (`44H5SLX8KR`)
 is signed in to Xcode (2026-11-03) and the Mac app moved to it (0.72.1). macOS 0.72.1
 is waiting for Apple's review. iOS 0.73.1 was rejected on 2026-11-05 (Guideline 2.1,
-information needed, no defect named): Apple wants a screen recording from a physical
-iPhone plus answers in the Review Notes. The answers (demo key, no accounts, no
-external services, same in every region, not regulated) are written into the iOS
-version's Review Notes by the API (2026-11-07); what's left is the owner's recording
-(launch → demo key `DEMO-DEMO-DEMO-DEMO-DEMO` → use the app, on the son's iPhone by
-TestFlight), its link pasted over the marked line in App Store Connect → App Review
-Information → Notes, then Resubmit.
+information needed, no defect named): Apple wanted a screen recording from a physical
+iPhone plus answers in the Review Notes. Both are in the version's Review Notes (answers by
+the API 2026-11-07; the recording, made on the owner's son's iPhone from TestFlight, linked
+from Google Drive 2026-11-12), and 0.73.1 (build 604) was resubmitted 2026-11-12: waiting
+for Apple. The son is an internal TestFlight tester (a Developer on the team, in the internal
+"Family" group).
 `tool/release_mac.sh` and `tool/release_ios.sh` build, check and upload, signing by
 the team's App Store Connect API key in `~/.config/betterbudget/` (0.73.2, #380):
 Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy label and
