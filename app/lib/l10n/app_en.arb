@@ -634,11 +634,11 @@
   "@ledgerPayStopped": {
     "description": "Undo-menu label after a pay schedule is stopped."
   },
-  "ledgerPayStoppedToast": "Regular income no longer scheduled · paydays already past stay",
+  "ledgerPayStoppedToast": "Not counting on this income any more · past paydays stay",
   "@ledgerPayStoppedToast": {
     "description": "Toast after a pay schedule is stopped."
   },
-  "ledgerPayStoppedMoved": "{count, plural, =1{Regular income no longer scheduled · 1 category now {how}} other{Regular income no longer scheduled · {count} categories now {how}}}",
+  "ledgerPayStoppedMoved": "{count, plural, =1{Not counting on this income any more · 1 category now {how}} other{Not counting on this income any more · {count} categories now {how}}}",
   "@ledgerPayStoppedMoved": {
     "description": "Toast after stopping a pay and moving the categories per it. how is \"Every month\" or \"Every pay period · Jenny\".",
     "placeholders": {
@@ -2339,7 +2339,7 @@
       }
     }
   },
-  "planEnterName": "Enter a name",
+  "planEnterName": "Type a name",
   "@planEnterName": {
     "description": "New category window: under the name, after Add with no name typed"
   },
@@ -4346,7 +4346,7 @@
       }
     }
   },
-  "setupAtLeastOnDay": "At least, on the {day}",
+  "setupAtLeastOnDay": "At least on the {day}",
   "@setupAtLeastOnDay": {
     "description": "Pay setup, label beside one payday's amount when pay varies. Short. day is startDayOn: English \"10th\", Mongolian \"10-нд\".",
     "placeholders": {
@@ -4363,19 +4363,19 @@
   "@setupOnSecond": {
     "description": "Pay setup, label beside the second payday's amount before the days are typed. Short."
   },
-  "setupAtLeastOnFirst": "At least, on the first payday",
+  "setupAtLeastOnFirst": "At least on the first payday",
   "@setupAtLeastOnFirst": {
     "description": "Pay setup, label as above when pay varies. Short."
   },
-  "setupAtLeastOnSecond": "At least, on the second payday",
+  "setupAtLeastOnSecond": "At least on the second payday",
   "@setupAtLeastOnSecond": {
     "description": "Pay setup, label as above when pay varies. Short."
   },
-  "setupWhichTwoDays": "Which two days of the month?",
+  "setupWhichTwoDays": "Say which two days of the month.",
   "@setupWhichTwoDays": {
     "description": "Pay setup, note when a twice-a-month day is missing."
   },
-  "setupTwoDifferentDays": "Two different days of the month",
+  "setupTwoDifferentDays": "Use two different days of the month.",
   "@setupTwoDifferentDays": {
     "description": "Pay setup, note when both twice-a-month days are the same."
   },
@@ -4424,10 +4424,6 @@
   "@setupPayVaries": {
     "description": "Pay setup, choice: the amount changes each time."
   },
-  "setupVariesHint": "Hourly work, shifts, sales: it changes each time. Leave out extras that don’t come every time, like bonuses.",
-  "@setupVariesHint": {
-    "description": "Pay setup, note under \"It varies\"."
-  },
   "setupExpectAtLeast": "Expect at least",
   "@setupExpectAtLeast": {
     "description": "Pay setup, label beside the amount when pay varies. Short."
@@ -4436,11 +4432,11 @@
   "@setupEachPayday": {
     "description": "Pay setup, label beside the amount. Short."
   },
-  "setupSameEachPaycheck": "The same each time",
+  "setupSameEachPaycheck": "Both paydays bring the same amount",
   "@setupSameEachPaycheck": {
     "description": "Pay setup (twice a month), choice: one amount both days."
   },
-  "setupDifferentEachPaycheck": "A different amount each time",
+  "setupDifferentEachPaycheck": "The two paydays bring different amounts",
   "@setupDifferentEachPaycheck": {
     "description": "Pay setup (twice a month), choice: an advance one day, the rest the other."
   },
@@ -4453,7 +4449,7 @@
       }
     }
   },
-  "setupLastPaychecks": "Your last {count}: lowest {lowest} · highest {highest}",
+  "setupLastPaychecks": "Your last {count} paychecks: lowest {lowest} · highest {highest}",
   "@setupLastPaychecks": {
     "description": "Pay setup, note: the range of recent paychecks found (count is 2 or more).",
     "placeholders": {
@@ -4468,11 +4464,7 @@
       }
     }
   },
-  "setupLowEndSafer": "The forecast counts on this, so the low end is safer: finding more on payday is better than finding less.",
-  "@setupLowEndSafer": {
-    "description": "Pay setup, note when pay varies."
-  },
-  "setupHigherThan": "Higher than {above} of the last {count} times it came: the forecast may look better than it’ll be.",
+  "setupHigherThan": "Higher than {above} of your last {count} paychecks: the forecast may show more than comes in.",
   "@setupHigherThan": {
     "description": "Pay setup, amber warning when the typed amount is above some recent paychecks.",
     "placeholders": {
@@ -4484,7 +4476,7 @@
       }
     }
   },
-  "setupOnDaysField": "On the {first}  and the {second}",
+  "setupOnDaysField": "On the {first} and the {second}",
   "@setupOnDaysField": {
     "description": "Pay setup and a bill's Edit, twice a month: the words around the two day-of-month boxes. first and second are where the boxes go.",
     "placeholders": {
@@ -4508,7 +4500,7 @@
   "@setupMonth": {
     "description": "Was the pay setup's \"Budget by\" choice; unused since 2026-10-05, kept for the Mongolian review sheet."
   },
-  "setupPaydaysAYear": "{count} paydays a year: two months a year have three.",
+  "setupPaydaysAYear": "{count} paydays a year, so some months count an extra one.",
   "@setupPaydaysAYear": {
     "description": "Pay setup, note for every-two-weeks pay (26 paydays).",
     "placeholders": {
@@ -4571,7 +4563,7 @@
       }
     }
   },
-  "setupNameMissing": "Enter a name.",
+  "setupNameMissing": "Type a name.",
   "@setupNameMissing": {
     "description": "Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name."
   },
@@ -4589,7 +4581,7 @@
   "@setupEndsEarly": {"description": "Pay form, when the end date is before the first payday."},
   "setupPaydays": "Paydays",
   "@setupPaydays": {"description": "Pay form, the label of the two days of the month for pay twice a month."},
-  "setupNoSetDayMeans": "With no set day, the forecast doesn’t expect it. When it comes, file it under Income.",
+  "setupNoSetDayMeans": "With no set day, the forecast doesn’t expect it. When it comes, mark it as Income.",
   "@setupNoSetDayMeans": {
     "description": "Pay setup, under the form when When is No set day: what saving it does."
   },
@@ -4597,15 +4589,15 @@
   "@setupNoRegularPay": {
     "description": "Pay setup, button: self-employed or between jobs; stops asking for pay."
   },
-  "setupStopPay": "Stop scheduling this income",
+  "setupStopPay": "Stop counting on this income",
   "@setupStopPay": {
     "description": "Pay setup (editing), red button that removes the pay schedule."
   },
-  "stopPayTitle": "Stop this regular income?",
+  "stopPayTitle": "Stop counting on this income?",
   "@stopPayTitle": {
     "description": "Dialog title when stopping a pay that categories are budgeted per. Coral."
   },
-  "stopPayPerIt": "{count, plural, =1{1 category is budgeted per this income: {names}} other{{count} categories are budgeted per this income: {names}}}",
+  "stopPayPerIt": "{count, plural, =1{1 category is set by this income’s pay periods: {names}} other{{count} categories are set by this income’s pay periods: {names}}}",
   "@stopPayPerIt": {
     "description": "Stop-pay dialog: which categories have a set amount each of its pay periods or a bill every payday of it. names is a comma list.",
     "placeholders": {
@@ -4617,11 +4609,11 @@
       }
     }
   },
-  "stopPayFromNow": "From now, budget them",
+  "stopPayFromNow": "From now, budget them by:",
   "@stopPayFromNow": {
     "description": "Stop-pay dialog, label over the choices: Every month, or another pay's periods."
   },
-  "stopPayBillsMonthly": "A bill every payday comes every month from its next payday: {names}.",
+  "stopPayBillsMonthly": "Bills that came every payday will come every month, starting on their next payday: {names}.",
   "@stopPayBillsMonthly": {
     "description": "Stop-pay dialog, under Every month when some of the categories are bills every payday of this pay. names is a comma list.",
     "placeholders": {
@@ -7433,7 +7425,7 @@
   "@ledgerIncome": {
     "description": "The app's one income category, which money coming in (not a refund) is filed under: the category menu, the entry row and register rows."
   },
-  "payStopped": "{name} (stopped)",
+  "payStopped": "{name} (stopped, past paydays kept)",
   "@payStopped": {
     "description": "A pay that was stopped, named where a category is still per its periods: the plan note, How often. name is the pay's title.",
     "placeholders": {
@@ -7568,10 +7560,34 @@
   "@setupBack": {
     "description": "Setup: the button that goes to the step before. Nothing is undone by it."
   },
-  "setupPayArrives": "The amount that lands in the account, not the amount before tax.",
-  "@setupPayArrives": {
-    "description": "Setup, Pay step, under the amount of a paycheck: the figure wanted is the deposit as the bank statement shows it, not the salary before tax and social insurance. A loan payment the bank takes after the pay lands is entered later as a bill, so it must not be taken off here."
-  },
+  "setupAmountDeposited": "Type what is actually deposited into the account, after tax.",
+  "@setupAmountDeposited": {"description": "Pay form, under the amount."},
+  "payTipName": "What you’ll call this income, like “Jenny’s job” or “Child support”. It’s the name shown on Budget and in the forecast.",
+  "@payTipName": {"description": "Beside Name on the pay form."},
+  "payTipPaidInto": "The account this money arrives in. Pick the one your bank credits. Money you receive in cash is its own income, paid into your cash account.",
+  "@payTipPaidInto": {"description": "Beside Paid into on the pay form."},
+  "payTipFrom": "Who pays you. The app uses it to find your earlier paychecks from them and show them under the amount.",
+  "@payTipFrom": {"description": "Beside From on the pay form."},
+  "payTipAmountIs": "Choose “About the same each time” if each payday brings about the same amount. Choose “It varies” if it changes, like hourly work, cash jobs or sales.",
+  "@payTipAmountIs": {"description": "Beside The amount is on the pay form."},
+  "payTipAmountSame": "Type what arrives in the account after tax, in that account’s currency. If the bank converts it, type the converted amount it credits.",
+  "@payTipAmountSame": {"description": "Beside Each payday on the pay form."},
+  "payTipAmountVaries": "Type the least you can count on arriving in the account, after tax, in that account’s currency. The forecast treats it as certain, and finding more on payday is better than finding less. Leave out extras: a bonus on a fixed date can be its own regular income.",
+  "@payTipAmountVaries": {"description": "Beside Expect at least on the pay form."},
+  "payTipHowOften": "How often this money arrives. Use “Twice a month” for pay on two set days, like an advance and the rest.",
+  "@payTipHowOften": {"description": "Beside How often on the pay form."},
+  "payTipHowOftenOrNone": "How often this money arrives. Use “Twice a month” for pay on two set days, like an advance and the rest. Choose “No set day” if it comes on no regular date.",
+  "@payTipHowOftenOrNone": {"description": "Beside How often on a new income: also names No set day."},
+  "payTipFirstPayday": "A payday you know, ideally the next one. The forecast counts every payday from this one.",
+  "@payTipFirstPayday": {"description": "Beside First payday on the pay form."},
+  "payTipEnds": "Leave this on Never unless the income stops, like a contract ending.",
+  "@payTipEnds": {"description": "Beside Ends on the pay form."},
+  "payTipWeekend": "When a payday falls on a weekend, this says whether the forecast moves it to before the weekend, after it, or leaves it on that day.",
+  "@payTipWeekend": {"description": "Beside the weekend rule on the pay form."},
+  "payTipNoSetDay": "Choose this if the money comes on no regular date. The forecast won’t expect it. When it arrives, mark it as Income.",
+  "@payTipNoSetDay": {"description": "Beside No set day on the pay form."},
+  "planWeekdaysHintPay": "Pick the days. With none picked, it’s the first payday’s weekday.",
+  "@planWeekdaysHintPay": {"description": "Custom… on the income form, where the first date is the first payday."},
   "setupCardForecast": "Forecast",
   "@setupCardForecast": {"description": "Pay setup card, heading of the forecast's part."},
   "setupCardBudget": "Budget",

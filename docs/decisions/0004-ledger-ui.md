@@ -5048,6 +5048,68 @@ by a day; anything else is `PayRule.custom`, dated by the same code a category's
 ends has no payday after its last: it stops being scheduled and the forecast stops. The
 twice-a-month days start empty, as a category's do.
 
+## The pay form explains each field, and its words (owner, 2026-11-12, #325)
+
+The owner on setting up a first income: "Some of the text in the adding a source of income
+screen could be a little more human-friendly." The words went past the UX writer, then the
+first-time reader and the budget reviewer. The reader found that the form seemed to ask the
+same question twice (**About the same each time** and **The same amount each time**), that
+**Paid into** reads as "who pays me", that "file it under Income" sounds like saving a paper,
+and that "the low end" does not say the low end of what. The owner's answer: "we'll probably
+need a tool tip beside most if not all of these to explain what is expected", and then, on
+seeing the draft words for each, "Perfect. do it."
+
+So each field of the pay form has an **ⓘ right after its label** (Name, Paid into, From,
+The amount is, the amount, How often, First payday, the weekend rule, Ends; and, once No set
+day is picked, the one beside How often explains that). It opens on hover, on a click and when
+Tab reaches it, so the mouse alone and the keyboard alone both get it, and each tip is one
+or two whole sentences in its own string in both `.arb` files. The labels stay as the owner
+settled them; the tips say what each one expects, which answers the reader's confusions
+without renaming anything. The amount's tip is the one place that says to type what arrives
+after tax, in the account's currency, and, for an amount that varies, to type the least the
+person can count on and to leave out extras (a bonus can be its own regular income).
+
+**Two changes after the last review** (owner, 2026-11-12). The reviewer feared someone would
+quote their pay before tax and never open the ⓘ, now that the visible line was gone. The
+owner: "would it be better to say something about how we want the amount that actually gets
+deposited into the account." So one line under the amount, **Type what is actually deposited
+into the account, after tax.**, sits under the amount for a bank account. (Built first to go
+once an amount was typed; it pulled the rows below it up under the pointer on the first digit,
+so it stays, as the old "arrives" line did.) And the two choices under twice a month, which
+read as the same question as "About the same each time / It varies", now name the paydays:
+**Both paydays bring the same amount · The two paydays bring different amounts** ("I'll
+follow your recommendation"). *Rejected:* "after tax" in the label itself (the label column is
+120 wide and the date's calendar is placed against it).
+
+**The lines the tips replaced** (the owner chose replace over keep both): the hint under
+"It varies", "The forecast counts on this, so the low end is safer", and "The amount that
+lands in the account, not the amount before tax". **Lines that stay on the page**, since each
+carries the person's own figures or says what will happen: your last paychecks and the
+higher-than-usual warning, the paydays-a-year line, the days-meet line, the Next payday line, the
+card beside the form, and, when No set day is picked, "With no set day, the forecast doesn't
+expect it. When it comes, mark it as Income." (it says what Save will do, which the tip
+before choosing it cannot).
+
+**Wording changed** (old, then new): "Your last 3" → "Your last 3 paychecks"; "Higher than 2
+of the last 3 times it came: the forecast may look better than it'll be" → "Higher than 2 of
+your last 3 paychecks: the forecast may show more than comes in"; "At least, on the 10th" →
+"At least on the 10th"; "The same each time" → "Both paydays bring the same amount" (and its partner "The two paydays bring different amounts"); "Enter a
+name." and the planner's "Enter a name" → "Type a name"; "Which two days of the month?" →
+"Say which two days of the month."; "Two different days of the month" → "Use two different
+days of the month."; "26 paydays a year: two months a year have three" → "26 paydays a year, so
+some months count an extra one" (the old line was false for every week and every 10 days);
+"Stop scheduling this income" → **Stop counting on this income** (the title, the toasts and
+"(stopped)" follow: "Not counting on this income any more · past paydays stay"; "(stopped,
+past paydays kept)"); the stop window's "budgeted per this income" → "set by this income's pay
+periods", "From now, budget them" → "From now, budget them by:", and "A bill every payday
+comes every month…" → "Bills that came every payday will come every month, starting on their
+next payday". Custom…'s weekday hint says "first payday's weekday" on the income form, not
+"due date"; a double space in "On the {first}  and the {second}" is gone. *Rejected:* "beats"
+for "is better than" (read as slang), "Stop expecting" (reads as a feeling, not an action),
+a wider label column (it moved the date's calendar over Save), and tips on a category's own
+Edit (not asked; the same widget can take them). The Mongolian is a draft until Tanan checks
+it (#90).
+
 ## The phone says what hasn't reached the computer (owner, 2026-10-30)
 
 On "1 entry isn't in your ledger yet" under the phone's Save: "ledger isn't a common

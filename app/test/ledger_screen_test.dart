@@ -818,7 +818,7 @@ void main() {
     await tester.tap(add);
     await tester.pumpAndSettle();
     await press(find.byKey(const ValueKey('goal-save')));
-    expect(find.text('Enter a name'), findsOneWidget);
+    expect(find.text('Type a name'), findsOneWidget);
     // An example fills the name only.
     await press(find.byKey(const ValueKey('goal-example-0')));
     expect(find.byKey(const ValueKey('goal-wrong-name')), findsNothing);
@@ -7278,7 +7278,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(
           find.text(
-            '2 categories are budgeted per this income: Groceries, Housing',
+            '2 categories are set by this income’s pay periods: Groceries, Housing',
           ),
           findsOneWidget,
         );
@@ -7292,7 +7292,7 @@ void main() {
         await settle(tester);
         expect(
           find.text(
-            'Regular income no longer scheduled · 2 categories now Every pay period · Jenny',
+            'Not counting on this income any more · 2 categories now Every pay period · Jenny',
           ),
           findsOneWidget,
         );

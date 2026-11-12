@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-12** · version 0.85.0 · schema v26 · 1076 tests pass
+**Last updated: 2026-11-12** · version 0.86.0 · schema v26 · 1077 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -42,6 +42,16 @@ card beside the form"): owner's sketch A, a Forecast line and a Budget line in t
 own figures once an amount is typed; the "Next payday" line is dropped on that page; Budget's
 button reads **Add regular income**. The computer only. #325's other wording is not changed
 yet.
+
+**The pay form explains each field** (0.86.0, #325; ADR 0004 "The pay form explains each
+field, and its words"): an ⓘ after each label on the Pay step and in the Pay window (Name,
+Paid into, From, The amount is, the amount, How often, First payday, the weekend rule, Ends)
+says what the field expects; it opens on hover, a click or Tab (`_InfoTip` in
+`ui/pay_setup.dart`). A line under the amount says to type what is actually deposited, after
+tax. About twenty lines were reworded: "scheduling" is now **counting on** an income, and the
+twice-a-month pair is **Both paydays bring the same amount · The two paydays bring different
+amounts**. The computer only; no schema change. The Mongolian is a draft until Tanan checks it
+(#90; the sheet marks the new and changed rows).
 
 **Income repeats as many ways as a category** (0.85.0, #438; ADR 0004 "Income repeats as many
 ways as a category"; schema v26): the income form's **How often** is the category's own
