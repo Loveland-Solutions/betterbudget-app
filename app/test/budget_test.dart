@@ -1563,6 +1563,34 @@ void main() {
       );
     });
 
+    test('twice a month that starts next month: no bill before it, and '
+        'October saves toward it as for a monthly bill (#356)', () {
+      // Made on 10.20 with Starts 11.01: October has neither bill.
+      final later = plan(
+        xmas,
+        PlanKind.byDate,
+        10000000,
+        start: today,
+        due: DateTime(2026, 11, 1),
+        monthDays: [1, 15],
+      );
+      expect(Budget.dueAfter(later, 0), DateTime(2026, 11, 1));
+      final monthly = plan(
+        xmas,
+        PlanKind.byDate,
+        10000000,
+        start: today,
+        due: DateTime(2026, 11, 1),
+        every: 1,
+      );
+      // Not both of October's bills (₮200,000): a share toward 11.01's,
+      // the same as a monthly bill on that date asks.
+      expect(
+        of(ledger(plans: [later]), oct).lines[xmas]!.plan!.planned,
+        of(ledger(plans: [monthly]), oct).lines[xmas]!.plan!.planned,
+      );
+    });
+
     test('twice a month: from its first date, and through short months', () {
       // Made after the 1st: the 15th is the first.
       final fromThe15th = plan(

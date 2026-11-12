@@ -106,6 +106,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
 
   PlanAnswers _fresh(Currency currency) =>
       PlanAnswers(today: widget.today, currency: currency)
+        ..askStart = true
         ..show(null, periodPayId: _data.periodSchedule?.id);
 
   /// The ledger the computer last stored, or for made-up figures one
@@ -386,7 +387,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         case ['dates']:
           a.repeat = PlanRepeat.dates;
         case ['twice']:
-          a.repeat = PlanRepeat.twice;
+          a.toTwice();
         case ['custom']:
           a.repeat = PlanRepeat.every;
           a.custom = true;
@@ -679,6 +680,21 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         number: true,
         wrong: missing == PlanMissing.days,
       ),
+      // When it starts: empty is this month (#356).
+      _choiceRow(
+        'plan-start',
+        t.planStarts,
+        switch (a.typedStart) {
+          final d? =>
+            d.year == widget.today.year ? sayDate(t, d) : sayFullDate(t, d),
+          null => t.planStartsThisMonth,
+        },
+        () async {
+          final d = await _pickDay(a.typedStart);
+          if (d != null && mounted) setState(() => a.start.text = fullDate(d));
+        },
+        wrong: missing == PlanMissing.date,
+      ),
     ];
     if (!a.hasDate) {
       return [
@@ -789,6 +805,9 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       ]),
       if (a.repeat == PlanRepeat.payday && a.daysAfterNow == 0)
         _aside(t.planOnPayday),
+      if (a.startNote(t, draft, money, old: widget.editing?.plan)
+          case final note?)
+        _aside(note),
       if (a.endsOn) ...[
         const SizedBox(height: 14),
         _card([

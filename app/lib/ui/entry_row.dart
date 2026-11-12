@@ -2793,12 +2793,16 @@ class DateField extends StatefulWidget {
     this.allowFuture = true,
     this.small = false,
     this.calendarBeside = false,
+    this.hint,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final DateTime today;
   final VoidCallback onSubmitted;
+
+  /// What the empty field says; null: "Date".
+  final String? hint;
 
   /// A day was clicked: the date is filled in, move on.
   final VoidCallback onPicked;
@@ -2905,7 +2909,7 @@ class _DateFieldState extends State<DateField> {
           child: _Field(
             controller: widget.controller,
             focusNode: widget.focusNode,
-            hint: context.t.rowsHintDate,
+            hint: widget.hint ?? context.t.rowsHintDate,
             tabular: true,
             wanted: widget.wanted,
             small: widget.small,

@@ -6958,6 +6958,35 @@ abstract class Words {
   /// **'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday'**
   String get planWeekdayNames;
 
+  /// Budget page, Edit, and the phone's New category: label of the date a bill twice a month starts from (#356). Its first bill is the first of its two days on or after this date.
+  ///
+  /// In en, this message translates to:
+  /// **'Starts'**
+  String get planStarts;
+
+  /// In an empty Starts field for a bill twice a month (and on the phone, as that row's value): left empty, it starts this month, from the first of its two days.
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get planStartsThisMonth;
+
+  /// Beside Starts for a bill twice a month (#356), when its first bills fall before today: how many will show as overdue, from which date to which, and what they come to. A warning, not a block.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{The bill on {first} is before today, so it shows as overdue: {total}.} other{{count} bills, {first} to {last}, are before today, so they show as overdue: {total} in all.}}'**
+  String planBillsBeforeToday(
+    int count,
+    String first,
+    String last,
+    String total,
+  );
+
+  /// Beside Starts for a bill twice a month, when the date typed falls between its two days: the bill the plan starts with.
+  ///
+  /// In en, this message translates to:
+  /// **'First bill {date}'**
+  String planFirstBill(String date);
+
   /// Budget page, Edit, the Custom block: label of the row saying when the repeating plan stops
   ///
   /// In en, this message translates to:

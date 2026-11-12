@@ -115,7 +115,11 @@ class _HowOftenRows extends StatelessWidget {
     this.weekendTip,
     this.endsTip,
     this.weekdaysHint,
+    this.startNote,
   });
+
+  /// Beside twice a month's Starts ([PlanAnswers.startNote]).
+  final String? startNote;
 
   final PlanAnswers p;
   final LedgerData data;
@@ -301,7 +305,7 @@ class _HowOftenRows extends StatelessWidget {
                     'plan-repeat-twice',
                     t.planTwiceAMonth,
                     on: p.repeat == PlanRepeat.twice,
-                    onTap: () => setState(() => p.repeat = PlanRepeat.twice),
+                    onTap: () => setState(p.toTwice),
                   ),
                   for (final (key, n, unit, label) in [
                     (
@@ -478,6 +482,30 @@ class _HowOftenRows extends StatelessWidget {
                   ],
                 ],
               ),
+            ),
+          // Twice a month's two days have no date of their own: when it
+          // starts, left empty for this month (owner, 2026-11-02, #356).
+          if (p.askStart && p.repeat == PlanRepeat.twice)
+            formRow(
+              t.planStarts,
+              SizedBox(
+                width: 130,
+                height: 34,
+                child: DateField(
+                  key: const ValueKey('plan-start'),
+                  controller: p.start,
+                  focusNode: dateFocus,
+                  today: today,
+                  small: true,
+                  calendarBeside: true,
+                  wanted: wrongDate,
+                  onSubmitted: onSave,
+                  onPicked: () {},
+                  hint: t.planStartsThisMonth,
+                ),
+              ),
+              aside: startNote,
+              flexible: true,
             ),
           // Custom…: the pattern laid out like a calendar app's recurrence
           // (owner, 2026-10-05), under the date it starts from: how many of

@@ -5257,6 +5257,27 @@ month and a day, and its dates come once a year, so the only way was to type 24 
   bill paid already lists the bills that went with it ([billPaidKey]), so marks already in
   a ledger read the same way. A bill paid ahead into a later period is as it was.
 - Two a weekend rule brings together are one bill too.
+- **It can start later** (owner, 2026-11-02: "We should be able to set a start date",
+  #356; built 0.88.0). A **Starts** row under the two days, on the computer and the
+  phone, says **This month** while empty, and empty keeps the rule above. A date typed
+  there makes the first bill the first of the two days on or after it: made on 11.20
+  with the 1st and the 15th and Starts 12.01, November has neither bill, nothing is
+  overdue, and November saves toward 12.01's as it would for a monthly bill due then. A day between the two (12.03) starts at the next (12.15), and the
+  date saved is that bill, so the row opened again shows 12.15, and beside Starts a line
+  says "First bill 12.15" before Save. Opened again, Starts shows the first bill; left
+  as it is with other days, they come from that bill or today, whichever is later;
+  emptied while that bill is still ahead, it starts this month, as the field says. A
+  bill whose first date has gone by keeps it. A date typed for Every month carries over
+  as the start when Twice a month is picked, unless it has gone by (an old bill's first
+  date would bring back months of overdue bills); Starts is a field of its own, so a
+  look at Twice a month leaves the other repeats' date as it was.
+- **Warn, don't block, for bills before today** (budget review): while a new or changed
+  start puts bills before today, Starts says so with real numbers: "2 bills, 11.01 to
+  11.15, are before today, so they show as overdue: ₮1,000,000 in all." Empty on the
+  20th says it too, since this month's two have gone by. Nothing is said on a bill
+  opened again whose first date was already there: those bills were seen to.
+  Regular income's twice a month has no Starts: its paydays start with its days.
+  Nothing new is saved: the start is the bill's first date, which it always had.
 - Schema v24 adds `month_days`, empty on every plan already there. A computer not yet
   updated writes rows without a column added since; those are read as empty, for any
   column, so it can't look as if both computers changed a row (code review).

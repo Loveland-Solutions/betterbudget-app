@@ -882,7 +882,8 @@ void main() {
     expect(find.text('Vet'), findsOneWidget);
   });
 
-  testWidgets('a bill twice a month on the phone: two days, no date', (
+  testWidgets('a bill twice a month on the phone: two days, and when it '
+      'starts', (
     tester,
   ) async {
     final store = await _pump(tester);
@@ -905,13 +906,22 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('plan-day2')), '1');
     await tester.enterText(find.byKey(const ValueKey('plan-day1')), '15');
     await tester.pumpAndSettle();
+    // When it starts: this month until a day is picked (#356).
+    expect(find.text('This month'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('plan-start')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('20'));
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('This month'), findsNothing);
     await _paidFrom(tester);
     await tester.tap(find.byKey(const ValueKey('new-category-add')));
     await tester.pumpAndSettle();
     final made = store.made.single;
     expect(made.plan!.monthDays, [1, 15]);
     expect(made.plan!.everyMonths, isNull);
-    expect(made.plan!.due!.day, 1);
+    // Picked 10.20: the first of its days from then is 11.01.
+    expect(made.plan!.due, DateTime(_now.year, _now.month + 1, 1));
     expect(made.due, made.plan!.due);
   });
 

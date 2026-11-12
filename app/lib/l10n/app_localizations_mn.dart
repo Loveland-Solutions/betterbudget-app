@@ -4742,6 +4742,35 @@ class WordsMn extends Words {
   String get planWeekdayNames => 'Даваа|Мягмар|Лхагва|Пүрэв|Баасан|Бямба|Ням';
 
   @override
+  String get planStarts => 'Эхлэх';
+
+  @override
+  String get planStartsThisMonth => 'Энэ сараас';
+
+  @override
+  String planBillsBeforeToday(
+    int count,
+    String first,
+    String last,
+    String total,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$first-аас $last хүртэлх $count төлбөр өнөөдрөөс өмнө тул хугацаа хэтэрсэн гэж харагдана: нийт $total.',
+      one:
+          '$first-ны төлбөр өнөөдрөөс өмнө тул хугацаа хэтэрсэн гэж харагдана: $total.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planFirstBill(String date) {
+    return 'Эхний төлбөр $date';
+  }
+
+  @override
   String get planEnds => 'Дуусах';
 
   @override

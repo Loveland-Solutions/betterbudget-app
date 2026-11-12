@@ -34,6 +34,10 @@ class PlanAnswers {
 
   final amount = TextEditingController();
   final date = TextEditingController();
+
+  /// Twice a month's Starts, apart from [date] so a look at Twice a
+  /// month leaves the other repeats' date as it was (code review, #356).
+  final start = TextEditingController();
   final upTo = TextEditingController();
   final everyN = TextEditingController(text: '1');
   final dates = TextEditingController();
@@ -56,6 +60,7 @@ class PlanAnswers {
     amount,
     onceAmount,
     date,
+    start,
     upTo,
     everyN,
     dates,
@@ -71,6 +76,7 @@ class PlanAnswers {
       amount,
       onceAmount,
       date,
+      start,
       upTo,
       everyN,
       dates,
@@ -93,6 +99,11 @@ class PlanAnswers {
   /// or every payday. [custom] shows the number and unit for "Every…".
   PlanRepeat repeat = PlanRepeat.once;
   bool custom = false;
+
+  /// Twice a month asks when it starts ([start], left empty for this
+  /// month): a category's bill does (owner, 2026-11-02, #356), regular
+  /// income doesn't, its first payday being the first of its days.
+  bool askStart = false;
   PlanUnit unit = PlanUnit.months;
 
   /// Custom… (owner, 2026-10-05, an Outlook-like block): every so many
@@ -144,6 +155,7 @@ class PlanAnswers {
     final days = p?.monthDays;
     day1.text = days == null ? '' : '${days.first}';
     day2.text = days == null ? '' : '${days.last}';
+    start.text = days == null || p?.due == null ? '' : fullDate(p!.due!);
     var n = 1;
     if (p?.payScheduleId != null) {
       repeat = PlanRepeat.payday;
@@ -205,6 +217,17 @@ class PlanAnswers {
     unit = u;
   }
 
+  /// Twice a month picked. A date typed for another repeat becomes its
+  /// Starts while Starts is empty, unless it's gone by: an old bill's
+  /// first date would bring back months of bills as overdue.
+  void toTwice() {
+    repeat = PlanRepeat.twice;
+    if (!askStart || start.text.trim().isNotEmpty) return;
+    if (typedDate case final d? when !d.isBefore(today)) {
+      start.text = fullDate(d);
+    }
+  }
+
   /// "A weekday" picked: it starts from the date typed, its weekday and
   /// which one of the month it is.
   void startNth() {
@@ -254,8 +277,11 @@ class PlanAnswers {
   /// I say 11/01 and it's in the past, I still want it there"). With no
   /// year it's this year's, unless that is more than nine months back, as
   /// on a row ([parseRowDate]): `01.05` typed on 12.28 is next week.
-  DateTime? get typedDate {
-    final text = date.text.trim();
+  DateTime? get typedDate => _readDate(date.text);
+
+  DateTime? _readDate(String typed) {
+    final text = typed.trim();
+    if (text.isEmpty) return null;
     final d = parseEntryDate(text, today);
     // A year far off is a slip of the hand, not a date.
     if (d == null || d.year > today.year + 100) return null;
@@ -366,15 +392,56 @@ class PlanAnswers {
     return DateTime(today.year, today.month, d < end ? d : end);
   }
 
-  /// The first of [days] from today on.
-  DateTime nextOfMonthDays(List<int> days) {
-    for (var month = today.month; ; month++) {
-      final end = DateTime(today.year, month + 1, 0).day;
+  /// The first of [days] from [from] on, today when not given.
+  DateTime nextOfMonthDays(List<int> days, {DateTime? from}) {
+    final f = from ?? today;
+    for (var month = f.month; ; month++) {
+      final end = DateTime(f.year, month + 1, 0).day;
       for (final d in days) {
-        final on = DateTime(today.year, month, d < end ? d : end);
-        if (!on.isBefore(today)) return on;
+        final on = DateTime(f.year, month, d < end ? d : end);
+        if (!on.isBefore(f)) return on;
       }
     }
+  }
+
+  /// The day twice a month starts from, when one is asked and typed.
+  DateTime? get typedStart => askStart ? _readDate(start.text) : null;
+
+  /// Something is in twice a month's Starts that isn't a date.
+  bool get wrongStart =>
+      askStart && start.text.trim().isNotEmpty && typedStart == null;
+
+  /// What Starts says beside it, for [draft] made from these answers
+  /// (#356): the bills before today that will show as overdue, with their
+  /// amount (warn, don't block), or the first bill when the start falls
+  /// between the two days. Nothing for a first bill the plan [old]
+  /// already had: those bills were seen to before.
+  String? startNote(
+    Words t,
+    CategoryPlan? draft,
+    String Function(int) say, {
+    CategoryPlan? old,
+  }) {
+    final first = draft?.due;
+    if (!askStart || repeat != PlanRepeat.twice || first == null) return null;
+    if (old?.monthDays != null && old!.due == first) return null;
+    var n = 0;
+    DateTime? last;
+    for (; n < 1000; n++) {
+      final d = Budget.dueAfter(draft!, n);
+      if (!d.isBefore(today)) break;
+      last = d;
+    }
+    if (n > 0) {
+      return t.planBillsBeforeToday(
+        n,
+        sayDate(t, first),
+        sayDate(t, last!),
+        say(draft!.amount * n),
+      );
+    }
+    final s = typedStart;
+    return s != null && s != first ? t.planFirstBill(sayDate(t, first)) : null;
   }
 
   /// The first of the typed dates from this month on: one gone by this
@@ -414,7 +481,9 @@ class PlanAnswers {
         final d = typedDates;
         return d == null || d.isEmpty ? PlanMissing.dates : null;
       case PlanRepeat.twice:
-        return typedMonthDays == null ? PlanMissing.days : _missingEnd;
+        if (typedMonthDays == null) return PlanMissing.days;
+        if (wrongStart) return PlanMissing.date;
+        return _missingEnd;
       case PlanRepeat.every:
         if (typedEveryN == null) return PlanMissing.everyN;
         if (typedDate == null) return PlanMissing.date;
@@ -432,6 +501,28 @@ class PlanAnswers {
       return PlanMissing.endCount;
     }
     return null;
+  }
+
+  /// Twice a month's first bill. A start typed, or changed from the one
+  /// it had: the first of the days from it on (#356), so a bill made on
+  /// 11.20 for 12.01 has nothing in November. Empty: this month, the
+  /// first of the days, for a new one and for one whose first bill was
+  /// still ahead. Left as it was, the same days keep their first bill;
+  /// other days come from that bill or today, whichever is later, since
+  /// this month's bills were the old days' (code review).
+  DateTime _twiceDue(List<int> days, CategoryPlan? old) {
+    final s = typedStart;
+    final had = old?.monthDays == null ? null : old!.due;
+    if (had == null) {
+      return s == null ? firstOfMonthDays(days) : nextOfMonthDays(days, from: s);
+    }
+    final ahead = had.isAfter(today);
+    // Emptied while its first bill was still ahead: this month. One that
+    // has gone by keeps it, its bills since seen to.
+    if (askStart && s == null && ahead) return firstOfMonthDays(days);
+    if (s != null && s != had) return nextOfMonthDays(days, from: s);
+    if (old!.monthDays!.join(',') == days.join(',')) return had;
+    return nextOfMonthDays(days, from: ahead ? had : today);
   }
 
   /// The plan as typed, for [categoryId], its bill paid from [paidFrom].
@@ -462,14 +553,7 @@ class PlanAnswers {
           due = firstOfDates(onDates!);
         case PlanRepeat.twice:
           monthDays = typedMonthDays;
-          // The same days keep the first date they were given; other days
-          // of a bill already twice a month come from here on, since this
-          // month's bills are the old days'.
-          due = old?.monthDays == null
-              ? firstOfMonthDays(monthDays!)
-              : old!.monthDays!.join(',') == monthDays!.join(',')
-              ? old.due
-              : nextOfMonthDays(monthDays);
+          due = _twiceDue(monthDays!, old);
         case PlanRepeat.every:
         case PlanRepeat.once:
           due = typedDate;

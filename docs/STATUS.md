@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-12** · version 0.87.0 · schema v26 · 1077 tests pass
+**Last updated: 2026-11-12** · version 0.88.0 · schema v26 · 1080 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -36,6 +36,14 @@ the team's App Store Connect API key in `~/.config/betterbudget/` (0.73.2, #380)
 Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy label and
 Apple's encryption question are filled in App Store Connect. The iPhone app waits on
 #112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
+
+**A bill twice a month can start later** (0.88.0, #356; ADR 0004 "A bill twice a month",
+its last point): a **Starts** row under the two days, on the computer and the phone, reads
+**This month** while empty, which keeps the old rule. A date there makes the first bill the
+first of the two days on or after it, so a bill added on 11.20 for 12.01 has nothing
+overdue in November; a start that puts bills before today says how many and what they
+come to. Regular income's twice a month has none. No schema change: the start is
+the bill's first date. The phone needs a new upload to Play to show it.
 
 **Setup's Pay step has a card beside it** (0.84.0, #323; ADR 0004 "Setup's Pay step has a
 card beside the form"): owner's sketch A, a Forecast line and a Budget line in the person's
