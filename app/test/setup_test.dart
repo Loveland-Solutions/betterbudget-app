@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/setup.dart';
 import 'package:betterbudget/ui/fit_window.dart';
 import 'package:betterbudget/ui/ledger_screen.dart';
@@ -364,7 +365,9 @@ void main() {
     await toPay(tester);
     await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
     await tester.enterText(find.byKey(const ValueKey('pay-amount')), '500000');
-    await tester.tap(find.byKey(const ValueKey('pay-twice')));
+    await howOften(tester, 'plan-repeat-twice');
+    await tester.enterText(find.byKey(const ValueKey('plan-day1')), '10');
+    await tester.enterText(find.byKey(const ValueKey('plan-day2')), '25');
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('pay-amount-split')));
     await tester.pumpAndSettle();
@@ -382,10 +385,8 @@ void main() {
       find.text('Counts ₮2,100,000 a month as your income.'),
       findsOneWidget,
     );
-    await tester.tap(find.byKey(const ValueKey('pay-weeks')));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('pay-weeks-n')), '2');
-    await tester.enterText(find.byKey(const ValueKey('pay-anchor')), '10.30');
+    await howOften(tester, 'plan-repeat-d14');
+    await tester.enterText(find.byKey(const ValueKey('plan-date')), '10.30');
     await tester.enterText(find.byKey(const ValueKey('pay-amount')), '500000');
     await tester.pumpAndSettle();
     // A month holds two paydays, or three: not "a month".
@@ -395,6 +396,25 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('pay-none')));
     await tester.pumpAndSettle();
+    await tidy(tester, db);
+  });
+
+  testWidgets('an income on a repeat a category has saves, and its line says '
+      'how often (#438)', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await toPay(tester);
+    await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Pension');
+    await tester.enterText(find.byKey(const ValueKey('pay-amount')), '300,000');
+    await howOften(tester, 'plan-repeat-3');
+    await tester.enterText(find.byKey(const ValueKey('plan-date')), '11.20');
+    await tester.pumpAndSettle();
+    await press(tester, 'pay-save');
+    expect(find.textContaining('every 3 months'), findsOneWidget);
+    final pay = (await ledger(tester, db)).paySchedules.single;
+    expect(pay.rule, PayRule.custom);
+    expect(pay.repeat?.everyMonths, 3);
     await tidy(tester, db);
   });
 
@@ -560,8 +580,8 @@ void main() {
     expect((await ledger(tester, db)).paySchedules, isEmpty);
     // It varies, and comes when it comes.
     await press(tester, 'pay-varies');
-    await press(tester, 'pay-no-day');
-    expect(find.byKey(const ValueKey('pay-day1')), findsNothing);
+    await howOften(tester, 'pay-no-day');
+    expect(find.byKey(const ValueKey('plan-date')), findsNothing);
     expect(
       find.text(
         'With no set day, the forecast doesn’t expect it. When it comes, '
@@ -763,4 +783,12 @@ void main() {
       await db.close();
     },
   );
+}
+
+/// Picks one of How often's choices on the income form.
+Future<void> howOften(WidgetTester tester, String item) async {
+  await tester.tap(find.byKey(const ValueKey('plan-repeat')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey(item)));
+  await tester.pumpAndSettle();
 }

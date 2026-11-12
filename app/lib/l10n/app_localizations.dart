@@ -4103,12 +4103,6 @@ abstract class Words {
   /// **'At least, on the second payday'**
   String get setupAtLeastOnSecond;
 
-  /// Pay setup, note by Save when the monthly day is missing.
-  ///
-  /// In en, this message translates to:
-  /// **'Which day of the month?'**
-  String get setupWhichDay;
-
   /// Pay setup, note when a twice-a-month day is missing.
   ///
   /// In en, this message translates to:
@@ -4120,12 +4114,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Two different days of the month'**
   String get setupTwoDifferentDays;
-
-  /// Pay setup, note when the number of weeks is missing.
-  ///
-  /// In en, this message translates to:
-  /// **'Every how many weeks?'**
-  String get setupHowManyWeeks;
 
   /// Pay setup, note when the every-few-weeks start date is missing. example is today as 2026.09.30.
   ///
@@ -4241,47 +4229,11 @@ abstract class Words {
   /// **'Higher than {above} of the last {count} times it came: the forecast may look better than it’ll be.'**
   String setupHigherThan(int above, int count);
 
-  /// Pay setup, label beside how often pay comes. Short.
-  ///
-  /// In en, this message translates to:
-  /// **'When'**
-  String get setupWhen;
-
-  /// Pay setup, choice.
-  ///
-  /// In en, this message translates to:
-  /// **'Monthly'**
-  String get setupMonthly;
-
-  /// Pay setup, choice.
-  ///
-  /// In en, this message translates to:
-  /// **'Twice a month'**
-  String get setupTwiceMonthly;
-
-  /// Pay setup, choice.
-  ///
-  /// In en, this message translates to:
-  /// **'Every few weeks'**
-  String get setupEveryFewWeeks;
-
-  /// Pay setup, monthly: the words around the day-of-month box. field is where the box goes; keep it exactly once.
-  ///
-  /// In en, this message translates to:
-  /// **'On the {field}'**
-  String setupOnDayField(String field);
-
   /// Pay setup and a bill's Edit, twice a month: the words around the two day-of-month boxes. first and second are where the boxes go.
   ///
   /// In en, this message translates to:
   /// **'On the {first}  and the {second}'**
   String setupOnDaysField(String first, String second);
-
-  /// Pay setup, every few weeks: the words around the weeks box and the start-date box. weeks and date are where the boxes go; count is the number typed.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{Every {weeks} week, from {date}} other{Every {weeks} weeks, from {date}}}'**
-  String setupEveryWeeksField(int count, String weeks, String date);
 
   /// Pay setup, amber note when both twice-a-month days are the 28th or later.
   ///
@@ -4294,24 +4246,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'On a weekend'**
   String get setupOnWeekend;
-
-  /// Pay setup, choice: a weekend payday moves to the Friday before.
-  ///
-  /// In en, this message translates to:
-  /// **'Friday before'**
-  String get setupFridayBefore;
-
-  /// Pay setup, choice: a weekend payday moves to the Monday after.
-  ///
-  /// In en, this message translates to:
-  /// **'Monday after'**
-  String get setupMondayAfter;
-
-  /// Pay setup, choice: a weekend payday stays on its Saturday or Sunday (some are paid on a Saturday).
-  ///
-  /// In en, this message translates to:
-  /// **'Keep the day'**
-  String get setupKeepTheDay;
 
   /// Was the pay setup's "Budget by" choice; unused since 2026-10-05, kept for the Mongolian review sheet.
   ///
@@ -4359,11 +4293,41 @@ abstract class Words {
   /// **'Enter a name.'**
   String get setupNameMissing;
 
+  /// Pay form, the date a repeating income starts from.
+  ///
+  /// In en, this message translates to:
+  /// **'First payday'**
+  String get setupFirstPayday;
+
+  /// Pay form, when how often has a number or dates still missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Say how often it comes.'**
+  String get setupHowOftenMissing;
+
+  /// Pay form, when Ends says a date or a number of times and none is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Say when it ends.'**
+  String get setupEndsMissing;
+
   /// Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”.
   ///
   /// In en, this message translates to:
   /// **'No set day'**
   String get setupNoSetDay;
+
+  /// Pay form, when the end date is before the first payday.
+  ///
+  /// In en, this message translates to:
+  /// **'It ends before its first payday.'**
+  String get setupEndsEarly;
+
+  /// Pay form, the label of the two days of the month for pay twice a month.
+  ///
+  /// In en, this message translates to:
+  /// **'Paydays'**
+  String get setupPaydays;
 
   /// Pay setup, under the form when When is No set day: what saving it does.
   ///
@@ -7479,6 +7443,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'No regular income'**
   String get setupNoRegularPayLine;
+
+  /// Pay setup card, for an income that ends.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows {amount} coming in on {date}, and on each payday until it ends.'**
+  String setupCardForecastEnds(String amount, String date);
+
+  /// Pay setup card, for an income that ends and varies.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows at least {amount} coming in on {date}, and on each payday until it ends.'**
+  String setupCardForecastEndsMin(String amount, String date);
 
   /// Phone app, the first screen’s heading above the list of categories and what is left in each. {month} is a month’s name from monthNames.
   ///

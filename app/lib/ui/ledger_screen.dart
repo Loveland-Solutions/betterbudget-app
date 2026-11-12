@@ -56,6 +56,7 @@ import 'theme.dart';
 
 part 'accounts.dart';
 part 'budget.dart';
+part 'how_often.dart';
 part 'import_dialog.dart';
 part 'pay_setup.dart';
 part 'payees.dart';
@@ -1462,9 +1463,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             RegisterFilter.cleared || RegisterFilter.reconciled => true,
             RegisterFilter.scheduled => !future,
             RegisterFilter.uncategorized =>
-              future ||
-                  d.splits != null ||
-                  landed != _uncategorizedId(_data!),
+              future || d.splits != null || landed != _uncategorizedId(_data!),
           } ||
           (_all &&
               _categoryFilter != null &&
@@ -2532,6 +2531,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // From the payday it was planned as, by amount for split pay: one moved
     // a few days by hand mustn't make that same payday the next.
     final next = plan.nextAfter(plan.plannedFor(row.date, paid: row.amount));
+    // A pay that ends has no next payday after its last.
+    if (next == payNever) return null;
     return (date: next, amount: plan.amountOn(next));
   }
 
@@ -3862,7 +3863,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         // pay's periods, or the month; one undo with the stop.
         final moved = <int, CategoryPlan>{};
         if (movePlans) {
-          final next = existing!.nextAfter(today);
+          // One that has ended has no next payday: from today.
+          final after = existing!.nextAfter(today);
+          final next = after == payNever ? today : after;
           for (final p in data.plans.values) {
             if (p.payScheduleId == existing.id) {
               moved[p.categoryId] = p.movedToPay(moveTo, nextPayday: next);
@@ -3923,6 +3926,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             day2: draft.day2,
             weeks: draft.weeks,
             anchor: draft.anchor,
+            repeat: draft.repeat,
             weekend: draft.weekend,
             // The Budget page's view is chosen there; editing a pay
             // leaves it as it is.

@@ -4495,29 +4495,16 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   final _noteFocus = FocusNode(debugLabel: 'category-note');
   final _newGroupFocus = FocusNode(debugLabel: 'category-new-group');
   final _groupMenu = MenuController();
-  final _repeatMenu = MenuController();
+  final _menus = _HowOftenMenus();
   final _eachMenu = MenuController();
 
-  final _unitMenu = MenuController();
-  final _weekendMenu = MenuController();
-  final _nthMenu = MenuController();
-  final _nthWeekdayMenu = MenuController();
   final _accountsMenu = MenuController();
   final _currencyMenu = MenuController();
 
   /// Closes a dropdown that's open in the panel: Esc and Enter are its
   /// own before they're the panel's.
   bool _closeMenu() {
-    for (final m in [
-      _repeatMenu,
-      _unitMenu,
-      _weekendMenu,
-      _nthMenu,
-      _nthWeekdayMenu,
-      _accountsMenu,
-      _currencyMenu,
-      _groupMenu,
-    ]) {
+    for (final m in [..._menus.all, _accountsMenu, _currencyMenu, _groupMenu]) {
       if (m.isOpen) {
         m.close();
         return true;
@@ -4829,35 +4816,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     if (!made && mounted) _done = false;
   }
 
-  /// One weekday in Custom…'s row of them, lit when picked.
-  Widget _dayChip(
-    String label, {
-    required String key,
-    required bool on,
-    required VoidCallback onTap,
-  }) => Padding(
-    padding: const EdgeInsets.only(right: 6),
-    child: Hoverable(
-      key: ValueKey(key),
-      onTap: onTap,
-      builder: (hover) => Container(
-        width: 34,
-        height: 34,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: on ? Mid.blueWash : (hover ? Mid.raised : Colors.transparent),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: on ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Text(label, style: onest(12.5, color: on ? Mid.ink : Mid.ink2)),
-      ),
-    ),
-  );
-
-  void _preset(int n, PlanUnit unit) => setState(() => _p.preset(n, unit));
-
   /// A control that says what it is by its value (the currency, the
   /// accounts): no label over it, the label as its tooltip.
   Widget _quiet(String label, Widget child) => Padding(
@@ -4866,33 +4824,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       message: label,
       waitDuration: const Duration(milliseconds: 600),
       child: child,
-    ),
-  );
-
-  /// One line of the form: a label in its column, the control, and a
-  /// quiet note beside it when one is needed.
-  Widget _formRow(String label, Widget child, {String? aside}) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 214,
-          child: Text(label, style: onest(13, color: Mid.ink2)),
-        ),
-        child,
-        if (aside != null)
-          Flexible(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 12),
-              child: Text(
-                aside,
-                style: onest(12.5, color: Mid.ink3),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-      ],
     ),
   );
 
@@ -4938,29 +4869,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         ),
       ),
     );
-    Widget dayBox(
-      TextEditingController controller,
-      String key, {
-      FocusNode? focus,
-    }) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: SizedBox(
-        width: 56,
-        height: 34,
-        child: TextField(
-          key: ValueKey(key),
-          controller: controller,
-          focusNode: focus,
-          textAlign: TextAlign.center,
-          style: onest(13.5, tabular: true),
-          onSubmitted: (_) => _save(),
-          decoration: _fieldDecoration(
-            wrong: _tried && _p.typedMonthDays == null,
-          ),
-        ),
-      ),
-    );
-
     Widget menu(
       MenuController controller, {
       required String key,
@@ -5191,394 +5099,20 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             autofocus: widget.atPlan,
           ),
         ),
-        _formRow(
-          t.planHowOften,
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              menu(
-                _repeatMenu,
-                key: 'plan-repeat',
-                label: planRepeatLabel(t, widget.data, _p),
-                items: [
-                  item(
-                    'plan-repeat-0',
-                    t.planOnce,
-                    on: _p.repeat == PlanRepeat.once,
-                    onTap: () => setState(() => _p.repeat = PlanRepeat.once),
-                  ),
-                  for (final (key, n, unit, label) in [
-                    ('plan-repeat-d7', 1, PlanUnit.weeks, t.planRepeatWeeks(1)),
-                    (
-                      'plan-repeat-d14',
-                      2,
-                      PlanUnit.weeks,
-                      t.planRepeatWeeks(2),
-                    ),
-                  ])
-                    item(
-                      key,
-                      label,
-                      on:
-                          _p.repeat == PlanRepeat.every &&
-                          !_p.custom &&
-                          _p.unit == unit &&
-                          _p.typedEveryN == n,
-                      onTap: () => _preset(n, unit),
-                    ),
-                  item(
-                    'plan-repeat-twice',
-                    t.planTwiceAMonth,
-                    on: _p.repeat == PlanRepeat.twice,
-                    onTap: () => setState(() => _p.repeat = PlanRepeat.twice),
-                  ),
-                  for (final (key, n, unit, label) in [
-                    (
-                      'plan-repeat-1',
-                      1,
-                      PlanUnit.months,
-                      t.planRepeatMonths(1),
-                    ),
-                    (
-                      'plan-repeat-3',
-                      3,
-                      PlanUnit.months,
-                      t.planRepeatMonths(3),
-                    ),
-                    ('plan-repeat-12', 1, PlanUnit.years, t.planRepeatYears(1)),
-                  ])
-                    item(
-                      key,
-                      label,
-                      on:
-                          _p.repeat == PlanRepeat.every &&
-                          !_p.custom &&
-                          _p.unit == unit &&
-                          _p.typedEveryN == n,
-                      onTap: () => _preset(n, unit),
-                    ),
-                  // Payday by payday: only with pay set up.
-                  for (final pay in data.paySchedules)
-                    item(
-                      'plan-repeat-pay-${pay.id}',
-                      planPaydayLabel(t, widget.data, pay),
-                      on:
-                          _p.repeat == PlanRepeat.payday &&
-                          _p.payScheduleId == pay.id,
-                      onTap: () => setState(() {
-                        _p.repeat = PlanRepeat.payday;
-                        _p.payScheduleId = pay.id;
-                      }),
-                    ),
-                  item(
-                    'plan-repeat-custom',
-                    t.planEveryCustom,
-                    on: _p.repeat == PlanRepeat.every && _p.custom,
-                    onTap: () => setState(() {
-                      _p.repeat = PlanRepeat.every;
-                      _p.custom = true;
-                    }),
-                  ),
-                  item(
-                    'plan-repeat-dates',
-                    t.planOnDates,
-                    on: _p.repeat == PlanRepeat.dates,
-                    onTap: () => setState(() => _p.repeat = PlanRepeat.dates),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        _HowOftenRows(
+          p: _p,
+          data: widget.data,
+          today: widget.today,
+          tried: _tried,
+          wrongDate: wrongDate,
+          menus: _menus,
+          onSave: _save,
+          onChanged: () => setState(() {}),
+          dateFocus: _dateFocus,
+          datesFocus: _datesFocus,
+          day1Focus: _day1Focus,
+          onMenuOpen: _panelFocus.requestFocus,
         ),
-        if (_p.repeat == PlanRepeat.payday)
-          _formRow(
-            t.planLabelDueDate,
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 56,
-                  height: 34,
-                  child: TextField(
-                    key: const ValueKey('plan-days-after'),
-                    controller: _p.daysAfter,
-                    textAlign: TextAlign.center,
-                    style: onest(13.5, tabular: true),
-                    onSubmitted: (_) => _save(),
-                    decoration: _fieldDecoration(wrong: false).copyWith(
-                      hintText: '0',
-                      hintStyle: onest(13.5, color: Mid.ink3),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(t.planDaysAfterPay, style: onest(13, color: Mid.ink2)),
-              ],
-            ),
-            aside: _p.daysAfterNow == 0 ? t.planOnPayday : null,
-          )
-        else
-          _formRow(
-            _p.repeat == PlanRepeat.dates
-                ? t.planDatesLabel
-                : t.planLabelDueDate,
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_p.repeat == PlanRepeat.dates)
-                  SizedBox(
-                    width: 300,
-                    height: 34,
-                    child: TextField(
-                      key: const ValueKey('plan-dates'),
-                      controller: _p.dates,
-                      focusNode: _datesFocus,
-                      style: onest(13.5, tabular: true),
-                      onSubmitted: (_) => _save(),
-                      decoration:
-                          _fieldDecoration(
-                            wrong:
-                                _tried &&
-                                (_p.typedDates == null ||
-                                    _p.typedDates!.isEmpty),
-                          ).copyWith(
-                            hintText: t.planDatesHint,
-                            hintStyle: onest(13.5, color: Mid.ink3),
-                          ),
-                    ),
-                  )
-                else if (_p.repeat == PlanRepeat.twice)
-                  ...withFields(
-                    t.setupOnDaysField(fieldMarks[0], fieldMarks[1]),
-                    [
-                      dayBox(_p.day1, 'plan-day1', focus: _day1Focus),
-                      dayBox(_p.day2, 'plan-day2'),
-                    ],
-                  )
-                else
-                  SizedBox(
-                    width: 130,
-                    height: 34,
-                    child: DateField(
-                      key: const ValueKey('plan-date'),
-                      controller: _p.date,
-                      focusNode: _dateFocus,
-                      today: widget.today,
-                      small: true,
-                      // Beside, not under: under it are Paid from and Save.
-                      calendarBeside: true,
-                      wanted: wrongDate,
-                      onSubmitted: _save,
-                      onPicked: () {},
-                    ),
-                  ),
-                // A weekend rule, for dates that can land on one (not
-                // chosen weekdays: those are the days).
-                if (_p.repeat != PlanRepeat.once && _p.weekdaysNow == null) ...[
-                  const SizedBox(width: 10),
-                  menu(
-                    _weekendMenu,
-                    key: 'plan-weekend',
-                    label: planWeekendLabel(t, _p.weekend),
-                    items: [
-                      for (final w in PayWeekend.values)
-                        item(
-                          'plan-weekend-${w.name}',
-                          planWeekendLabel(t, w),
-                          on: w == _p.weekend,
-                          onTap: () => setState(() => _p.weekend = w),
-                        ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        // Custom…: the pattern laid out like a calendar app's recurrence
-        // (owner, 2026-10-05), under the date it starts from: how many of
-        // which unit, the weekdays or the nth weekday when the unit has
-        // them, and when it ends.
-        if (_p.customOn) ...[
-          _formRow(
-            t.planRepeatEvery,
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 56,
-                  height: 34,
-                  child: TextField(
-                    key: const ValueKey('plan-every-n'),
-                    controller: _p.everyN,
-                    textAlign: TextAlign.center,
-                    style: onest(13.5, tabular: true),
-                    onSubmitted: (_) => _save(),
-                    decoration: _fieldDecoration(
-                      wrong: _tried && _p.typedEveryN == null,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                menu(
-                  _unitMenu,
-                  key: 'plan-every-unit',
-                  label: planUnitLabel(t, _p.unit),
-                  items: [
-                    for (final u in PlanUnit.values)
-                      item(
-                        'plan-every-unit-${u.name}',
-                        planUnitLabel(t, u),
-                        on: u == _p.unit,
-                        onTap: () => setState(() => _p.unit = u),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (_p.unit == PlanUnit.weeks)
-            _formRow(
-              t.planOnWeekdays,
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final (i, initial)
-                      in t.rowsWeekdayInitials.split('|').indexed)
-                    _dayChip(
-                      initial,
-                      key: 'plan-weekday-${i + 1}',
-                      on: _p.weekdays.contains(i + 1),
-                      onTap: () => setState(
-                        () => _p.weekdays.contains(i + 1)
-                            ? _p.weekdays.remove(i + 1)
-                            : _p.weekdays.add(i + 1),
-                      ),
-                    ),
-                ],
-              ),
-              aside: _p.weekdays.isEmpty ? t.planWeekdaysHint : null,
-            ),
-          if (_p.unit == PlanUnit.months || _p.unit == PlanUnit.years)
-            _formRow(
-              t.planOnLabel,
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _Segmented(
-                    items: [
-                      (
-                        'plan-nth-off',
-                        t.planDayOfMonth,
-                        !_p.nthOn,
-                        () => setState(() => _p.nthOn = false),
-                      ),
-                      (
-                        'plan-nth-on',
-                        t.planAWeekday,
-                        _p.nthOn,
-                        () => setState(_p.startNth),
-                      ),
-                    ],
-                  ),
-                  if (_p.nthOn) ...[
-                    const SizedBox(width: 8),
-                    menu(
-                      _nthMenu,
-                      key: 'plan-nth',
-                      label: planNthLabel(t, _p.nth),
-                      items: [
-                        for (final n in const [1, 2, 3, 4, -1])
-                          item(
-                            'plan-nth-$n',
-                            planNthLabel(t, n),
-                            on: n == _p.nth,
-                            onTap: () => setState(() => _p.nth = n),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    menu(
-                      _nthWeekdayMenu,
-                      key: 'plan-nth-weekday',
-                      label: planWeekdayName(t, _p.nthWeekday),
-                      items: [
-                        for (var wd = 1; wd <= 7; wd++)
-                          item(
-                            'plan-nth-weekday-$wd',
-                            planWeekdayName(t, wd),
-                            on: wd == _p.nthWeekday,
-                            onTap: () => setState(() => _p.nthWeekday = wd),
-                          ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-        ],
-        if (_p.endsOn)
-          _formRow(
-            t.planEnds,
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _Segmented(
-                  items: [
-                    for (final (e, label) in [
-                      (PlanEnds.never, t.planEndsNever),
-                      (PlanEnds.date, t.planEndsOn),
-                      (PlanEnds.count, t.planEndsAfter),
-                    ])
-                      (
-                        'plan-ends-${e.name}',
-                        label,
-                        _p.ends == e,
-                        () => setState(() => _p.ends = e),
-                      ),
-                  ],
-                ),
-                if (_p.ends == PlanEnds.date) ...[
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 130,
-                    height: 34,
-                    child: TextField(
-                      key: const ValueKey('plan-end-date'),
-                      controller: _p.endDate,
-                      style: onest(13.5, tabular: true),
-                      onSubmitted: (_) => _save(),
-                      decoration:
-                          _fieldDecoration(
-                            wrong: _tried && _p.typedEndDate == null,
-                          ).copyWith(
-                            hintText: t.planEndDateHint,
-                            hintStyle: onest(13.5, color: Mid.ink3),
-                          ),
-                    ),
-                  ),
-                ],
-                if (_p.ends == PlanEnds.count) ...[
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 56,
-                    height: 34,
-                    child: TextField(
-                      key: const ValueKey('plan-end-count'),
-                      controller: _p.endCount,
-                      textAlign: TextAlign.center,
-                      style: onest(13.5, tabular: true),
-                      onSubmitted: (_) => _save(),
-                      decoration: _fieldDecoration(
-                        wrong: _tried && _p.typedEndCount == null,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(t.planEndsTimes, style: onest(13, color: Mid.ink2)),
-                ],
-              ],
-            ),
-          ),
         _accountsRow(
           t,
           aside: switch ((paidAccount, dueText)) {

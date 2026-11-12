@@ -4371,10 +4371,6 @@
   "@setupAtLeastOnSecond": {
     "description": "Pay setup, label as above when pay varies. Short."
   },
-  "setupWhichDay": "Which day of the month?",
-  "@setupWhichDay": {
-    "description": "Pay setup, note by Save when the monthly day is missing."
-  },
   "setupWhichTwoDays": "Which two days of the month?",
   "@setupWhichTwoDays": {
     "description": "Pay setup, note when a twice-a-month day is missing."
@@ -4382,10 +4378,6 @@
   "setupTwoDifferentDays": "Two different days of the month",
   "@setupTwoDifferentDays": {
     "description": "Pay setup, note when both twice-a-month days are the same."
-  },
-  "setupHowManyWeeks": "Every how many weeks?",
-  "@setupHowManyWeeks": {
-    "description": "Pay setup, note when the number of weeks is missing."
   },
   "setupWhenPayday": "When is a payday? ({example})",
   "@setupWhenPayday": {
@@ -4492,31 +4484,6 @@
       }
     }
   },
-  "setupWhen": "When",
-  "@setupWhen": {
-    "description": "Pay setup, label beside how often pay comes. Short."
-  },
-  "setupMonthly": "Monthly",
-  "@setupMonthly": {
-    "description": "Pay setup, choice."
-  },
-  "setupTwiceMonthly": "Twice a month",
-  "@setupTwiceMonthly": {
-    "description": "Pay setup, choice."
-  },
-  "setupEveryFewWeeks": "Every few weeks",
-  "@setupEveryFewWeeks": {
-    "description": "Pay setup, choice."
-  },
-  "setupOnDayField": "On the {field}",
-  "@setupOnDayField": {
-    "description": "Pay setup, monthly: the words around the day-of-month box. field is where the box goes; keep it exactly once.",
-    "placeholders": {
-      "field": {
-        "type": "String"
-      }
-    }
-  },
   "setupOnDaysField": "On the {first}  and the {second}",
   "@setupOnDaysField": {
     "description": "Pay setup and a bill's Edit, twice a month: the words around the two day-of-month boxes. first and second are where the boxes go.",
@@ -4529,21 +4496,6 @@
       }
     }
   },
-  "setupEveryWeeksField": "{count, plural, =1{Every {weeks} week, from {date}} other{Every {weeks} weeks, from {date}}}",
-  "@setupEveryWeeksField": {
-    "description": "Pay setup, every few weeks: the words around the weeks box and the start-date box. weeks and date are where the boxes go; count is the number typed.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "weeks": {
-        "type": "String"
-      },
-      "date": {
-        "type": "String"
-      }
-    }
-  },
   "setupDaysMeet": "In shorter months both days land on the last day: one payday that month, not two.",
   "@setupDaysMeet": {
     "description": "Pay setup, amber note when both twice-a-month days are the 28th or later."
@@ -4551,18 +4503,6 @@
   "setupOnWeekend": "On a weekend",
   "@setupOnWeekend": {
     "description": "Pay setup, label: where a payday that falls on a weekend moves. Short."
-  },
-  "setupFridayBefore": "Friday before",
-  "@setupFridayBefore": {
-    "description": "Pay setup, choice: a weekend payday moves to the Friday before."
-  },
-  "setupMondayAfter": "Monday after",
-  "@setupMondayAfter": {
-    "description": "Pay setup, choice: a weekend payday moves to the Monday after."
-  },
-  "setupKeepTheDay": "Keep the day",
-  "@setupKeepTheDay": {
-    "description": "Pay setup, choice: a weekend payday stays on its Saturday or Sunday (some are paid on a Saturday)."
   },
   "setupMonth": "Month",
   "@setupMonth": {
@@ -4635,10 +4575,20 @@
   "@setupNameMissing": {
     "description": "Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name."
   },
+  "setupFirstPayday": "First payday",
+  "@setupFirstPayday": {"description": "Pay form, the date a repeating income starts from."},
+  "setupHowOftenMissing": "Say how often it comes.",
+  "@setupHowOftenMissing": {"description": "Pay form, when how often has a number or dates still missing."},
+  "setupEndsMissing": "Say when it ends.",
+  "@setupEndsMissing": {"description": "Pay form, when Ends says a date or a number of times and none is typed."},
   "setupNoSetDay": "No set day",
   "@setupNoSetDay": {
     "description": "Pay setup, When: a choice beside Monthly, Twice a month, Every few weeks, for pay with no set day. Saving it is the same as “I don’t have regular pay”."
   },
+  "setupEndsEarly": "It ends before its first payday.",
+  "@setupEndsEarly": {"description": "Pay form, when the end date is before the first payday."},
+  "setupPaydays": "Paydays",
+  "@setupPaydays": {"description": "Pay form, the label of the two days of the month for pay twice a month."},
   "setupNoSetDayMeans": "With no set day, the forecast doesn’t expect it. When it comes, file it under Income.",
   "@setupNoSetDayMeans": {
     "description": "Pay setup, under the form when When is No set day: what saving it does."
@@ -7648,6 +7598,10 @@
   "@setupNoRegularPayLine": {
     "description": "Setup, Pay step: the one line shown after “I don’t have regular pay” was chosen, with an “Add your pay” button beside it."
   },
+  "setupCardForecastEnds": "Shows {amount} coming in on {date}, and on each payday until it ends.",
+  "@setupCardForecastEnds": {"description": "Pay setup card, for an income that ends.", "placeholders": {"amount": {"type": "String"}, "date": {"type": "String"}}},
+  "setupCardForecastEndsMin": "Shows at least {amount} coming in on {date}, and on each payday until it ends.",
+  "@setupCardForecastEndsMin": {"description": "Pay setup card, for an income that ends and varies.", "placeholders": {"amount": {"type": "String"}, "date": {"type": "String"}}},
   "phoneLeftIn": "Left in {month}",
   "@phoneLeftIn": {
     "description": "Phone app, the first screen’s heading above the list of categories and what is left in each. {month} is a month’s name from monthNames.",

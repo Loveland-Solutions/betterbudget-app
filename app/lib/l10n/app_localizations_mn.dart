@@ -2868,16 +2868,10 @@ class WordsMn extends Words {
   String get setupAtLeastOnSecond => 'Хоёр дахь өдөр багадаа';
 
   @override
-  String get setupWhichDay => 'Сарын хэдний өдөр вэ?';
-
-  @override
   String get setupWhichTwoDays => 'Сарын аль хоёр өдөр вэ?';
 
   @override
   String get setupTwoDifferentDays => 'Сарын өөр хоёр өдөр';
-
-  @override
-  String get setupHowManyWeeks => 'Хэдэн долоо хоног тутамд вэ?';
 
   @override
   String setupWhenPayday(String example) {
@@ -2947,35 +2941,8 @@ class WordsMn extends Words {
   }
 
   @override
-  String get setupWhen => 'Хэзээ';
-
-  @override
-  String get setupMonthly => 'Сар бүр';
-
-  @override
-  String get setupTwiceMonthly => 'Сард хоёр удаа';
-
-  @override
-  String get setupEveryFewWeeks => 'Хэдэн долоо хоног тутам';
-
-  @override
-  String setupOnDayField(String field) {
-    return 'Сар бүрийн $field-нд';
-  }
-
-  @override
   String setupOnDaysField(String first, String second) {
     return 'Сар бүрийн $first, $second-нд';
-  }
-
-  @override
-  String setupEveryWeeksField(int count, String weeks, String date) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$weeks долоо хоног тутам, $date өдрөөс',
-    );
-    return '$_temp0';
   }
 
   @override
@@ -2984,15 +2951,6 @@ class WordsMn extends Words {
 
   @override
   String get setupOnWeekend => 'Амралтын өдөр';
-
-  @override
-  String get setupFridayBefore => 'Өмнөх баасан';
-
-  @override
-  String get setupMondayAfter => 'Дараагийн даваа';
-
-  @override
-  String get setupKeepTheDay => 'Тэр өдөртөө';
 
   @override
   String get setupMonth => 'Сараар';
@@ -3030,7 +2988,22 @@ class WordsMn extends Words {
   String get setupNameMissing => 'Нэрээ оруулна уу.';
 
   @override
+  String get setupFirstPayday => 'Анхны орлого орох өдөр';
+
+  @override
+  String get setupHowOftenMissing => 'Хэр олон удаа орохыг оруулна уу.';
+
+  @override
+  String get setupEndsMissing => 'Хэзээ дуусахыг оруулна уу.';
+
+  @override
   String get setupNoSetDay => 'Тогтсон өдөргүй';
+
+  @override
+  String get setupEndsEarly => 'Анхны орлого орохоос өмнө дуусаж байна.';
+
+  @override
+  String get setupPaydays => 'Орлого орох өдрүүд';
 
   @override
   String get setupNoSetDayMeans =>
@@ -5080,6 +5053,16 @@ class WordsMn extends Words {
 
   @override
   String get setupNoRegularPayLine => 'Тогтмол орлогогүй';
+
+  @override
+  String setupCardForecastEnds(String amount, String date) {
+    return '$date-нд $amount орж ирнэ гэж харуулна, дуустал орлого орох өдөр бүр.';
+  }
+
+  @override
+  String setupCardForecastEndsMin(String amount, String date) {
+    return '$date-нд хамгийн багадаа $amount орж ирнэ гэж харуулна, дуустал орлого орох өдөр бүр.';
+  }
 
   @override
   String phoneLeftIn(String month) {

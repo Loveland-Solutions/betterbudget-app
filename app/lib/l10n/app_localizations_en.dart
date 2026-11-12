@@ -2959,16 +2959,10 @@ class WordsEn extends Words {
   String get setupAtLeastOnSecond => 'At least, on the second payday';
 
   @override
-  String get setupWhichDay => 'Which day of the month?';
-
-  @override
   String get setupWhichTwoDays => 'Which two days of the month?';
 
   @override
   String get setupTwoDifferentDays => 'Two different days of the month';
-
-  @override
-  String get setupHowManyWeeks => 'Every how many weeks?';
 
   @override
   String setupWhenPayday(String example) {
@@ -3038,36 +3032,8 @@ class WordsEn extends Words {
   }
 
   @override
-  String get setupWhen => 'When';
-
-  @override
-  String get setupMonthly => 'Monthly';
-
-  @override
-  String get setupTwiceMonthly => 'Twice a month';
-
-  @override
-  String get setupEveryFewWeeks => 'Every few weeks';
-
-  @override
-  String setupOnDayField(String field) {
-    return 'On the $field';
-  }
-
-  @override
   String setupOnDaysField(String first, String second) {
     return 'On the $first  and the $second';
-  }
-
-  @override
-  String setupEveryWeeksField(int count, String weeks, String date) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Every $weeks weeks, from $date',
-      one: 'Every $weeks week, from $date',
-    );
-    return '$_temp0';
   }
 
   @override
@@ -3076,15 +3042,6 @@ class WordsEn extends Words {
 
   @override
   String get setupOnWeekend => 'On a weekend';
-
-  @override
-  String get setupFridayBefore => 'Friday before';
-
-  @override
-  String get setupMondayAfter => 'Monday after';
-
-  @override
-  String get setupKeepTheDay => 'Keep the day';
 
   @override
   String get setupMonth => 'Month';
@@ -3122,7 +3079,22 @@ class WordsEn extends Words {
   String get setupNameMissing => 'Enter a name.';
 
   @override
+  String get setupFirstPayday => 'First payday';
+
+  @override
+  String get setupHowOftenMissing => 'Say how often it comes.';
+
+  @override
+  String get setupEndsMissing => 'Say when it ends.';
+
+  @override
   String get setupNoSetDay => 'No set day';
+
+  @override
+  String get setupEndsEarly => 'It ends before its first payday.';
+
+  @override
+  String get setupPaydays => 'Paydays';
 
   @override
   String get setupNoSetDayMeans =>
@@ -5241,6 +5213,16 @@ class WordsEn extends Words {
 
   @override
   String get setupNoRegularPayLine => 'No regular income';
+
+  @override
+  String setupCardForecastEnds(String amount, String date) {
+    return 'Shows $amount coming in on $date, and on each payday until it ends.';
+  }
+
+  @override
+  String setupCardForecastEndsMin(String amount, String date) {
+    return 'Shows at least $amount coming in on $date, and on each payday until it ends.';
+  }
 
   @override
   String phoneLeftIn(String month) {

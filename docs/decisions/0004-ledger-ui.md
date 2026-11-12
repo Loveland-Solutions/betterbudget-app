@@ -5028,6 +5028,26 @@ under each field (B), teaching only after Save (C). The Mongolian waits on Tanan
 The button on Budget's Income tab says **Add regular income**, not "Add other…" (owner:
 "What is 'other regular income'?"); its place is #436.
 
+## Income repeats as many ways as a category (owner, 2026-11-11, #438)
+
+The owner: "The recurrence for the paychecks should have as many options as the recurrence
+for the budget categories", and chose option A of two, **the same dropdown as a
+category**: **How often** (Every week, Every 2 weeks, Every month, Every 3 months, Every
+year, Twice a month, On dates, Custom…, and **No set day** for a new income), then the
+**First payday** (or the two days, or the dates), the weekend rule, Custom…'s pattern
+(every N days, weeks, months or years; chosen weekdays; "the 2nd Tuesday") and **Ends**
+(never, on a date, after N times). It is one widget, `_HowOftenRows`, shown by a category's
+Edit and by the income form, so the two cannot drift apart. The weekend rule is the
+category's words (Before a weekend · After a weekend · On the day). A new income starts
+as it always did, every month from the next 25th. *Rejected:* keeping today's four buttons
+and adding "Other…" (B: the list would still be short, and a second place to keep in step).
+How it is kept: the three shapes an income already had (monthly, twice a month, every N
+weeks without an end) keep their own rule and columns, so no income already saved changes
+by a day; anything else is `PayRule.custom`, dated by the same code a category's bills use
+(schema v26 adds nine empty columns; `asPlan` and `shapeOf` convert). An income that
+ends has no payday after its last: it stops being scheduled and the forecast stops. The
+twice-a-month days start empty, as a category's do.
+
 ## The phone says what hasn't reached the computer (owner, 2026-10-30)
 
 On "1 entry isn't in your ledger yet" under the phone's Save: "ledger isn't a common

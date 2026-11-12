@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-11** · version 0.84.0 · schema v25 · 1065 tests pass
+**Last updated: 2026-11-11** · version 0.85.0 · schema v26 · 1076 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -42,8 +42,17 @@ Apple's encryption question are filled in App Store Connect. The iPhone app wait
 card beside the form"): owner's sketch A, a Forecast line and a Budget line in the person's
 own figures once an amount is typed; the "Next payday" line is dropped on that page; Budget's
 button reads **Add regular income**. The computer only. #325's other wording is not changed
-yet. **Next: #438**, regular income repeating as many ways as a category's How often (owner's
-pick A: one recurrence code for both; schema v26).
+yet.
+
+**Income repeats as many ways as a category** (0.85.0, #438; ADR 0004 "Income repeats as many
+ways as a category"; schema v26): the income form's **How often** is the category's own
+widget (`_HowOftenRows` in `ui/how_often.dart`): every week, every N weeks, months, years,
+twice a month, on dates, Custom… (weekdays, the nth weekday), and Ends; **No set day** is
+there for a new income. Monthly, twice a month and every N weeks (no end) keep their own rule
+and columns, so no saved income moved; anything else is `PayRule.custom` (`PayRepeat`),
+dated by `Budget.dueAfter`. An income that ends has no payday after its last (`payNever`).
+The computer only. Not yet: custom incomes' lines name only the unit ("every 2 weeks"), not
+the weekdays or the nth weekday.
 
 **The header stands forward** (0.83.0, #421; ADR 0004 "The header stands forward:
 Working first, a live chart"): owner's sketch D. Working is first and largest with

@@ -8,6 +8,7 @@ import '../data/keys.dart';
 import '../domain/ledger.dart';
 import '../domain/pay.dart';
 import 'language.dart';
+import 'plan_form.dart' show PlanUnit, planEveryLabel;
 
 /// Why a typed recovery key isn't one.
 String keyProblem(Words t, KeyProblem p) => switch (p.kind) {
@@ -132,6 +133,24 @@ String payWhen(Words t, PaySchedule p) {
       return t.startPayTwiceMonthly(payDay(t, a), payDay(t, b), a);
     case PayRule.everyWeeks:
       return p.weeks == 1 ? t.startPayEveryWeek : t.startPayEveryWeeks(p.weeks);
+    case PayRule.custom:
+      final r = p.repeat;
+      final label = switch ((r?.onDates, r?.everyDays, r?.everyMonths)) {
+        (final d?, _, _) when d.isNotEmpty => t.planDatesAYear(d.length),
+        (_, final days?, _) =>
+          days % 7 == 0
+              ? planEveryLabel(t, days ~/ 7, PlanUnit.weeks)
+              : planEveryLabel(t, days, PlanUnit.days),
+        (_, _, final m?) =>
+          m % 12 == 0
+              ? planEveryLabel(t, m ~/ 12, PlanUnit.years)
+              : planEveryLabel(t, m, PlanUnit.months),
+        _ => t.planCustomOn,
+      };
+      // Used inside a line, so lowercase, as the others are.
+      return label.isEmpty
+          ? label
+          : label[0].toLowerCase() + label.substring(1);
   }
 }
 
