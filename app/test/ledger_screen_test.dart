@@ -8613,9 +8613,17 @@ void main() {
         expect(find.text('Assigned too much'), findsOneWidget);
         expect(find.byKey(const ValueKey('assigned-over')), findsNothing);
         expect(text('not-assigned'), startsWith('₮'));
+        // Money still to give out is green; none left is ink, and what
+        // was assigned too much is coral (#327).
+        Color? inkOf(String key) =>
+            tester.widget<Text>(find.byKey(ValueKey(key))).style!.color;
+        expect(inkOf('not-assigned'), Mid.green);
+        expect(inkOf('not-assigned-USD'), Mid.ink);
+        expect(inkOf('assigned-over-USD'), Mid.coral);
         await assign('120');
         expect(find.text('Assigned too much'), findsNothing);
         expect(text('not-assigned-USD'), r'$2,380.00');
+        expect(inkOf('not-assigned-USD'), Mid.green);
 
         // Its accounts: the one dollar account, checked. Groceries lists
         // the tugrik ones; unchecking all but Khan Savings says so on the

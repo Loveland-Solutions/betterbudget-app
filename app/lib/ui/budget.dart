@@ -692,6 +692,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         Currency c, {
         bool big = false,
         bool coral = false,
+        bool green = false,
       }) => Shrink(
         end: true,
         Text(
@@ -702,13 +703,21 @@ class _BudgetPageState extends State<_BudgetPage> {
               ? onest(
                   20,
                   weight: 700,
-                  color: coral ? Mid.coral : Mid.ink,
+                  color: coral
+                      ? Mid.coral
+                      : green
+                      ? Mid.green
+                      : Mid.ink,
                   tabular: true,
                 )
               : onest(
                   14,
                   weight: 500,
-                  color: coral ? Mid.coral : Mid.ink,
+                  color: coral
+                      ? Mid.coral
+                      : green
+                      ? Mid.green
+                      : Mid.ink,
                   tabular: true,
                 ),
         ),
@@ -945,6 +954,8 @@ class _BudgetPageState extends State<_BudgetPage> {
                         over(p) ? 0 : p.notAssigned,
                         p.currency,
                         big: true,
+                        // Money still to give out is green (#327).
+                        green: !over(p) && p.notAssigned > 0,
                       ),
                   ],
                   const [],
@@ -1575,20 +1586,39 @@ class _IncomeTab extends StatelessWidget {
                 child: Hoverable(
                   key: const ValueKey('income-line'),
                   onTap: onShowRows ?? () {},
-                  builder: (hover) => Text(
-                    t.planIncomeLine(
-                      cameIn.isEmpty
-                          ? formatMoney(0, currency: mainCurrency(data))
-                          : [
-                              for (final (c, v) in cameIn)
-                                formatMoney(v, currency: c),
-                            ].join(' · '),
-                    ),
-                    style: onest(15, weight: 600, tabular: true).copyWith(
-                      decoration: hover ? TextDecoration.underline : null,
-                      decorationColor: Mid.ink,
-                    ),
-                  ),
+                  builder: (hover) {
+                    final amounts = cameIn.isEmpty
+                        ? formatMoney(0, currency: mainCurrency(data))
+                        : [
+                            for (final (c, v) in cameIn)
+                              formatMoney(v, currency: c),
+                          ].join(' · ');
+                    final line = t.planIncomeLine(amounts);
+                    // Money that came in is green (#327); none yet, ink.
+                    final at = cameIn.any((x) => x.$2 > 0)
+                        ? line.indexOf(amounts)
+                        : -1;
+                    return Text.rich(
+                      at < 0
+                          ? TextSpan(text: line)
+                          : TextSpan(
+                              children: [
+                                TextSpan(text: line.substring(0, at)),
+                                TextSpan(
+                                  text: amounts,
+                                  style: TextStyle(color: Mid.green),
+                                ),
+                                TextSpan(
+                                  text: line.substring(at + amounts.length),
+                                ),
+                              ],
+                            ),
+                      style: onest(15, weight: 600, tabular: true).copyWith(
+                        decoration: hover ? TextDecoration.underline : null,
+                        decorationColor: Mid.ink,
+                      ),
+                    );
+                  },
                 ),
               ),
               if (split.isNotEmpty) ...[
@@ -1796,12 +1826,25 @@ class _IncomeFitCard extends StatelessWidget {
     final at = heading.indexOf(amount);
     final coral = over > 0 && f.sure;
     final style = onest(14.5, weight: 600, tabular: true);
+    // Still to spend and Income are green, figure and bar (owner,
+    // 2026-10-28, #327); Saved, which had that green, is a paler one.
     final parts = [
-      (f.spent, Mid.blue, t.planFitSpent),
-      (f.toSpend, Mid.blue.withValues(alpha: 0.3), t.planFitToSpend),
-      (f.putAside, Mid.green.withValues(alpha: 0.55), t.planFitAside),
+      (f.spent, Mid.blue, t.planFitSpent, null),
+      (
+        f.toSpend,
+        Mid.green.withValues(alpha: 0.8),
+        t.planFitToSpend,
+        Mid.green,
+      ),
+      (f.putAside, Mid.green.withValues(alpha: 0.3), t.planFitAside, null),
     ];
-    Widget key(Widget mark, String label, String figure, [String? note]) => Row(
+    Widget key(
+      Widget mark,
+      String label,
+      String figure, {
+      String? note,
+      Color? color,
+    }) => Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -1809,7 +1852,10 @@ class _IncomeFitCard extends StatelessWidget {
         const SizedBox(width: 6),
         Text(label, style: onest(12.5, color: Mid.ink3)),
         const SizedBox(width: 6),
-        Text(figure, style: onest(13, weight: 500, tabular: true)),
+        Text(
+          figure,
+          style: onest(13, weight: 500, color: color, tabular: true),
+        ),
         if (note != null) ...[
           const SizedBox(width: 6),
           Text(note, style: onest(12.5, color: Mid.ink3, tabular: true)),
@@ -1849,7 +1895,7 @@ class _IncomeFitCard extends StatelessWidget {
           height: 22,
           child: CustomPaint(
             painter: _FitBar(
-              parts: [for (final (v, color, _) in parts) (v, color)],
+              parts: [for (final (v, color, _, _) in parts) (v, color)],
               income: f.income,
               coral: f.sure ? Mid.coral : Mid.ink3,
               mark: Mid.ink,
@@ -1862,13 +1908,14 @@ class _IncomeFitCard extends StatelessWidget {
           spacing: 22,
           runSpacing: 4,
           children: [
-            for (final (v, color, label) in parts)
-              if (v > 0) key(swatch(color), label, short(v)),
+            for (final (v, color, label, ink) in parts)
+              if (v > 0) key(swatch(color), label, short(v), color: ink),
             key(
               Container(width: 2, height: 12, color: Mid.ink),
               t.planFitIncome,
               short(f.income),
-              f.toCome > 0 ? t.planFitToCome(short(f.toCome)) : null,
+              note: f.toCome > 0 ? t.planFitToCome(short(f.toCome)) : null,
+              color: f.income > 0 ? Mid.green : null,
             ),
           ],
         ),

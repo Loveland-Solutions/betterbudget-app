@@ -4400,6 +4400,28 @@ The Budget page's words (comb, 2026-10-24), through the UX writer:
   month how much to assign"), not also by a hint in the field.
 - **Add category's tooltip** is its shortcut, ⌘N, not its own label again.
 
+## Green on the Budget page: money to give out, to spend, and come in (owner, 2026-10-28, #327)
+
+The owner: "Need more color coding on the budget page. Still to spend is green,
+overspent should be red, income should be green, not assigned should be green."
+
+- **Not assigned** is green while there is money left to give out, ordinary ink at
+  ₮0, and **Assigned too much** stays coral on its own row. The label stays ink: only
+  the figure takes the color.
+- **Overspent** was already coral, label and figure.
+- **Income**: on the Income tab the amount in "Income: ₮2,500,000.00" is green once
+  something has come in; on the "Living on the income" card the Income figure is
+  green. The mark where income ends on the bar stays ink, so it shows over every part.
+- **Still to spend** is green on that card, the figure and its part of the bar. That
+  part was pale blue. **Saved**, which had that green, is a paler green beside it;
+  Spent so far stays blue. *Rejected:* gold for Saved (the owner, 2026-10-09: "Gold is
+  an accent color. Don't overuse it"; `schemes_test.dart` holds that line).
+
+This widens green's job on this page: it is money that is there to use, as a
+category's Left already was (the section below). Money out stays ordinary ink with
+its minus, and coral stays a shortfall. The computer only; whether the phone's Budget
+follows is the owner's to say.
+
 ## A category with money shows green (owner, 2026-11-02, #326)
 
 The owner: "I would like a better visual when the categories are populated with money.
