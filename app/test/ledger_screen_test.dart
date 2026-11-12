@@ -8828,6 +8828,25 @@ void main() {
         ),
         findsOneWidget,
       );
+      // The amount that came in is green; the word before it isn't (#327).
+      final line = tester
+          .widget<RichText>(
+            find.descendant(
+              of: find.byKey(const ValueKey('income-line')),
+              matching: find.byType(RichText),
+            ),
+          )
+          .text;
+      final green = <String>[], plain = <String>[];
+      line.visitChildren((span) {
+        if (span is TextSpan && span.text != null) {
+          (span.style?.color == Mid.green ? green : plain).add(span.text!);
+        }
+        return true;
+      });
+      expect(green, hasLength(1));
+      expect(green.single, startsWith('₮'));
+      expect(plain.join(), 'Income: ');
       await tester.tap(find.byKey(const ValueKey('income-waiting')));
       await settle(tester);
       expect(find.text('LoveSol'), findsWidgets);

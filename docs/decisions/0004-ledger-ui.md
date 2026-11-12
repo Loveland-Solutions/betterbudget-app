@@ -4410,11 +4410,16 @@ overspent should be red, income should be green, not assigned should be green."
   the figure takes the color.
 - **Overspent** was already coral, label and figure.
 - **Income**: on the Income tab the amount in "Income: ₮2,500,000.00" is green once
-  something has come in; on the "Living on the income" card the Income figure is
-  green. The mark where income ends on the bar stays ink, so it shows over every part.
+  something has come in, each currency by itself (one that is zero or below is ink);
+  on the "Living on the income" card the Income figure is green by the same rule,
+  ink while all of it is still to come. The mark where income ends on the bar stays
+  ink, so it shows over every part.
 - **Still to spend** is green on that card, the figure and its part of the bar. That
-  part was pale blue. **Saved**, which had that green, is a paler green beside it;
-  Spent so far stays blue. *Rejected:* gold for Saved (the owner, 2026-10-09: "Gold is
+  part was pale blue. When the plans take more than the income the figure is ink:
+  the coral amount in the heading speaks, and money past the income isn't there.
+  **Saved**, which had that green, is a paler green beside it; Spent so far stays
+  blue. A hair of the bar's track shows between parts, so two of the same lightness
+  are still two. *Rejected:* gold for Saved (the owner, 2026-10-09: "Gold is
   an accent color. Don't overuse it"; `schemes_test.dart` holds that line).
 
 This widens green's job on this page: it is money that is there to use, as a

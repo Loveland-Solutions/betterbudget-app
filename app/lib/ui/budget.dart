@@ -1587,27 +1587,38 @@ class _IncomeTab extends StatelessWidget {
                   key: const ValueKey('income-line'),
                   onTap: onShowRows ?? () {},
                   builder: (hover) {
-                    final amounts = cameIn.isEmpty
-                        ? formatMoney(0, currency: mainCurrency(data))
+                    // Each currency's amount is its own piece, green only
+                    // when money came in (#327); zero or less is ink.
+                    final pieces = cameIn.isEmpty
+                        ? [
+                            (
+                              formatMoney(0, currency: mainCurrency(data)),
+                              false,
+                            ),
+                          ]
                         : [
                             for (final (c, v) in cameIn)
-                              formatMoney(v, currency: c),
-                          ].join(' · ');
+                              (formatMoney(v, currency: c), v > 0),
+                          ];
+                    final amounts = [for (final p in pieces) p.$1].join(' · ');
                     final line = t.planIncomeLine(amounts);
-                    // Money that came in is green (#327); none yet, ink.
-                    final at = cameIn.any((x) => x.$2 > 0)
-                        ? line.indexOf(amounts)
-                        : -1;
+                    final at = line.indexOf(amounts);
                     return Text.rich(
                       at < 0
                           ? TextSpan(text: line)
                           : TextSpan(
                               children: [
                                 TextSpan(text: line.substring(0, at)),
-                                TextSpan(
-                                  text: amounts,
-                                  style: TextStyle(color: Mid.green),
-                                ),
+                                for (final (i, (text, green))
+                                    in pieces.indexed) ...[
+                                  if (i > 0) const TextSpan(text: ' · '),
+                                  TextSpan(
+                                    text: text,
+                                    style: green
+                                        ? TextStyle(color: Mid.green)
+                                        : null,
+                                  ),
+                                ],
                                 TextSpan(
                                   text: line.substring(at + amounts.length),
                                 ),
@@ -1832,11 +1843,12 @@ class _IncomeFitCard extends StatelessWidget {
       (f.spent, Mid.blue, t.planFitSpent, null),
       (
         f.toSpend,
-        Mid.green.withValues(alpha: 0.8),
-        t.planFitToSpend,
         Mid.green,
+        t.planFitToSpend,
+        // Past the income, the coral amount above speaks; this one is ink.
+        coral ? null : Mid.green,
       ),
-      (f.putAside, Mid.green.withValues(alpha: 0.3), t.planFitAside, null),
+      (f.putAside, Mid.green.withValues(alpha: 0.45), t.planFitAside, null),
     ];
     Widget key(
       Widget mark,
@@ -1915,7 +1927,8 @@ class _IncomeFitCard extends StatelessWidget {
               t.planFitIncome,
               short(f.income),
               note: f.toCome > 0 ? t.planFitToCome(short(f.toCome)) : null,
-              color: f.income > 0 ? Mid.green : null,
+              // As on the Income tab: green once some has come in.
+              color: f.cameIn > 0 ? Mid.green : null,
             ),
           ],
         ),
@@ -1956,8 +1969,15 @@ class _FitBar extends CustomPainter {
       var from = 0;
       for (final (v, color) in parts) {
         if (v <= 0) continue;
+        // A hair of the track between parts, so two of the same
+        // lightness are still two.
         canvas.drawRect(
-          Rect.fromLTRB(x(from), top, x(from + v), top + h),
+          Rect.fromLTRB(
+            x(from) + (from > 0 ? 1 : 0),
+            top,
+            x(from + v),
+            top + h,
+          ),
           Paint()..color = color,
         );
         from += v;
