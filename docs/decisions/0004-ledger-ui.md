@@ -4424,8 +4424,13 @@ overspent should be red, income should be green, not assigned should be green."
 
 This widens green's job on this page: it is money that is there to use, as a
 category's Left already was (the section below). Money out stays ordinary ink with
-its minus, and coral stays a shortfall. The computer only; whether the phone's Budget
-follows is the owner's to say.
+its minus, and coral stays a shortfall.
+
+**The phone follows** (owner, 2026-11-12: "the phone should be the same"). Its Budget
+has none of those four lines, only each category's amount left, so that amount takes
+the computer's rule from #326: green with money, gray at ₮0, coral when short, and a
+bill's in the lighter weight (it was gray). The Category list on the entry screen
+shows the same amounts the same way.
 
 ## A category with money shows green (owner, 2026-11-02, #326)
 

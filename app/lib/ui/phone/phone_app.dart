@@ -269,7 +269,7 @@ class _RoomMoney extends StatelessWidget {
   final int minor;
   final Currency currency;
 
-  /// Money waiting for a bill: drawn quieter than money free to spend.
+  /// Money waiting for a bill: drawn lighter than money free to spend.
   final bool spokenFor;
 
   /// The width this amount may take.
@@ -301,15 +301,17 @@ class _RoomMoney extends StatelessWidget {
       text,
       maxLines: 1,
       softWrap: false,
+      // As on the computer (#326, #327): green has money, gray has none,
+      // coral is short; a bill's money is the lighter weight.
       style: onest(
         size,
-        weight: 600,
+        weight: spokenFor ? 400 : 600,
         tabular: true,
         color: minor < 0
             ? Mid.coral
-            : spokenFor
+            : minor == 0
             ? Mid.ink3
-            : Mid.ink,
+            : Mid.green,
       ),
     );
   }
