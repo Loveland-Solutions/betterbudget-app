@@ -34,6 +34,24 @@ class MainFlutterWindow: NSWindow {
       name: "betterbudget/window",
       binaryMessenger: flutterViewController.engine.binaryMessenger)
     look.setMethodCallHandler { [weak self] call, result in
+      // The page's top row stands in for the title bar (#428,
+      // window_title_area.dart): the app counts the clicks and sees that
+      // nothing it draws there wanted them; the window does the rest.
+      switch call.method {
+      case "doubleClickInterval":
+        result(NSEvent.doubleClickInterval)
+        return
+      case "titleDoubleClick":
+        self?.titleBarDoubleClick()
+        result(nil)
+        return
+      case "startDrag":
+        self?.startDrag()
+        result(nil)
+        return
+      default:
+        break
+      }
       guard call.method == "setLook",
         let args = call.arguments as? [String: Any],
         let dark = args["dark"] as? Bool,
@@ -126,8 +144,93 @@ class MainFlutterWindow: NSWindow {
       }
     }
 
+    // The strip beside the three buttons is the title bar's own, but with
+    // its title hidden a double-click there does nothing. The window
+    // answers it the way the page's top row does (#428).
+    titleClicks = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) {
+      [weak self] event in
+      guard let self = self, event.window === self, event.clickCount == 2,
+        !self.styleMask.contains(.fullScreen)
+      else {
+        return event
+      }
+      let at = event.locationInWindow
+      guard at.y > self.contentLayoutRect.maxY else { return event }
+      for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+        if let b = self.standardWindowButton(kind),
+          b.convert(b.bounds, to: nil).contains(at)
+        {
+          return event
+        }
+      }
+      self.titleBarDoubleClick()
+      return nil
+    }
+
     RegisterGeneratedPlugins(registry: flutterViewController)
 
     super.awakeFromNib()
+  }
+
+  private var titleClicks: Any?
+
+  /// What the Mac is set to do on a double-click of a title bar (System
+  /// Settings → Desktop & Dock). Fill and Zoom both go to the screen's
+  /// room and back again; the window has no other size it prefers.
+  private func titleBarDoubleClick() {
+    // A full-screen window has no title bar to stand in for.
+    if styleMask.contains(.fullScreen) { return }
+    let prefs = UserDefaults.standard
+    let action =
+      prefs.string(forKey: "AppleActionOnDoubleClick")
+      ?? (prefs.bool(forKey: "AppleMiniaturizeOnDoubleClick") ? "Minimize" : "Maximize")
+    switch action {
+    case "Minimize": performMiniaturize(nil)
+    case "None": break
+    default: performZoom(nil)
+    }
+  }
+
+  private var dragMonitor: Any?
+
+  private func endDrag() {
+    if let m = dragMonitor { NSEvent.removeMonitor(m) }
+    dragMonitor = nil
+  }
+
+  /// Moves the window with the mouse until the button comes up. The events
+  /// go on to the app as well, so it sees the button come up.
+  private func startDrag() {
+    endDrag()
+    // The app asks a moment after the press moved; if the button is
+    // already up by then, the drag is over before it began, and a watcher
+    // left behind would move the window on the next drag anywhere.
+    if styleMask.contains(.fullScreen) || NSEvent.pressedMouseButtons & 1 == 0 {
+      return
+    }
+    let grip = NSPoint(
+      x: NSEvent.mouseLocation.x - frame.origin.x,
+      y: NSEvent.mouseLocation.y - frame.origin.y)
+    dragMonitor = NSEvent.addLocalMonitorForEvents(matching: [
+      .leftMouseDragged, .leftMouseUp, .leftMouseDown,
+    ]) { [weak self] event in
+      guard let self = self else { return event }
+      if event.type != .leftMouseDragged || NSEvent.pressedMouseButtons & 1 == 0 {
+        self.endDrag()
+        return event
+      }
+      let at = NSEvent.mouseLocation
+      var moved = self.frame
+      moved.origin = NSPoint(x: at.x - grip.x, y: at.y - grip.y)
+      // Kept below the menu bar of the screen the mouse is on, as a drag
+      // by the title bar is; it can still cross to a screen above.
+      if let screen = NSScreen.screens.first(where: { NSMouseInRect(at, $0.frame, false) })
+        ?? self.screen ?? NSScreen.main
+      {
+        moved = self.constrainFrameRect(moved, to: screen)
+      }
+      self.setFrameOrigin(moved.origin)
+      return event
+    }
   }
 }

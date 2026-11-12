@@ -29,6 +29,7 @@ import 'recovery_key_screen.dart';
 import 'register.dart' show Hoverable;
 import 'start_choice.dart';
 import 'theme.dart';
+import 'window_title_area.dart';
 
 /// The ledger, opened (and converted if it was plain), with what converting
 /// its old copies did. [startDaily] starts the daily copies, only once the
@@ -588,9 +589,13 @@ class _BetterBudgetStartupState extends State<BetterBudgetStartup> {
     supportedLocales: supportedLocales,
     localizationsDelegates: Words.localizationsDelegates,
     localeListResolutionCallback: (preferred, _) => resolveLocale(preferred),
-    builder: (context, child) => FitWindow(child: child!),
+    // Inside the fit, so the band is the page's own top row at any scale.
+    builder: (context, child) =>
+        FitWindow(child: WindowTitleArea(child: child!)),
     // Under the MaterialApp, where the chosen language is known.
-    home: Builder(builder: (context) => _screen(context.t)),
+    home: Builder(
+      builder: (context) => WindowTitleArea.page(child: _screen(context.t)),
+    ),
   );
 
   Widget _screen(Words t) => switch (_step) {

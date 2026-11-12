@@ -21,6 +21,7 @@ import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
 import 'package:betterbudget/ui/register.dart' show SmoothHeight;
 import 'package:betterbudget/ui/theme.dart';
+import 'package:betterbudget/ui/window_title_area.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
@@ -88,6 +89,7 @@ void main() {
     WidgetTester tester, {
     Size size = const Size(1440, 900),
     ProblemLog? problems,
+    bool titleArea = false,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -98,12 +100,18 @@ void main() {
         MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: appTheme(),
-          builder: (context, child) => FitWindow(child: child!),
-          home: LedgerScreen(
-            demo: true,
-            db: db,
-            clock: () => DateTime(2026, 9, 16, 10),
-            problems: problems,
+          builder: (context, child) => FitWindow(
+            child: titleArea
+                ? WindowTitleArea(enabled: true, child: child!)
+                : child!,
+          ),
+          home: WindowTitleArea.page(
+            child: LedgerScreen(
+              demo: true,
+              db: db,
+              clock: () => DateTime(2026, 9, 16, 10),
+              problems: problems,
+            ),
           ),
         ),
       );
@@ -12481,6 +12489,75 @@ void main() {
       find.text('The browser didn’t open. The form is at lls.mn/en/contact.'),
       findsOneWidget,
     );
+    await tidy(tester, db);
+  });
+
+  // #428: on a Mac the page's top row stands in for the title bar.
+  testWidgets('the top row answers a double-click and a drag as the title '
+      'bar does, except where something there is clickable', (tester) async {
+    final calls = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      WindowTitleArea.channel,
+      (call) async {
+        calls.add(call.method);
+        return call.method == 'doubleClickInterval' ? 0.5 : null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        WindowTitleArea.channel,
+        null,
+      ),
+    );
+    final db = await pumpLedger(tester, titleArea: true);
+    var clock = Duration.zero, id = 900;
+    Future<void> doubleClick(Offset at) async {
+      for (var i = 0; i < 2; i++) {
+        final mouse = TestPointer(++id, PointerDeviceKind.mouse);
+        clock += const Duration(milliseconds: 120);
+        await tester.sendEventToBinding(mouse.down(at, timeStamp: clock));
+        await tester.sendEventToBinding(mouse.up(timeStamp: clock));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pumpAndSettle();
+    }
+
+    final name = find.byKey(const ValueKey('account-name'));
+    final menu = find.byKey(const ValueKey('account-menu'));
+    final logo = find.byKey(const ValueKey('logo'));
+    expect(tester.getRect(name).top, lessThan(WindowTitleArea.height));
+    expect(tester.getRect(logo).top, lessThan(WindowTitleArea.height));
+    calls.clear();
+
+    // Beside the account's name, where nothing is.
+    await doubleClick(Offset(tester.getRect(menu).right + 300, 30));
+    expect(calls, ['titleDoubleClick']);
+    // Over the logo.
+    calls.clear();
+    await doubleClick(tester.getRect(logo).topCenter + const Offset(0, 12));
+    expect(calls, ['titleDoubleClick']);
+
+    // The name and its menu keep their clicks.
+    calls.clear();
+    await doubleClick(tester.getCenter(menu));
+    expect(calls, isEmpty);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await doubleClick(tester.getCenter(name));
+    expect(calls, isEmpty);
+    expect(find.byKey(const ValueKey('account-name-field')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    // A drag beside the name moves the window.
+    calls.clear();
+    final drag = await tester.startGesture(
+      Offset(tester.getRect(menu).right + 300, 30),
+      kind: PointerDeviceKind.mouse,
+    );
+    await drag.moveBy(const Offset(60, 40));
+    await drag.up();
+    expect(calls, ['startDrag']);
     await tidy(tester, db);
   });
 
