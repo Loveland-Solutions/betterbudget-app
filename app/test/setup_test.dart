@@ -399,6 +399,36 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('Enter on a tip reads it and does not save the form, and one '
+      'tip shows at a time (#325)', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await toPay(tester);
+    await tester.enterText(find.byKey(const ValueKey('pay-name')), 'Tom');
+    await tester.enterText(find.byKey(const ValueKey('pay-amount')), '900,000');
+    await tester.pumpAndSettle();
+    // Tab back from the amount to the ⓘ beside its label: the tip opens.
+    await tester.tap(find.byKey(const ValueKey('pay-amount')));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Type what arrives in the account'), findsOne);
+    // Enter reads it again; it is not Save, so nothing was saved.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('pay-save')), findsOneWidget);
+    expect((await ledger(tester, db)).paySchedules, isEmpty);
+    // The next ⓘ back replaces the tip rather than stacking on it.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Type what arrives in the account'), findsNothing);
+    await tidy(tester, db);
+  });
+
   testWidgets('an income on a repeat a category has saves, and its line says '
       'how often (#438)', (tester) async {
     final db = AppDatabase(NativeDatabase.memory());
@@ -439,7 +469,21 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('pay-arrives')), findsOneWidget);
+    // A line under the amount says which figure: what is deposited.
+    expect(find.byKey(const ValueKey('pay-deposited')), findsOneWidget);
+    // An ⓘ beside the amount says it's what arrives, after tax; a click
+    // opens it (the mouse alone is enough).
+    expect(find.byKey(const ValueKey('pay-tip-amount')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('pay-tip-amount')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Type what arrives in the account after tax, in that account’s '
+        'currency. If the bank converts it, type the converted amount it '
+        'credits.',
+      ),
+      findsOneWidget,
+    );
     // Nothing to say about it until there is an amount.
     expect(find.byKey(const ValueKey('pay-card')), findsNothing);
     // Two answers and nothing else: no Cancel, no Open my ledger.
@@ -575,7 +619,7 @@ void main() {
     // Every paycheck has a name: Save waits, and says so.
     await tester.enterText(find.byKey(const ValueKey('pay-amount')), '900,000');
     await tester.pumpAndSettle();
-    expect(find.text('Enter a name.'), findsOneWidget);
+    expect(find.text('Type a name.'), findsOneWidget);
     await press(tester, 'pay-save');
     expect((await ledger(tester, db)).paySchedules, isEmpty);
     // It varies, and comes when it comes.
@@ -585,7 +629,7 @@ void main() {
     expect(
       find.text(
         'With no set day, the forecast doesn’t expect it. When it comes, '
-        'file it under Income.',
+        'mark it as Income.',
       ),
       findsOneWidget,
     );

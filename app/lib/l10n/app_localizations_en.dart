@@ -402,15 +402,16 @@ class WordsEn extends Words {
 
   @override
   String get ledgerPayStoppedToast =>
-      'Regular income no longer scheduled · paydays already past stay';
+      'Not counting on this income any more · past paydays stay';
 
   @override
   String ledgerPayStoppedMoved(int count, String how) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Regular income no longer scheduled · $count categories now $how',
-      one: 'Regular income no longer scheduled · 1 category now $how',
+      other:
+          'Not counting on this income any more · $count categories now $how',
+      one: 'Not counting on this income any more · 1 category now $how',
     );
     return '$_temp0';
   }
@@ -1593,7 +1594,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planEnterName => 'Enter a name';
+  String get planEnterName => 'Type a name';
 
   @override
   String planNameIsCategory(String name) {
@@ -2943,7 +2944,7 @@ class WordsEn extends Words {
 
   @override
   String setupAtLeastOnDay(String day) {
-    return 'At least, on the $day';
+    return 'At least on the $day';
   }
 
   @override
@@ -2953,16 +2954,16 @@ class WordsEn extends Words {
   String get setupOnSecond => 'On the second payday';
 
   @override
-  String get setupAtLeastOnFirst => 'At least, on the first payday';
+  String get setupAtLeastOnFirst => 'At least on the first payday';
 
   @override
-  String get setupAtLeastOnSecond => 'At least, on the second payday';
+  String get setupAtLeastOnSecond => 'At least on the second payday';
 
   @override
-  String get setupWhichTwoDays => 'Which two days of the month?';
+  String get setupWhichTwoDays => 'Say which two days of the month.';
 
   @override
-  String get setupTwoDifferentDays => 'Two different days of the month';
+  String get setupTwoDifferentDays => 'Use two different days of the month.';
 
   @override
   String setupWhenPayday(String example) {
@@ -2997,20 +2998,17 @@ class WordsEn extends Words {
   String get setupPayVaries => 'It varies';
 
   @override
-  String get setupVariesHint =>
-      'Hourly work, shifts, sales: it changes each time. Leave out extras that don’t come every time, like bonuses.';
-
-  @override
   String get setupExpectAtLeast => 'Expect at least';
 
   @override
   String get setupEachPayday => 'Each payday';
 
   @override
-  String get setupSameEachPaycheck => 'The same each time';
+  String get setupSameEachPaycheck => 'Both paydays bring the same amount';
 
   @override
-  String get setupDifferentEachPaycheck => 'A different amount each time';
+  String get setupDifferentEachPaycheck =>
+      'The two paydays bring different amounts';
 
   @override
   String setupLastPaycheck(String amount) {
@@ -3019,21 +3017,17 @@ class WordsEn extends Words {
 
   @override
   String setupLastPaychecks(int count, String lowest, String highest) {
-    return 'Your last $count: lowest $lowest · highest $highest';
+    return 'Your last $count paychecks: lowest $lowest · highest $highest';
   }
 
   @override
-  String get setupLowEndSafer =>
-      'The forecast counts on this, so the low end is safer: finding more on payday is better than finding less.';
-
-  @override
   String setupHigherThan(int above, int count) {
-    return 'Higher than $above of the last $count times it came: the forecast may look better than it’ll be.';
+    return 'Higher than $above of your last $count paychecks: the forecast may show more than comes in.';
   }
 
   @override
   String setupOnDaysField(String first, String second) {
-    return 'On the $first  and the $second';
+    return 'On the $first and the $second';
   }
 
   @override
@@ -3048,7 +3042,7 @@ class WordsEn extends Words {
 
   @override
   String setupPaydaysAYear(int count) {
-    return '$count paydays a year: two months a year have three.';
+    return '$count paydays a year, so some months count an extra one.';
   }
 
   @override
@@ -3076,7 +3070,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get setupNameMissing => 'Enter a name.';
+  String get setupNameMissing => 'Type a name.';
 
   @override
   String get setupFirstPayday => 'First payday';
@@ -3098,34 +3092,34 @@ class WordsEn extends Words {
 
   @override
   String get setupNoSetDayMeans =>
-      'With no set day, the forecast doesn’t expect it. When it comes, file it under Income.';
+      'With no set day, the forecast doesn’t expect it. When it comes, mark it as Income.';
 
   @override
   String get setupNoRegularPay => 'I don’t have regular income';
 
   @override
-  String get setupStopPay => 'Stop scheduling this income';
+  String get setupStopPay => 'Stop counting on this income';
 
   @override
-  String get stopPayTitle => 'Stop this regular income?';
+  String get stopPayTitle => 'Stop counting on this income?';
 
   @override
   String stopPayPerIt(int count, String names) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count categories are budgeted per this income: $names',
-      one: '1 category is budgeted per this income: $names',
+      other: '$count categories are set by this income’s pay periods: $names',
+      one: '1 category is set by this income’s pay periods: $names',
     );
     return '$_temp0';
   }
 
   @override
-  String get stopPayFromNow => 'From now, budget them';
+  String get stopPayFromNow => 'From now, budget them by:';
 
   @override
   String stopPayBillsMonthly(String names) {
-    return 'A bill every payday comes every month from its next payday: $names.';
+    return 'Bills that came every payday will come every month, starting on their next payday: $names.';
   }
 
   @override
@@ -5066,7 +5060,7 @@ class WordsEn extends Words {
 
   @override
   String payStopped(String name) {
-    return '$name (stopped)';
+    return '$name (stopped, past paydays kept)';
   }
 
   @override
@@ -5163,8 +5157,60 @@ class WordsEn extends Words {
   String get setupBack => 'Back';
 
   @override
-  String get setupPayArrives =>
-      'The amount that lands in the account, not the amount before tax.';
+  String get setupAmountDeposited =>
+      'Type what is actually deposited into the account, after tax.';
+
+  @override
+  String get payTipName =>
+      'What you’ll call this income, like “Jenny’s job” or “Child support”. It’s the name shown on Budget and in the forecast.';
+
+  @override
+  String get payTipPaidInto =>
+      'The account this money arrives in. Pick the one your bank credits. Money you receive in cash is its own income, paid into your cash account.';
+
+  @override
+  String get payTipFrom =>
+      'Who pays you. The app uses it to find your earlier paychecks from them and show them under the amount.';
+
+  @override
+  String get payTipAmountIs =>
+      'Choose “About the same each time” if each payday brings about the same amount. Choose “It varies” if it changes, like hourly work, cash jobs or sales.';
+
+  @override
+  String get payTipAmountSame =>
+      'Type what arrives in the account after tax, in that account’s currency. If the bank converts it, type the converted amount it credits.';
+
+  @override
+  String get payTipAmountVaries =>
+      'Type the least you can count on arriving in the account, after tax, in that account’s currency. The forecast treats it as certain, and finding more on payday is better than finding less. Leave out extras: a bonus on a fixed date can be its own regular income.';
+
+  @override
+  String get payTipHowOften =>
+      'How often this money arrives. Use “Twice a month” for pay on two set days, like an advance and the rest.';
+
+  @override
+  String get payTipHowOftenOrNone =>
+      'How often this money arrives. Use “Twice a month” for pay on two set days, like an advance and the rest. Choose “No set day” if it comes on no regular date.';
+
+  @override
+  String get payTipFirstPayday =>
+      'A payday you know, ideally the next one. The forecast counts every payday from this one.';
+
+  @override
+  String get payTipEnds =>
+      'Leave this on Never unless the income stops, like a contract ending.';
+
+  @override
+  String get payTipWeekend =>
+      'When a payday falls on a weekend, this says whether the forecast moves it to before the weekend, after it, or leaves it on that day.';
+
+  @override
+  String get payTipNoSetDay =>
+      'Choose this if the money comes on no regular date. The forecast won’t expect it. When it arrives, mark it as Income.';
+
+  @override
+  String get planWeekdaysHintPay =>
+      'Pick the days. With none picked, it’s the first payday’s weekday.';
 
   @override
   String get setupCardForecast => 'Forecast';

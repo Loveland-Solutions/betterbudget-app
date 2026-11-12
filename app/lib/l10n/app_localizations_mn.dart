@@ -401,15 +401,15 @@ class WordsMn extends Words {
 
   @override
   String get ledgerPayStoppedToast =>
-      'Тогтмол орлого товлогдохоо больсон · өнгөрсөн орлого орох өдрүүд хэвээр үлдэнэ';
+      'Энэ орлогыг тооцохоо больсон · өнгөрсөн орлого орох өдрүүд хэвээр үлдэнэ';
 
   @override
   String ledgerPayStoppedMoved(int count, String how) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Тогтмол орлого товлогдохоо больсон · $count ангилал одоо $how',
-      one: 'Тогтмол орлого товлогдохоо больсон · 1 ангилал одоо $how',
+      other: 'Энэ орлогыг тооцохоо больсон · $count ангилал одоо $how',
+      one: 'Энэ орлогыг тооцохоо больсон · 1 ангилал одоо $how',
     );
     return '$_temp0';
   }
@@ -1527,7 +1527,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planEnterName => 'Нэр оруулна уу';
+  String get planEnterName => 'Нэр бичнэ үү';
 
   @override
   String planNameIsCategory(String name) {
@@ -2868,10 +2868,10 @@ class WordsMn extends Words {
   String get setupAtLeastOnSecond => 'Хоёр дахь өдөр багадаа';
 
   @override
-  String get setupWhichTwoDays => 'Сарын аль хоёр өдөр вэ?';
+  String get setupWhichTwoDays => 'Сарын аль хоёр өдөр болохыг хэлнэ үү.';
 
   @override
-  String get setupTwoDifferentDays => 'Сарын өөр хоёр өдөр';
+  String get setupTwoDifferentDays => 'Сарын хоёр өөр өдөр ашиглана уу.';
 
   @override
   String setupWhenPayday(String example) {
@@ -2906,20 +2906,16 @@ class WordsMn extends Words {
   String get setupPayVaries => 'Өөрчлөгддөг';
 
   @override
-  String get setupVariesHint =>
-      'Цагаар, ээлжээр, борлуулалтаар: удаа бүр өөр. Урамшуулал шиг удаа бүр ирдэггүй нэмэлтийг оруулахгүй.';
-
-  @override
   String get setupExpectAtLeast => 'Багадаа';
 
   @override
   String get setupEachPayday => 'Удаа бүр';
 
   @override
-  String get setupSameEachPaycheck => 'Удаа бүр ижил';
+  String get setupSameEachPaycheck => 'Хоёр өдөр ижил дүн ирнэ';
 
   @override
-  String get setupDifferentEachPaycheck => 'Удаа бүр өөр дүн';
+  String get setupDifferentEachPaycheck => 'Хоёр өдөр өөр өөр дүн ирнэ';
 
   @override
   String setupLastPaycheck(String amount) {
@@ -2928,16 +2924,12 @@ class WordsMn extends Words {
 
   @override
   String setupLastPaychecks(int count, String lowest, String highest) {
-    return 'Сүүлийн $count: хамгийн бага $lowest · хамгийн их $highest';
+    return 'Сүүлийн $count орлого: хамгийн бага $lowest · хамгийн их $highest';
   }
 
   @override
-  String get setupLowEndSafer =>
-      'Төсөөлөл үүнд тулгуурладаг тул бага дүн нь илүү найдвартай: орлого орох өдөр их орж ирэх нь дутуу орохоос дээр.';
-
-  @override
   String setupHigherThan(int above, int count) {
-    return 'Сүүлийн $count удаагийн $above нь үүнээс бага: төсөөлөл бодит байдлаас сайн харагдаж магадгүй.';
+    return 'Таны сүүлийн $count орлогын $above нь үүнээс бага: төсөөлөл бодит орж ирэхээс их харагдаж магадгүй.';
   }
 
   @override
@@ -2957,7 +2949,7 @@ class WordsMn extends Words {
 
   @override
   String setupPaydaysAYear(int count) {
-    return 'Жилд $count удаа орно: жилийн хоёр сард гурван удаа орно.';
+    return 'Жилд $count удаа орно, тиймээс зарим сард нэг нэмэлт орлого тооцогдоно.';
   }
 
   @override
@@ -2985,7 +2977,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get setupNameMissing => 'Нэрээ оруулна уу.';
+  String get setupNameMissing => 'Нэрээ бичнэ үү.';
 
   @override
   String get setupFirstPayday => 'Анхны орлого орох өдөр';
@@ -3007,34 +2999,34 @@ class WordsMn extends Words {
 
   @override
   String get setupNoSetDayMeans =>
-      'Тогтсон өдөргүй бол төсөөлөл үүнийг хүлээхгүй. Орж ирэхэд нь Орлого-д ангилна уу.';
+      'Тогтсон өдөргүй бол төсөөлөл үүнийг хүлээхгүй. Орж ирэхэд нь Орлого гэж тэмдэглэнэ үү.';
 
   @override
   String get setupNoRegularPay => 'Надад тогтмол орлого байхгүй';
 
   @override
-  String get setupStopPay => 'Энэ орлогыг товлохоо болих';
+  String get setupStopPay => 'Энэ орлогыг тооцохоо болих';
 
   @override
-  String get stopPayTitle => 'Энэ тогтмол орлогыг зогсоох уу?';
+  String get stopPayTitle => 'Энэ орлогыг тооцохоо болих уу?';
 
   @override
   String stopPayPerIt(int count, String names) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count ангилал энэ орлогоор төсөвлөгдсөн: $names',
-      one: '1 ангилал энэ орлогоор төсөвлөгдсөн: $names',
+      other: '$count ангилал энэ орлогын хугацаагаар тогтоогдсон: $names',
+      one: '1 ангилал энэ орлогын хугацаагаар тогтоогдсон: $names',
     );
     return '$_temp0';
   }
 
   @override
-  String get stopPayFromNow => 'Одооноос тэдгээрийг төсөвлөх';
+  String get stopPayFromNow => 'Одооноос тэдгээрийг дараахаар төсөвлөх:';
 
   @override
   String stopPayBillsMonthly(String names) {
-    return 'Орлого орох бүрийн төлбөр дараагийн орлого орох өдрөөс сар бүр ирнэ: $names.';
+    return 'Орлого орох бүрд ирдэг байсан төлбөрүүд дараагийн орлого орох өдрөөс эхлэн сар бүр ирнэ: $names.';
   }
 
   @override
@@ -4906,7 +4898,7 @@ class WordsMn extends Words {
 
   @override
   String payStopped(String name) {
-    return '$name (зогссон)';
+    return '$name (зогссон, өнгөрсөн өдрүүд хэвээр)';
   }
 
   @override
@@ -5003,8 +4995,60 @@ class WordsMn extends Words {
   String get setupBack => 'Буцах';
 
   @override
-  String get setupPayArrives =>
-      'Дансанд орж ирдэг дүн; татвар, НДШ суутгахаас өмнөх дүн биш.';
+  String get setupAmountDeposited =>
+      'Татвар суутгасны дараа дансанд бодитоор орж ирэх дүнг бичнэ үү.';
+
+  @override
+  String get payTipName =>
+      'Энэ орлогыг юу гэж нэрлэх вэ, жишээ нь «Женний ажил» эсвэл «Хүүхдийн тэтгэлэг». Төсөв болон төсөөлөлд энэ нэрээр харагдана.';
+
+  @override
+  String get payTipPaidInto =>
+      'Энэ мөнгө орж ирэх данс. Банк тань мөнгийг оруулдаг дансыг сонгоно уу. Бэлнээр авсан мөнгө нь бэлэн мөнгөний данс руу орох тусдаа орлого.';
+
+  @override
+  String get payTipFrom =>
+      'Танд хэн төлдөг вэ. Апп үүгээр таны өмнөх орлогуудыг олж, дүнгийн доор харуулдаг.';
+
+  @override
+  String get payTipAmountIs =>
+      'Орлого бүрт ойролцоогоор ижил дүн ирдэг бол «Ихэвчлэн ижил» гэж сонгоно. Цагаар, бэлэн мөнгөний ажлаар, борлуулалтаар шиг өөрчлөгддөг бол «Өөрчлөгддөг» гэж сонгоно.';
+
+  @override
+  String get payTipAmountSame =>
+      'Татвар суутгасны дараа дансанд орж ирэх дүнг тухайн дансны валютаар бичнэ үү. Банк хөрвүүлдэг бол банкны оруулсан хөрвүүлсэн дүнг бичнэ.';
+
+  @override
+  String get payTipAmountVaries =>
+      'Дансанд орж ирнэ гэж найдаж болох хамгийн бага дүнг, татвар суутгасны дараа, тухайн дансны валютаар бичнэ үү. Төсөөлөл үүнийг баттай гэж тооцдог бөгөөд орлого орох өдөр их орж ирэх нь дутуу орохоос дээр. Нэмэлтийг оруулахгүй: тогтсон өдөр ирдэг урамшууллыг тусдаа тогтмол орлого болгож болно.';
+
+  @override
+  String get payTipHowOften =>
+      'Энэ мөнгө хэр олон удаа ирэх вэ. Тогтсон хоёр өдөр, жишээ нь аванс болон үлдсэнийг авдаг бол «Сард хоёр удаа»-г сонгоно.';
+
+  @override
+  String get payTipHowOftenOrNone =>
+      'Энэ мөнгө хэр олон удаа ирэх вэ. Тогтсон хоёр өдөр, жишээ нь аванс болон үлдсэнийг авдаг бол «Сард хоёр удаа»-г сонгоно. Тогтсон өдөргүй ирдэг бол «Тогтсон өдөргүй»-г сонгоно.';
+
+  @override
+  String get payTipFirstPayday =>
+      'Танд мэдэгдэж буй орлого орох өдөр, боломжтой бол дараагийнх. Төсөөлөл энэ өдрөөс эхлэн орлого орох өдөр бүрийг тооцно.';
+
+  @override
+  String get payTipEnds =>
+      'Гэрээ дуусах мэт орлого зогсохгүй л бол «Дуусахгүй»-г хэвээр үлдээнэ.';
+
+  @override
+  String get payTipWeekend =>
+      'Орлого орох өдөр амралтын өдөр таарвал төсөөлөл түүнийг амралтаас өмнө, дараа нь аваачих уу, эсвэл тэр өдөртөө үлдээх үү гэдгийг энд сонгоно.';
+
+  @override
+  String get payTipNoSetDay =>
+      'Мөнгө тогтсон өдөргүй ирдэг бол үүнийг сонгоно. Төсөөлөл үүнийг хүлээхгүй. Орж ирэхэд нь Орлого гэж тэмдэглэнэ үү.';
+
+  @override
+  String get planWeekdaysHintPay =>
+      'Өдрүүдээ сонгоно уу; сонгоогүй бол эхний орлого орох өдрийн гараг.';
 
   @override
   String get setupCardForecast => 'Төсөөлөл';

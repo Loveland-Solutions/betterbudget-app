@@ -609,13 +609,13 @@ abstract class Words {
   /// Toast after a pay schedule is stopped.
   ///
   /// In en, this message translates to:
-  /// **'Regular income no longer scheduled · paydays already past stay'**
+  /// **'Not counting on this income any more · past paydays stay'**
   String get ledgerPayStoppedToast;
 
   /// Toast after stopping a pay and moving the categories per it. how is "Every month" or "Every pay period · Jenny".
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Regular income no longer scheduled · 1 category now {how}} other{Regular income no longer scheduled · {count} categories now {how}}}'**
+  /// **'{count, plural, =1{Not counting on this income any more · 1 category now {how}} other{Not counting on this income any more · {count} categories now {how}}}'**
   String ledgerPayStoppedMoved(int count, String how);
 
   /// Toast and undo-menu label after a pay schedule is saved.
@@ -2204,7 +2204,7 @@ abstract class Words {
   /// New category window: under the name, after Add with no name typed
   ///
   /// In en, this message translates to:
-  /// **'Enter a name'**
+  /// **'Type a name'**
   String get planEnterName;
 
   /// New category window: under the name while it's an existing category's; Add closes the window and opens that category's Edit
@@ -4076,7 +4076,7 @@ abstract class Words {
   /// Pay setup, label beside one payday's amount when pay varies. Short. day is startDayOn: English "10th", Mongolian "10-нд".
   ///
   /// In en, this message translates to:
-  /// **'At least, on the {day}'**
+  /// **'At least on the {day}'**
   String setupAtLeastOnDay(String day);
 
   /// Pay setup, label beside the first payday's amount before the days are typed. Short.
@@ -4094,25 +4094,25 @@ abstract class Words {
   /// Pay setup, label as above when pay varies. Short.
   ///
   /// In en, this message translates to:
-  /// **'At least, on the first payday'**
+  /// **'At least on the first payday'**
   String get setupAtLeastOnFirst;
 
   /// Pay setup, label as above when pay varies. Short.
   ///
   /// In en, this message translates to:
-  /// **'At least, on the second payday'**
+  /// **'At least on the second payday'**
   String get setupAtLeastOnSecond;
 
   /// Pay setup, note when a twice-a-month day is missing.
   ///
   /// In en, this message translates to:
-  /// **'Which two days of the month?'**
+  /// **'Say which two days of the month.'**
   String get setupWhichTwoDays;
 
   /// Pay setup, note when both twice-a-month days are the same.
   ///
   /// In en, this message translates to:
-  /// **'Two different days of the month'**
+  /// **'Use two different days of the month.'**
   String get setupTwoDifferentDays;
 
   /// Pay setup, note when the every-few-weeks start date is missing. example is today as 2026.09.30.
@@ -4175,12 +4175,6 @@ abstract class Words {
   /// **'It varies'**
   String get setupPayVaries;
 
-  /// Pay setup, note under "It varies".
-  ///
-  /// In en, this message translates to:
-  /// **'Hourly work, shifts, sales: it changes each time. Leave out extras that don’t come every time, like bonuses.'**
-  String get setupVariesHint;
-
   /// Pay setup, label beside the amount when pay varies. Short.
   ///
   /// In en, this message translates to:
@@ -4196,13 +4190,13 @@ abstract class Words {
   /// Pay setup (twice a month), choice: one amount both days.
   ///
   /// In en, this message translates to:
-  /// **'The same each time'**
+  /// **'Both paydays bring the same amount'**
   String get setupSameEachPaycheck;
 
   /// Pay setup (twice a month), choice: an advance one day, the rest the other.
   ///
   /// In en, this message translates to:
-  /// **'A different amount each time'**
+  /// **'The two paydays bring different amounts'**
   String get setupDifferentEachPaycheck;
 
   /// Pay setup, note: the one paycheck found in the ledger.
@@ -4214,25 +4208,19 @@ abstract class Words {
   /// Pay setup, note: the range of recent paychecks found (count is 2 or more).
   ///
   /// In en, this message translates to:
-  /// **'Your last {count}: lowest {lowest} · highest {highest}'**
+  /// **'Your last {count} paychecks: lowest {lowest} · highest {highest}'**
   String setupLastPaychecks(int count, String lowest, String highest);
-
-  /// Pay setup, note when pay varies.
-  ///
-  /// In en, this message translates to:
-  /// **'The forecast counts on this, so the low end is safer: finding more on payday is better than finding less.'**
-  String get setupLowEndSafer;
 
   /// Pay setup, amber warning when the typed amount is above some recent paychecks.
   ///
   /// In en, this message translates to:
-  /// **'Higher than {above} of the last {count} times it came: the forecast may look better than it’ll be.'**
+  /// **'Higher than {above} of your last {count} paychecks: the forecast may show more than comes in.'**
   String setupHigherThan(int above, int count);
 
   /// Pay setup and a bill's Edit, twice a month: the words around the two day-of-month boxes. first and second are where the boxes go.
   ///
   /// In en, this message translates to:
-  /// **'On the {first}  and the {second}'**
+  /// **'On the {first} and the {second}'**
   String setupOnDaysField(String first, String second);
 
   /// Pay setup, amber note when both twice-a-month days are the 28th or later.
@@ -4256,7 +4244,7 @@ abstract class Words {
   /// Pay setup, note for every-two-weeks pay (26 paydays).
   ///
   /// In en, this message translates to:
-  /// **'{count} paydays a year: two months a year have three.'**
+  /// **'{count} paydays a year, so some months count an extra one.'**
   String setupPaydaysAYear(int count);
 
   /// Pay setup, summary by Save. date is a full date in a sentence.
@@ -4290,7 +4278,7 @@ abstract class Words {
   /// Pay setup, under the form, when Save is tried with the name empty: every paycheck has a name.
   ///
   /// In en, this message translates to:
-  /// **'Enter a name.'**
+  /// **'Type a name.'**
   String get setupNameMissing;
 
   /// Pay form, the date a repeating income starts from.
@@ -4332,7 +4320,7 @@ abstract class Words {
   /// Pay setup, under the form when When is No set day: what saving it does.
   ///
   /// In en, this message translates to:
-  /// **'With no set day, the forecast doesn’t expect it. When it comes, file it under Income.'**
+  /// **'With no set day, the forecast doesn’t expect it. When it comes, mark it as Income.'**
   String get setupNoSetDayMeans;
 
   /// Pay setup, button: self-employed or between jobs; stops asking for pay.
@@ -4344,31 +4332,31 @@ abstract class Words {
   /// Pay setup (editing), red button that removes the pay schedule.
   ///
   /// In en, this message translates to:
-  /// **'Stop scheduling this income'**
+  /// **'Stop counting on this income'**
   String get setupStopPay;
 
   /// Dialog title when stopping a pay that categories are budgeted per. Coral.
   ///
   /// In en, this message translates to:
-  /// **'Stop this regular income?'**
+  /// **'Stop counting on this income?'**
   String get stopPayTitle;
 
   /// Stop-pay dialog: which categories have a set amount each of its pay periods or a bill every payday of it. names is a comma list.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 category is budgeted per this income: {names}} other{{count} categories are budgeted per this income: {names}}}'**
+  /// **'{count, plural, =1{1 category is set by this income’s pay periods: {names}} other{{count} categories are set by this income’s pay periods: {names}}}'**
   String stopPayPerIt(int count, String names);
 
   /// Stop-pay dialog, label over the choices: Every month, or another pay's periods.
   ///
   /// In en, this message translates to:
-  /// **'From now, budget them'**
+  /// **'From now, budget them by:'**
   String get stopPayFromNow;
 
   /// Stop-pay dialog, under Every month when some of the categories are bills every payday of this pay. names is a comma list.
   ///
   /// In en, this message translates to:
-  /// **'A bill every payday comes every month from its next payday: {names}.'**
+  /// **'Bills that came every payday will come every month, starting on their next payday: {names}.'**
   String stopPayBillsMonthly(String names);
 
   /// Pay setup, main button.
@@ -7225,7 +7213,7 @@ abstract class Words {
   /// A pay that was stopped, named where a category is still per its periods: the plan note, How often. name is the pay's title.
   ///
   /// In en, this message translates to:
-  /// **'{name} (stopped)'**
+  /// **'{name} (stopped, past paydays kept)'**
   String payStopped(String name);
 
   /// Budget page, Income tab, under the period's income: money that came in this period and is still in Not categorized (imported pay waits there), which the income above doesn't count. Clicking it shows those rows. {amount} is one amount per currency, like “₮2,500,000”.
@@ -7372,11 +7360,89 @@ abstract class Words {
   /// **'Back'**
   String get setupBack;
 
-  /// Setup, Pay step, under the amount of a paycheck: the figure wanted is the deposit as the bank statement shows it, not the salary before tax and social insurance. A loan payment the bank takes after the pay lands is entered later as a bill, so it must not be taken off here.
+  /// Pay form, under the amount.
   ///
   /// In en, this message translates to:
-  /// **'The amount that lands in the account, not the amount before tax.'**
-  String get setupPayArrives;
+  /// **'Type what is actually deposited into the account, after tax.'**
+  String get setupAmountDeposited;
+
+  /// Beside Name on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'What you’ll call this income, like “Jenny’s job” or “Child support”. It’s the name shown on Budget and in the forecast.'**
+  String get payTipName;
+
+  /// Beside Paid into on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'The account this money arrives in. Pick the one your bank credits. Money you receive in cash is its own income, paid into your cash account.'**
+  String get payTipPaidInto;
+
+  /// Beside From on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'Who pays you. The app uses it to find your earlier paychecks from them and show them under the amount.'**
+  String get payTipFrom;
+
+  /// Beside The amount is on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose “About the same each time” if each payday brings about the same amount. Choose “It varies” if it changes, like hourly work, cash jobs or sales.'**
+  String get payTipAmountIs;
+
+  /// Beside Each payday on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'Type what arrives in the account after tax, in that account’s currency. If the bank converts it, type the converted amount it credits.'**
+  String get payTipAmountSame;
+
+  /// Beside Expect at least on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the least you can count on arriving in the account, after tax, in that account’s currency. The forecast treats it as certain, and finding more on payday is better than finding less. Leave out extras: a bonus on a fixed date can be its own regular income.'**
+  String get payTipAmountVaries;
+
+  /// Beside How often on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'How often this money arrives. Use “Twice a month” for pay on two set days, like an advance and the rest.'**
+  String get payTipHowOften;
+
+  /// Beside How often on a new income: also names No set day.
+  ///
+  /// In en, this message translates to:
+  /// **'How often this money arrives. Use “Twice a month” for pay on two set days, like an advance and the rest. Choose “No set day” if it comes on no regular date.'**
+  String get payTipHowOftenOrNone;
+
+  /// Beside First payday on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'A payday you know, ideally the next one. The forecast counts every payday from this one.'**
+  String get payTipFirstPayday;
+
+  /// Beside Ends on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave this on Never unless the income stops, like a contract ending.'**
+  String get payTipEnds;
+
+  /// Beside the weekend rule on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'When a payday falls on a weekend, this says whether the forecast moves it to before the weekend, after it, or leaves it on that day.'**
+  String get payTipWeekend;
+
+  /// Beside No set day on the pay form.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose this if the money comes on no regular date. The forecast won’t expect it. When it arrives, mark it as Income.'**
+  String get payTipNoSetDay;
+
+  /// Custom… on the income form, where the first date is the first payday.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the days. With none picked, it’s the first payday’s weekday.'**
+  String get planWeekdaysHintPay;
 
   /// Pay setup card, heading of the forecast's part.
   ///

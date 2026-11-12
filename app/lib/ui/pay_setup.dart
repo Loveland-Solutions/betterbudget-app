@@ -4,6 +4,9 @@ part of 'ledger_screen.dart';
 // account. Pay that varies is entered as the least it's likely to be, since
 // the forecast counts on it: finding more on payday beats finding less.
 
+/// The label column of the pay form: a label and its ⓘ.
+const double _payLabelWidth = 120;
+
 /// What the pay setup saves.
 typedef PayDraft = ({
   int accountId,
@@ -503,26 +506,36 @@ class _PayFormState extends State<_PayForm> {
       ),
     );
 
-    Widget line(String label, Widget child) => Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            height: 30,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(label, style: onest(13.5, color: Mid.ink3)),
-            ),
+    Widget line(String label, Widget child, {String? tip, Key? tipKey}) =>
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: _payLabelWidth,
+                height: 30,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  // The ⓘ says what the field expects (owner, 2026-11-12,
+                  // #325: "a tool tip beside most if not all of these").
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(label, style: onest(13.5, color: Mid.ink3)),
+                      ),
+                      if (tip != null) _InfoTip(tip, key: tipKey),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(child: child),
+            ],
           ),
-          Expanded(child: child),
-        ],
-      ),
-    );
+        );
 
     Widget hint(String text, {Color? color, Key? key}) => Padding(
-      padding: const EdgeInsets.only(left: 120, bottom: 10),
+      padding: const EdgeInsets.only(left: _payLabelWidth, bottom: 10),
       child: Text(
         text,
         key: key,
@@ -562,6 +575,8 @@ class _PayFormState extends State<_PayForm> {
               // call it by.
               line(
                 t.setupName,
+                tip: t.payTipName,
+                tipKey: const ValueKey('pay-tip-name'),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: SizedBox(
@@ -578,6 +593,8 @@ class _PayFormState extends State<_PayForm> {
               ),
               line(
                 t.setupPaidInto,
+                tip: t.payTipPaidInto,
+                tipKey: const ValueKey('pay-tip-account'),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: pick(widget.accounts, _account, (a) {
@@ -588,6 +605,8 @@ class _PayFormState extends State<_PayForm> {
               ),
               line(
                 t.setupFrom,
+                tip: t.payTipFrom,
+                tipKey: const ValueKey('pay-tip-from'),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: SizedBox(
@@ -604,6 +623,8 @@ class _PayFormState extends State<_PayForm> {
               ),
               line(
                 t.setupPayIs,
+                tip: t.payTipAmountIs,
+                tipKey: const ValueKey('pay-tip-is'),
                 Wrap(
                   spacing: 8,
                   runSpacing: 6,
@@ -623,7 +644,6 @@ class _PayFormState extends State<_PayForm> {
                   ],
                 ),
               ),
-              if (_varies) hint(t.setupVariesHint),
               line(
                 // Each payday, not the month: twice a month is two of these.
                 _splitting
@@ -632,18 +652,28 @@ class _PayFormState extends State<_PayForm> {
                     ? t.setupExpectAtLeast
                     : t.setupEachPayday,
                 amountField(_amount, 'pay-amount', autofocus: true),
+                tip: _varies ? t.payTipAmountVaries : t.payTipAmountSame,
+                tipKey: const ValueKey('pay-tip-amount'),
               ),
               if (_splitting)
                 line(_onDay(t, true), amountField(_amount2, 'pay-amount2')),
-              // Typed before tax or before a salary loan comes off, the
-              // forecast is too rich every payday (ADR 0004,
-              // "Onboarding"). Said in setup, to someone new to it.
-              if (widget.page && !_account.isCash)
-                hint(t.setupPayArrives, key: const ValueKey('pay-arrives')),
+              // Typed before tax, the forecast is too rich every payday, so
+              // the figure asked for is said where it is typed: the amount
+              // that actually reaches the account (owner, 2026-11-12). It
+              // stays: one that left when a digit was typed would pull the
+              // rows below it up under the pointer.
+              if (!_account.isCash)
+                hint(
+                  t.setupAmountDeposited,
+                  key: const ValueKey('pay-deposited'),
+                ),
               // Twice a month: an advance one day, the rest the other.
               if (_how.repeat == PlanRepeat.twice)
                 Padding(
-                  padding: const EdgeInsets.only(left: 120, bottom: 10),
+                  padding: const EdgeInsets.only(
+                    left: _payLabelWidth,
+                    bottom: 10,
+                  ),
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 6,
@@ -674,7 +704,6 @@ class _PayFormState extends State<_PayForm> {
                         ),
                   key: const ValueKey('pay-history'),
                 ),
-              if (_varies) hint(t.setupLowEndSafer),
               // Warn, don't block: a higher estimate still saves.
               if (_varies && above > 0)
                 hint(
@@ -695,7 +724,16 @@ class _PayFormState extends State<_PayForm> {
                   dateFocus: _dateFocus,
                   offerOnce: false,
                   offerPayday: false,
-                  labelWidth: 120,
+                  labelWidth: _payLabelWidth,
+                  howOftenTip: _noDay
+                      ? t.payTipNoSetDay
+                      : _offersNoDay
+                      ? t.payTipHowOftenOrNone
+                      : t.payTipHowOften,
+                  dateTip: t.payTipFirstPayday,
+                  weekendTip: t.payTipWeekend,
+                  endsTip: t.payTipEnds,
+                  weekdaysHint: t.planWeekdaysHintPay,
                   dateLabel: t.setupFirstPayday,
                   daysLabel: t.setupPaydays,
                   showRest: !_noDay,
@@ -737,7 +775,7 @@ class _PayFormState extends State<_PayForm> {
               // (owner, 2026-11-11, #323: "drop it").
               if (!widget.page || _noDay || _problem != null)
                 Padding(
-                  padding: const EdgeInsets.only(left: 120),
+                  padding: const EdgeInsets.only(left: _payLabelWidth),
                   child: Text(
                     _noDay
                         ? t.setupNoSetDayMeans
@@ -1055,4 +1093,72 @@ class _StopPayDialogState extends State<_StopPayDialog> {
       ),
     );
   }
+}
+
+/// An ⓘ after a label that says what the field expects. It opens on hover, on
+/// a click, and when Tab reaches it, so the mouse alone and the keyboard
+/// alone both get the words (ADR 0004, "The pay form explains each field").
+class _InfoTip extends StatefulWidget {
+  const _InfoTip(this.message, {super.key});
+
+  final String message;
+
+  @override
+  State<_InfoTip> createState() => _InfoTipState();
+}
+
+class _InfoTipState extends State<_InfoTip> {
+  /// The icon takes the click itself, so the tooltip is opened through this.
+  final _tip = GlobalKey<TooltipState>();
+  final _focus = FocusNode(debugLabel: 'info-tip');
+
+  @override
+  void initState() {
+    super.initState();
+    // Tabbing from one ⓘ to the next leaves one tip showing, not a stack.
+    _focus.addListener(() {
+      if (_focus.hasFocus) {
+        Tooltip.dismissAllToolTips();
+        _tip.currentState?.ensureTooltipVisible();
+      } else {
+        Tooltip.dismissAllToolTips();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    key: _tip,
+    message: widget.message,
+    triggerMode: TooltipTriggerMode.tap,
+    waitDuration: const Duration(milliseconds: 300),
+    showDuration: const Duration(seconds: 12),
+    constraints: const BoxConstraints(maxWidth: 300),
+    child: Semantics(
+      label: widget.message,
+      button: true,
+      excludeSemantics: true,
+      child: Hoverable(
+        focusNode: _focus,
+        onTap: () => _tip.currentState?.ensureTooltipVisible(),
+        builder: (hover) => Padding(
+          // A 13px glyph is a small thing to hit with a mouse alone; the
+          // sides are kept narrow so a label and its ⓘ fit the form's
+          // label column, which the date's calendar is placed against.
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
+          child: Icon(
+            Icons.info_outline_rounded,
+            size: 13,
+            color: hover ? Mid.ink2 : Mid.ink3,
+          ),
+        ),
+      ),
+    ),
+  );
 }

@@ -20,13 +20,24 @@ Widget _formRow(
   String? aside,
   double labelWidth = 214,
   bool flexible = false,
+  String? tip,
 }) => Padding(
   padding: const EdgeInsets.only(bottom: 12),
   child: Row(
     children: [
       SizedBox(
         width: labelWidth,
-        child: Text(label, style: onest(13, color: Mid.ink2)),
+        // A form that explains its fields puts an ⓘ right after the label.
+        child: tip == null
+            ? Text(label, style: onest(13, color: Mid.ink2))
+            : Row(
+                children: [
+                  Flexible(
+                    child: Text(label, style: onest(13, color: Mid.ink2)),
+                  ),
+                  _InfoTip(tip),
+                ],
+              ),
       ),
       flexible ? Flexible(child: child) : child,
       if (aside != null)
@@ -99,6 +110,11 @@ class _HowOftenRows extends StatelessWidget {
     this.labelWidth = 214,
     this.repeatLabel,
     this.daysLabel,
+    this.howOftenTip,
+    this.dateTip,
+    this.weekendTip,
+    this.endsTip,
+    this.weekdaysHint,
   });
 
   final PlanAnswers p;
@@ -142,6 +158,17 @@ class _HowOftenRows extends StatelessWidget {
   /// What the dropdown says when [extra]'s choice is the one picked.
   final String? repeatLabel;
 
+  /// What an ⓘ beside each of these says; null: no ⓘ there (a category's
+  /// Edit has none). The date's is not shown for twice a month or dates,
+  /// where that row asks for something else.
+  final String? howOftenTip;
+  final String? dateTip;
+  final String? weekendTip;
+  final String? endsTip;
+
+  /// Under Custom…'s weekdays, when none is picked; null: the category's.
+  final String? weekdaysHint;
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
@@ -150,12 +177,14 @@ class _HowOftenRows extends StatelessWidget {
       Widget child, {
       String? aside,
       bool flexible = false,
+      String? tip,
     }) => _formRow(
       label,
       child,
       aside: aside,
       labelWidth: labelWidth,
       flexible: flexible,
+      tip: tip,
     );
     void setState(VoidCallback f) {
       f();
@@ -233,6 +262,7 @@ class _HowOftenRows extends StatelessWidget {
       children: [
         formRow(
           t.planHowOften,
+          tip: howOftenTip,
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -369,6 +399,10 @@ class _HowOftenRows extends StatelessWidget {
                   : p.repeat == PlanRepeat.twice && daysLabel != null
                   ? daysLabel!
                   : dateLabel ?? t.planLabelDueDate,
+              tip: p.repeat == PlanRepeat.dates ||
+                      (p.repeat == PlanRepeat.twice && daysLabel != null)
+                  ? null
+                  : dateTip,
               flexible: true,
               // Wraps: in a narrow window the weekend rule goes under the date.
               Wrap(
@@ -440,6 +474,7 @@ class _HowOftenRows extends StatelessWidget {
                           ),
                       ],
                     ),
+                    if (weekendTip case final tip?) _InfoTip(tip),
                   ],
                 ],
               ),
@@ -506,7 +541,7 @@ class _HowOftenRows extends StatelessWidget {
                       ),
                   ],
                 ),
-                aside: p.weekdays.isEmpty ? t.planWeekdaysHint : null,
+                aside: p.weekdays.isEmpty ? weekdaysHint ?? t.planWeekdaysHint : null,
               ),
             if (p.unit == PlanUnit.months || p.unit == PlanUnit.years)
               formRow(
@@ -569,6 +604,7 @@ class _HowOftenRows extends StatelessWidget {
           if (p.endsOn)
             formRow(
               t.planEnds,
+              tip: endsTip,
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
