@@ -2140,10 +2140,12 @@ void main() {
     expect(groceries, lessThan(add));
     expect(add, lessThan(heading));
     expect(heading, lessThan(rent));
-    // Its amount is drawn quieter than money to spend.
-    final spend = tester.widget<Text>(find.text('₮148,000.00')).style!.color;
-    final bill = tester.widget<Text>(find.text('₮1,800,000.00')).style!.color;
-    expect(bill, isNot(spend));
+    // Both are green, money that is there (#327); a bill's is lighter.
+    final spend = tester.widget<Text>(find.text('₮148,000.00')).style!;
+    final bill = tester.widget<Text>(find.text('₮1,800,000.00')).style!;
+    expect(spend.color, Mid.green);
+    expect(bill.color, Mid.green);
+    expect(bill.fontWeight, isNot(spend.fontWeight));
 
     // It can still be paid from here.
     await tester.tap(find.text('Rent'));

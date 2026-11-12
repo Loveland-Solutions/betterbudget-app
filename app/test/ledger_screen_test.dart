@@ -8613,9 +8613,17 @@ void main() {
         expect(find.text('Assigned too much'), findsOneWidget);
         expect(find.byKey(const ValueKey('assigned-over')), findsNothing);
         expect(text('not-assigned'), startsWith('₮'));
+        // Money still to give out is green; none left is ink, and what
+        // was assigned too much is coral (#327).
+        Color? inkOf(String key) =>
+            tester.widget<Text>(find.byKey(ValueKey(key))).style!.color;
+        expect(inkOf('not-assigned'), Mid.green);
+        expect(inkOf('not-assigned-USD'), Mid.ink);
+        expect(inkOf('assigned-over-USD'), Mid.coral);
         await assign('120');
         expect(find.text('Assigned too much'), findsNothing);
         expect(text('not-assigned-USD'), r'$2,380.00');
+        expect(inkOf('not-assigned-USD'), Mid.green);
 
         // Its accounts: the one dollar account, checked. Groceries lists
         // the tugrik ones; unchecking all but Khan Savings says so on the
@@ -8820,6 +8828,25 @@ void main() {
         ),
         findsOneWidget,
       );
+      // The amount that came in is green; the word before it isn't (#327).
+      final line = tester
+          .widget<RichText>(
+            find.descendant(
+              of: find.byKey(const ValueKey('income-line')),
+              matching: find.byType(RichText),
+            ),
+          )
+          .text;
+      final green = <String>[], plain = <String>[];
+      line.visitChildren((span) {
+        if (span is TextSpan && span.text != null) {
+          (span.style?.color == Mid.green ? green : plain).add(span.text!);
+        }
+        return true;
+      });
+      expect(green, hasLength(1));
+      expect(green.single, startsWith('₮'));
+      expect(plain.join(), 'Income: ');
       await tester.tap(find.byKey(const ValueKey('income-waiting')));
       await settle(tester);
       expect(find.text('LoveSol'), findsWidgets);

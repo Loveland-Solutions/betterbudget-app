@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-12** · version 0.86.0 · schema v26 · 1077 tests pass
+**Last updated: 2026-11-12** · version 0.87.0 · schema v26 · 1077 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -42,6 +42,14 @@ card beside the form"): owner's sketch A, a Forecast line and a Budget line in t
 own figures once an amount is typed; the "Next payday" line is dropped on that page; Budget's
 button reads **Add regular income**. The computer only. #325's other wording is not changed
 yet.
+
+**The Budget page has more green** (0.87.0, #327; ADR 0004 "Green on the Budget page"):
+Not assigned is green while there is money to give out; the Income tab's amount and the
+income card's Income figure are green; Still to spend is green on that card, figure and
+bar, and Saved beside it is a paler green. Overspent was already coral. The
+phone's Budget follows (owner, 2026-11-12): each category's amount left is green with
+money, gray at ₮0, coral when short, a bill's lighter. No schema change. The phone needs
+a new upload to Play to show it.
 
 **The pay form explains each field** (0.86.0, #325; ADR 0004 "The pay form explains each
 field, and its words"): an ⓘ after each label on the Pay step and in the Pay window (Name,
