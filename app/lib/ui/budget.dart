@@ -4859,7 +4859,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ? (_p.missing == PlanMissing.once ? _onceFocus : _upToFocus)
               : _p.repeat == PlanRepeat.dates
               ? _datesFocus
-              : _p.repeat == PlanRepeat.twice
+              : _p.repeat == PlanRepeat.twice &&
+                    _p.missing != PlanMissing.date
               ? _day1Focus
               : _dateFocus)
           .requestFocus();
@@ -4903,7 +4904,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     required CategoryPlan? draft,
   }) {
     final wrongAmount = _tried && _p.kind != null && _p.typedAmount == null;
-    final wrongDate = _tried && _p.hasDate && _p.typedDate == null;
+    // Twice a month's Starts may be left empty (#356).
+    final wrongDate =
+        _tried &&
+        _p.hasDate &&
+        (_p.repeat == PlanRepeat.twice
+            ? _p.wrongStart
+            : _p.typedDate == null);
     final wrongUpTo = _tried && !_p.hasDate && _p.wrongUpTo;
     final data = widget.data;
     final paidAccount = data.accounts[_paidFromNow];
@@ -5179,6 +5186,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           datesFocus: _datesFocus,
           day1Focus: _day1Focus,
           onMenuOpen: _panelFocus.requestFocus,
+          startNote: _p.startNote(t, draft, money, old: _plan),
         ),
         _accountsRow(
           t,
@@ -6116,7 +6124,7 @@ class _EditDraft {
       name = TextEditingController(text: c.name),
       note = TextEditingController(text: c.note ?? ''),
       group = c.budgetGroup,
-      p = PlanAnswers(today: today, currency: c.currency);
+      p = PlanAnswers(today: today, currency: c.currency)..askStart = true;
   final int id;
   final TextEditingController name;
   final PlanAnswers p;

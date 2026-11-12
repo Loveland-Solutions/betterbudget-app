@@ -4903,6 +4903,35 @@ class WordsEn extends Words {
       'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday';
 
   @override
+  String get planStarts => 'Starts';
+
+  @override
+  String get planStartsThisMonth => 'This month';
+
+  @override
+  String planBillsBeforeToday(
+    int count,
+    String first,
+    String last,
+    String total,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count bills, $first to $last, are before today, so they show as overdue: $total in all.',
+      one:
+          'The bill on $first is before today, so it shows as overdue: $total.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String planFirstBill(String date) {
+    return 'First bill $date';
+  }
+
+  @override
   String get planEnds => 'Ends';
 
   @override

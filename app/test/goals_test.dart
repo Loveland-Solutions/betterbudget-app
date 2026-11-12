@@ -2,7 +2,9 @@ import 'package:betterbudget/domain/goals.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/readiness.dart';
+import 'package:betterbudget/ui/language.dart';
 import 'package:betterbudget/ui/plan_form.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Goals on Savings (#101, #102): a once-only "On a date" line marked a
@@ -371,6 +373,156 @@ void main() {
     // A day past the month's end: its last.
     expect(q.due, DateTime(2027, 2, 28));
     ending.dispose();
+  });
+
+  test('twice a month can start later: its first bill is the first of its '
+      'days from then on (#356)', () {
+    PlanAnswers on(DateTime day) =>
+        PlanAnswers(today: day, currency: Currency.mnt)
+          ..askStart = true
+          ..hasDate = true;
+
+    // Made on 11.20 for a bill that starts in December: nothing in
+    // November.
+    final a = on(DateTime(2026, 11, 20))
+      ..repeat = PlanRepeat.twice
+      ..amount.text = '50000'
+      ..day1.text = '1'
+      ..day2.text = '15';
+    // Left empty, it starts this month, as before.
+    expect(a.draft(categoryId: wedding)!.due, DateTime(2026, 11, 1));
+    a.start.text = '2026.12.01';
+    final p = a.draft(categoryId: wedding)!;
+    expect(p.due, DateTime(2026, 12, 1));
+    // A day between the two: the next of them.
+    a.start.text = '2026.12.03';
+    expect(a.draft(categoryId: wedding)!.due, DateTime(2026, 12, 15));
+    // Something that isn't a date is asked about again.
+    a.start.text = 'soon';
+    expect(a.missing, PlanMissing.date);
+    a.dispose();
+
+    // Opened again, its first bill is its Starts, and saved as it is
+    // nothing changes.
+    final later = on(DateTime(2026, 11, 25))..show(p);
+    expect(later.typedStart, DateTime(2026, 12, 1));
+    expect(later.draft(categoryId: wedding, old: p), p);
+    // Other days, Starts left as it was: from that first bill, since it's
+    // still ahead (code review: not from today).
+    later.day2.text = '20';
+    expect(later.draft(categoryId: wedding, old: p)!.due, DateTime(2026, 12, 1));
+    later.day1.text = '5';
+    expect(later.draft(categoryId: wedding, old: p)!.due, DateTime(2026, 12, 5));
+    // A new Starts typed: from it.
+    later.start.text = '2027.01.10';
+    expect(later.draft(categoryId: wedding, old: p)!.due, DateTime(2027, 1, 20));
+    // Emptied: this month, as "This month" says (code review).
+    later
+      ..start.clear()
+      ..day1.text = '1'
+      ..day2.text = '15';
+    expect(later.draft(categoryId: wedding, old: p)!.due, DateTime(2026, 11, 1));
+    later.dispose();
+
+    // One whose first bill has gone by: emptied or left, it keeps it;
+    // other days come from today on, as before.
+    final old = on(DateTime(2026, 8, 1))
+      ..repeat = PlanRepeat.twice
+      ..amount.text = '50000'
+      ..day1.text = '1'
+      ..day2.text = '15';
+    final august = old.draft(categoryId: wedding)!;
+    old.dispose();
+    final now = on(DateTime(2026, 11, 20))..show(august);
+    expect(now.draft(categoryId: wedding, old: august), august);
+    now.start.clear();
+    expect(now.draft(categoryId: wedding, old: august)!.due, august.due);
+    now.day2.text = '25';
+    expect(now.draft(categoryId: wedding, old: august)!.due, DateTime(2026, 11, 25));
+    now.dispose();
+
+    // Every month's date carries over as the start while it's ahead; one
+    // gone by would bring back months of bills, so Starts stays empty and
+    // the date is kept for when Every month is picked again.
+    final switched = on(DateTime(2026, 11, 20))
+      ..amount.text = '50000'
+      ..day1.text = '1'
+      ..day2.text = '15'
+      ..preset(1, PlanUnit.months)
+      ..date.text = '2026.12.05';
+    switched.toTwice();
+    expect(switched.draft(categoryId: wedding)!.due, DateTime(2026, 12, 15));
+    switched
+      ..start.clear()
+      ..preset(1, PlanUnit.months)
+      ..date.text = '2026.09.05'
+      ..toTwice();
+    expect(switched.start.text, isEmpty);
+    expect(switched.draft(categoryId: wedding)!.due, DateTime(2026, 11, 1));
+    switched.preset(1, PlanUnit.months);
+    expect(switched.typedDate, DateTime(2026, 9, 5));
+    switched.dispose();
+
+    // Regular income isn't asked: a look at Twice a month leaves its date,
+    // and a date left from another choice is ignored there.
+    final pay =
+        PlanAnswers(today: DateTime(2026, 11, 20), currency: Currency.mnt)
+          ..hasDate = true
+          ..preset(2, PlanUnit.weeks)
+          ..date.text = '2026.03.06'
+          ..amount.text = '50000'
+          ..day1.text = '1'
+          ..day2.text = '15';
+    pay.toTwice();
+    expect(pay.start.text, isEmpty);
+    expect(pay.missing, isNull);
+    expect(pay.draft(categoryId: wedding)!.due, DateTime(2026, 11, 1));
+    pay.preset(2, PlanUnit.weeks);
+    expect(pay.typedDate, DateTime(2026, 3, 6));
+    pay.dispose();
+  });
+
+  test('Starts says what bills come before today, and the first bill when '
+      'it moves (#356)', () {
+    final t = lookupWords(const Locale('en'));
+    String say(int v) => formatShort(v, currency: Currency.mnt);
+    final a = PlanAnswers(today: DateTime(2026, 11, 20), currency: Currency.mnt)
+      ..askStart = true
+      ..hasDate = true
+      ..repeat = PlanRepeat.twice
+      ..amount.text = '50000'
+      ..day1.text = '1'
+      ..day2.text = '15';
+    String? note({CategoryPlan? old}) =>
+        a.startNote(t, a.draft(categoryId: wedding, old: old), say, old: old);
+    // Empty on the 20th: this month's two have gone by.
+    expect(
+      note(),
+      '2 bills, 11.01 to 11.15, are before today, so they show as overdue: '
+      '${say(10000000)} in all.',
+    );
+    a.start.text = '2026.11.10';
+    expect(
+      note(),
+      'The bill on 11.15 is before today, so it shows as overdue: '
+      '${say(5000000)}.',
+    );
+    a.start.text = '2026.12.03';
+    expect(note(), 'First bill 12.15');
+    a.start.text = '2026.12.01';
+    expect(note(), isNull);
+    // Opened again on a bill whose first date has gone by: those were
+    // seen to, so nothing is said.
+    final saved = a.draft(categoryId: wedding)!;
+    final b = PlanAnswers(today: DateTime(2027, 2, 2), currency: Currency.mnt)
+      ..askStart = true
+      ..show(saved);
+    expect(
+      b.startNote(t, b.draft(categoryId: wedding, old: saved), say, old: saved),
+      isNull,
+    );
+    a.dispose();
+    b.dispose();
   });
 
   test('a late goal marked done asks nothing more, and goes when spent', () {

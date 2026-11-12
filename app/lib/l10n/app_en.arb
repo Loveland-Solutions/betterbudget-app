@@ -7187,6 +7187,24 @@
   "@planWeekdayNames": {
     "description": "Budget page, Edit, the Custom block: the weekday dropdown beside A weekday, Monday first, separated by |"
   },
+  "planStarts": "Starts",
+  "@planStarts": {
+    "description": "Budget page, Edit, and the phone's New category: label of the date a bill twice a month starts from (#356). Its first bill is the first of its two days on or after this date."
+  },
+  "planStartsThisMonth": "This month",
+  "@planStartsThisMonth": {
+    "description": "In an empty Starts field for a bill twice a month (and on the phone, as that row's value): left empty, it starts this month, from the first of its two days."
+  },
+  "planBillsBeforeToday": "{count, plural, =1{The bill on {first} is before today, so it shows as overdue: {total}.} other{{count} bills, {first} to {last}, are before today, so they show as overdue: {total} in all.}}",
+  "@planBillsBeforeToday": {
+    "description": "Beside Starts for a bill twice a month (#356), when its first bills fall before today: how many will show as overdue, from which date to which, and what they come to. A warning, not a block.",
+    "placeholders": {"count": {"type": "int"}, "first": {"type": "String"}, "last": {"type": "String"}, "total": {"type": "String"}}
+  },
+  "planFirstBill": "First bill {date}",
+  "@planFirstBill": {
+    "description": "Beside Starts for a bill twice a month, when the date typed falls between its two days: the bill the plan starts with.",
+    "placeholders": {"date": {"type": "String"}}
+  },
   "planEnds": "Ends",
   "@planEnds": {
     "description": "Budget page, Edit, the Custom block: label of the row saying when the repeating plan stops"

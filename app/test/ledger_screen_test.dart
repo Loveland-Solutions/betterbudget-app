@@ -8156,6 +8156,9 @@ void main() {
       // with.
       expect(find.byKey(const ValueKey('plan-date')), findsNothing);
       expect(find.text('Twice a month'), findsOneWidget);
+      // When it starts may be left empty: this month (#356).
+      expect(find.byKey(const ValueKey('plan-start')), findsOneWidget);
+      expect(find.text('This month'), findsOneWidget);
       await save();
       // Without them Save doesn't save.
       expect(find.byKey(const ValueKey('edit-save')), findsOneWidget);
@@ -8186,6 +8189,13 @@ void main() {
             .text,
         '15',
       );
+      // Starts later: its first bill is the first of its days from then.
+      final y = plan.due!.year + 1;
+      await type('plan-start', '$y.03.05');
+      await save();
+      data = (await tester.runAsync(db.loadLedger))!;
+      expect(data.plans[tuition]!.due, DateTime(y, 3, 15));
+      expect(data.plans[tuition]!.monthDays, [1, 15]);
       await tidy(tester, db);
     });
 
