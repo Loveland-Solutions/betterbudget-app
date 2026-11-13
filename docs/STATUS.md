@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-12** · version 0.88.1 · schema v26 · 1091 tests pass
+**Last updated: 2026-11-13** · version 0.88.1 · schema v26 · 1091 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -22,20 +22,28 @@ there is still the owner's say each time.
 it passes (the owner asked me to publish it; `msstore` has no Publish now). `release_store.sh` now deletes a waiting submission rather
 than stopping; 0.66.3, passed and waiting for Publish now, and then 0.69.0 went that way.
 
-**Mac App Store (#108):** the paid team "Loveland Solutions, LLC" (`44H5SLX8KR`)
-is signed in to Xcode (2026-11-03) and the Mac app moved to it (0.72.1). macOS 0.72.1
-is waiting for Apple's review. iOS 0.73.1 was rejected on 2026-11-05 (Guideline 2.1,
-information needed, no defect named): Apple wanted a screen recording from a physical
-iPhone plus answers in the Review Notes. Both are in the version's Review Notes (answers by
-the API 2026-11-07; the recording, made on the owner's son's iPhone from TestFlight, linked
-from Google Drive 2026-11-12), and 0.73.1 (build 604) was resubmitted 2026-11-12: waiting
-for Apple. The son is an internal TestFlight tester (a Developer on the team, in the internal
-"Family" group).
+**Mac App Store (#108): live.** macOS 0.72.1 (598) passed Apple's review and is on sale
+(found 2026-11-13), free, as **"The BetterBudget"** ("BetterBudget" was taken; the app is
+still BetterBudget on the device), one record for macOS and iOS, seller "Loveland
+Solutions". It is in 174 countries; the EU's 27 can't get it until the owner gives the
+Digital Services Act trader details (#375), which the EU shows publicly. Main is far ahead
+of 0.72.1; the next upload is the owner's say. The listing leads with building wealth (ADR
+0004 "A store listing leads with building wealth"). The build's encryption answer is asked
+again for each upload. The paid team "Loveland Solutions, LLC" (`44H5SLX8KR`) signs the
+Mac and iPhone apps.
+
+**iPhone (#114):** iOS 0.73.1 was rejected on 2026-11-05 (Guideline 2.1, information
+needed, no defect named): Apple wanted a screen recording from a physical iPhone plus
+answers in the Review Notes. Both are in the version's Review Notes (answers by the API
+2026-11-07; the recording, made on the owner's son's iPhone from TestFlight, linked from
+Google Drive 2026-11-12), and 0.73.1 (build 604) was resubmitted 2026-11-12: waiting for
+Apple. The son is an internal TestFlight tester (a Developer on the team, in the internal
+"Family" group). The iPhone app waits on #112 and a check with Google Drive on his iPhone.
+
 `tool/release_mac.sh` and `tool/release_ios.sh` build, check and upload, signing by
 the team's App Store Connect API key in `~/.config/betterbudget/` (0.73.2, #380):
 Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy label and
-Apple's encryption question are filled in App Store Connect. The iPhone app waits on
-#112 and a check with Google Drive on a real iPhone (the owner's son's, by TestFlight).
+Apple's encryption question are filled in App Store Connect.
 
 **The top of the Mac window acts as its title bar** (0.88.1, #428): a double-click on the
 thin strip by the three buttons, or on the page's top row where nothing is clickable (the
@@ -477,8 +485,8 @@ Step 5 waits until after beta.
 **Open source (owner, 2026-10-16):** the repo is public under GPL-3.0 or later, with its
 whole history (ROADMAP "Decided (owner, 2026-10-16)"), and free in every store.
 Anything pushed is published. The public repo's README and the website's copy of
-PRIVACY.md were already right (#96, #97 closed). Left: #98, the store listings set to
-free: Google Play now, the Microsoft Store and the App Store once registered.
+PRIVACY.md were already right (#96, #97 closed). Every store lists it free, with nothing
+to buy inside it (#98 closed).
 The privacy policy stays as it is (owner, 2026-10-16: "I don't think it makes a big
 difference"); it gains no line about the source being public.
 
