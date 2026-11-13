@@ -6670,30 +6670,6 @@ abstract class Words {
   /// **'Left out, like a card\'s payment when what\'s bought on the card is in its own categories.'**
   String get planInMonthNoMeans;
 
-  /// Budget page, Edit under a category's row: the one question, first line of the form; No is a set amount each period, Yes an amount by a date
-  ///
-  /// In en, this message translates to:
-  /// **'Is there a due date?'**
-  String get planDueDateQ;
-
-  /// Budget page, Edit: note beside the question while No is picked and the budget runs by month; what that answer means, in one example
-  ///
-  /// In en, this message translates to:
-  /// **'An amount you spend as the month goes, like groceries.'**
-  String get planDueNoMeans;
-
-  /// Budget page, Edit: the same note while the budget runs by pay period
-  ///
-  /// In en, this message translates to:
-  /// **'An amount you spend as the pay period goes, like groceries.'**
-  String get planDueNoMeansPay;
-
-  /// Budget page, Edit: note beside the question while Yes is picked; what that answer means, in one example
-  ///
-  /// In en, this message translates to:
-  /// **'An amount to have ready by a date, like rent or insurance.'**
-  String get planDueYesMeans;
-
   /// Budget page, Edit under a category's row: the first answer to "Is there a due date?"
   ///
   /// In en, this message translates to:

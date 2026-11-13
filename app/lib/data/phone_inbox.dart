@@ -12,6 +12,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:sqlite3/sqlite3.dart';
 
+import '../domain/budget.dart' show CategoryType;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
@@ -70,6 +71,12 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
         'CREATE TABLE category_paid_from (category_id TEXT PRIMARY KEY, '
         'account_id TEXT NOT NULL)',
       );
+      // The type its page picked (0.89.0, #429): a Goal, or a Fund with no
+      // amount, which its plan can't say. A computer from before reads none.
+      db.execute(
+        'CREATE TABLE category_types (category_id TEXT PRIMARY KEY, '
+        'type TEXT NOT NULL)',
+      );
       db.execute('BEGIN');
       db.execute('INSERT INTO phone VALUES (?)', [inbox.device]);
       for (final c in inbox.categories) {
@@ -89,6 +96,12 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
         }
         if (c.paidFromId case final a?) {
           db.execute('INSERT INTO category_paid_from VALUES (?, ?)', [c.id, a]);
+        }
+        if (c.type case final type?) {
+          db.execute('INSERT INTO category_types VALUES (?, ?)', [
+            c.id,
+            type.name,
+          ]);
         }
       }
       for (final e in inbox.entries) {
@@ -129,6 +142,8 @@ String phoneInboxSaying(PhoneInbox inbox) => jsonEncode([
       c.plan == null ? null : planToJson(c.plan!),
       c.off.toList()..sort(),
       c.paidFromId,
+      // Only when there is one: a phone's file from before says the same.
+      ?c.type?.name,
     ],
   for (final e in inbox.entries)
     [
@@ -183,6 +198,15 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
           paidFrom[r['category_id'] as String] = r['account_id'] as String;
         }
       }
+      // A type this computer doesn't know (a newer phone's) is left out.
+      final types = <String, CategoryType>{};
+      if (has('category_types')) {
+        for (final r in db.select('SELECT * FROM category_types')) {
+          if (CategoryType.values.asNameMap()[r['type']] case final type?) {
+            types[r['category_id'] as String] = type;
+          }
+        }
+      }
       if (hasLines) {
         for (final r in db.select('SELECT * FROM entry_lines ORDER BY rowid')) {
           lines.putIfAbsent(r['entry_id'] as String, () => []).add((
@@ -209,6 +233,7 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
                   : null,
               off: off[r['id']] ?? const {},
               paidFromId: paidFrom[r['id']],
+              type: types[r['id']],
             ),
         ],
         entries: [

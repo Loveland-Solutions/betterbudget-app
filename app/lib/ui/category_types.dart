@@ -1,4 +1,9 @@
-part of 'ledger_screen.dart';
+import 'package:flutter/material.dart';
+
+import '../domain/budget.dart' show CategoryType;
+import 'language.dart';
+import 'register.dart' show Hoverable;
+import 'theme.dart';
 
 // The four types of category, as cards at the top of the New category
 // window and a category's Edit (owner, 2026-11-13, #429, sketch A; ADR 0004
@@ -7,50 +12,50 @@ part of 'ledger_screen.dart';
 // for its type, so the shapes tell them apart: spent down each month,
 // built up with a dip, paid out on a date, ready by a date and then spent.
 
-/// A category's type. Not stored: it comes from the answers a category
-/// already has (a due date or not, spent each month or built up, shown on
-/// Savings as a goal), so nothing in a ledger changes for it.
-enum _CategoryType { dayToDay, fund, bill, goal }
-
 /// "How will this money be spent?" and the four cards under it.
-class _TypeCards extends StatelessWidget {
-  const _TypeCards({
+class TypeCards extends StatelessWidget {
+  const TypeCards({
+    super.key,
     required this.type,
     required this.byPay,
     required this.onPick,
+    this.columns = 4,
   });
 
   /// The type the answers make now: its card is lit.
-  final _CategoryType type;
+  final CategoryType type;
 
   /// Set aside by pay period rather than by month: the words say so.
   final bool byPay;
-  final ValueChanged<_CategoryType> onPick;
+  final ValueChanged<CategoryType> onPick;
+
+  /// Cards to a row: four on a computer, two on a phone.
+  final int columns;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final cards = [
       (
-        _CategoryType.dayToDay,
+        CategoryType.dayToDay,
         t.planTypeDay,
         byPay ? t.planTypeDayMeansPay : t.planTypeDayMeans,
         t.planTypeDayFor,
       ),
       (
-        _CategoryType.fund,
+        CategoryType.fund,
         t.planTypeFund,
         byPay ? t.planTypeFundMeansPay : t.planTypeFundMeans,
         t.planTypeFundFor,
       ),
       (
-        _CategoryType.bill,
+        CategoryType.bill,
         t.planTypeBill,
         t.planTypeBillMeans,
         t.planTypeBillFor,
       ),
       (
-        _CategoryType.goal,
+        CategoryType.goal,
         t.planTypeGoal,
         t.planTypeGoalMeans,
         t.planTypeGoalFor,
@@ -61,28 +66,32 @@ class _TypeCards extends StatelessWidget {
       children: [
         Text(t.planTypeQ, style: onest(14, weight: 600)),
         const SizedBox(height: 10),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final (i, (kind, name, means, examples)) in cards.indexed)
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(left: i == 0 ? 0 : 10),
-                    child: _TypeCard(
-                      key: ValueKey('plan-type-${kind.name}'),
-                      kind: kind,
-                      name: name,
-                      means: means,
-                      examples: examples,
-                      on: kind == type,
-                      onTap: () => onPick(kind),
+        for (var r = 0; r < cards.length; r += columns) ...[
+          if (r > 0) const SizedBox(height: 10),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (i, (kind, name, means, examples))
+                    in cards.skip(r).take(columns).indexed)
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(left: i == 0 ? 0 : 10),
+                      child: _TypeCard(
+                        key: ValueKey('plan-type-${kind.name}'),
+                        kind: kind,
+                        name: name,
+                        means: means,
+                        examples: examples,
+                        on: kind == type,
+                        onTap: () => onPick(kind),
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -99,7 +108,7 @@ class _TypeCard extends StatelessWidget {
     required this.onTap,
   });
 
-  final _CategoryType kind;
+  final CategoryType kind;
   final String name;
   final String means;
   final String examples;
@@ -175,7 +184,7 @@ class _TypePicture extends CustomPainter {
     required this.quiet,
   });
 
-  final _CategoryType kind;
+  final CategoryType kind;
   final Color ground, line, money, dip, flag, quiet;
 
   static const _w = 160.0, _h = 52.0, _floor = 48.0;
@@ -215,7 +224,7 @@ class _TypePicture extends CustomPainter {
 
     switch (kind) {
       // Full at the start of each month, spent down by its end.
-      case _CategoryType.dayToDay:
+      case CategoryType.dayToDay:
         chart([
           (8, 10),
           (48, 44),
@@ -228,7 +237,7 @@ class _TypePicture extends CustomPainter {
         ]);
       // Up a step each month toward what it holds at most, one dip when
       // something comes up.
-      case _CategoryType.fund:
+      case CategoryType.fund:
         final dash = Paint()
           ..color = quiet
           ..strokeWidth = 1;
@@ -254,7 +263,7 @@ class _TypePicture extends CustomPainter {
         canvas.drawCircle(at(92, 40), 3.5 * sx, Paint()..color = dip);
       // Built up to the date, then all of it out at once, to someone else's
       // door.
-      case _CategoryType.bill:
+      case CategoryType.bill:
         chart([(8, 44), (100, 10), (100, 44)]);
         final arrow = Path()
           ..moveTo(at(110, 26).dx, at(110, 26).dy)
@@ -269,7 +278,7 @@ class _TypePicture extends CustomPainter {
         );
       // Ready by its date, flagged, then spent by the household in a few
       // purchases of its own.
-      case _CategoryType.goal:
+      case CategoryType.goal:
         chart([
           (8, 44),
           (100, 10),

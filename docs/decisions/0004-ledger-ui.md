@@ -6040,9 +6040,10 @@ Savings as a goal?") were the category's type asked in pieces.
   there, with the warnings Edit already gives. The Safety net has none: it's built
   in as money put by.
 - **A goal can repeat** (the new direction of 2026-11-11): Christmas every year is a
-  Goal. Savings shows a repeating goal by what its category holds against its next
-  date; what it does once that date has passed, or once its repeats have ended, is
-  #425. As a once-only goal's is, its part each month counts on the income bar as put
+  Goal. Savings shows a repeating goal by what was put toward its next date, as a
+  once-only goal's is counted, so presents bought early don't make it look behind
+  (owner, 2026-11-13: "Yes"); what it does once that date has passed, or once its
+  repeats have ended, is #425. As a once-only goal's is, its part each month counts on the income bar as put
   aside, not spent. Nothing in a ledger changed: only a once-only line could be marked
   a goal before, and Edit cleared the mark from any line it made repeat.
 - **No type is stored**: it comes from the answers a category already has, so no
@@ -6056,8 +6057,15 @@ Savings as a goal?") were the category's type asked in pieces.
   category, and the pictures gone while the form is filled in); a sentence to fill
   in ("Rent is money we pay to someone on a date"), dropped before drawing, since
   Mongolian puts the verb last and the fields would have to be placed per language.
-- Not changed yet: the phone's New category page still asks "Is there a due
-  date?" (asked of the owner on 2026-11-13, not answered).
+- **A goal is never marked paid** (owner, 2026-11-13: "A bill should really only be
+  paid once per period"): a goal is spent in several purchases, so none of them
+  marks its date "paid 10.20" as a bill's payment does. A bill keeps its one mark a
+  period.
+- **The phone's New category opens on the same cards** (owner, 2026-11-13: "Yes"),
+  two to a row, with the same questions under each. The phone's file says the type
+  picked (a `category_types` table, 0.89.0), for what a plan can't: a Goal, or a
+  Fund with no amount yet; a computer before 0.89.0 reads neither and makes the
+  category as before.
 
 ## A store listing leads with building wealth (owner, 2026-11-03)
 

@@ -30,8 +30,9 @@ class Goal {
   final CategoryPlan plan;
 
   /// What was put toward it, as Budget counts it ([PlanLine.toward]):
-  /// what the category held when the plan began, and every amount
-  /// assigned since, less what was moved out. Money spent on the thing
+  /// what the category held when the plan began (one that repeats: what
+  /// it carried toward this date), and every amount assigned since, less
+  /// what was moved out. Money spent on the thing
   /// itself (a deposit on the hall) doesn't take it down (owner,
   /// 2026-10-27: "like saving for a birthday or Christmas").
   final int saved;
@@ -119,10 +120,10 @@ List<Goal> goalsOf(LedgerData data, Budget budget, DateTime today) {
     final plan = data.plans[c.id]!;
     final line = budget.lines[c.id];
     final p = line?.plan;
-    // One that repeats is as far along as what its category holds toward
-    // the next date: Budget counts no total toward it across the years.
+    // One that repeats counts what was put toward its next date, so
+    // presents bought early don't make it look behind (owner, 2026-11-13).
     // What it shows once that date has gone by is #425's.
-    final saved = plan.repeats ? max(line?.left ?? 0, 0) : p?.toward ?? 0;
+    final saved = plan.repeats ? max(p?.toward ?? 0, 0) : p?.toward ?? 0;
     final pastDate = p?.pastDate ?? false;
     final late = data.prefs[ReadyKeys.goalLate(c.id)];
     final finished = pastDate && late == 'done';

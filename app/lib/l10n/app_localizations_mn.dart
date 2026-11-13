@@ -4569,20 +4569,6 @@ class WordsMn extends Words {
       'Тооцохгүй, жишээ нь картаар авсан зүйл өөрийн ангилалд орсон бол картын төлбөр.';
 
   @override
-  String get planDueDateQ => 'Төлөх өдөр бий юу?';
-
-  @override
-  String get planDueNoMeans => 'Сар бүр зарцуулдаг тогтмол дүн, жишээ нь хүнс.';
-
-  @override
-  String get planDueNoMeansPay =>
-      'Орлогын үе бүр зарцуулдаг тогтмол дүн, жишээ нь хүнс.';
-
-  @override
-  String get planDueYesMeans =>
-      'Тодорхой өдөр гэхэд бэлэн байх дүн, жишээ нь түрээс, даатгал.';
-
-  @override
   String get planNo => 'Үгүй';
 
   @override

@@ -59,7 +59,13 @@ class PhoneCategory {
     this.onceMinor,
     this.usualMinor,
     this.payInto,
+    this.type,
   });
+
+  /// Made here: the type its New category page picked (#429), for what its
+  /// plan can't say: a Goal, or a Fund with no amount yet. Null from a
+  /// phone before 0.89.0.
+  final CategoryType? type;
 
   /// A pay's paycheck, offered for money in as Income is (#187): the
   /// account the pay goes into, the only one it can come into.

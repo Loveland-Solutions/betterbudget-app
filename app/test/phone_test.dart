@@ -19,6 +19,7 @@ import 'package:betterbudget/domain/ledger.dart'
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart' show PayRule;
 import 'package:betterbudget/domain/phone.dart';
+import 'package:betterbudget/domain/readiness.dart' show ReadyKeys, isGoal;
 import 'package:betterbudget/domain/sync.dart' show MadeHow;
 import 'package:betterbudget/l10n/app_localizations.dart';
 import 'package:betterbudget/phone_preview.dart';
@@ -114,11 +115,38 @@ Future<void> _newCategory(WidgetTester tester, String name) async {
 /// Picks the [n]th account under New category's Paid from (#180): TDB
 /// Checking first.
 Future<void> _paidFrom(WidgetTester tester, [int n = 0]) async {
-  await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
-  await tester.pumpAndSettle();
+  // Under the four type cards: a scroll away.
+  await _scrollTo(tester, const ValueKey('money-accounts'));
   await tester.tap(find.byKey(const ValueKey('money-accounts')));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(ValueKey('money-account-$n')));
+  await tester.pumpAndSettle();
+}
+
+/// Picks [type]'s card on New category, then brings its amount into view.
+Future<void> _pickType(WidgetTester tester, CategoryType type) async {
+  final card = find.byKey(ValueKey('plan-type-${type.name}'));
+  await tester.ensureVisible(card);
+  await tester.pumpAndSettle();
+  await tester.tap(card);
+  await tester.pumpAndSettle();
+  await _scrollTo(tester, const ValueKey('plan-amount'));
+}
+
+/// Scrolls New category until the row keyed [key] can be tapped.
+Future<void> _scrollTo(WidgetTester tester, Key key) async {
+  // Typing the name first scrolls its cursor into view: let that finish.
+  await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(
+    find.byKey(key),
+    100,
+    scrollable: find
+        .descendant(
+          of: find.byType(ListView).last,
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
   await tester.pumpAndSettle();
 }
 
@@ -883,9 +911,7 @@ void main() {
   });
 
   testWidgets('a bill twice a month on the phone: two days, and when it '
-      'starts', (
-    tester,
-  ) async {
+      'starts', (tester) async {
     final store = await _pump(tester);
     await _toBudget(tester);
     await tester.tap(find.byKey(const ValueKey('budget-new-category')));
@@ -894,8 +920,7 @@ void main() {
       find.byKey(const ValueKey('new-category-name')),
       'Mobicom',
     );
-    await tester.tap(find.byKey(const ValueKey('plan-dated-yes')));
-    await tester.pumpAndSettle();
+    await _pickType(tester, CategoryType.bill);
     await tester.enterText(find.byKey(const ValueKey('plan-amount')), '45000');
     await tester.tap(find.byKey(const ValueKey('plan-repeat')));
     await tester.pumpAndSettle();
@@ -931,18 +956,28 @@ void main() {
     await _toBudget(tester);
     await tester.tap(find.byKey(const ValueKey('budget-new-category')));
     await tester.pumpAndSettle();
-    // One page, as on the computer: the name, then is there a due date.
-    expect(find.text('Is there a due date?'), findsOneWidget);
+    // One page, as on the computer: the name, then the four type cards.
+    expect(find.text('How will this money be spent?'), findsOneWidget);
+    for (final type in CategoryType.values) {
+      expect(find.byKey(ValueKey('plan-type-${type.name}')), findsOneWidget);
+    }
     await tester.enterText(
       find.byKey(const ValueKey('new-category-name')),
       'Mobicom',
     );
-    await tester.tap(find.byKey(const ValueKey('plan-dated-yes')));
+    await tester.tap(find.byKey(const ValueKey('plan-type-bill')));
     await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_new_category_types.png'),
+    );
+    await _pickType(tester, CategoryType.bill);
+    // A bill starts on every month (#429).
+    expect(find.text('Every month'), findsOneWidget);
     await tester.enterText(find.byKey(const ValueKey('plan-amount')), '45000');
     await tester.tap(find.byKey(const ValueKey('plan-repeat')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Every month'));
+    await tester.tap(find.text('Every month').last);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('plan-date')));
     await tester.pumpAndSettle();
@@ -973,6 +1008,50 @@ void main() {
     expect(made.due, DateTime(2026, 10, 15));
   });
 
+  testWidgets('on the phone a Goal asks for an amount to have ready, once; '
+      'a Fund can wait for its amount (#429)', (tester) async {
+    final store = await _pump(tester);
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('budget-new-category')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'Laptop',
+    );
+    await _pickType(tester, CategoryType.goal);
+    expect(find.text('Amount to have ready'), findsOneWidget);
+    expect(find.text('Ready by'), findsOneWidget);
+    expect(find.text('Once'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('plan-amount')),
+      '3000000',
+    );
+    await tester.tap(find.byKey(const ValueKey('plan-date')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('28'));
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await _paidFrom(tester);
+    await tester.tap(find.byKey(const ValueKey('new-category-another')));
+    await tester.pumpAndSettle();
+    expect(store.made.single.type, CategoryType.goal);
+    expect(store.made.single.plan!.repeats, isFalse);
+
+    // A Fund with no amount yet: made, with no plan, as a Fund.
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'Car repairs',
+    );
+    await _pickType(tester, CategoryType.fund);
+    // A fund keeps what's left: nothing to ask about it.
+    expect(find.byKey(const ValueKey('plan-carry-off')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await tester.pumpAndSettle();
+    expect(store.made.last.name, 'Car repairs');
+    expect(store.made.last.plan, isNull);
+    expect(store.made.last.type, CategoryType.fund);
+  });
+
   testWidgets('Add another keeps the page open for the next one; Add with '
       'something missing says what', (tester) async {
     final store = await _pump(tester);
@@ -994,15 +1073,13 @@ void main() {
       find.byKey(const ValueKey('new-category-name')),
       'Gym',
     );
-    await tester.tap(find.byKey(const ValueKey('plan-dated-yes')));
-    await tester.pumpAndSettle();
+    await _pickType(tester, CategoryType.bill);
     await tester.tap(find.byKey(const ValueKey('new-category-add')));
     await tester.pumpAndSettle();
     expect(store.made, hasLength(1));
     expect(find.text('New category'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('plan-dated-no')));
-    await tester.pumpAndSettle();
+    await _pickType(tester, CategoryType.dayToDay);
     await tester.enterText(find.byKey(const ValueKey('plan-amount')), '50000');
     await tester.tap(find.byKey(const ValueKey('new-category-add')));
     await tester.pumpAndSettle();
@@ -2902,6 +2979,80 @@ void main() {
       expect(old.name, 'Mobicom');
       expect(old.plan, isNull);
       expect(old.off, isEmpty);
+    });
+
+    test('a Goal and a Fund made on the phone come in as that type, and a '
+        'file from before types reads as it did (#429)', () async {
+      final dir = _phoneDir();
+      final file = File('${dir.path}/${phoneInboxName('ab12')}');
+      final christmas = PhoneCategory(
+        id: 'new-1',
+        name: 'Christmas',
+        leftMinor: 0,
+        madeHere: true,
+        type: CategoryType.goal,
+        plan: CategoryPlan(
+          categoryId: 0,
+          kind: PlanKind.byDate,
+          amount: 700000000,
+          start: today,
+          due: DateTime(2026, 11, 1),
+          everyMonths: 12,
+        ),
+      );
+      const repairs = PhoneCategory(
+        id: 'new-2',
+        name: 'Car repairs',
+        leftMinor: 0,
+        madeHere: true,
+        type: CategoryType.fund,
+      );
+      writePhoneInbox(
+        file,
+        null,
+        PhoneInbox(device: 'ab12', categories: [christmas, repairs]),
+      );
+      final back = readPhoneInbox(file, null).categories;
+      expect(back.map((c) => c.type), [CategoryType.goal, CategoryType.fund]);
+
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await seedDemoIfEmpty(db, today);
+      final take = (await db.takePhoneEntries([
+        PhoneInbox(device: 'ab12', categories: back),
+      ], today: today))!;
+      var data = await db.loadLedger();
+      int id(String name) =>
+          data.accounts.values.singleWhere((a) => a.name == name).id;
+      expect(isGoal(data, id('Christmas')), isTrue);
+      expect(data.plans[id('Car repairs')], isNull);
+      expect(data.prefs[BudgetKeys.fund(id('Car repairs'))], 'yes');
+      expect(data.prefs[ReadyKeys.goal(id('Christmas'))], 'yes');
+      // Undone, the categories go; redone, they're that type again.
+      await db.undoPhoneTake(take);
+      await db.redoPhoneTake(take);
+      data = await db.loadLedger();
+      expect(isGoal(data, id('Christmas')), isTrue);
+
+      // From a phone before 0.89.0: no type, and a waiting category's
+      // print is what it was, so it isn't taken for changed.
+      final old = sqlite3.open(file.path);
+      old.execute('DROP TABLE category_types');
+      old.close();
+      expect(readPhoneInbox(file, null).categories.map((c) => c.type), [
+        null,
+        null,
+      ]);
+      const bare = PhoneCategory(
+        id: 'new-2',
+        name: 'Car repairs',
+        leftMinor: 0,
+        madeHere: true,
+      );
+      expect(
+        (jsonDecode(phoneCategoryPrint(bare)) as Map).keys,
+        isNot(contains('type')),
+      );
     });
 
     test('a phone\'s bill for a category the computer has keeps the '

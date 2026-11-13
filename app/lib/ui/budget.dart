@@ -4636,11 +4636,11 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
   /// The type its answers make (#429): no type is stored, so a category
   /// opens on the card its plan already is.
-  _CategoryType get _type => _p.hasDate
-      ? (_isGoal ? _CategoryType.goal : _CategoryType.bill)
+  CategoryType get _type => _p.hasDate
+      ? (_isGoal ? CategoryType.goal : CategoryType.bill)
       : _p.spentEach
-      ? _CategoryType.dayToDay
-      : _CategoryType.fund;
+      ? CategoryType.dayToDay
+      : CategoryType.fund;
 
   /// The type cards head the form; not the Safety net's, which is built
   /// into the app as money put by and is no type to choose.
@@ -4658,18 +4658,18 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
   /// A type card picked: the answers it stands for. Nothing else typed
   /// goes; an amount, a date and Paid from stay for another card.
-  void _pickType(_CategoryType type) {
-    final dated = type == _CategoryType.bill || type == _CategoryType.goal;
+  void _pickType(CategoryType type) {
+    final dated = type == CategoryType.bill || type == CategoryType.goal;
     final was = _p.hasDate;
     setState(() {
       _p.hasDate = dated;
-      if (!dated) _p.spentEach = type == _CategoryType.dayToDay;
-      if (dated) _goal = type == _CategoryType.goal;
+      if (!dated) _p.spentEach = type == CategoryType.dayToDay;
+      if (dated) _goal = type == CategoryType.goal;
       // A new one's How often starts where its type usually is: a bill
       // every month, a goal once. Until How often is picked.
       if (widget.isNew && _repeatNow == _repeatSet) {
-        if (type == _CategoryType.bill) _p.preset(1, PlanUnit.months);
-        if (type == _CategoryType.goal) {
+        if (type == CategoryType.bill) _p.preset(1, PlanUnit.months);
+        if (type == CategoryType.goal) {
           _p.repeat = PlanRepeat.once;
           _p.custom = false;
         }
@@ -4923,7 +4923,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       plan: draft,
       inMonth: _inMonth,
       goal: _isGoal,
-      fund: _asksType && _type == _CategoryType.fund && draft == null,
+      fund: _asksType && _type == CategoryType.fund && draft == null,
       group: _groupNow,
       note: _d.note.text.trim().isEmpty ? null : _d.note.text.trim(),
     );
@@ -5062,7 +5062,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     // "Show on Savings as a goal?" asked, in one go (#429). Each type gets
     // only its own questions.
     final type = _type;
-    final fund = _asksType && type == _CategoryType.fund;
+    final fund = _asksType && type == CategoryType.fund;
     return [
       if (!_p.hasDate) ...[
         _formRow(
@@ -5210,7 +5210,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       ] else ...[
         _formRow(
           // Nothing is owed on a goal: it's an amount to have ready.
-          type == _CategoryType.goal ? t.planAmountReady : t.planAmountDue,
+          type == CategoryType.goal ? t.planAmountReady : t.planAmountDue,
           amountField(
             _p.amount,
             _amountFocus,
@@ -5228,7 +5228,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           menus: _menus,
           onSave: _save,
           onChanged: () => setState(() {}),
-          dateLabel: type == _CategoryType.goal ? t.planReadyBy : null,
+          dateLabel: type == CategoryType.goal ? t.planReadyBy : null,
           dateFocus: _dateFocus,
           datesFocus: _datesFocus,
           day1Focus: _day1Focus,
@@ -5753,7 +5753,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             : Mid.ink2;
 
         final cards = _asksType
-            ? _TypeCards(
+            ? TypeCards(
                 type: _type,
                 byPay: _p.eachPayId != null,
                 onPick: _pickType,

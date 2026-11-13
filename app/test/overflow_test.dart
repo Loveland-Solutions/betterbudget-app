@@ -405,7 +405,19 @@ void main() {
           find.byKey(const ValueKey('new-category-name')),
           'Хүүхдийн цэцэрлэгийн хоол ба сургалтын төлбөр',
         );
-        await tap(find.byKey(const ValueKey('plan-dated-yes')));
+        // Its picture: on a small phone the card runs under the buttons.
+        await tap(
+          find.descendant(
+            of: find.byKey(const ValueKey('plan-type-bill')),
+            matching: find.byType(CustomPaint),
+          ),
+        );
+        // Under the four cards: on a small phone, a scroll away.
+        await tester.dragUntilVisible(
+          find.byKey(const ValueKey('plan-amount')),
+          find.byType(ListView).last,
+          const Offset(0, -100),
+        );
         await tester.enterText(
           find.byKey(const ValueKey('plan-amount')),
           '999999999999',

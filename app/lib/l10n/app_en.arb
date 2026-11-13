@@ -6977,22 +6977,6 @@
   "@planInMonthNoMeans": {
     "description": "Budget page, Edit: note beside In a month of expenses? while No is picked; one example of a category to leave out"
   },
-  "planDueDateQ": "Is there a due date?",
-  "@planDueDateQ": {
-    "description": "Budget page, Edit under a category's row: the one question, first line of the form; No is a set amount each period, Yes an amount by a date"
-  },
-  "planDueNoMeans": "An amount you spend as the month goes, like groceries.",
-  "@planDueNoMeans": {
-    "description": "Budget page, Edit: note beside the question while No is picked and the budget runs by month; what that answer means, in one example"
-  },
-  "planDueNoMeansPay": "An amount you spend as the pay period goes, like groceries.",
-  "@planDueNoMeansPay": {
-    "description": "Budget page, Edit: the same note while the budget runs by pay period"
-  },
-  "planDueYesMeans": "An amount to have ready by a date, like rent or insurance.",
-  "@planDueYesMeans": {
-    "description": "Budget page, Edit: note beside the question while Yes is picked; what that answer means, in one example"
-  },
   "planNo": "No",
   "@planNo": {
     "description": "Budget page, Edit under a category's row: the first answer to \"Is there a due date?\""

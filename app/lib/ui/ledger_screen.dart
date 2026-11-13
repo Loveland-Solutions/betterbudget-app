@@ -41,6 +41,7 @@ import '../import/mapping.dart';
 import '../import/sheet.dart';
 import 'amount_input.dart';
 import 'balance_header.dart';
+import 'category_types.dart';
 import 'entry_row.dart';
 import 'reconcile.dart';
 import 'recovery_key_screen.dart';
@@ -56,7 +57,6 @@ import 'theme.dart';
 
 part 'accounts.dart';
 part 'budget.dart';
-part 'category_types.dart';
 part 'how_often.dart';
 part 'import_dialog.dart';
 part 'pay_setup.dart';

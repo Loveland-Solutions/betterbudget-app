@@ -48,6 +48,13 @@ abstract final class BudgetKeys {
   static const loanPrefix = 'budget.loan.';
 }
 
+/// A category's type, as the New category window's cards and Edit name it
+/// (owner, 2026-11-13, #429). Not stored on the computer: it comes from the
+/// answers a category already has (a due date or not, spent each period or
+/// built up, shown on Savings as a goal, [BudgetKeys.fund]). A phone sends
+/// the one picked for a category it made, for what a plan can't say.
+enum CategoryType { dayToDay, fund, bill, goal }
+
 /// The category imported rows wait in, by the names the import gives it.
 /// It holds no money: its rows count straight in the money not assigned
 /// until they're categorized (owner's call, 2026-09-30).
@@ -209,10 +216,11 @@ class PlanLine {
   /// rather than all of the rest at once ([ReadyKeys.goalLate]).
   final bool late;
 
-  /// A once-only amount by a date: what counts toward it through this
-  /// period, as the parts are worked out: what the category held when the
-  /// plan began, and every amount assigned since. Spending on the thing
-  /// itself doesn't take it down.
+  /// An amount by a date: what counts toward it through this period, as
+  /// the parts are worked out: what the category held when the plan began
+  /// (one that repeats: what it carried toward this date), and every
+  /// amount assigned since. Spending on the thing itself doesn't take it
+  /// down (owner, 2026-11-13: presents bought early aren't falling behind).
   final int toward;
 
   /// A once-only amount whose date is before this period: a bill would be
@@ -572,10 +580,12 @@ class Budget {
     // A bill paid: kept on the line of the period the bill counts in
     // (rent for 11.01 paid 10.30 is November's), said by the day it was
     // paid; the latest when there are two.
+    // A goal is never "paid": it's spent in several purchases, and a bill
+    // is paid once (owner, 2026-11-13, #429).
     void notePaid(int category, DateTime d, DateTime? bill, {DateTime? of}) {
       if (bill == null) return;
       (paidEver[category] ??= {}).add(of ?? bill);
-      if (!within(bill)) return;
+      if (!within(bill) || isGoal(data, category)) return;
       (billsPaid[category] ??= {}).add(of ?? bill);
       final was = paidOn[category];
       if (was == null || d.isAfter(was)) paidOn[category] = d;
@@ -1706,7 +1716,11 @@ class Budget {
       done: !repeats && missing - assigned <= 0,
       lastPeriod: lastPeriod,
       usual: usual,
-      toward: repeats ? 0 : base + before + assigned,
+      // One that repeats: what this date started from (what carried from
+      // the last, or less a minus it left), then every amount since.
+      toward: repeats
+          ? bill - need + before + assigned
+          : base + before + assigned,
       noBills: noBills,
       dueHere: !counted(due).isAfter(p.end),
     );

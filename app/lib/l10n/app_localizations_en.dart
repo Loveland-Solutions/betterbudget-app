@@ -4728,21 +4728,6 @@ class WordsEn extends Words {
       'Left out, like a card\'s payment when what\'s bought on the card is in its own categories.';
 
   @override
-  String get planDueDateQ => 'Is there a due date?';
-
-  @override
-  String get planDueNoMeans =>
-      'An amount you spend as the month goes, like groceries.';
-
-  @override
-  String get planDueNoMeansPay =>
-      'An amount you spend as the pay period goes, like groceries.';
-
-  @override
-  String get planDueYesMeans =>
-      'An amount to have ready by a date, like rent or insurance.';
-
-  @override
   String get planNo => 'No';
 
   @override
