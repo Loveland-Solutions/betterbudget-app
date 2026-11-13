@@ -7062,15 +7062,15 @@
     "description": "Budget page, Edit under a category's row: beside Paid from, what Built up for something later means for that account's forecast",
     "placeholders": { "account": { "type": "String" } }
   },
-  "planStopAt": "Up to",
+  "planStopAt": "Most it holds",
   "@planStopAt": {
-    "description": "Budget page, Edit under a category's row: label of the optional cap on a category that carries over"
+    "description": "Budget page, Edit under a category's row: label of the optional cap on a category that carries over: what a fund holds at most"
   },
   "planNoLimit": "no limit",
   "@planNoLimit": {
     "description": "Budget page, Edit under a category's row: grey hint inside the empty cap field"
   },
-  "planStopAtHint": "Once it holds this much, the plan stops adding to it.",
+  "planStopAtHint": "When it holds this much, nothing more is set aside.",
   "@planStopAtHint": {
     "description": "Budget page, Edit under a category's row: note beside the cap"
   },
@@ -10585,17 +10585,81 @@
       }
     }
   },
-  "planGoalQ": "Show on Savings as a goal?",
-  "@planGoalQ": {
-    "description": "Budget page, Edit: for an amount by one date; No and Yes beside it"
+  "planTypeQ": "How will this money be spent?",
+  "@planTypeQ": {
+    "description": "New category window and a category's Edit: heading over the four type cards (#429)"
   },
-  "planGoalYesMeans": "Savings shows how far along it is.",
-  "@planGoalYesMeans": {
-    "description": "Budget page, Edit: note beside Show on Savings as a goal? while Yes is picked"
+  "planTypeDay": "Day-to-day",
+  "@planTypeDay": {
+    "description": "Type card: a category spent a little at a time each month (groceries, fuel). Same word as the forecast's chip"
   },
-  "planGoalNoMeans": "Only here, like a birthday present.",
-  "@planGoalNoMeans": {
-    "description": "Budget page, Edit: note beside Show on Savings as a goal? while No is picked"
+  "planTypeDayMeans": "You spend it a little at a time, every month.",
+  "@planTypeDayMeans": {
+    "description": "Day-to-day card, under its name, when the category is set aside by month"
+  },
+  "planTypeDayMeansPay": "You spend it a little at a time, every pay period.",
+  "@planTypeDayMeansPay": {
+    "description": "Day-to-day card, under its name, when the category is set aside by pay period"
+  },
+  "planTypeDayFor": "Groceries, fuel",
+  "@planTypeDayFor": {
+    "description": "Day-to-day card: examples, under what it means"
+  },
+  "planTypeFund": "Fund",
+  "@planTypeFund": {
+    "description": "Type card: money saved a little each month, with no date, and spent when something comes up (car repairs)"
+  },
+  "planTypeFundMeans": "You save a little each month and spend it when something comes up.",
+  "@planTypeFundMeans": {
+    "description": "Fund card, under its name, by month"
+  },
+  "planTypeFundMeansPay": "You save a little each pay period and spend it when something comes up.",
+  "@planTypeFundMeansPay": {
+    "description": "Fund card, under its name, by pay period"
+  },
+  "planTypeFundFor": "Car repairs, the doctor",
+  "@planTypeFundFor": {
+    "description": "Fund card: examples"
+  },
+  "planTypeBill": "Bill",
+  "@planTypeBill": {
+    "description": "Type card: an amount paid to someone else, all at once, on a set date (rent)"
+  },
+  "planTypeBillMeans": "You pay it to someone all at once, on a set date.",
+  "@planTypeBillMeans": {
+    "description": "Bill card, under its name"
+  },
+  "planTypeBillFor": "Rent, insurance, school fees",
+  "@planTypeBillFor": {
+    "description": "Bill card: examples"
+  },
+  "planTypeGoal": "Goal",
+  "@planTypeGoal": {
+    "description": "Type card: the household's own money, wanted ready by a date and then spent by the household; once or every year"
+  },
+  "planTypeGoalMeans": "You save it up by a date, then spend it yourself.",
+  "@planTypeGoalMeans": {
+    "description": "Goal card, under its name"
+  },
+  "planTypeGoalFor": "A laptop, Christmas every year",
+  "@planTypeGoalFor": {
+    "description": "Goal card: examples"
+  },
+  "planAmountReady": "Amount to have ready",
+  "@planAmountReady": {
+    "description": "A goal's form: label of its amount (a bill's is Amount due; nothing is owed on a goal)"
+  },
+  "planReadyBy": "Ready by",
+  "@planReadyBy": {
+    "description": "A goal's form: label of its date (a bill's is Due)"
+  },
+  "planAddToBudget": "Add to the budget",
+  "@planAddToBudget": {
+    "description": "New category window: the button that makes the category"
+  },
+  "planAddThenAnother": "Add, then start another",
+  "@planAddThenAnother": {
+    "description": "New category window: makes the category and empties the window for the next one"
   },
   "goalEnterDate": "Enter the date it's wanted by",
   "@goalEnterDate": {

@@ -890,7 +890,8 @@ void main() {
     // Edit opens its Edit on Budget, where it's asked as a goal.
     await press(find.byKey(ValueKey('goal-edit-${wedding.id}')));
     await settle(tester);
-    expect(find.byKey(const ValueKey('plan-goal-yes')), findsOneWidget);
+    // On the Goal card: its date is the one it's ready by.
+    expect(find.text('Ready by'), findsOneWidget);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
@@ -937,9 +938,9 @@ void main() {
     await tester.pumpAndSettle();
     await press(find.byKey(const ValueKey('goal-save')));
     await settle(tester);
-    // Its Edit is open; with no date yet, it isn't asked as a goal.
+    // Its Edit is open, on its own card, not Goal's.
     expect(find.byKey(const ValueKey('category-note')), findsOneWidget);
-    expect(find.byKey(const ValueKey('plan-goal-yes')), findsNothing);
+    expect(find.text('Ready by'), findsNothing);
     expect(
       (await load()).accounts.values.where((a) => a.name == 'Groceries'),
       hasLength(1),
@@ -4310,7 +4311,7 @@ void main() {
     // Added: made with what the window set, in the row's currency, and
     // the row is filed under it.
     await pick('Phone');
-    await tester.tap(find.byKey(const ValueKey('plan-dated-yes')));
+    await tester.tap(find.byKey(const ValueKey('plan-type-bill')));
     await settle(tester);
     await tester.enterText(
       find.descendant(
@@ -7807,7 +7808,7 @@ void main() {
 
       // Tuition, a bill due on a date. September to January is five parts.
       await editCategory(tester, 'Tuition');
-      await pick('plan-dated-yes');
+      await pick('plan-type-bill');
       await type('plan-amount', '2000000');
       // The date is still missing: Save outlines it and stays.
       await save();
@@ -7838,7 +7839,7 @@ void main() {
       // Clothing, an amount by a date, once: September to December is
       // four parts.
       await editCategory(tester, 'Clothing');
-      await pick('plan-dated-yes');
+      await pick('plan-type-bill');
       await type('plan-amount', '600000');
       await type('plan-date', '2026.12.31');
       expect(preview(), '₮600,000 by 12.31 · ₮150,000 a month');
@@ -7936,7 +7937,11 @@ void main() {
       expect(data.budgetAmounts, hasLength(4));
 
       // The note opens Edit at the plan; saving No plan says so, and ⌘Z
-      // brings it back.
+      // brings it back. The toast goes first: it sits over the rows.
+      await tester.pump(const Duration(seconds: 7));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(ValueKey('plan-note-$gifts')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('plan-note-$gifts')));
       await tester.pumpAndSettle();
       // An empty amount is no plan.
@@ -7959,9 +7964,9 @@ void main() {
       await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
       await tester.pumpAndSettle();
       expect(data.plans[groceries]!.spentEach, isTrue);
-      await tester.ensureVisible(find.byKey(const ValueKey('plan-built-up')));
+      await tester.ensureVisible(find.byKey(const ValueKey('plan-type-fund')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('plan-built-up')));
+      await tester.tap(find.byKey(const ValueKey('plan-type-fund')));
       await tester.pumpAndSettle();
       await save();
       await reload();
@@ -7973,9 +7978,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const ValueKey('plan-spent-each')));
+      await tester.ensureVisible(find.byKey(const ValueKey('plan-type-dayToDay')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('plan-spent-each')));
+      await tester.tap(find.byKey(const ValueKey('plan-type-dayToDay')));
       await tester.pumpAndSettle();
       await save();
       await reload();
@@ -8043,7 +8048,7 @@ void main() {
       }
 
       await editCategory(tester, 'Clothing');
-      await pick('plan-dated-yes');
+      await pick('plan-type-bill');
       await type('plan-amount', '300000');
       await type('plan-date', '2026.10.15');
       // Custom… opens the block: every 1 month, on a weekday, ends after
@@ -8154,7 +8159,7 @@ void main() {
       }
 
       await editCategory(tester, 'Tuition');
-      await pick('plan-dated-yes');
+      await pick('plan-type-bill');
       await type('plan-amount', '500000');
       await pick('money-accounts');
       await pick('money-account-$checking');
@@ -8261,7 +8266,7 @@ void main() {
       // Tuition on 01.15, paid from TDB Checking: a scheduled row there,
       // named by its category.
       await editCategory(tester, 'Tuition');
-      await pick('plan-dated-yes');
+      await pick('plan-type-bill');
       await type('plan-amount', '2000000');
       await type('plan-date', '2027.01.15');
       // Opened low in the list, the panel's lower rows can sit under the
@@ -8304,8 +8309,10 @@ void main() {
       expect(data.plans[tuition], isNull);
       expect(bills(), isEmpty);
 
-      // Gifts, a set amount up to a cap.
+      // Gifts, a fund: a set amount up to what it holds at most.
       await editCategory(tester, 'Gifts');
+      await tester.tap(find.byKey(const ValueKey('plan-type-fund')));
+      await tester.pumpAndSettle();
       await type('plan-amount', '50000');
       await type('plan-up-to', '200000');
       await save();
@@ -8979,6 +8986,9 @@ void main() {
       final row = find.byKey(ValueKey('category-$coffee'));
       final edit = find.byKey(ValueKey('category-editor-$coffee'));
       Future<void> doubleClick() async {
+        // Edit, taller with its type cards, can leave the row scrolled away.
+        await tester.ensureVisible(row);
+        await tester.pumpAndSettle();
         await tester.tap(row);
         await tester.pump(const Duration(milliseconds: 60));
         await tester.tap(row);
@@ -8995,7 +9005,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(edit, findsNothing);
       await doubleClick();
-      await tester.tap(find.byKey(const ValueKey('plan-dated-yes')));
+      await tester.tap(find.byKey(const ValueKey('plan-type-bill')));
       await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
@@ -9439,7 +9449,7 @@ void main() {
 
       // Mobicom, a bill each month, set up before it's made.
       await type('edit-name', 'Mobicom');
-      await tap('plan-dated-yes');
+      await tap('plan-type-bill');
       await type('plan-amount', '65000');
       await tap('plan-repeat');
       await tap('plan-repeat-1');
@@ -9504,6 +9514,124 @@ void main() {
       await undo();
       data = await load();
       expect(data.categories.where((c) => c.name == 'Mobicom'), isEmpty);
+      await tidy(tester, db);
+    });
+
+    testWidgets('the New category window opens on four type cards, each '
+        'asking only its own questions (#429)', (tester) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      Future<LedgerData> load() async =>
+          (await tester.runAsync(db.loadLedger))!;
+      Future<void> type(String key, String text) async {
+        await tester.enterText(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(EditableText),
+            matchRoot: true,
+          ),
+          text,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> tap(String key) async {
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(ValueKey(key)));
+        await settle(tester);
+      }
+
+      final tdb = (await load()).balanceSheetAccounts
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+
+      await tap('add-category');
+      expect(find.text('How will this money be spent?'), findsOneWidget);
+      for (final k in ['dayToDay', 'fund', 'bill', 'goal']) {
+        expect(find.byKey(ValueKey('plan-type-$k')), findsOneWidget);
+      }
+      // Day-to-day to begin with; the window asks nothing that Edit keeps
+      // for later.
+      expect(find.text('Set aside each month'), findsOneWidget);
+      expect(find.byKey(const ValueKey('plan-repeat')), findsNothing);
+      expect(find.byKey(const ValueKey('category-note')), findsNothing);
+      expect(find.byKey(const ValueKey('category-group')), findsNothing);
+      expect(find.byKey(const ValueKey('plan-in-month-yes')), findsNothing);
+      expect(find.text('Add to the budget'), findsOneWidget);
+
+      // A fund asks what it holds at most, not what's left at month's end.
+      await type('edit-name', 'Car repairs');
+      await tap('plan-type-fund');
+      await tap('money-accounts');
+      await tap('money-account-$tdb');
+      await type('plan-amount', '100000');
+      expect(find.text('Most it holds'), findsOneWidget);
+      expect(find.byKey(const ValueKey('plan-carry-off')), findsNothing);
+      // With no amount it's still a fund (warn, don't block): its mark
+      // says so, since there's no plan to.
+      await type('plan-amount', '');
+      await tap('new-category-another');
+      var data = await load();
+      final car = data.categories.firstWhere((c) => c.name == 'Car repairs');
+      expect(data.plans[car.id], isNull);
+      expect(data.prefs[BudgetKeys.fund(car.id)], 'yes');
+      expect(isGoal(data, car.id), isFalse);
+
+      // A goal asks for an amount to have ready, once; a bill's starts
+      // every month. Moving between them keeps what's typed.
+      await type('edit-name', 'Christmas');
+      await tap('plan-type-goal');
+      expect(find.text('Amount to have ready'), findsOneWidget);
+      expect(find.text('Ready by'), findsOneWidget);
+      expect(find.text('Once'), findsOneWidget);
+      await type('plan-amount', '7000000');
+      await tap('plan-type-bill');
+      expect(find.text('Amount due'), findsOneWidget);
+      expect(find.text('Every month'), findsOneWidget);
+      await tap('plan-type-goal');
+      expect(find.text('Once'), findsOneWidget);
+      // A goal can repeat (owner, 2026-11-11).
+      await tap('plan-repeat');
+      await tap('plan-repeat-12');
+      await type('plan-date', '11.01');
+      await tap('money-accounts');
+      await tap('money-account-$tdb');
+      await tap('new-category-add');
+      expect(find.byKey(const ValueKey('new-category-add')), findsNothing);
+      data = await load();
+      final christmas = data.categories.firstWhere(
+        (c) => c.name == 'Christmas',
+      );
+      final plan = data.plans[christmas.id]!;
+      expect(plan.kind, PlanKind.byDate);
+      expect(plan.amount, parseAmount('7000000'));
+      expect(plan.everyMonths, 12);
+      expect(isGoal(data, christmas.id), isTrue);
+
+      // A bill's weekend rule isn't How often: a goal picked after it
+      // still starts on Once (code review).
+      await tap('add-category');
+      await type('edit-name', 'Gifts for New Year');
+      await tap('plan-type-bill');
+      await tap('plan-weekend');
+      await tap('plan-weekend-before');
+      await tap('plan-type-goal');
+      expect(find.text('Once'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await settle(tester);
+
+      // Car repairs opens on Fund: its Edit asks what it holds at most
+      // once there's an amount, and nothing about month's end.
+      await tester.ensureVisible(find.text('Car repairs'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Car repairs'));
+      await tester.pump(const Duration(milliseconds: 60));
+      await tester.tap(find.text('Car repairs'));
+      await settle(tester);
+      expect(find.byKey(ValueKey('category-editor-${car.id}')), findsOneWidget);
+      expect(find.byKey(const ValueKey('plan-carry-off')), findsNothing);
       await tidy(tester, db);
     });
 

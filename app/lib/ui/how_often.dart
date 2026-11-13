@@ -403,7 +403,8 @@ class _HowOftenRows extends StatelessWidget {
                   : p.repeat == PlanRepeat.twice && daysLabel != null
                   ? daysLabel!
                   : dateLabel ?? t.planLabelDueDate,
-              tip: p.repeat == PlanRepeat.dates ||
+              tip:
+                  p.repeat == PlanRepeat.dates ||
                       (p.repeat == PlanRepeat.twice && daysLabel != null)
                   ? null
                   : dateTip,
@@ -569,7 +570,9 @@ class _HowOftenRows extends StatelessWidget {
                       ),
                   ],
                 ),
-                aside: p.weekdays.isEmpty ? weekdaysHint ?? t.planWeekdaysHint : null,
+                aside: p.weekdays.isEmpty
+                    ? weekdaysHint ?? t.planWeekdaysHint
+                    : null,
               ),
             if (p.unit == PlanUnit.months || p.unit == PlanUnit.years)
               formRow(

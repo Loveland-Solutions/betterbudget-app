@@ -7,8 +7,9 @@ import 'package:betterbudget/ui/plan_form.dart';
 import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 
-/// Goals on Savings (#101, #102): a once-only "On a date" line marked a
-/// goal, counted by what was put toward it.
+/// Goals on Savings (#101, #102): an "On a date" line marked a goal,
+/// counted by what was put toward it; one that repeats, by what it holds
+/// (#429).
 void main() {
   const checking = 1, wedding = 2, opening = 3;
   var nextId = 100;
@@ -147,20 +148,30 @@ void main() {
     });
   });
 
-  test('only an amount by one date is a goal', () {
-    final repeating = ledger(
-      plan: CategoryPlan(
-        categoryId: wedding,
-        kind: PlanKind.byDate,
-        amount: 1200000,
-        start: DateTime(2026, 9),
-        due: DateTime(2026, 12, 31),
-        everyMonths: 12,
-      ),
+  test('a goal can repeat: shown by what it holds, against its next date '
+      '(#429)', () {
+    final yearly = CategoryPlan(
+      categoryId: wedding,
+      kind: PlanKind.byDate,
+      amount: 1200000,
+      start: DateTime(2026, 9),
+      due: DateTime(2026, 12, 31),
+      everyMonths: 12,
     );
-    expect(isGoal(repeating, wedding), isFalse);
+    final repeating = ledger(
+      plan: yearly,
+      assigned: {9: 300000, 10: 300000},
+    );
+    expect(isGoal(repeating, wedding), isTrue);
     expect(isGoal(ledger(), wedding), isTrue);
     expect(isGoal(ledger(prefs: const {}), wedding), isFalse);
+    final g = goalOn(repeating, DateTime(2026, 10, 16));
+    expect(g.saved, 600000);
+    expect(g.due, DateTime(2026, 12, 31));
+    expect(g.late, isFalse);
+    // Its date gone by: the next one.
+    final next = goalOn(repeating, DateTime(2027, 1, 10));
+    expect(next.due, DateTime(2027, 12, 31));
   });
 
   test('moving the date keeps its day where the month has it', () {

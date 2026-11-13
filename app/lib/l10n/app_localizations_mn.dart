@@ -4639,14 +4639,13 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planStopAt => 'Дээд хэмжээ';
+  String get planStopAt => 'Хуримтлах дээд хэмжээ';
 
   @override
   String get planNoLimit => 'хязгааргүй';
 
   @override
-  String get planStopAtHint =>
-      'Энэ хэмжээнд хүрмэгц төлөвлөгөө нэмж хуваарилахаа болино.';
+  String get planStopAtHint => 'Энэ хэмжээнд хүрэхэд цааш хуваарилахаа болино.';
 
   @override
   String get planAmountDue => 'Төлөх дүн';
@@ -6907,13 +6906,64 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planGoalQ => 'Хуримтлал хуудсанд зорилго болгон харуулах уу?';
+  String get planTypeQ => 'Энэ мөнгийг хэрхэн зарцуулах вэ?';
 
   @override
-  String get planGoalYesMeans => 'Хуримтлал хуудас хэр явсныг харуулна.';
+  String get planTypeDay => 'Өдөр тутмын зардал';
 
   @override
-  String get planGoalNoMeans => 'Зөвхөн энд, жишээ нь төрсөн өдрийн бэлэг.';
+  String get planTypeDayMeans => 'Сар бүр бага багаар зарцуулна.';
+
+  @override
+  String get planTypeDayMeansPay => 'Орлогын үе бүрт бага багаар зарцуулна.';
+
+  @override
+  String get planTypeDayFor => 'Хүнс, шатахуун';
+
+  @override
+  String get planTypeFund => 'Сан';
+
+  @override
+  String get planTypeFundMeans =>
+      'Сар бүр бага багаар хуримтлуулж, хэрэг гарахад зарцуулна.';
+
+  @override
+  String get planTypeFundMeansPay =>
+      'Орлогын үе бүрт бага багаар хуримтлуулж, хэрэг гарахад зарцуулна.';
+
+  @override
+  String get planTypeFundFor => 'Машины засвар, эмч';
+
+  @override
+  String get planTypeBill => 'Төлбөр';
+
+  @override
+  String get planTypeBillMeans => 'Тогтсон өдөр хэн нэгэнд нэг дор төлнө.';
+
+  @override
+  String get planTypeBillFor => 'Түрээс, даатгал, сургалтын төлбөр';
+
+  @override
+  String get planTypeGoal => 'Зорилго';
+
+  @override
+  String get planTypeGoalMeans =>
+      'Тодорхой өдөр гэхэд хуримтлуулаад, дараа нь өөрөө зарцуулна.';
+
+  @override
+  String get planTypeGoalFor => 'Зөөврийн компьютер, жил бүрийн Шинэ жил';
+
+  @override
+  String get planAmountReady => 'Бэлэн байх дүн';
+
+  @override
+  String get planReadyBy => 'Бэлэн болох өдөр';
+
+  @override
+  String get planAddToBudget => 'Төсөвт нэмэх';
+
+  @override
+  String get planAddThenAnother => 'Нэмээд, дараагийнхыг эхлүүлэх';
 
   @override
   String get goalEnterDate => 'Хэзээ гэхэд хэрэгтэйг оруулна уу';

@@ -16,8 +16,10 @@ typedef _CategoryEdit = ({
   CategoryPlan? plan,
   // Counts in Savings' month of expenses ([inMonthOfExpenses]).
   bool inMonth,
-  // Shown on Savings as a goal ([isGoal]): an amount by one date only.
+  // Shown on Savings as a goal ([isGoal]): an amount by a date.
   bool goal,
+  // Picked as a Fund with no amount set ([BudgetKeys.fund], #429).
+  bool fund,
   // Its group on the Budget page and its note (#100): null for none.
   String? group,
   String? note,
@@ -4628,12 +4630,67 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           widget.data.prefs[ReadyKeys.goal(widget.category.id)] == 'yes');
   set _goal(bool on) => _d.goal = on;
 
-  /// Only an amount by one date can be a goal (#101): not a bill that
-  /// comes again, and not the Safety net.
-  bool get _asksGoal =>
-      _p.hasDate &&
-      _p.repeat == PlanRepeat.once &&
-      !isSafetyNet(widget.category);
+  /// A goal: an amount by a date, once or repeating (owner, 2026-11-11),
+  /// picked as the Goal card. Never the Safety net.
+  bool get _isGoal => _p.hasDate && _goal && !isSafetyNet(widget.category);
+
+  /// The type its answers make (#429): no type is stored, so a category
+  /// opens on the card its plan already is.
+  _CategoryType get _type => _p.hasDate
+      ? (_isGoal ? _CategoryType.goal : _CategoryType.bill)
+      : _p.spentEach
+      ? _CategoryType.dayToDay
+      : _CategoryType.fund;
+
+  /// The type cards head the form; not the Safety net's, which is built
+  /// into the app as money put by and is no type to choose.
+  bool get _asksType => !isSafetyNet(widget.category);
+
+  /// How often as the window last set it for a type: while it's still
+  /// that, How often wasn't picked, and another type can set its own. Any
+  /// other answer in the block (the weekend rule, Ends) leaves it so.
+  Object? _repeatSet = (PlanRepeat.once, false, '1', PlanUnit.months);
+  Object get _repeatNow => (_p.repeat, _p.custom, _p.everyN.text, _p.unit);
+
+  /// A day-to-day category with a cap had one when Edit opened: the row
+  /// stays while it's typed in, emptied or not (code review).
+  bool _capWas = false;
+
+  /// A type card picked: the answers it stands for. Nothing else typed
+  /// goes; an amount, a date and Paid from stay for another card.
+  void _pickType(_CategoryType type) {
+    final dated = type == _CategoryType.bill || type == _CategoryType.goal;
+    final was = _p.hasDate;
+    setState(() {
+      _p.hasDate = dated;
+      if (!dated) _p.spentEach = type == _CategoryType.dayToDay;
+      if (dated) _goal = type == _CategoryType.goal;
+      // A new one's How often starts where its type usually is: a bill
+      // every month, a goal once. Until How often is picked.
+      if (widget.isNew && _repeatNow == _repeatSet) {
+        if (type == _CategoryType.bill) _p.preset(1, PlanUnit.months);
+        if (type == _CategoryType.goal) {
+          _p.repeat = PlanRepeat.once;
+          _p.custom = false;
+        }
+        _repeatSet = _repeatNow;
+      }
+      _tried = false;
+    });
+    if (was != dated) {
+      _p.amount.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _p.amount.text.length,
+      );
+    }
+    // From the name, the cursor stays to finish typing it; otherwise it
+    // goes to the type's first question.
+    if (!_nameFocus.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _amountFocus.requestFocus();
+      });
+    }
+  }
 
   /// Savings' month of expenses can leave it out: not the Safety net,
   /// which is never in it.
@@ -4729,7 +4786,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     if (_d.filled && onceWas != _p.onceStart) _p.showOnce(saved);
     // Kept from before the page was left: the answers are already in.
     if (!_d.filled) _showPlan(_savedPlan);
+    // A fund with no amount yet has no plan to say so: its mark does.
+    if (!_d.filled &&
+        saved == null &&
+        widget.data.prefs[BudgetKeys.fund(widget.category.id)] == 'yes') {
+      _p.spentEach = false;
+    }
     _d.filled = true;
+    _capWas = _p.upTo.text.trim().isNotEmpty;
     final atPlan = widget.atPlan;
     final first = atPlan ? _p.amount : _name;
     first.selection = TextSelection(
@@ -4811,20 +4875,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     builtUp: isSafetyNet(widget.category),
   );
 
-  void _pickDated(bool yes) {
-    setState(() {
-      _p.hasDate = yes;
-      _tried = false;
-    });
-    _p.amount.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: _p.amount.text.length,
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _amountFocus.requestFocus();
-    });
-  }
-
   /// The plan as typed. Null with a kind picked means something is missing.
   CategoryPlan? get _draft => _p.draft(
     categoryId: widget.category.id,
@@ -4832,7 +4882,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     old: _plan,
     // A goal counts from where it began (#101): a new amount or date
     // keeps the deposit already paid from it saved toward it.
-    keepOnceStart: _asksGoal && _goal,
+    keepOnceStart: _isGoal,
   );
 
   Future<void> _save({bool another = false}) async {
@@ -4859,8 +4909,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               ? (_p.missing == PlanMissing.once ? _onceFocus : _upToFocus)
               : _p.repeat == PlanRepeat.dates
               ? _datesFocus
-              : _p.repeat == PlanRepeat.twice &&
-                    _p.missing != PlanMissing.date
+              : _p.repeat == PlanRepeat.twice && _p.missing != PlanMissing.date
               ? _day1Focus
               : _dateFocus)
           .requestFocus();
@@ -4873,7 +4922,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       paidFrom: _paidFrom,
       plan: draft,
       inMonth: _inMonth,
-      goal: _asksGoal && _goal,
+      goal: _isGoal,
+      fund: _asksType && _type == _CategoryType.fund && draft == null,
       group: _groupNow,
       note: _d.note.text.trim().isEmpty ? null : _d.note.text.trim(),
     );
@@ -4908,9 +4958,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     final wrongDate =
         _tried &&
         _p.hasDate &&
-        (_p.repeat == PlanRepeat.twice
-            ? _p.wrongStart
-            : _p.typedDate == null);
+        (_p.repeat == PlanRepeat.twice ? _p.wrongStart : _p.typedDate == null);
     final wrongUpTo = _tried && !_p.hasDate && _p.wrongUpTo;
     final data = widget.data;
     final paidAccount = data.accounts[_paidFromNow];
@@ -5010,23 +5058,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         : due.year == widget.today.year
         ? sayDate(t, due)
         : sayFullDate(t, due);
+    // The type cards ask what "Is there a due date?", "This money is" and
+    // "Show on Savings as a goal?" asked, in one go (#429). Each type gets
+    // only its own questions.
+    final type = _type;
+    final fund = _asksType && type == _CategoryType.fund;
     return [
-      _formRow(
-        t.planDueDateQ,
-        _Segmented(
-          items: [
-            ('plan-dated-no', t.planNo, !_p.hasDate, () => _pickDated(false)),
-            ('plan-dated-yes', t.planYes, _p.hasDate, () => _pickDated(true)),
-          ],
-        ),
-        // What the answer picked means, in one example (owner, 2026-10-05:
-        // "What happens if there isn't a due date?").
-        aside: _p.hasDate
-            ? t.planDueYesMeans
-            : byPay
-            ? t.planDueNoMeansPay
-            : t.planDueNoMeans,
-      ),
       if (!_p.hasDate) ...[
         _formRow(
           eachLabel,
@@ -5087,46 +5124,54 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         ...[
           // Whether the money goes out within its period: the one fact
           // the forecast was missing, which the carry-over answer below
-          // doesn't carry (#404).
-          _formRow(
-            t.planMoneyIs,
-            _Segmented(
-              items: [
-                (
-                  'plan-spent-each',
-                  byPay ? t.planSpentEachPay : t.planSpentEachMonth,
-                  _p.spentEach,
-                  () => setState(() => _p.spentEach = true),
-                ),
-                (
-                  'plan-built-up',
-                  t.planBuiltUp,
-                  !_p.spentEach,
-                  () => setState(() => _p.spentEach = false),
-                ),
-              ],
+          // doesn't carry (#404). The cards ask it, as Day-to-day or
+          // Fund; the Safety net, which has none, asks it here.
+          if (!_asksType)
+            _formRow(
+              t.planMoneyIs,
+              _Segmented(
+                items: [
+                  (
+                    'plan-spent-each',
+                    byPay ? t.planSpentEachPay : t.planSpentEachMonth,
+                    _p.spentEach,
+                    () => setState(() => _p.spentEach = true),
+                  ),
+                  (
+                    'plan-built-up',
+                    t.planBuiltUp,
+                    !_p.spentEach,
+                    () => setState(() => _p.spentEach = false),
+                  ),
+                ],
+              ),
             ),
-          ),
-          _formRow(
-            byPay ? t.planLeftPeriodEnd : t.planLeftMonthEnd,
-            _Segmented(
-              items: [
-                (
-                  'plan-carry-on',
-                  t.planStaysHere,
-                  _p.rollover,
-                  () => setState(() => _p.rollover = true),
-                ),
-                (
-                  'plan-carry-off',
-                  t.planGoesBack,
-                  !_p.rollover,
-                  () => setState(() => _p.rollover = false),
-                ),
-              ],
+          // A fund keeps what's left: the question is a day-to-day
+          // category's, and a fund's only while it says otherwise.
+          if (!fund || !_p.rollover)
+            _formRow(
+              byPay ? t.planLeftPeriodEnd : t.planLeftMonthEnd,
+              _Segmented(
+                items: [
+                  (
+                    'plan-carry-on',
+                    t.planStaysHere,
+                    _p.rollover,
+                    () => setState(() => _p.rollover = true),
+                  ),
+                  (
+                    'plan-carry-off',
+                    t.planGoesBack,
+                    !_p.rollover,
+                    () => setState(() => _p.rollover = false),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (_p.rollover && hasAmount)
+          // What a fund holds at most. A day-to-day category is spent each
+          // month, so it isn't asked, but one that has a cap keeps it in
+          // view.
+          if (_p.rollover && hasAmount && (fund || !_asksType || _capWas))
             _formRow(
               t.planStopAt,
               amountField(
@@ -5164,7 +5209,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         ),
       ] else ...[
         _formRow(
-          t.planAmountDue,
+          // Nothing is owed on a goal: it's an amount to have ready.
+          type == _CategoryType.goal ? t.planAmountReady : t.planAmountDue,
           amountField(
             _p.amount,
             _amountFocus,
@@ -5182,6 +5228,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           menus: _menus,
           onSave: _save,
           onChanged: () => setState(() {}),
+          dateLabel: type == _CategoryType.goal ? t.planReadyBy : null,
           dateFocus: _dateFocus,
           datesFocus: _datesFocus,
           day1Focus: _day1Focus,
@@ -5400,17 +5447,6 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         decoration: _fieldDecoration(),
       ),
     ),
-  );
-
-  Widget _goalRow(Words t) => _formRow(
-    t.planGoalQ,
-    _Segmented(
-      items: [
-        ('plan-goal-no', t.planNo, !_goal, () => setState(() => _goal = false)),
-        ('plan-goal-yes', t.planYes, _goal, () => setState(() => _goal = true)),
-      ],
-    ),
-    aside: _goal ? t.planGoalYesMeans : t.planGoalNoMeans,
   );
 
   Widget _inMonthRow(Words t) => _formRow(
@@ -5682,6 +5718,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         // The repeat rows grow it too: Custom…, its unit, Ends.
         final shape = Object.hash(
           _p.hasDate,
+          _type,
           _p.kind,
           accounts.length,
           preview != null,
@@ -5714,6 +5751,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         final nameNoteColor = taken == null || taken.blocks
             ? Mid.coral
             : Mid.ink2;
+
+        final cards = _asksType
+            ? _TypeCards(
+                type: _type,
+                byPay: _p.eachPayId != null,
+                onPick: _pickType,
+              )
+            : null;
 
         Widget warning(String text, String key, Color color) => Padding(
           padding: const EdgeInsets.only(top: 10),
@@ -5774,6 +5819,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // In the window, the type comes first: it's
+                            // the window's one question (sketch A, #429).
+                            if (cards != null && widget.isNew) ...[
+                              cards,
+                              const SizedBox(height: 20),
+                            ],
                             // The name is the heading; the currency sits
                             // quiet beside it, set once.
                             Row(
@@ -5835,14 +5886,22 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                 ),
                               ),
                             const SizedBox(height: 22),
+                            // In Edit, under the name it heads.
+                            if (cards != null && !widget.isNew) ...[
+                              cards,
+                              const SizedBox(height: 22),
+                            ],
                             ..._planFields(t, line: line, draft: draft),
-                            if (_asksGoal) _goalRow(t),
-                            if (_asksInMonth) _inMonthRow(t),
+                            // Kept for Edit: the window asks only what
+                            // makes the category its type (#429).
+                            if (_asksInMonth && !widget.isNew) _inMonthRow(t),
                             // A bill sits under Bills and the Safety net
                             // under Saved, whatever group they'd have.
-                            if (!_p.hasDate && !isSafetyNet(widget.category))
+                            if (!_p.hasDate &&
+                                !isSafetyNet(widget.category) &&
+                                !widget.isNew)
                               _groupRow(t),
-                            _noteRow(t),
+                            if (!widget.isNew) _noteRow(t),
                             // The row, as it will read after Save.
                             const SizedBox(height: 6),
                             Text(
@@ -5988,13 +6047,14 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                 waitDuration: const Duration(milliseconds: 600),
                                 child: BarButton(
                                   key: const ValueKey('new-category-another'),
-                                  label: t.planAddAnother,
+                                  label: t.planAddThenAnother,
                                   onTap: () => _save(another: true),
                                 ),
                               ),
+                            // The whole act (owner, 2026-11-11).
                             _PrimaryButton(
                               key: const ValueKey('new-category-add'),
-                              label: t.planAdd,
+                              label: t.planAddToBudget,
                               icon: Icons.add_rounded,
                               tooltip: 'Enter',
                               onTap: _save,

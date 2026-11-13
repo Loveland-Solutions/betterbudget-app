@@ -12,20 +12,20 @@ not for reading unless the owner asks.
 
 ## Next step
 
-The owner's to choose (2026-11-13): whether 0.88.1 goes to all three stores, and which
-Beta feature comes next. Offered: the New category window, less busy, with the four
-kinds named (#429 with #426, recommended); bills on the Budget page one line each
-(#365); the Budget page's tabs reading as tabs, with Add other regular income beside
-the incomes (#435 with #436). The Mongolian of everything since #90's last pass is a
-draft until Tanan checks it (#90).
+The New category window opens on four type cards, Day-to-day, Fund, Bill and Goal
+(#429, sketch A, 0.89.0): the owner tries it in the app. Asked and not answered: whether
+the phone's New category page gets the same cards. Next Beta features offered: bills on
+the Budget page one line each (#365); the Budget page's tabs reading as tabs, with Add
+other regular income beside the incomes (#435 with #436). The Mongolian of everything
+since #90's last pass is a draft until Tanan checks it (#90).
 
 ## In the stores
 
 | Store | Has | Waiting |
 | --- | --- | --- |
-| Google Play (`mn.lls.betterbudget`) | 0.71.0 (591) on Internal testing, alpha and production, 2026-11-03 | The phone has changed since: amounts group as typed in New category (0.74.0), the phone's Budget in green, gray and coral (0.87.0), a twice-a-month bill's Starts (0.88.0) |
-| Microsoft Store (`9NH3HJNFJN4G`) | 0.71.0, published | — |
-| Mac App Store, "The BetterBudget" | 0.72.1 (598), live since Apple passed it (found 2026-11-13); free in 174 countries | The EU's 27 until the owner gives the Digital Services Act trader details (#375), which the EU shows publicly |
+| Google Play (`mn.lls.betterbudget`) | 0.88.1 (679) on Internal testing; alpha and production sent to Google's review 2026-11-13 | — |
+| Microsoft Store (`9NH3HJNFJN4G`) | 0.71.0, published | 0.88.1 in certification (2026-11-13), then the owner's Publish now |
+| Mac App Store, "The BetterBudget" | 0.72.1 (598), live; free in 174 countries | 0.88.1 (679) uploaded 2026-11-13: the owner adds version 0.88.1 with build 679 and submits it for review. The EU's 27 until the owner gives the Digital Services Act trader details (#375), which the EU shows publicly |
 | iPhone App Store, same record | Nothing yet; TestFlight has 0.73.1 (604) | 0.73.1 in Apple's review, resubmitted 2026-11-12 with a screen recording and answers in its Review Notes, after a Guideline 2.1 "information needed" rejection. A check with Google Drive on a real iPhone is on #114 |
 
 Listings lead with building wealth (ADR 0004); Play's and the Microsoft Store's follow
@@ -92,7 +92,7 @@ re-ask; bring one up when its screen comes up again.
 | Reconcile | Takes the balances' place: Statement date, Bank balance, Cleared here and Off by, with a hint at the likely row. When they differ, "Add ₮… to the balance and lock"; when they match, Lock N transactions. The database refuses changes to locked rows |
 | Budget | Spending and Income tabs; period arrows and Back to today; the title picks Month or an income's pay periods. The key: Cash & bank, In categories, Overspent, Not assigned (green), "Assigned too much", Assign what's planned, Clear September's Assigned. The income card sets the period's plans against its income. Each category reads Assigned · Spent · Left; Left is green, gray at zero, coral when short, and **Move money** moves it. A ring before the name shows how used up it is. Everyday categories, then the person's groups, then **Bills** ("paid 10.20", or Skip this bill), then **Saved**; a **Total** row; each currency on its own |
 | Budget: Saved | The built-in Safety net, listed last under "Saved"; its money builds up. Renamed and edited, not deleted or archived. Made the first time a ledger past setup opens without one |
-| Categories | Add category and "New category" in the entry row open the same window, with Add another. Edit opens under the row: "Is there a due date?" Yes: Amount due, How often (Twice a month with Starts, Every payday, Custom…, On these dates…), Ends. No: an amount each month or pay period, Just for September, "This money is spent each month / built up for something later", what's left at month's end, Up to. Also one **Paid from**, Currency, Group, Note, In a month of expenses?, Show on Savings as a goal?. Archive, Delete…. One built-in Income |
+| Categories | Add category and "New category" in the entry row open the same window, with Add, then start another. It and Edit open on four type cards with pictures (#429): **Day-to-day** (an amount each month or pay period, Just for September, what's left at month's end), **Fund** (an amount each period, Most it holds), **Bill** (Amount due, How often: Twice a month with Starts, Every payday, Custom…, On these dates…; Ends), **Goal** (Amount to have ready, Ready by, once or repeating, shown on Savings). Also one **Paid from**, Currency; in Edit, Group, Note, In a month of expenses?, Archive, Delete…. The type isn't stored: it comes from the plan. One built-in Income |
 | Regular income | On the Income tab: a name, who it's from, Paid into, the amount (About the same each time, or It varies), How often as a category's or No set day, the first payday, a weekend rule, Ends, each with an ⓘ. "I don't have regular income". "Stop counting on this income" asks what its categories go by from then |
 | Savings | The owner's four steps with their pictures: Build a safety net (a month of expenses from the budget; what's Left in the Safety net), Eliminate debt (each card and loan's rate, interest and payment; Smallest first or Highest rate first, with when each pays it all off), Build three to six months of savings, Save for the future. Each is done, current, later or skipped for now. Goals under the steps: what for, how much, by when; on track or behind, and what each asks a month. One currency |
 | Payees | Every payee the app remembers a category for, a line each that reads as a sentence ("starts with «Unitel»"), its accounts, its category, Delete. A click or Add a payee opens its Edit in place: the words, where to look, Accounts, Category, how many rows it fits, one drawn as it will read. Save offers to file this period's rows in Not categorized; rows in a category are never moved. On import the longest words win, then the later-made |

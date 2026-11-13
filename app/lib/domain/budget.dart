@@ -31,6 +31,11 @@ abstract final class BudgetKeys {
   /// '1' once the first-month offer was answered with "Keep".
   static const keptStart = 'budget.keptStart';
 
+  /// 'yes': a category picked as a Fund with no amount set (#429). With no
+  /// plan to say its money is built up, this keeps it on the Fund card;
+  /// it changes no figure.
+  static String fund(int categoryId) => 'budget.fund.$categoryId';
+
   /// Prefix, then a spending category's id: `YYYY-MM-DD`, the day its
   /// spending counts from when that's later than [began]. Set when its
   /// currency is changed, to the start of that period: what was paid in

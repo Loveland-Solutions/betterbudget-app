@@ -396,6 +396,7 @@ class _GoalPanelState extends State<_GoalPanel> {
       // safety net look too small. Its Edit can put it back.
       inMonth: false,
       goal: true,
+      fund: false,
       group: null,
       note: null,
     ));

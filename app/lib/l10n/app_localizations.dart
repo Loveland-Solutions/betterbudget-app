@@ -6796,10 +6796,10 @@ abstract class Words {
   /// **'It sits in {account} until a bill or a row spends it, so the forecast leaves it there.'**
   String planPaidFromSaveHint(String account);
 
-  /// Budget page, Edit under a category's row: label of the optional cap on a category that carries over
+  /// Budget page, Edit under a category's row: label of the optional cap on a category that carries over: what a fund holds at most
   ///
   /// In en, this message translates to:
-  /// **'Up to'**
+  /// **'Most it holds'**
   String get planStopAt;
 
   /// Budget page, Edit under a category's row: grey hint inside the empty cap field
@@ -6811,7 +6811,7 @@ abstract class Words {
   /// Budget page, Edit under a category's row: note beside the cap
   ///
   /// In en, this message translates to:
-  /// **'Once it holds this much, the plan stops adding to it.'**
+  /// **'When it holds this much, nothing more is set aside.'**
   String get planStopAtHint;
 
   /// Budget page, Edit under a category's row (Yes): label of the amount field
@@ -9924,23 +9924,119 @@ abstract class Words {
   /// **'{amount} a month now goes to your goals. If it comes out of the extra, these dates come later.'**
   String goalsFromExtraMany(String amount);
 
-  /// Budget page, Edit: for an amount by one date; No and Yes beside it
+  /// New category window and a category's Edit: heading over the four type cards (#429)
   ///
   /// In en, this message translates to:
-  /// **'Show on Savings as a goal?'**
-  String get planGoalQ;
+  /// **'How will this money be spent?'**
+  String get planTypeQ;
 
-  /// Budget page, Edit: note beside Show on Savings as a goal? while Yes is picked
+  /// Type card: a category spent a little at a time each month (groceries, fuel). Same word as the forecast's chip
   ///
   /// In en, this message translates to:
-  /// **'Savings shows how far along it is.'**
-  String get planGoalYesMeans;
+  /// **'Day-to-day'**
+  String get planTypeDay;
 
-  /// Budget page, Edit: note beside Show on Savings as a goal? while No is picked
+  /// Day-to-day card, under its name, when the category is set aside by month
   ///
   /// In en, this message translates to:
-  /// **'Only here, like a birthday present.'**
-  String get planGoalNoMeans;
+  /// **'You spend it a little at a time, every month.'**
+  String get planTypeDayMeans;
+
+  /// Day-to-day card, under its name, when the category is set aside by pay period
+  ///
+  /// In en, this message translates to:
+  /// **'You spend it a little at a time, every pay period.'**
+  String get planTypeDayMeansPay;
+
+  /// Day-to-day card: examples, under what it means
+  ///
+  /// In en, this message translates to:
+  /// **'Groceries, fuel'**
+  String get planTypeDayFor;
+
+  /// Type card: money saved a little each month, with no date, and spent when something comes up (car repairs)
+  ///
+  /// In en, this message translates to:
+  /// **'Fund'**
+  String get planTypeFund;
+
+  /// Fund card, under its name, by month
+  ///
+  /// In en, this message translates to:
+  /// **'You save a little each month and spend it when something comes up.'**
+  String get planTypeFundMeans;
+
+  /// Fund card, under its name, by pay period
+  ///
+  /// In en, this message translates to:
+  /// **'You save a little each pay period and spend it when something comes up.'**
+  String get planTypeFundMeansPay;
+
+  /// Fund card: examples
+  ///
+  /// In en, this message translates to:
+  /// **'Car repairs, the doctor'**
+  String get planTypeFundFor;
+
+  /// Type card: an amount paid to someone else, all at once, on a set date (rent)
+  ///
+  /// In en, this message translates to:
+  /// **'Bill'**
+  String get planTypeBill;
+
+  /// Bill card, under its name
+  ///
+  /// In en, this message translates to:
+  /// **'You pay it to someone all at once, on a set date.'**
+  String get planTypeBillMeans;
+
+  /// Bill card: examples
+  ///
+  /// In en, this message translates to:
+  /// **'Rent, insurance, school fees'**
+  String get planTypeBillFor;
+
+  /// Type card: the household's own money, wanted ready by a date and then spent by the household; once or every year
+  ///
+  /// In en, this message translates to:
+  /// **'Goal'**
+  String get planTypeGoal;
+
+  /// Goal card, under its name
+  ///
+  /// In en, this message translates to:
+  /// **'You save it up by a date, then spend it yourself.'**
+  String get planTypeGoalMeans;
+
+  /// Goal card: examples
+  ///
+  /// In en, this message translates to:
+  /// **'A laptop, Christmas every year'**
+  String get planTypeGoalFor;
+
+  /// A goal's form: label of its amount (a bill's is Amount due; nothing is owed on a goal)
+  ///
+  /// In en, this message translates to:
+  /// **'Amount to have ready'**
+  String get planAmountReady;
+
+  /// A goal's form: label of its date (a bill's is Due)
+  ///
+  /// In en, this message translates to:
+  /// **'Ready by'**
+  String get planReadyBy;
+
+  /// New category window: the button that makes the category
+  ///
+  /// In en, this message translates to:
+  /// **'Add to the budget'**
+  String get planAddToBudget;
+
+  /// New category window: makes the category and empties the window for the next one
+  ///
+  /// In en, this message translates to:
+  /// **'Add, then start another'**
+  String get planAddThenAnother;
 
   /// New goal panel: under By when? when Add is pressed with no date that reads
   ///
