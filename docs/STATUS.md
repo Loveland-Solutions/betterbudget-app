@@ -5,798 +5,111 @@
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
 git, the PRs and [ADR 0004](decisions/0004-ledger-ui.md) hold the history. When a PR
-merges, rewrite "Next step" and correct the tables; don't add a dated block. Keep it
-under about 20,000 characters. Everything this file said up to 2026-10-07 is in
-`docs/archive/STATUS-2026-10-07.md`, which is not for reading unless the owner asks.
+merges, rewrite "Next step", "In the stores" and the table; don't add a block about the
+feature. Keep it under about 20,000 characters. What this file said before is in
+`docs/archive/STATUS-2026-10-07.md` and `docs/archive/STATUS-2026-11-13.md`, which are
+not for reading unless the owner asks.
 
 ## Next step
 
-**On Play: 0.71.0 (591) on every track, 2026-11-03.** Internal testing; alpha (closed
-testing); and production at full rollout, sent to Google's review that day. It changes nothing on the phone. Play's App
-access check ("Missing sign in details") is answered: Sign in details holds the demo key
-(`DEMO-DEMO-DEMO-DEMO-DEMO`, #303; ADR 0005 "A demo key for Play's review"), which opens
-the phone on made-up figures. The upload key may release to production too; a release
-there is still the owner's say each time.
-
-**Microsoft Store:** 0.71.0 sent 2026-11-03 over a published 0.70.0, set to publish by itself when
-it passes (the owner asked me to publish it; `msstore` has no Publish now). `release_store.sh` now deletes a waiting submission rather
-than stopping; 0.66.3, passed and waiting for Publish now, and then 0.69.0 went that way.
-
-**Mac App Store (#108): live.** macOS 0.72.1 (598) passed Apple's review and is on sale
-(found 2026-11-13), free, as **"The BetterBudget"** ("BetterBudget" was taken; the app is
-still BetterBudget on the device), one record for macOS and iOS, seller "Loveland
-Solutions". It is in 174 countries; the EU's 27 can't get it until the owner gives the
-Digital Services Act trader details (#375), which the EU shows publicly. Main is far ahead
-of 0.72.1; the next upload is the owner's say. The listing leads with building wealth (ADR
-0004 "A store listing leads with building wealth"). The build's encryption answer is asked
-again for each upload. The paid team "Loveland Solutions, LLC" (`44H5SLX8KR`) signs the
-Mac and iPhone apps.
-
-**iPhone (#114):** iOS 0.73.1 was rejected on 2026-11-05 (Guideline 2.1, information
-needed, no defect named): Apple wanted a screen recording from a physical iPhone plus
-answers in the Review Notes. Both are in the version's Review Notes (answers by the API
-2026-11-07; the recording, made on the owner's son's iPhone from TestFlight, linked from
-Google Drive 2026-11-12), and 0.73.1 (build 604) was resubmitted 2026-11-12: waiting for
-Apple. The son is an internal TestFlight tester (a Developer on the team, in the internal
-"Family" group). The iPhone app waits on #112 and a check with Google Drive on his iPhone.
-
-`tool/release_mac.sh` and `tool/release_ios.sh` build, check and upload, signing by
-the team's App Store Connect API key in `~/.config/betterbudget/` (0.73.2, #380):
-Xcode 27.2's command line can't use Xcode's sign-in. The listing, the privacy label and
-Apple's encryption question are filled in App Store Connect.
-
-**The top of the Mac window acts as its title bar** (0.88.1, #428): a double-click on the
-thin strip by the three buttons, or on the page's top row where nothing is clickable (the
-logo, the space beside an account's name), does what System Settings → Desktop & Dock says
-(fill, zoom or minimize), and a drag there moves the window. Buttons, the name and menus
-keep their clicks; a dialog or menu over the top row isn't title bar
-(`ui/window_title_area.dart`, `MainFlutterWindow.swift`).
-
-**A bill twice a month can start later** (0.88.0, #356; ADR 0004 "A bill twice a month",
-its last point): a **Starts** row under the two days, on the computer and the phone, reads
-**This month** while empty, which keeps the old rule. A date there makes the first bill the
-first of the two days on or after it, so a bill added on 11.20 for 12.01 has nothing
-overdue in November; a start that puts bills before today says how many and what they
-come to. Regular income's twice a month has none. No schema change: the start is
-the bill's first date. The phone needs a new upload to Play to show it.
-
-**Setup's Pay step has a card beside it** (0.84.0, #323; ADR 0004 "Setup's Pay step has a
-card beside the form"): owner's sketch A, a Forecast line and a Budget line in the person's
-own figures once an amount is typed; the "Next payday" line is dropped on that page; Budget's
-button reads **Add regular income**. The computer only. #325's other wording is not changed
-yet.
-
-**The Budget page has more green** (0.87.0, #327; ADR 0004 "Green on the Budget page"):
-Not assigned is green while there is money to give out; the Income tab's amount and the
-income card's Income figure are green; Still to spend is green on that card, figure and
-bar, and Saved beside it is a paler green. Overspent was already coral. The
-phone's Budget follows (owner, 2026-11-12): each category's amount left is green with
-money, gray at ₮0, coral when short, a bill's lighter. No schema change. The phone needs
-a new upload to Play to show it.
-
-**The pay form explains each field** (0.86.0, #325; ADR 0004 "The pay form explains each
-field, and its words"): an ⓘ after each label on the Pay step and in the Pay window (Name,
-Paid into, From, The amount is, the amount, How often, First payday, the weekend rule, Ends)
-says what the field expects; it opens on hover, a click or Tab (`_InfoTip` in
-`ui/pay_setup.dart`). A line under the amount says to type what is actually deposited, after
-tax. About twenty lines were reworded: "scheduling" is now **counting on** an income, and the
-twice-a-month pair is **Both paydays bring the same amount · The two paydays bring different
-amounts**. The computer only; no schema change. The Mongolian is a draft until Tanan checks it
-(#90; the sheet marks the new and changed rows).
-
-**Income repeats as many ways as a category** (0.85.0, #438; ADR 0004 "Income repeats as many
-ways as a category"; schema v26): the income form's **How often** is the category's own
-widget (`_HowOftenRows` in `ui/how_often.dart`): every week, every N weeks, months, years,
-twice a month, on dates, Custom… (weekdays, the nth weekday), and Ends; **No set day** is
-there for a new income. Monthly, twice a month and every N weeks (no end) keep their own rule
-and columns, so no saved income moved; anything else is `PayRule.custom` (`PayRepeat`),
-dated by `Budget.dueAfter`. An income that ends has no payday after its last (`payNever`).
-The computer only. Not yet: custom incomes' lines name only the unit ("every 2 weeks"), not
-the weekdays or the nth weekday.
-
-**The header stands forward** (0.83.0, #421; ADR 0004 "The header stands forward:
-Working first, a live chart"): owner's sketch D. Working is first and largest with
-Cleared and Uncleared under it; the line starts at a lit dot beside it; the key is chips
-with a sample of each mark (**Money out · Day-to-day · Money in**) that light
-their part of the chart when pointed at; "Lowest" names the dip; moving over the chart
-reads any day's date and balance, and a bill's card shows within 24 px of it; the chosen
-range is filled blue; the card is lifted off the page. The computer only. No schema
-change. The Mongolian for "Lowest" and "Day-to-day" waits on Tanan (#90).
-
-**Next:** nothing waits on the phone. #404 and #398 are built (0.82.0; ADR 0004
-"Groceries reach the forecast, and the chart shows them"). The forecast now takes out
-what the budget plans to spend whatever happens to a category's leftovers: a category's
-Edit asks, under the amount, whether **This money is · Spent each month | Built up for
-something later** (`CategoryPlan.spentEach`, schema v25), defaulting to spent, and the
-forecast reads that instead of **What's left at month's end**, which was never about
-whether the money goes out. The v25 upgrade works the answer out once from what's stored
-— spent each period, except the Safety net — and
-every plan keeps its amount, dates, carry-over answer and cap. The phone doesn't ask; one
-it makes is spent each period. On the card, the chart draws dashed where the line would
-run with only the dated rows and shades the band between the two, which is the whole of
-the budget's spending, widening as the month goes on; the key line names it as its own
-part, `Money out −₮2,790,200 · To spend −₮948,387 · Money in +₮2,500,000`, with no tick on
-the rail because it has no date; the ⓘ gains one sentence while there is a band to see.
-The computer only. **#398 is built** (0.83.3): the bill list's **Balance after** has a **Day-to-day −₮480,000** line between bills, so each balance follows from the one above. A card's own sentence still doesn't name it. **#363's leftovers are built** (0.83.4; ADR 0004 "Skip a bill": a payment past a skipped date, a past month's waiting bill, a card's "balance is still owed"); its two two-computer cases are built too (0.83.5): a skip beats a row the other computer scheduled, and a category made on both keeps its skips. **#389 is built** (0.83.2): a row added while a filter tab
-won't list it says "not in this view" in its toast, as it does for a search.
-
-**The forecast's chart does the talking** (0.78.0, #392; ADR 0004 of the same name): the
-card's picture used to contradict its own figures — the balance ran ₮5,418,682 →
-₮4,292,432, ending about where it started, while the line read as finishing high because
-the last day's bills were drawn in the final pixel column. The chart is now framed on the
-money that moves rather than anchored at ₮0 (₮0 and its coral fill appear only when ₮0
-falls inside that frame; a credit account keeps it always), the time axis runs 8% past
-the end so the last step is drawn in full, and same-day events are spread a few pixels
-apart. The events moved off the line onto a **rail** beneath it, one tick each, green for
-money in. **No headline sentence**: the dip carries its own figure, large, and the end
-balance is named where you land. Words stay only where no line can draw them — nothing
-scheduled, a wallet to fill from the bank, what a card is owed, and a shortfall that
-only happens if money due today never arrives. How far ahead is a **row of buttons**
-(**To income · 30 days · 90 days · 1 year · Custom…**; 60 days and 6 months are gone,
-their words kept for a ledger still set to one), and an **ⓘ** beside the word Forecast
-says what the forecast is. **Custom…** (0.80.0, #397; ADR 0004 "Custom…, the day the
-forecast runs to") opens the register's own calendar on the card, from tomorrow to two
-years out, and the day picked becomes the button's label (`2027.03.14`) so the filled
-button still names the range drawn; the day is kept beside the choice as
-`forecast.customEnd`, this computer's own, and one that has gone by falls back to 30
-days. The line under the chart is the key to the rail: `4 bills −₮7,100,000 ·
-1 income +₮5,973,750`. The chart takes whatever width the balances beside it don't
-(0.78.1). **Money In, Money Out, Transfer** (0.79.0, #400; ADR 0004 of that name): money
-moved between the person's own accounts is counted apart from both, so a standing amount
-into savings is no longer a bill and taking it back out is no longer a paycheck; paying
-a card off stays Money out, and a card's own forecast doesn't split. Credit/debit was
-put forward and dropped — кредит is a loan in Mongolian. The computer only. No schema
-change. Not built, and filed: #393, #394, #395,
-and from the reviews #398 (the card says
-nothing about what the budget plans to spend, so its own sum stops tying the day a
-category is paid from the account), and from the reviews of Custom… #408 (the line runs
-flat where nothing is known), #409 (the two-year limit), #411 (the forecast worked out on every rebuild), #412
-(the calendar pages one month per click) and #413 (the end balance counts money already
-set aside). **The chart's clicks and keys** (0.80.1, #393, #394, #395; ADR 0004 "The
-chart has one hover owner and one focus stop"): one hover owner over the plot and the
-rail snaps to the nearest event, so two bills a day apart are both reachable instead of
-only the one drawn last, and the card is placed once and kept inside the chart with a
-thin line down to the event it speaks for. The chart is one focus stop — Tab lands on
-the first event, ← → walk them, Enter opens one — and so is the bill count line, which
-Esc now hands focus back to when the keyboard opened it. While a reconcile is open the
-forecast offers no clicks at all rather than answering one with a coral failure card.
-
-**The register's tab row** (0.75.0–0.77.0, #384, #387, #390; ADR 0004 "Import beside
-Add", "The filters are buttons, each in its own color"): the filters, then **Import
-transactions…** (blue, the color of what's still to come in), **Manually add a
-transaction** (green), and the search box at the row's end; the balance header keeps
-Reconcile alone. Cash and All accounts have no Import, and Import stays offered while
-reconciling. **Each filter is a button in its own color** (owner, 2026-11-07, option C
-of three): All in the page's quieter ink, **Uncleared** blue, **Scheduled** gold, **Not
-categorized** coral, the one you're on filled deeper with a full outline and its label
-in 600. The closable Cleared and Reconciled tab keeps the plain ink chip and leads with
-its glyph, so gold still says "done" on the diamond. By day gold is `#866100`, so
-Scheduled reads brown-olive; at night it is the coins' gold. The computer only. No
-schema change.
-
-**Amounts group as they're typed** (0.74.0, #324; ADR 0004 "Amounts group in thousands as
-they're typed"): every money field on the computer, and the phone's New category, shows
-`2,500,000` while it's typed (`GroupedAmount` in `ui/amount_input.dart`). Backspace on a
-comma takes the digit before it; a paste is read as import reads a bank's cell.
-
-**Skip a bill from the Budget page** (0.72.0, #357; ADR 0004 "Skip a bill from the Budget
-page"): the row the pointer is on says **Skip this bill**, and the period arrows reach any
-bill ahead; a bill with no row yet is kept by its date (`billSkippedDayKey`), which
-scheduling and the forecast pass over. The month says "No bill on 11.20 · Bring it back" and asks nothing
-for that bill; the next is saved for from the month after. A payment in the category ends
-a skip. The computer only. No schema change. Review leftovers: #363.
-
-**A row's category changes, and can be a new one** (0.71.0, #358; ADR 0004 "A paycheck
-filed elsewhere stops being one"): a new category on a row filed under a pay was saved, but
-the row went on reading by the pay's name. It now lets the pay go (`leavePay`), and a
-payday still ahead is expected again. **New category** is at the top of a row's Category
-list and Categorize (`CategoryMenu.onNew`, `_newCategoryOnRow`).
-
-**A category with money shows green** (0.70.0, #326; ADR 0004 "A category with money
-shows green"): Left on the computer's Budget page is green above zero, gray at ₮0, coral
-when short. Apart from the bank, import's balance line says what the skipped rows come to.
-
-**A bill twice a month** (0.69.0, #351; ADR 0004 "A bill twice a month"): How often has
-Twice a month, with two days typed as pay's are, on the computer and the phone. Schema
-v24 adds `month_days`, empty on every plan already there.
-
-**Import says two counts** (0.67.2, #348; ADR 0004 "Rows before the opening balance"): the
-window shows how many rows it will import and how many it skips, and no list of rows.
-Rows a reconciled opening balance already counts are skipped without a word.
-
-**A date stays where it's typed** (0.67.1, #342; ADR 0004 "A date stays where it's
-typed"): a bill typed for a day gone by stays there, overdue in the forecast with the
-next one beside it, and Budget counts it in that month whichever pay came before it.
-
-**A row's memo is whole** (0.67.0, #340; ADR 0004 "A row's memo is whole"): the gray
-line under the payee wraps, and a row is 52 tall until a memo needs more.
-
-**Save stays in sight on every phone** (0.66.2, #331): on the owner's wife's Galaxy
-S26 (360 × 780 points) Save was under Ledger and Budget. The entry's Save and pad now
-sit at the foot (`_EntryLayout`), the keys go from 52 down to 44 before anything
-scrolls, and below 700 points the rows and gaps are lower. `phone_test.dart` checks
-nine common iPhones and Androids with their bars, text at 1 and 1.3.
-
-**Regular income, not pay** (0.66.1, #329; ADR 0004 "Income isn't always pay"): the
-pay form, its toasts and the Budget and forecast lines say regular income, who it's
-from and each time it comes, not Pay, paycheck, Employer or salary; in Mongolian цалин
-is тогтмол орлого. Payday and pay period stay in English. The code's names (`PaySchedule`,
-`setupPay…`) are unchanged.
-
-**Pay saved on the phone** (0.66.0, #187; ADR 0004 "Pay saved on the phone takes a
-payday's place"): for money in, the phone's Category list has Income, then each pay by
-its name ("Income · Loveland Solutions"), even one (owner, 2026-10-28: "all sources of
-income should be named if they're being forecast"); a pay fills Paid into with its
-account. The computer takes it in as that pay's paycheck (`phonePayId`,
-`PhoneTake.paychecks`), so its payday stops being expected; a stopped pay comes in as
-Income. Pay on a payday is now that payday's, whatever it came to (`plannedFor`). Still for beta: the native speaker's check of the
-Mongolian (#90); Apple's listing (#98).
-
-**The open questions, answered** (0.61.1 to 0.65.0, 2026-10-27/28; ADR 0004 from "The
-open questions, sorted"):
-- **One Paid from per category** (0.62.0, #180, #183): one account, chosen when the
-  category is made, on the computer and the phone; any account in its currency can pay
-  it. Ledger v23, `category_paid_from`, filled by `fillPaidFrom` from the old ticks
-  (never an account it had unticked); an untouched Safety net gets none. Bills follow
-  it. "Its account holds less" compares only categories that keep money; the free-amount
-  line takes off every category on the account. Leftovers: #315.
-- **The forecast takes out the budget** (0.62.0, #179): categories spent down within
-  their period come out of their Paid from a day at a time (`projectSpending`), at the
-  plan's pace, capped by what's left, less rows already scheduled. Cash the budget
-  would empty says "You'll need to take out about ₮350,000 by 10.24", and the account
-  pay goes into counts it, and a card's spending when no dated bill pays it (0.63.0,
-  `projectFunding`).
-- **Words** (0.61.1): the note by Add says what to do ("Type an amount"), the refund
-  note is a line of its own, the phone says "1 entry isn't in your ledger yet", a late
-  row "due 22 days ago · not in Working yet", a Filed under popup names the row's date
-  and amount, an import off from the bank leads with the gap.
-- **Income and the phone** (0.64.0, #182, #184): the Income tab says money in still in
-  Not categorized; the phone's Paid from list shows balances.
-- **The pay form** (0.65.0, #175): "No set day" under When; every pay needs a name.
-
-**A phone's new category, both ends** (0.61.0, #243 and #244; ADR 0004 "New
-category"): on the phone, a category still waiting opens from the Waiting list filled
-in, "Edit Mobicom" with Save, its entries kept in it (`PhoneStore.changeCategory`);
-its row says the bill it will take. On the computer, the popup that takes it in says
-each bill that came ("Mobicom · ₮45,000 due 10.15", "already passed", "paid"), any
-plan left out and why, and a change the phone made after the computer had it, which
-is said, not applied (`phonePlanNotes` in `ui/ledger_screen.dart`, `PhoneTake.leftOut`,
-`PhoneTaken.seen`). The phone's file is written again on any change to it
-(`phoneInboxSaying`), which also fixes a waiting entry's edit never reaching the
-computer.
-
-**Living on the income** (0.60.0, #234; ADR 0004 "Living on the income"): a card
-under Budget's key card, one block per currency with income or pay: "October's
-plans take ₮350,000 more than its income" (coral) or "… fit in its income, with
-₮150,000 to spare", and a bar of Spent so far, Still to spend and Saved against a
-mark where Income ends. Income is the period's own: what came in, plus pay still
-expected from today on. A category takes its plan (no plan: its Assigned), or what
-it spends past what it held from before; the Safety net and goals count too, and
-so does a loan paid from cash or bank with no category (not a card payment). Coral
-only once the income is known (pay set up, or the period over). The card steps
-aside while a category's Edit is open (`IncomeFit`, `periodPay` in
-`domain/budget.dart`; `_IncomeFitCard` in `ui/budget.dart`).
-
-**Goals on Savings** (0.59.0, #101 and #102; ADR 0004 "Goals on Savings"): a Goals
-section under the four steps. A goal is a once-only "On a date" line marked a goal
-(`ready.goal.<id>`; Edit asks "Show on Savings as a goal?"), added on Savings with
-what it's for, how much and by when, and what Budget will ask said before Add. Each
-card: saved of the amount, on track or behind (Budget's short), what it asks a
-month; behind, the catch-up and Move the date; late, the person's choice of keeping
-the usual part (the default), asking for the rest, or It's done
-(`ready.goalLate.<id>`: `all`, `done`); ready, a green bar. With two or more goals,
-their total this month under the heading (`domain/goals.dart`, `ui/savings_goals.dart`).
-
-**Paying off debt, two ways** (0.58.0, #103 and #174; ADR 0004 "Paying off debt: two
-ways, side by side"): step 2 counts debts paid off ("1 of 5 debts paid off · ₮X to
-go"), with a bar on the one getting the extra and on step 4's house loan; each debt's
-monthly payment (typed, or its payment category's monthly plan); "Extra each month";
-and **Smallest first** and **Highest rate first** side by side, each with when it's
-all paid off, the interest and the first debt paid off, the person's pick marked
-(`domain/payoff.dart`, `ui/savings_payoff.dart`). Its leftovers (0.60.1, #306): "Debt to pay off" shows only on the line the pointer is on, and a field left open on a debt that leaves the list is closed.
-
-**More controls on a budget line** (0.57.0, #100; ADR 0004 "More controls on a budget
-line"; schema v22): a category's **Group** (a heading on Budget, A to Z, after the
-everyday categories in no group; not for a bill or the Safety net) and **Note** (under
-its name) in Edit; **Just for September** under a set amount, with **Skip September**
-(`CategoryPlan.once`); **Clear September's Assigned** on the key card, after a window
-that says where the money really goes and what ends short. The cap was already
-Edit's **Up to**. The phone's Budget has the group headings, the one-month line and
-the note.
-
-**Send feedback… is in the app** (0.53.0, #92; ADR 0004 "Report a problem: at the
-foot of the sidebar, and on the phone"; named Send feedback… and moved on the phone in
-0.66.3, ADR 0004 "The phone's feedback beside Accounts"): a quiet line under Net worth,
-and a speech-bubble button beside Accounts at the top of the phone's Budget. It opens lls.mn's contact form in the browser with
-`?from=betterbudget&version=…&platform=…&os=…` (`data/report_problem.dart`); the page
-names the report and shows what goes with the message (the website's README,
-"BetterBudget reports"); `PRIVACY.md` section 5 says so. It is also on the screens shown when the ledger won't open (0.54.0,
-#292): under Try again on the computer, and under the phone's problem steps. A failure's opened Details have
-**Copy** (0.55.0, #293; `ui/copy_details.dart`), on the popup and that screen. **Recent
-problems** (0.56.0, #294; `data/problem_log.dart`; ADR 0004 "Recent problems"): a card in
-Settings while there are any, and the last line of the phone's
-Budget, each with Copy all (the phone's page has Send feedback… beside it); a plain file on the device, no amounts. `PRIVACY.md` and
-lls.mn's copy say so (their PRs: Loveland-Solutions/betterbudget#1,
-lovelandsolutions-website#6, to merge first). The
-public repo's README points there too, and its Issues are off
-(#93, 2026-10-27).
-
-**The Payees comb is done** (0.51.0–0.52.0, #165; ADR 0004 "The Payees page's
-fine-tooth comb: three answers", "The Payees page by keys and mouse", "The Payees
-page's words"; ADR 0005 "The phone fills a remembered payee"). Only remembered
-payees are filed: the fill from where a payee went last is gone, on import and on
-the entry row. "File the N" files this period's rows only. A pay's line is for
-money in only; a line's category takes every ticked account's currency; Remember
-on one account takes it off a shared line. The Edit is held by the screen
-(`_PayeeKeep`). **The phone fills a remembered payee's category** on the account
-it's entered in (`PhoneSnapshot.rememberedFor`).
-
-**The Savings comb is done** (0.50.0–0.50.2, #164; ADR 0004 "The Savings page's
-fine-tooth comb: three answers", "The Savings page by keys and mouse", "The Savings
-page's words"). Each category's Edit asks **In a month of expenses?** (Yes by
-default; `ready.out.<id>`, `inMonthOfExpenses`); step 1 keeps its check and says
-when the budget has assigned more than there is; the pension taken from pay counts
-for retirement. Savings counts in the Safety net's currency (`savingsCurrency`); a
-card is judged paid in full by what it owed five weeks ago; Assign leaves this
-month's bills their money and shows on step 3 too. The month and rate fields are
-held by the screen (`_SavingsKeep`), with Cancel and a click away. A step put off
-reads "Skipped for now". Left on #164 for later: a loan paid by transfer drifting
-to ₮0 while the bank still has it owing.
-
-**Done:** the Ledger comb (0.46.3–0.47.1; ADR 0004 "The Ledger's fine-tooth comb"
-and "Settled in the comb's follow-ups") and the Budget comb (0.48.0–0.48.2; ADR 0004
-"The Budget page's fine-tooth comb: three answers", "The Budget page by keys and
-mouse", "The Budget page's words"). Not assigned is now Cash & bank less what
-categories with money hold, with an Overspent line; a bill is asked for out of the
-pay before it; each currency begins on its own. `Hoverable` is a Tab stop and every
-menu goes through `focusFirstOnKeys` (MAP.md, "Keyboard"). **#163's last three** (0.48.3): Shift+Tab in Assigned goes to the row before;
-an open Edit is kept, as typed, while you're on another page (`_EditKeep`, held by the
-screen); the delete window counts rows from the database and no longer says "Only
-deleted rows". **Known issues the owner
-kept:** #259 (a missed opening-balance popup) and #265 (two computers taking rows
-out of one opening balance), both After beta. Living within their means is #234
-(the owner, 2026-10-24: what they earn matters, not what's in the account).
-
-**The Budget page shows how used up each category is** (0.49.0, closes #241, #273,
-#274; ADR 0004 "How used up a category is: a ring before the name"): a ring before
-each everyday category's name, filled by what the category had this period less its
-Left, sliding from green through gold to red as it fills (the owner's pick C of
-three, and their colour rule: "let's go from green progressively to red"); none on a
-bill, on Saved, or on a row with nothing in it and nothing spent; its tooltip says
-"₮612,300 of ₮900,000 used". From the same budget review: bills sit under their own
-**Bills** heading with a quieter Left and their line says "paid 10.20" once this
-period's bill is paid; a **Total** row under the categories adds up the period's
-Assigned and Spent, its Spent opening the period's rows. `UsedRing` and `usedColor` in
-`theme.dart`; `_TotalsRow` in `budget.dart`; `EnvelopeLine.usedShare` and `paidOn`.
-**The phone's Budget screen has the same ring** before each category's name, worked
-out on the phone against what's left now (ADR 0005 "The phone's ring";
-`usedShareNow`).
-
-**Google Play's tracks all have 0.66.2 (build 562)**, from main on 2026-10-29
-(Save stays in sight on every phone); uploaded to Internal testing with
-`app/tool/release_play.sh`, then moved to alpha and production. A phone
-change after it needs a new one. Before offering one, compare this line with
-`git log` on `app/lib/ui/phone/`, and rewrite this line after each upload.
-
-**The Microsoft Store has 0.49.0 published and 0.52.0 in certification** (tag
-`v0.52.0`, sent 2026-10-26 with `app/tool/release_store.sh`; when it passes,
-Partner Center waits for the owner's Publish now). Later versions go the same way,
-from a clean, pushed commit on main: the script tags main with the version, waits
-for GitHub's Windows build, and sends the package to certification. It refuses while
-a submission waits, since the Store holds one at a time and a new one would delete
-it (#251), and sends to certification only a submission holding this version's
-package (0.52.1, #287).
-
-**The Store app keeps everything in its own package folder** (0.46.2, #246; ADR 0001
-"Where the ledger lives on Windows"; owner: what uninstall leaves behind is garbage):
-run from a Store package, `data/store_folder.dart` hands path_provider the package's
-`LocalState`, so the ledger, its copies, the saved key and the settings files go when
-the app does. It never looks in the zip download's folder; moving over is Open
-ledger. Tried on Windows 11 (ARM, in Parallels): it opened on the first screen beside
-a zip download's ledger, everything it wrote was in `LocalState`, and uninstall left
-nothing of it. 0.46.1's other way (the zip download's folder, kept past uninstall)
-was dropped the same day.
-
-**A category's Left moves money** (0.46.0, closes #99; ADR 0004 "Move money between
-categories", the owner's pick A of three): click Left and a box opens under it with
-From, To and Amount. With money in it, it opens going out; at zero or below, coming in, the
-shortfall filled in; **Swap** turns it around. Not assigned is first in the list; only categories in the same
-currency are offered; the row the pointer is on says **Move money** beside its Left
-(owner: "it's a hidden feature"). More than a category has still moves, said with the numbers. One
-undo for both lines; no schema change. `_MoveLeft`, `_MoveBox` in `budget.dart`;
-`_moveBudget` in `ledger_screen.dart`. The computer only.
-
-**The phone's "+ New category" asks everything the computer's window does** (0.45.0,
-closes #237; ADR 0004 "New category: one window with everything"): one scrolling page,
-the owner's pick of three, from Budget (with Add another) and from an entry's Category
-list (in the entry's currency; a name already a category goes in the entry). The plan
-travels in the phone's file (`category_plans`, `category_off`) and the computer makes
-the category with its plan and Paid from, its bill scheduled; the take's undo takes the
-bill too. An older computer takes the category in bare. The answers and the plan they
-make are one class, `PlanAnswers` in `ui/plan_form.dart`, which the computer's Edit
-now uses too. `_NewCategoryPage`, `_CustomRepeatPage` in
-`ui/phone/phone_new_category.dart`; `_phoneCategorySettings` in `database.dart`.
-
-**The entry row's "+ New category" opens the New category window** (0.44.0, part of
-#237): in Category and on a split's line, always at the top of the list beside Split;
-Add makes the category (its own undo) and puts it in the row.
-
-**Add category opens a window with everything** (0.43.0, part of #237; ADR 0004
-"New category: one window with everything"): the category's Edit form in a **New
-category** window, with Cancel, **Add another** (⌘↩) and Add. Add another keeps only
-the currency. Each Add is one undo, the category with its accounts and plan. A taken
-name says so as it's typed; a bank account's name stops Add. A bill's Set aside shows
-the amount alone. Seen by the owner in the real app. `_NewCategoryWindow`, and
-`_CategoryEditor`'s `onAdd`, in `budget.dart`; `_addCategory`, `_categoryNameNote` in
-`ledger_screen.dart`.
-
-**A bill paid another way** (0.42.0, closes #88; ADR 0004 "A bill paid another
-way"): on the owner's rule, a payment in a bill's category pays that period's bill,
-from any account. Near the bill it's marked paid with no question ("Mobicom bill paid.
-Next due 11.15."); a phone's rows and a bank file's pay theirs with the rows. Far
-off, part of it, or two or three bills' worth, a window asks ("Did this pay the
-Mobicom bill?"). Until answered the bill's row asks "Paid on 10.13? … Yes / No" and
-the forecast says a bill may already be paid. Not this bill on a paid row; No bill
-this time in place of Delete on a category's bill, whose money then counts toward
-the next on the Budget page. `billPayments`, `billFit`, `Budget.skippedBills` in
-`domain/budget.dart`; `payBill`, `notTheBill` in `database.dart`; `_tieBill`,
-`_askBill`, `_BillQuestion`, `_settleTyped`, `_settleIncoming` in
-`ledger_screen.dart`; `_PaidAskLine` in `register.dart`. Seen working by the owner in
-the real app.
-
-**The forecast's "Nothing has been budgeted" goes by the budget** (0.41.4, closes
-#129): it shows only while no category in use has a plan or an amount assigned. With
-a budget but no bills in the account, the line above already says there are none and
-nothing is added. `budgeted` on `BalanceHeader`, worked out in `ledger_screen.dart`.
-
-**A failure has its own popup** (0.41.3, closes #128; ADR 0004 rule 9, "A failure
-has its own plain popup"): gold is only for a saved change. Anything that didn't
-happen (a failure, a refusal, a nudge such as "Nothing to undo") is the page's own
-card with a coral edge and mark (the owner's pick, option A of three), says what in
-one line, and keeps the technical reason behind Show details, which holds the popup
-until it's closed. A damaged file of a kind the import reads says the file may be
-damaged. Seen by the owner in the real app. `_showFailure` in `ledger_screen.dart`.
-
-**Checks on every pull request** (PR #230, merged 2026-10-21; closes #89):
-`.github/workflows/check.yml` runs `flutter analyze` and `flutter test` on each pull
-request that touches `app/`, on GitHub's arm64 Mac (macOS 15), about 17 minutes, no
-cache. There a golden may differ by 0.5% of its pixels, since that macOS smooths
-letters differently from the one the goldens are drawn on; locally they match
-exactly (MAP.md "Checks on GitHub"). Not required for merging.
-
-**No overflow stripe** (0.41.2, PR #227, merged 2026-10-20; ADR 0004 "No overflow
-stripe"): an amount or date too wide for its box is drawn smaller (`Shrink`, which
-every `Money` uses), a name ends in "…", and a sentence with an amount wraps. New
-account fits its Types in Mongolian. `test/overflow_test.dart` walks every page and the
-phone screens with huge amounts and long names in both languages. Names that cut to
-the same text stay (owner, #225). Screens the test doesn't open yet: #226.
-
-**Two computers: asked before, after all** (0.41.0, merged 2026-10-20; ADR 0004
-"Two computers: asked before, after all"). The owner tested step 4 on the two Mac
-accounts, saw the asking window instead of the popup, and chose it: a row changed two
-ways is asked in the window before anything comes in, with two computers as with more.
-Answered on one, the other isn't asked again (seen in the real app). Step 4's change
-files, applied markers, shared ids and locks stay; the told-after code (the settling
-rule, the popup that stayed, a version picked afterwards) is gone (0.41.1, #218), and
-the popup's saved setting is cleared at launch. A folder file from a build before
-change files can't be asked about: a crossing there is the whole-ledger question.
-Step 5 waits until after beta.
-
-**Open source (owner, 2026-10-16):** the repo is public under GPL-3.0 or later, with its
-whole history (ROADMAP "Decided (owner, 2026-10-16)"), and free in every store.
-Anything pushed is published. The public repo's README and the website's copy of
-PRIVACY.md were already right (#96, #97 closed). Every store lists it free, with nothing
-to buy inside it (#98 closed).
-The privacy policy stays as it is (owner, 2026-10-16: "I don't think it makes a big
-difference"); it gains no line about the source being public.
-
-**Splitting one transaction over categories is built** (version 0.36.0, PR #198;
-ADR 0004 "One receipt over several categories: the split card"): the owner chose a
-card under the row, and Add waits until the lines add up; a split names each category
-once (owner's correction on trying it). Seen working by the owner in the real app.
-Its reviews' leftovers are built (0.39.3, PR #214): a new category from a line, a split
-known as a scheduled bill already in, lines merged with their categories, search by a
-line's category, the memo after the breakdown, shares unrounded, the card saying which
-way the total goes, and a split that evens out to ₮0. **On the phone too** (version 0.37.0, PR #202; the
-owner's pick, a split page; ADR 0005 "A split from the phone"): a phone split comes in
-as one split row, and a computer older than 0.37.0 leaves it waiting on the phone; a
-line whose category was deleted on the computer meanwhile comes in as Not categorized
-(0.38.0, PR #204). Its reviews' leftovers are built (0.39.2, PR #213): a waiting entry
-opens to be fixed, a line can be marked Returned, only an overspent line in the toast
-is red, money out is ordinary ink on the phone, and a quick second tap no longer lands
-under the closed list. The phone's categories are now chosen
-from a dropdown on the entry screen, Split with its icon at the top (0.39.0, PR #209;
-owner's correction, ADR 0004); a signed 0.39.0 bundle is built for Internal testing.
-The computer's Category list has Split with its icon at the top too (0.39.1, PR #212;
-owner's correction). Play's Internal testing has 0.41.2 (uploaded 2026-10-20). **Downloads: none from
-GitHub** (owner, 2026-10-20: stores only; ROADMAP). Windows 0.35.1, 0.36.0 and 0.38.0
-are still published on the public repo's releases page; whether to take them down is
-the owner's call. Apple's paid Developer Program was still pending on 2026-10-17; it is
-now needed for the App Store, not for a download. Actions storage: the Windows build keeps its download
-14 days and the caches of merged pull requests were deleted (#205).
-
-**Where to pick up:** the board's In progress and Next columns. **Savings step 2
-has a debt's interest rate** (version 0.35.0, PR #79; ADR 0004 "A debt's
-interest rate on step 2"). The owner's answers on 2026-10-14: a rate typed on each
-debt's line or on Add account, a month's or a year's as the person picks (tugrik
-starts at a month), with an ⓘ; no monthly payment; Save for the future stays as it
-is, goals with dates go on the roadmap (ROADMAP D); the course's line under the steps
-is gone. Both reviews are in and their fixes made. Since 0.58.0 a monthly payment is
-asked too, and the order is the person's pick of two ways (#103). Two computers, step 4 (#111): see the top of this section.
-
-**Version 0.34.4 (fix):** Android's build number is the repo's commit count, as the
-Mac's is (ADR 0006), so each upload to Play is higher than the last; it was 1 on
-every build. Play is set up and the app is on the owner's phone through Internal
-testing (owner, 2026-10-16). Next on Android: the stores (issue #114).
-
-**Version 0.34.5 (PR #86):** downloads. The Windows app is built on GitHub
-(`.github/workflows/windows.yml`, on a `v*` tag or by hand; not on pull requests)
-and is now BetterBudget by Loveland Solutions, which names its data folder. The
-owner asked for it as a release (2026-10-16): 0.35.0 is on the public repo's releases
-page, and on their PC it stopped at "MSVCP140.dll was not found". **Version 0.35.1
-(fix, #194)** puts Microsoft's C++ runtime DLLs beside `BetterBudget.exe` and gives it the Mac's
-icon (the logo's night form on a navy tile, filling the square); whether
-it then runs on that PC is #154.
-
-**Version 0.34.3 (fix, found by the owner on 2026-10-15):** a balance typed in
-setup, then the bank's last days imported, came out off by the rows dated on the
-balance's own day: the import only held rows dated before it. Rows on that day now
-count as held by the balance ("dated on or before"), with the same default move and
-"Leave it" (ADR 0004 "Rows on its own day count too"). Running on the owner's main
-account; not yet tried on a real import.
-
-**Version 0.34.1 (PR #75):** a launch that can't finish (the Keychain refusing the
-key, a file that can't be read, a key that can't be kept, a ledger that fails to
-open) says what went wrong, with Try again and Show details, instead of a blank
-window (ADR 0001 "At launch"). Running on the owner's main account; the screen
-itself is seen only in `app/test/goldens/startup_failed.png`.
-
-**Version 0.34.0 (PR #73; both Mac accounts run it):** a row made under another account of the same Mac
-reads "Entered locally" too, by a hash of the Mac's hardware id kept as
-`computer.machine.<id>` (ADR 0005 "The same Mac is here"). A computer with no id yet
-takes a GUID worked out from its Mac and account instead of a random one; one that
-has an id keeps it (ADR 0005 "A computer's id is worked out, once").
-
-**A bug in 0.33.0, fixed in 0.33.1 (PR #72; found by the owner's second run, and the
-main account was pointed at the folder again and worked):** the launch
-asked for this computer's id before the saved folder settings were read, so the
-file `cloud-folder` beside the ledger was written again with only a new id and the
-folder, its token and what was published were gone: a computer opened on 0.33.0 says
-"Stored in · This computer" and writes nothing to the folder. The ledger itself was
-not touched. The id now waits for the settings (`CloudFolder.computerId`, with a
-test). **A computer that ran 0.33.0 has to be pointed at the folder again**
-(Settings → "Move my ledger to a folder…", the Drive folder; a folder that
-already holds a ledger is never written over on being picked), and it has a new
-id, so the old `Computer <id>` files stay in the folder, harmless, until
-compaction (step 5).
-
-**Source column (version 0.33.0, PR #71; both review passes are in and their fixes
-made; the build before it, 0.32.0, refuses a v21 ledger, so the second Mac account
-needs 0.33.0 before the folder's ledger is next written):** asked for by the
-owner after the first real run, where a quick switch to the other account missed the
-popup. Each new transaction records how it came to be and where (schema v21:
-`made_how`, `made_on`; the upgrade adds two empty columns and touches no row, so
-every row already there says nothing). An optional **Source** column in the
-register, on, and turned off in Settings → Register ("Show where each transaction came from"),
-reads "Entered locally", "Entered on Mac mini", "Imported on …", "From Pixel", "Scheduled",
-"Opening balance"; a row keeps the id of the computer or phone, and each is named
-(and renamed) in the same panel, so a rename shows on every row
-(ADR 0005 "Where a row came from"; ADR 0004 "Where a row came from: a Source
-column"). The popup that goes away unseen was
-offered to be kept up until clicked away; the owner saw it work and didn't ask for
-the change, so it stays six seconds.
-
-**Merged on 2026-10-13, in order:** #66 (the row question, 0.29.0), #67 (step 1,
-schema v20, 0.30.0), #68 (step 2, shared ids, 0.31.0), #69 (step 3, change files,
-0.32.0; its code review's five findings fixed). The folder holds `Ledger.betterbudget`
-and one `Computer <id>.betterbudget-changes` per computer. The Pixel needs a build
-at or after 0.30.0 before it can read the folder's ledger again (every schema bump
-does this).
-
-**The two-computers design was re-chosen on 2026-10-12: a change file per
-computer** (ADR 0005 "Two computers: the way chosen, 2026-10-12"; the four expert
-reports are in [committee/two-computers/](committee/two-computers/)). Told that
-five kinds of conflict still asked which whole ledger to keep, the owner said "I
-don't want them to have to make this decision" and "Databases are made for this
-type of thing", proposed a master database with a local child and a lock file,
-and after the reports chose B ("Let's go with B"): each computer appends its
-changes to a file only it writes (as the phones do), every computer applies the
-others', `Ledger.betterbudget` becomes a derived snapshot the phones keep reading,
-and the lock goes (not atomic over Drive). About six weeks, give or take two, in
-five PRs. **PR 1 of 5 is merged (#67, version 0.30.0): schema v20**, the `changes` table filled by TEMP triggers made on every
-open, the hold that keeps another computer's changes, a restore and an erase out
-of it, `sync.ledger` for a new ledger, `sync.applied` reserved; the upgrade adds
-one table and touches no row (ADR 0005 "Built, 2026-10-12: step 1"); the code
-review's findings are in (no bug that touches data; its rules are in the ADR).
-Nothing in the folder changes yet, so the owner sees nothing new on the Mac;
-**the Pixel's old build can't open a v20 `Ledger.betterbudget`** (nor a v19 one:
-every schema bump does this), so the phone wants this build at the next
-install. **PR 2 of 5 is merged too (#68, version 0.31.0): one id for
-the same thing made on both** (ADR 0005 "Built, 2026-10-12: step 2"): the same
-payday, bill, phone entry, bank row, payee, category, Income and Safety net get
-the same id on every computer, so two computers that did the same thing hold one
-row and have nothing to merge, write or say; the digest ignores when a row was
-written; the old matching by what a row says stays as the backstop. **PR 3 of 5
-is merged too (#69, version 0.32.0): the folder cycle on change
-files** (ADR 0005 "Built, 2026-10-13: step 3"): each computer writes one file
-only it writes, reads the others', folds each into the compare that already
-exists, and the shared `Ledger.betterbudget` is written only by a computer that
-holds everything; an answer to the row question, and "Keep this computer's
-ledger", travel as changes so the other computer takes the decision instead of
-being asked. The counters, seal and agreed file are still written for the
-older look, which runs until both computers carry a vector. The code review's
-five findings (the transition when the second computer upgrades with changes
-of its own, a cleared log's count, merges that weren't symmetric, answers
-that crossed, a gap in a change file) are fixed, each with a test (ADR 0005
-"Rules from the code review (2026-10-13)"). **Not run on two real computers**;
-the first real run is the owner's to watch on the testuser account. Rough
-edges for step 5: an erase while the folder's ledger moved on asks the erasing
-computer the whole-ledger question first; a third computer never gets changes
-a computer took in whole. **Next is PR 4** (the facts-first policy and the blocks for the cases
-still asked as a whole ledger), then 5 (restore and erase as batches,
-compaction, the catch-up take, the digest guard, a soak on two Mac accounts). The money
-rules were put to the owner with the choice and not objected to (ADR 0005 "The
-money rules"). The hole the review found (two
-computers writing within Drive's propagation window made the loser's agreed file
-a false base) is closed by PR 3: the base comes from the other computer's own
-file, and nobody writes over anyone's file.
-
-Before it, **the row question (version 0.29.0, PR #66)**, built the same morning (ADR 0004
-"Two computers: the one row both changed"; ADR 0005 "Built, 2026-10-12: asking
-about the one row"): when two computers changed one transaction two ways (or one
-deleted it and the other changed it), or one category's assigned amount for one
-period, a window lists each with what each computer says and "As it was", three
-buttons on each (Keep this computer's, Keep the other's, Neither: as it was), one
-Save my choices; nothing is written until answered; put off, Settings is red with
-Choose…; no Undo (owner: "We don't need to build Undo into this part"). Both
-review passes run and their fixes in. It survives the new design whole, reading
-later as a thing already done that the person may change. The two small questions
-asked with it (a Show on each block; a line under Net worth while put off) fold
-into PR 4 and aren't asked again. **Not run on two real computers.**
-
-Before it, PR #65 (version 0.28.0): Payees is a section of its own in the sidebar, under
-Savings, and a real feature** (ADR 0004 "Payees: its own section" and "Payees: the real
-feature"; owner, 2026-10-12: "I don't want to hide this", "Let's make this a real
-feature", "B. Looks great.", "allow them to apply a payee rule to multiple
-accounts"). Every payee the app remembers a category for is a line that reads as a
-sentence and opens into its Edit: the words, at the start of the payee or anywhere
-in it or the bank's description, the accounts it holds on (several), the category or
-pay, a live count of the rows it fits, one drawn as it will read; Add a payee;
-Delete. **Schema v19**: the rules are a table; the upgrade carries the owner's
-rules over from the setting and leaves the setting in place. **Not yet seen by the
-owner in the real app**; the pictures are `app/test/goldens/payees.png` and
-`payees_edit.png`. Asked with it and answered: no moving of rows already filed
-("that would be really bad"). Not understood as worded, to ask with a picture of
-the row: the offer at the foot of a row's category dropdown. Put on the list the
-same day: splitting one transaction over categories.
-
-Before it, PR #64 (version 0.27.0): a computer with no ledger opens on three ways to
-start (ADR 0004 "How a new computer starts"): Start fresh, Restore from backup,
-Open ledger, the one clicked opening in place with the recovery key and its button.
-Open ledger is one pick of the folder: the ledger there comes over and the computer
-stays on it. The key is kept only once it opens what was picked. "Open your newest backup?" is gone; where a pick is cancelled, "Where
-is your ledger?" asks. **Not yet seen by the owner**: their own account has a
-ledger, so it shows only on a second account or machine.
-
-Before it, PR #63 (version 0.26.0): Restore from… pointed at `Ledger.betterbudget`
-in the folder shows a ticked "Share the ledger in My Drive/BetterBudget" in the
-restore dialog; Restore then brings the ledger over and keeps the computer on the
-folder (ADR 0004 "A second computer set up in one step"). On a Mac the folder is
-chosen once more in the Mac's own dialog, which opens on it. **Not yet seen by the
-owner on a second account or machine**: tests only.
-
-Before it, PR #62 (version 0.25.1), a fix: on a computer where the recovery key was
-typed, "Open your newest backup?" comes back after Cancel in the file dialog and
-at each launch until it is answered (now "Where is your ledger?").
-
-**Before it, PR #61 (version 0.25.0): two computers that each changed the ledger are
-combined** without a question when what they did can both stand (item 1 below; ADR
-0005 "Built, 2026-10-10: step 2"). A popup says "4 transactions from Tom’s MacBook
-Air", and when there is one, that a row looks the same as one already here (with
-Show) or that more is assigned than there is. It has no Undo, and "Opened the ledger
-saved on …" lost its own (owner, 2026-10-10: Undo is only for what the person at
-this computer did; ADR 0004 "Two computers: combined without a question"). No
-upgrade: nothing in the owner's file changed. **Seen working by the owner on
-2026-10-10 on two accounts of one Mac** (a second macOS user, the same Drive
-folder), not yet on two machines. A plain popup for a failure is #128.
-The app must be opened from Applications, never from inside the Drive folder:
-Drive drops the links inside it and every save fails.
-
-Before it, PR #60 (version 0.24.0): Savings is the owner's four steps, each with the
-picture they drew (ADR 0004 "Four Savings steps"): Build a safety net, Eliminate debt,
-Build three to six months of savings, Save for the future. A month of expenses comes
-from the budget. The safety net is one budget category, **built in as Income is**,
-whose Left is the count, set apart on the Budget page under "Saved"; the owner's
-ledger got it the first time this build opened it. **The owner is using it to see
-whether it works** ("I'll need to use it to see if it works") and has not yet said;
-expect corrections. Three questions asked with the steps are under "Waiting on the
-owner" (17). The steps' own work after that is whatever those answers ask for (a
-rate and payment per debt; what Save for the future holds).
-
-Before it, PR #59 (version 0.23.0): a computer no longer writes the folder's ledger
-without looking at it first: step 1 of two computers on one ledger is built (item 1
-below). Before it, PR #58: the phone records money moved
-between two accounts (cash from an ATM, a card paid): the accounts are at the foot of
-its Category list under "Move to an account" (ADR 0004 "Phone screens: Ledger first").
-**Not yet on the owner's Pixel**, which still has the build from before PR #55:
-`adb install -r` keeps what the phone has stored; install when they ask. Before it, PR #57: the register's notes, the already-in
-check on Confirm, the backup reminder, the Mac's navy icon.
-The computer wears the owner's logo and its
-colors from the first launch: a navy sidebar, green main buttons, and gold kept as an
-accent for what is done (the reconciled diamond, the saved popup, the sidebar's marks);
-a scheduled bill is gray with a blue Confirm (ADR 0004 "The logo's colors" and "Gold is
-an accent, and the new colors come first"; the screens compared are at
-<https://claude.ai/artifact/1xJW37g537PUgA5BRLkzvq>).
-The owner's ledger is stored in their Google Drive folder; the Android app records
-money out and money in, and what it records reaches the computer's ledger through the
-folder.
+The owner's to choose (2026-11-13): whether 0.88.1 goes to all three stores, and which
+Beta feature comes next. Offered: the New category window, less busy, with the four
+kinds named (#429 with #426, recommended); bills on the Budget page one line each
+(#365); the Budget page's tabs reading as tabs, with Add other regular income beside
+the incomes (#435 with #436). The Mongolian of everything since #90's last pass is a
+draft until Tanan checks it (#90).
+
+## In the stores
+
+| Store | Has | Waiting |
+| --- | --- | --- |
+| Google Play (`mn.lls.betterbudget`) | 0.71.0 (591) on Internal testing, alpha and production, 2026-11-03 | The phone has changed since: amounts group as typed in New category (0.74.0), the phone's Budget in green, gray and coral (0.87.0), a twice-a-month bill's Starts (0.88.0) |
+| Microsoft Store (`9NH3HJNFJN4G`) | 0.71.0, published | — |
+| Mac App Store, "The BetterBudget" | 0.72.1 (598), live since Apple passed it (found 2026-11-13); free in 174 countries | The EU's 27 until the owner gives the Digital Services Act trader details (#375), which the EU shows publicly |
+| iPhone App Store, same record | Nothing yet; TestFlight has 0.73.1 (604) | 0.73.1 in Apple's review, resubmitted 2026-11-12 with a screen recording and answers in its Review Notes, after a Guideline 2.1 "information needed" rejection. A check with Google Drive on a real iPhone is on #114 |
+
+Listings lead with building wealth (ADR 0004); Play's and the Microsoft Store's follow
+when next changed (#377). Every store lists it free. No downloads from GitHub (owner, 2026-10-20,
+ROADMAP); old Windows ones are still on the public repo's releases page (#452).
+
+## How a release goes out
+
+A release is the owner's say each time, in every store. Run each script from a clean,
+pushed commit on main; `--check` does everything but the last step.
+
+- **Play:** `app/tool/release_play.sh "What changed."` builds the signed `.aab` (build
+  number = commit count, ADR 0006), checks it asks for no network, and makes it the only
+  build in Internal testing; alpha and production go by Play's edits API. Before offering
+  one, compare the table above with `git log` on `app/lib/ui/phone/`. Play's review gets
+  past the recovery key with the demo key `DEMO-DEMO-DEMO-DEMO-DEMO`, kept in App access →
+  Sign in details (#303; ADR 0005 "A demo key for Play's review"). **A schema bump means a
+  phone needs a build at or after it before it can read the folder's ledger again.**
+- **Microsoft Store:** `app/tool/release_store.sh` tags main `vX.Y.Z`, which starts
+  `.github/workflows/windows.yml` on GitHub (its download kept 14 days), waits for the
+  build, checks the `.msix`, deletes any submission still waiting (owner, 2026-10-30), and
+  sends the new one to certification, set to publish only on the owner's Publish now.
+- **Apple:** `app/tool/release_mac.sh` and `app/tool/release_ios.sh` build, check and
+  upload, signing with the team's App Store Connect API key in `~/.config/betterbudget/`
+  (#380; Xcode 27.2's command line can't use Xcode's sign-in). Each build's encryption
+  answer: standard algorithms, not Apple's. France also waits on the French encryption
+  declaration.
+
+## Phase
+
+**A working ledger and budget are built**, on the computer (macOS, Windows) and the
+phone (Android, iPhone), from [`app/`](../app/). The owner uses it with real money and
+refines it by what they hit; their wife enters receipts on her Android phone. The road
+to beta and after is in [ROADMAP.md](ROADMAP.md). The repo is public under GPL-3.0 or
+later (owner, 2026-10-16); anything pushed is published. Two computers on one ledger
+are built through step 4; step 5 is after beta (#451).
 
 **The owner's ledger is production data** (since 2026-10-06; rules in
-[CLAUDE.md](../CLAUDE.md)). One exception, for the two-computers work only (owner,
-2026-10-09): it may be replaced if the design needs it, asked about first (ADR 0005). It holds one tugrik account; the dollar accounts and their
-categories were deleted on 2026-10-07. A wordless screenshot from the owner, after
-being told something couldn't be checked in the real app, is the result being shown,
-not a complaint.
-
-**Git:** `main` has everything through PR #75. Branch, commit, PR, merge. The logo and
-the Savings pictures are made by `assets/logo/prepared/prepare.py` from the owner's five
-vectors in `assets/logo/Images/`; the rest of that folder (their PNG originals and
-copies) is on the owner's Mac only, not in git.
+[CLAUDE.md](../CLAUDE.md)). It holds one tugrik account and lives in their Google Drive
+folder. A wordless screenshot from the owner, after being told something couldn't be
+checked in the real app, is the result being shown, not a complaint.
 
 ## Questions for the owner
 
 On the [board](https://github.com/orgs/Loveland-Solutions/projects/1) as issues titled "Question: …". Asked and not answered: don't
 re-ask; bring one up when its screen comes up again.
 
-## Phase
-
-**A working desktop ledger and budget are built** and run on macOS from
-[`app/`](../app/). The owner is using it with real money and refining it by what they
-hit. The road to beta and the platforms after it is in [ROADMAP.md](ROADMAP.md); the
-work itself is on the [board](https://github.com/orgs/Loveland-Solutions/projects/1).
-
-## What exists (desktop; each line checked against the code on 2026-10-07)
+## What exists (each line checked against the code on 2026-11-13)
 
 | Area | What works |
 | --- | --- |
-| Storage | Drift/SQLite at schema v22 (a transaction also holds `made_how` and `made_on`, where it came from; a category its group and note, a plan its single periods; the `changes` log of what this computer changed, each computer's own), encrypted in SQLCipher v4 format, WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v22-from-v21-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused |
-| Sidebar | Sections Ledger, Budget, Savings, Payees. Under Ledger: All accounts, then accounts grouped Bank, Cash, Credit. A Settings gear above Net worth |
-| Accounts | Add account: name, Type (Bank account, Cash, Credit card or loan), Currency. It starts from an opening balance, or from a bank file ("Or import a file from your bank"). Menu: Rename, Change to bank account / credit card or loan, Archive…, Delete…, and "Payments come out of" for a card or loan. A cash account is offered neither Reconcile nor Import |
-| Register | One signed amount column (money in green with a plus, money out in ordinary ink with a minus) and a running balance. Tabs All, Uncleared, Scheduled, Not categorized. Search with ⌘F |
-| Entry | Add or ⌘N opens the row. Missing fields are named ("needs date"). An amount takes a sum, and `+` in front for money in. `→ Account` as the category makes a transfer. A calendar under the date. A box under the row, "Remember this category for this payee", while there is one to remember: ticked, the payee is remembered with the row, one undo (also in a row's Edit) |
-| Editing | Double-click a row to edit it in place, with Cancel. A reconciled row's date and amount are locked. A split's categories are edited in its card |
-| Source | An optional register column, on until Settings → Register unticks "Show where each transaction came from": how a row came to be (typed, imported, from a phone, scheduled, opening balance, reconcile adjustment) and the computer's name or the phone's name; a phone is named in the same panel. Empty for rows from before v21 |
-| Row actions | Edit, Categorize, Mark cleared, Move to (its popup has Show), Delete; Confirm on a scheduled row; a bill a row already in may have paid asks "Paid on 10.13? … Yes / No" on its row; a paid row has Not this bill; a category's bill has No bill this time in place of Delete. Keys Enter, C, Delete |
-| Undo | ⌘Z and ⌘⇧Z (Ctrl+Y on Windows) through the session's actions; in a text field they act on typing |
-| Popup | A card 440 wide with Undo. After a category is picked it offers "Always file this payee here", and the next import follows the rule |
-| Header | Cleared + uncleared = working, the working balance as the large number; "Last reconciled on"; Reconcile and Import… buttons; a credit account reads Owed |
-| Forecast | Its span is a dropdown: the pay period, 30, 60 or 90 days, 6 months, a year. It says the lowest point, or "Runs out" or "Below zero now". "N bills · amount through date" opens the list. Late money in is "not counted". Paydays and plan bills are projected past the scheduled ones |
-| Reconcile | Statement date and balance; "Add … adjustment and lock" when they differ; "Undo this reconcile" from a locked row. The database refuses changes to locked rows |
-| Budget | Spending and Income tabs. The top key: Cash & bank, in categories, Not assigned, and "Assigned too much". Each category reads Assigned · Spent · Left, the three columns parted by two dotted lines, their headings centred. Period arrows and "Back to today". A view by Month or by a pay's periods. "Assign what's planned". Each currency on its own. A ring before each everyday category's name shows how used up it is, green through gold to red; categories with a due date sit under **Bills**, their line saying "paid 10.20" once paid; a **Total** row adds up the period's Assigned and Spent |
-| Budget: Saved | The built-in Safety net category is listed last, under the heading "Saved". It can be renamed and edited, not deleted or archived. Made the first time a ledger past setup is opened without one |
-| Categories | Add category, Edit, Delete…, Archive. Edit asks "Is there a due date?" and holds How often (with Every payday, Every pay period and Custom…), Stop at, Paid from and Currency. One built-in Income. "+ New category" from the entry row and on the phone, each opening the same questions |
-| Pay | A pay has a name, an account and Monthly, Twice a month (a second amount allowed) or every N weeks, with a weekend rule (before, after, Keep the day). "No regular pay". Stopping a pay moves the categories that ran by it |
-| Savings | Four steps, each with the owner's picture: Build a safety net (one month of expenses, taken from the budget, then the three-month average, or typed; it is what is Left in the built-in Safety net category; the step says how much of it is in the accounts the category is Paid from, and offers money not assigned), Eliminate debt (every card and loan owing but a mortgage or a card paid in full every month; each takes an interest rate, a month's or a year's, there or on Add account, and shows about what it costs a month in interest; each takes what's paid a month; listed smallest first or highest rate first, the person's pick, with when each way pays it all off; how many are paid off, and a bar on the one getting the extra), Build three to six months of savings, Save for the future (saving for retirement, and paying off the mortgage). Each is done, current, later or skipped for now. The page fills the window. Counts one currency ("another currency, not counted yet") |
-| Payees | Every payee the app remembers a category for, a line each that reads as a sentence ("starts with «Unitel»", "has «Номин» anywhere"), its accounts (column only with more than one), its category, Delete. A click, or Add a payee (⌘N), opens its Edit in place: the words, Where (at the start, or anywhere in the payee or the bank's description), Accounts (checkboxes), Category (pays lead), the count of rows it fits in real numbers, one row drawn as it will read, Cancel and Save (Enter; Esc and a click away close). Save offers to file the rows still in Not categorized; rows already in a category are never moved. Delete keeps the payee as deleted so an import doesn't put it back where it went last. On import the longest words win, then the later-made |
-| Import | `.xls`, `.xlsx`, CSV and OFX, told apart by the file's contents. The column choice is saved per account. A check of the bank's running balance. Two counts, rows to import and rows skipped, with no list of rows. A Start from date. One undo for the whole import |
-| Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two currencies takes both amounts, through a hidden exchange account. An account's currency can't be changed after it's made |
-| Two computers | The ledger in the folder is read before every write, at launch, when the app comes to the front and every 15 seconds. A newer one is opened by itself ("Opened the ledger saved on …"); when both changed, nothing is written and what the other changed is brought in and both are written ("4 transactions from Tom’s MacBook Air", no Undo; this computer's ledger as it was is in Backups; a second line says "1 looks the same as one already here", with Show, or "₮3,000,000 more is assigned than you have"); only when the two changed one thing two ways, or after a restore here, "Your ledger was changed on two computers" asks which to keep, the other saved first, and Settings says so in red with "Choose which to keep…". A folder that already holds a ledger is never written over on being picked. Restore from… pointed at the folder's `Ledger.betterbudget` offers, ticked, "Share the ledger in My Drive/BetterBudget": one step sets up a second computer. A new row's id is one no other computer gives (`newRowId`), so rows keep their ids everywhere. Row in conflict: asked about (a transaction or one assigned amount), the rest of conflicts ask which whole ledger |
-| Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… (Settings says when it was last used, and after more than 30 days without it a line under Net worth says "Last backup 41 days ago", unless the ledger is in a folder), Restore from… (undoable), "Erase everything and start over…" (the old ledger is saved first). "Move my ledger to a folder…" stores the whole ledger, encrypted, as `Ledger.betterbudget` in a folder the owner picks (Google Drive, OneDrive, Box, Dropbox), written again 5 seconds after any change. Settings always says where it is: "Stored in · This computer", or "Stored in · My Drive/BetterBudget · Today 10:00" with "Move to another folder…" and "Move it back to this computer", both undoable. Every ledger file the app writes ends in `.betterbudget` (the working file, daily copies, Back up to…, the copies around a restore or an upgrade); older `.sqlite` copies still count and Restore from… opens both. The owner's ledger has been in their Drive folder since 2026-10-07 |
-| Security | A recovery key shown at setup (a key shown before 11:50 on 2026-09-29 ends in a check character worked out by an earlier rule; the app takes both, and the owner's key, saved as `BetterBudget recovery key 2.txt`, is one of those); a screen that asks for it when this device has none; Settings → Security has "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
-| Appearance | Same as this Mac, Light or Dark; 101 color schemes. What a new install shows is the app's own, “BetterBudget”, the logo's: a navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for the row and tab you choose. Money's green and red and the reconciled gold are the same in every scheme |
-| Language | Same as this Mac, English or Монгол; 1,182 messages, the same keys in both files |
-| Shortcuts | ⌘N new, ⌘F search (⌘K also works), ⌘Z undo, ⌘⇧Z redo |
-| Setup | A new, empty ledger opens on "Your accounts": one date for every balance, one line per account, × to remove, the cash question, Continue. Then "Your pay": the pay form on the page, answered by "Save pay" or "I don't have regular pay", after which the pays are listed with Edit and "Add other pay", and "Open my ledger" ends setup. The steps are named across the top (Accounts › Pay), with Back. It is on the step it was left on after a quit, and never returns once done. A ledger that already had accounts never sees it. A computer with no ledger and no key opens on "How do you want to start?": Start fresh (a new recovery key), Restore from backup, Open ledger (the folder it is stored in); the last two open in place with the recovery key and go to the file or folder dialog. Where that is cancelled or doesn't work, "Where is your ledger?" asks (folder, backup, Start empty), and again at each launch until a ledger is here, "Start empty" is picked or an account is added |
-| Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa. The app no longer seeds it |
+| Storage | SQLite (Drift) at schema v26, encrypted (SQLCipher v4), WAL mode. Double-entry ([ADR 0003](decisions/0003-double-entry-schema.md)): a write that doesn't sum to zero is refused. Deletes are soft. Before an upgrade the file is copied beside itself (`Ledger.before-v26-from-v25-<time>.betterbudget`) and the upgrade runs in one transaction. A ledger saved by a newer build is refused, nothing changed |
+| Sidebar | Ledger, Budget, Savings, Payees. Under Ledger: All accounts, then accounts grouped Bank, Cash, Credit, each with its balance and a coral dot when its forecast goes below zero, then **Add account**. Below: the Settings gear (a dot when the folder or daily copy needs attention), **Net worth** per currency, "Last backup 41 days ago" after a month, and **Send feedback…** |
+| Accounts | **Add account**: Name, **Type** (Bank account, Cash, Credit card or loan), Currency (can't change later), **Interest rate** for a card or loan. It starts from a balance on a date, or from a bank file. Its menu: Rename, Change to…, **Payments come out of** (card or loan), Archive…, Delete…. Cash gets neither Reconcile nor Import |
+| Register | One signed amount column (money in green with a plus, money out ordinary ink with a minus) and a running **Balance** (**Owed** on a card). Filter buttons, each in its color: All, Uncleared, Scheduled, and **Not categorized** while this period's rows wait; Cleared and Reconciled come from the header. Then **Import transactions…**, **Manually add a transaction** and search (⌘F: payee, memo, category, account or amount). All accounts opened from Budget is narrowed to a category and period, with its total |
+| Entry | ⌘N or **Manually add a transaction** opens the row. Enter from any field; until it can save, it says what's missing ("2 more to fill in"). An amount takes a sum, and `+` (or Swap) for money in. `→ Account` makes a transfer; to another currency it asks what arrived. **Split** at the top of Category, **New category** beside it. A date after today schedules it. A remembered payee fills its category; otherwise **Remember this category for this payee** sits under the row |
+| Editing | Double-click a row (or Enter) to edit in place, with **Save** and **Cancel** (Esc). A reconciled row's date and amount are locked; its category, payee and memo can change. A split's lines are edited in its card. A memo wraps under the payee, whole |
+| Source | An optional column, on until Settings → Register unticks "Show where each transaction came from": Entered or Imported locally or on a named computer, From a phone, Scheduled. Blank for opening balances, adjustments and rows from before v21 |
+| Row actions | Edit, Categorize, Mark cleared / uncleared, Move to (same currency), Delete; the category pill opens the same menu. **Confirm** on a scheduled row; **No bill this time** in place of Delete on a category's bill. A bill a row may have paid asks "Paid on 10.13? … Yes / No"; a row taken as the bill has **Not this bill**. The newest reconcile's rows have **Undo this reconcile**. Keys ↑ ↓, Enter, C, Delete, Esc |
+| Undo | ⌘Z and ⌘⇧Z (Ctrl+Z, Ctrl+Y on Windows) through this session's actions; in a text field they act on typing. A popup's Undo works only while its action is the newest. Changes brought in from another computer clear the list |
+| Popup | Gold, 440 wide, bottom right, with Undo, for a saved change; it stays while the pointer is on it. After a category is picked it offers "Remember this for next time". A failure is a plain card with a coral edge, **Show details** and Copy |
+| Header | **Working** is the large number (coral below zero; Owed on a card), Cleared and Uncleared under it, each a click that picks out its rows. "Last reconciled on" and Reconcile (not on cash). The forecast chart fills the rest of the card |
+| Forecast | Range buttons To income (with a payday ahead) · 30 days · 90 days · 1 year · Custom…. The line steps at each dated row and slopes with the budget's day-to-day spending, drawn as a band; coral below ₮0, its dip marked Lowest. The key, Money out · Day-to-day · Transfer · Money in, lights its marks and opens every bill with the balance after each. Hover reads any day; a click on an event opens its row. Words only where the chart can't speak: nothing scheduled, a wallet to fill, what a card is owed, running out past the range |
+| Reconcile | Takes the balances' place: Statement date, Bank balance, Cleared here and Off by, with a hint at the likely row. When they differ, "Add ₮… to the balance and lock"; when they match, Lock N transactions. The database refuses changes to locked rows |
+| Budget | Spending and Income tabs; period arrows and Back to today; the title picks Month or an income's pay periods. The key: Cash & bank, In categories, Overspent, Not assigned (green), "Assigned too much", Assign what's planned, Clear September's Assigned. The income card sets the period's plans against its income. Each category reads Assigned · Spent · Left; Left is green, gray at zero, coral when short, and **Move money** moves it. A ring before the name shows how used up it is. Everyday categories, then the person's groups, then **Bills** ("paid 10.20", or Skip this bill), then **Saved**; a **Total** row; each currency on its own |
+| Budget: Saved | The built-in Safety net, listed last under "Saved"; its money builds up. Renamed and edited, not deleted or archived. Made the first time a ledger past setup opens without one |
+| Categories | Add category and "New category" in the entry row open the same window, with Add another. Edit opens under the row: "Is there a due date?" Yes: Amount due, How often (Twice a month with Starts, Every payday, Custom…, On these dates…), Ends. No: an amount each month or pay period, Just for September, "This money is spent each month / built up for something later", what's left at month's end, Up to. Also one **Paid from**, Currency, Group, Note, In a month of expenses?, Show on Savings as a goal?. Archive, Delete…. One built-in Income |
+| Regular income | On the Income tab: a name, who it's from, Paid into, the amount (About the same each time, or It varies), How often as a category's or No set day, the first payday, a weekend rule, Ends, each with an ⓘ. "I don't have regular income". "Stop counting on this income" asks what its categories go by from then |
+| Savings | The owner's four steps with their pictures: Build a safety net (a month of expenses from the budget; what's Left in the Safety net), Eliminate debt (each card and loan's rate, interest and payment; Smallest first or Highest rate first, with when each pays it all off), Build three to six months of savings, Save for the future. Each is done, current, later or skipped for now. Goals under the steps: what for, how much, by when; on track or behind, and what each asks a month. One currency |
+| Payees | Every payee the app remembers a category for, a line each that reads as a sentence ("starts with «Unitel»"), its accounts, its category, Delete. A click or Add a payee opens its Edit in place: the words, where to look, Accounts, Category, how many rows it fits, one drawn as it will read. Save offers to file this period's rows in Not categorized; rows in a category are never moved. On import the longest words win, then the later-made |
+| Import | `.xls`, `.xlsx`, CSV and OFX, told apart by contents; the column choice is saved per account. Two counts, to import and skipped. A typed row the file has is cleared, not added; one at another amount is offered ("Same purchase: take the bank’s ₮…"). A check of the bank's running balance; a warning when rows overlap an earlier import. Remembered payees file the rows; one in a bill's category pays it. One undo |
+| Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two takes both amounts and shows the rate, through a hidden exchange account. Net worth has a line per currency |
+| Two computers | The folder holds the whole ledger and one change file per computer, written only by it. Each looks at launch, on coming to the front and every 15 seconds, and brings in the others' changes ("4 transactions from Tom’s MacBook Air", no Undo; what was here is in Backups). A row or Assigned amount changed two ways is asked first, one window: Keep this computer's, Keep the other's, Neither: as it was; answered on one, the others aren't asked. Only a ledger that can't be put together asks which whole ledger to keep. A second computer joins by Open ledger, or Restore from… with "Share the ledger in My Drive/BetterBudget". Open the app from Applications, never from inside the Drive folder |
+| Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… ("Last backup 41 days ago" after 30 days, unless in a folder). Restore from… and "Erase everything and start over…" save what was there first, and undo. "Move my ledger to a folder…" keeps it, encrypted, as `Ledger.betterbudget` in a Drive, OneDrive, Box or Dropbox folder, written 5 seconds after a change; "Stored in" says where |
+| Security | A recovery key shown once at setup (the clipboard cleared a minute after a copy); a key from before 11:50 on 2026-09-29 ends in an older check character, and the app takes both (the owner's is one). A screen asks for it when this device has none. Settings → Security, "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
+| Appearance | Same as this Mac, Light or Dark; 101 color schemes, the app's own first: the logo's navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for what you click, the coins' gold for what was saved. In every scheme money in is green, money out ordinary ink, coral a shortfall or failure, gold reconciled |
+| Language | Same as this Mac, English or Монгол; 1,662 messages, the same keys in both files |
+| Setup | "Your accounts": one date for every balance, a line per account, "How do you pay for everyday things?", Continue. "Your regular income": the form, with a card beside it of what it does to the forecast and budget, then "Open my ledger". It resumes where it was left and never returns once done. A computer with no ledger and no key opens on "How do you want to start?": Start fresh, Restore from backup, Open ledger; cancelled, "Where is your ledger?" asks |
+| Settings | Appearance, Colors, Language, Backups, Security, Register (the Source column; a name for each computer and phone), Archived accounts, Start over, the version. **Recent problems** while there are any: the newest five, on this computer only, no amounts, with Copy all. **Send feedback…** under Net worth opens lls.mn's contact form with the version, platform and system |
+| Phone | Android and iPhone, to record and check ([ADR 0005](decisions/0005-mobile-companion.md)). Set up once with the recovery key and the folder; reads `Ledger.betterbudget` there every half minute and says how fresh it is. **Ledger**: an amount pad, payee, account, a Category dropdown (Split at the top, each regular income by name, transfers, + New category), Save; "1 entry isn't on your computer yet". **Budget**: what's left in each category with its ring, Accounts, Send feedback…, Recent problems. Entries go to the phone's own file in the folder and come in on the computer as uncleared rows. `DEMO-DEMO-DEMO-DEMO-DEMO` as the key opens made-up figures |
+| Windows | The Store app keeps the ledger, its copies, the saved key and settings in its package folder, so uninstalling leaves nothing; the old zip download's ledger comes over with Open ledger |
+| Demo data | Tests only (`LedgerScreen.demo`): TDB Checking, Khan Savings, Cash wallet, Golomt Visa, the Safety net. The app never seeds it |
 
-Rules behind each: ADR 0004. Where the code is: [MAP.md](MAP.md).
-
-**Not carried over** from the old table, because they weren't checked against the
-code: details of Accounts (archive and delete), Entry, Register, Forecast, Budget,
-Savings, Import, Backups and Appearance. Before changing behavior in one of those
-areas, search `docs/archive/STATUS-2026-10-07.md` for that area's claims and verify
-them against the code first (owner, 2026-10-07; this is the one standing reason to
-open the archive).
+Rules behind each: ADR 0004 and ADR 0005. Where the code is: [MAP.md](MAP.md).
 
 ## Known limits, accepted
 
@@ -810,36 +123,32 @@ session loses the statement balance.
 
 ## Local setup notes
 
-- **Toolchain:** Flutter via Homebrew (`brew install --cask flutter`, 3.47 at time of
-  writing). Xcode is installed and selected (`sudo xcode-select -s
-  /Applications/Xcode.app/Contents/Developer`, license accepted). If the macOS build fails
-  with `tapi error … MacOSX27.0.sdk`, `xcode-select` is pointing at the Command Line Tools
-  again, and the native build hook for `objective_c` is picking up the wrong SDK.
-- **Signing:** the Mac and iPhone apps sign with the paid team "Loveland Solutions,
-  LLC" `44H5SLX8KR` (automatic; the Mac since 0.72.1, the iPhone since 0.73.1,
-  2026-11-03), needed for the Keychain entitlement and the App Store. The team has no
-  iPhone registered, so an iPhone build reaches a phone only through TestFlight. Moving the Mac to the paid team
-  moved the Keychain group the ledger's key is kept in (ADR 0001), so the first
-  build on the new team asks for the recovery key once. This Mac is registered with
-  the paid team (a build for it with `-allowProvisioningDeviceRegistration`; one
-  aimed at "Any Mac" doesn't register). This Mac needed Apple's WWDR G3 intermediate
-  installed (done 2026-09-28). If Xcode asks for a new provisioning profile, run once
-  from `app/macos`: `xcodebuild -workspace Runner.xcworkspace -scheme Runner
-  -configuration Debug -allowProvisioningUpdates build`.
-  Android: the package is `mn.lls.betterbudget` (registered in Play Console,
-  2026-10-14; the Mac stays `com.lovelandsolutions.betterbudget`). Release builds sign
-  with the upload key `~/betterbudget-upload.jks` (alias `upload`) when the git-ignored
-  `app/android/key.properties` holds its password, otherwise with the debug key. The
-  owner keeps the key, password and fingerprints in KeePass. `keytool` isn't on the
-  PATH: use Android Studio's, `/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool`.
-  The first build with the new package installs on the Pixel as a second app, starting
-  at setup: let the computer take in the old app's waiting entries first.
-- **macOS 27** (2026-09-28) draws text edges slightly differently: goldens were redrawn on
-  it. Goldens made on another macOS version will differ by about 0.1%.
-- **If tests stall** (random widget tests time out after 10 minutes with the CPU idle,
-  even on older commits), restart the Mac: on 2026-09-29 a stuck `dart pub get` and
-  leftover `flutter_tester` processes caused it. Check first with
-  `ps -ax | grep -E "flutter|dart"`.
+- **Toolchain:** Flutter via Homebrew (`brew install --cask flutter`). Xcode is selected
+  (`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`). If the macOS build
+  fails with `tapi error … MacOSX27.0.sdk`, `xcode-select` is pointing at the Command Line
+  Tools again.
+- **Signing:** the Mac and iPhone apps sign with the paid team "Loveland Solutions, LLC"
+  `44H5SLX8KR`, needed for the Keychain entitlement and the App Store; a build signed by
+  another team can't read the ledger's key (ADR 0001). No iPhone is registered, so an
+  iPhone build reaches a phone only through TestFlight. If Xcode asks for a new
+  provisioning profile, run once from `app/macos`: `xcodebuild -workspace
+  Runner.xcworkspace -scheme Runner -configuration Debug -allowProvisioningUpdates build`.
+  Android's package is `mn.lls.betterbudget` (the Apple one,
+  `com.lovelandsolutions.betterbudget`). Release builds sign with the upload key
+  `~/betterbudget-upload.jks` (alias `upload`) when the git-ignored
+  `app/android/key.properties` holds its password, otherwise with the debug key; the owner
+  keeps them in KeePass. `keytool` is Android Studio's,
+  `/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool`.
+- **Goldens** are drawn on macOS 27; another macOS version differs by about 0.1%.
+- **If tests stall** (widget tests time out with the CPU idle), look for leftover
+  `flutter_tester` or `dart pub get` processes (`ps -ax | grep -E "flutter|dart"`), then
+  restart the Mac.
+- **Checks on GitHub:** `.github/workflows/check.yml` runs analyze and test on each pull
+  request touching `app/`, about 17 minutes, not required for merging (MAP.md "Checks on
+  GitHub").
+- **The logo** and the Savings pictures are made by `assets/logo/prepared/prepare.py` from
+  the owner's five vectors in `assets/logo/Images/`; the rest of that folder is on the
+  owner's Mac only, not in git.
 - **Run:** `cd app && flutter run -d macos`, or build with `flutter build macos --debug`
   and open `app/build/macos/Build/Products/Debug/BetterBudget.app`.
 - **Rebuild and relaunch** (from `app/`): the owner runs a Release build signed by the
@@ -847,8 +156,7 @@ session loses the statement balance.
   macos/Runner.xcworkspace -scheme Runner -configuration Release -derivedDataPath
   build/macos-company -allowProvisioningUpdates build && pkill -f
   "BetterBudget.app/Contents/MacOS"; open
-  build/macos-company/Build/Products/Release/BetterBudget.app`. A build signed by another
-  team can't read the ledger's key.
+  build/macos-company/Build/Products/Release/BetterBudget.app`.
 - **App data:** `~/Library/Containers/com.lovelandsolutions.betterbudget/Data/Library/Application Support/com.lovelandsolutions.betterbudget/Ledger.betterbudget`
   (plus `-wal`, `-shm`). **This file is production data.** Never delete, reseed, erase or
   hand-edit it; tests use demo data, and anything tried by hand goes on a copy.
