@@ -6010,3 +6010,23 @@ counted things that aren't everyday.
   asking them to know a lot of features about the app"); a loan to someone or money
   paid back needs no kind of its own; weekly amounts and income with no set day are
   not being built.
+
+## A store listing leads with building wealth (owner, 2026-11-03)
+
+The first Mac App Store listing was drafted from the Microsoft Store's, which opens on
+privacy: no account, no internet, encrypted. The owner: "That is a feature, but it's not
+the main thing. The wealth building is."
+
+- **Every store listing opens with building wealth**, in the Play listing's words:
+  "Most budgets help you get through the month. BetterBudget helps you build wealth for a
+  better life." The four savings steps come next, then privacy, then the ledger and the
+  budget.
+- **The Mac's App Store page** (2026-11-03): subtitle "Build wealth for a better life";
+  promotional text "Most budgets help you get through the month. BetterBudget helps you
+  build wealth: a safety net, debts paid off, savings for the years ahead. Private, on
+  your own Mac."; keywords end with "wealth".
+- **No line about the phone app** while only Android has one: Apple refuses a listing
+  that points to another platform. It returns when the iPhone app joins the listing.
+- **Rejected:** the Microsoft Store's opening, "BetterBudget is a budget you keep on your
+  own computer…", as the first line. The Microsoft Store and Play listings follow when
+  next changed (#377).
