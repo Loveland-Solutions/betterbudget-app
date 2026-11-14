@@ -5661,8 +5661,34 @@ void main() {
     await tidy(tester, db);
   });
 
-  testWidgets('Skip this bill on the Budget page, this month and further '
-      'ahead, and Bring it back (#357)', (tester) async {
+  // A bill's Edit, opened from its amount: its switch is turned and Save
+  // pressed (#365).
+  Future<void> flipBill(WidgetTester tester, int id) async {
+    final amount = find.byKey(ValueKey('plan-note-$id'));
+    await tester.scrollUntilVisible(
+      amount,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(amount);
+    await tester.pumpAndSettle();
+    final flip = find.descendant(
+      of: find.byKey(ValueKey('category-editor-$id')),
+      matching: find.byType(Switch),
+    );
+    await tester.ensureVisible(flip);
+    await tester.pumpAndSettle();
+    await tester.tap(flip);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+    await tapAndWrite(tester, find.byKey(const ValueKey('edit-save')));
+  }
+
+  testWidgets('a bill is one line, and skipping it is a switch in its Edit, '
+      'this month and further ahead, and switching it back on (#357, #365)', (
+    tester,
+  ) async {
     final db = await pumpLedger(tester);
     final plan = await billPlan(
       tester,
@@ -5683,28 +5709,13 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('Budget'));
     await settle(tester);
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await mouse.addPointer(location: Offset.zero);
-    Future<void> point() async {
-      final row = find.byKey(ValueKey('category-$id'));
-      await tester.scrollUntilVisible(
-        row,
-        200,
-        scrollable: find.byType(Scrollable).last,
-      );
-      await tester.pumpAndSettle();
-      await mouse.moveTo(tester.getTopLeft(row) + const Offset(60, 20));
-      await tester.pumpAndSettle();
-    }
-
-    // The row the pointer is on says it.
+    // One line: no sentence under the name, no Skip link on it.
     expect(find.text('Skip this bill'), findsNothing);
-    await point();
-    expect(find.text('Skip this bill'), findsOneWidget);
+    expect(find.byKey(ValueKey('plan-note-$id')), findsOneWidget);
 
     // This month's has a row: No bill this time. Nothing was set aside, so
     // the popup doesn't say any stays.
-    await tapAndWrite(tester, find.text('Skip this bill'));
+    await flipBill(tester, id);
     expect(
       find.text('No Netflix bill on 09.20. The next one is due 10.20.'),
       findsOneWidget,
@@ -5718,17 +5729,15 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('period-next')));
       await tester.pumpAndSettle();
     }
-    await point();
-    await tapAndWrite(tester, find.text('Skip this bill'));
+    await flipBill(tester, id);
     expect(
       find.text('No Netflix bill on 11.20. The next one is due 12.20.'),
       findsOneWidget,
     );
     await settle(tester);
-    expect(find.textContaining('No bill on 11.20'), findsOneWidget);
-    // November asks nothing now, and December's bill is skipped from
-    // December's page.
-    expect(find.text('Skip this bill'), findsNothing);
+    // The row says so in its one spot; November asks nothing now.
+    expect(find.byKey(ValueKey('plan-state-$id')), findsOneWidget);
+    expect(find.text('Skipped'), findsOneWidget);
     expect(find.byKey(ValueKey('plan-assign-$id')), findsNothing);
     await expectLater(
       find.byType(LedgerScreen),
@@ -5761,16 +5770,57 @@ void main() {
     await keys(LogicalKeyboardKey.keyY);
     expect(await skipped(), {DateTime(2026, 11, 20)});
 
-    await tapAndWrite(tester, find.byKey(ValueKey('plan-back-$id-0')));
+    await flipBill(tester, id);
     expect(find.text('The Netflix bill on 11.20 is back.'), findsOneWidget);
     await settle(tester);
-    expect(find.textContaining('No bill on 11.20'), findsNothing);
+    expect(find.text('Skipped'), findsNothing);
     expect(await skipped(), isEmpty);
     // Undo of Bring it back skips it again; redo brings it back.
     await keys(LogicalKeyboardKey.keyZ);
     expect(await skipped(), {DateTime(2026, 11, 20)});
     await keys(LogicalKeyboardKey.keyY);
     expect(await skipped(), isEmpty);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a bill’s switch turned and Edit cancelled skips nothing, and '
+      'its Edit shows the bill as skipped once it is (#365)', (tester) async {
+    final db = await pumpLedger(tester);
+    final plan = await billPlan(
+      tester,
+      db,
+      'Netflix',
+      2000000,
+      DateTime(2026, 9, 20),
+    );
+    final id = plan.category;
+    await settle(tester);
+    await tester.tap(find.text('Budget'));
+    await settle(tester);
+    final amount = find.byKey(ValueKey('plan-note-$id'));
+    await tester.scrollUntilVisible(
+      amount,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(amount);
+    await tester.pumpAndSettle();
+    final flip = find.descendant(
+      of: find.byKey(ValueKey('category-editor-$id')),
+      matching: find.byType(Switch),
+    );
+    await tester.ensureVisible(flip);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Switch>(flip).value, isTrue);
+    await tester.tap(flip);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Switch>(flip).value, isFalse);
+    await tester.tap(find.text('Cancel'));
+    await settle(tester);
+    final ledger = (await tester.runAsync(db.loadLedger))!;
+    expect(Budget.skippedBills(ledger, ledger.plans[id]!), isEmpty);
+    expect(find.text('Skipped'), findsNothing);
     await tidy(tester, db);
   });
 
@@ -5797,18 +5847,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('Budget'));
     await settle(tester);
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await mouse.addPointer(location: Offset.zero);
-    final row = find.byKey(ValueKey('category-$id'));
-    await tester.scrollUntilVisible(
-      row,
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.pumpAndSettle();
-    await mouse.moveTo(tester.getTopLeft(row) + const Offset(60, 20));
-    await tester.pumpAndSettle();
-    await tapAndWrite(tester, find.text('Skip this bill'));
+    await flipBill(tester, id);
     expect(
       find.text(
         'No Visa card payment on 09.20. The balance is still owed. '
@@ -5859,9 +5898,19 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     await tester.pumpAndSettle();
-    await mouse.moveTo(tester.getTopLeft(water) + const Offset(60, 20));
+    // Its Edit holds the switch for August's bill.
+    final waterId = (await tester.runAsync(db.loadLedger))!.categories
+        .firstWhere((c) => c.name == 'Water')
+        .id;
+    await tester.tap(find.byKey(ValueKey('plan-note-$waterId')));
     await tester.pumpAndSettle();
-    expect(find.text('Skip this bill'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey('category-editor-$waterId')),
+        matching: find.byType(Switch),
+      ),
+      findsOneWidget,
+    );
     await tidy(tester, db);
   });
 
@@ -5909,7 +5958,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('budget-bills')), findsOneWidget);
     expect(find.byKey(ValueKey('used-${plan.category}')), findsNothing);
-    expect(find.text(' · paid 09.16'), findsOneWidget);
+    expect(find.text('paid 09.16'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -7874,8 +7923,10 @@ void main() {
       );
       expect(find.text('Assigned ₮600,000 to 3 categories'), findsOneWidget);
       expect(find.byKey(const ValueKey('assign-planned')), findsNothing);
-      expect(find.byKey(ValueKey('plan-state-$tuition')), findsOneWidget);
-      expect(find.text(' · on track'), findsNWidgets(2));
+      // A bill on track says nothing: one line, a word only when it matters
+      // (#365).
+      expect(find.byKey(ValueKey('plan-state-$tuition')), findsNothing);
+      expect(find.textContaining('on track'), findsNothing);
       // The ring before a name (#241): Groceries has used ₮276,650.50 of
       // its ₮900,000; Childcare, with nothing in it and nothing spent,
       // has none; Tuition and Clothing save for a date, so they sit under

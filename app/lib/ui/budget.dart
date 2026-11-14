@@ -70,10 +70,12 @@ class _BudgetPage extends StatefulWidget {
 
   /// Skip this bill, on a category's line: the bill's date and what the
   /// category has left (#357).
-  final void Function(AccountInfo category, DateTime due, int left) onSkipBill;
+  final Future<void> Function(AccountInfo category, DateTime due, int left)
+  onSkipBill;
 
   /// Bring it back, on a line that says there's no bill on a date.
-  final void Function(AccountInfo category, DateTime date) onBringBackBill;
+  final Future<void> Function(AccountInfo category, DateTime date)
+  onBringBackBill;
 
   /// Income tab: a pay's Edit, or Add pay (null).
   final ValueChanged<PaySchedule?> onPay;
@@ -500,60 +502,77 @@ class _BudgetPageState extends State<_BudgetPage> {
       // The ring: how used up it is (#241); not under Saved, which fills
       // rather than empties (how far along is the Savings page's, #103).
       final share = saved.contains(c.id) ? null : line?.usedShare;
+      // A bill's row is one line (#365): its amount, one word when
+      // something is up, and Assign while this period's part isn't in.
+      // Short comes first, then skipped, paid, late, its account put away.
+      final paidAccount = data.accounts[data.paidFrom[c.id]];
+      final paidGone =
+          paidAccount != null && (paidAccount.archived || paidAccount.deleted);
+      final note = line == null || planLine == null
+          ? null
+          : planNote(
+              t,
+              line,
+              period,
+              widget.today,
+              currency,
+              payName: ownPayName(t, data, planLine.plan),
+              own: data.payScheduleById(planLine.plan.payScheduleId),
+            );
+      final billOne = isBill(c) && note != null;
+      final String? billState = !billOne
+          ? null
+          : line!.short > 0
+          ? note.state
+          : planLine!.noBills.isNotEmpty
+          ? t.planBillSkipped
+          : line.paidOn != null
+          ? note.state
+          : planLine.late
+          ? t.planBillLate
+          : paidGone
+          ? t.planBillArchived
+          : null;
+      final String? billStateTip =
+          billOne && paidGone && billState == t.planBillArchived
+          ? t.planPaidFromGone(paidAccount.name)
+          : null;
+      // The bills of this period that can be skipped or brought back,
+      // each a switch in Edit (#365): the one due here, and the skipped.
+      final due = planLine?.due;
+      final skippable =
+          planLine != null &&
+          due != null &&
+          planLine.plan.kind == PlanKind.byDate &&
+          planLine.plan.repeats &&
+          planLine.dueHere &&
+          !planLine.ended &&
+          !planLine.waiting &&
+          line?.paidOn == null &&
+          (!period.end.isBefore(widget.today) ||
+              data.txns.any(
+                (x) => x.scheduled && x.planCategoryId == c.id && x.date == due,
+              ));
+      final switches = <({DateTime date, bool skipped})>[
+        if (skippable) (date: due, skipped: false),
+        for (final d in planLine?.noBills ?? const <DateTime>[])
+          (date: d, skipped: true),
+      ]..sort((a, b) => a.date.compareTo(b.date));
       final row = _CategoryRow(
         key: ValueKey('category-${c.id}'),
         category: c,
         menuFocus: _dotsOf(c.id),
         striped: striped,
-        planNote: line == null || planLine == null
-            ? null
-            : planNote(
-                t,
-                line,
-                period,
-                widget.today,
-                currency,
-                payName: ownPayName(t, data, planLine.plan),
-                own: data.payScheduleById(planLine.plan.payScheduleId),
-              ),
+        planNote: note,
         assignPlanned: toAssign == 0 ? null : planMoney(toAssign, currency),
         onAssignPlanned: () => widget.onSetAmount(c, period, planLine!.planned),
         // A bill that comes again, due in this period and not paid yet,
         // in a period not over, or one still waiting in the ledger from a
         // month that's over (#363): a bill further ahead is skipped from
         // its own period's page.
-        onSkipBill: switch ((planLine, planLine?.due)) {
-          (final p?, final due?)
-              when p.plan.kind == PlanKind.byDate &&
-                  p.plan.repeats &&
-                  p.dueHere &&
-                  !p.ended &&
-                  !p.waiting &&
-                  line?.paidOn == null &&
-                  (!period.end.isBefore(widget.today) ||
-                      data.txns.any(
-                        (x) =>
-                            x.scheduled &&
-                            x.planCategoryId == c.id &&
-                            x.date == due,
-                      )) =>
-            () => widget.onSkipBill(c, due, line?.left ?? 0),
-          _ => null,
-        },
-        noBills: [
-          for (final d in planLine?.noBills ?? const <DateTime>[])
-            (
-              words:
-                  (Budget.loanOfCategory(data, c.id) == null
-                  ? t.planNoBillOn
-                  : t.planNoPaymentOn)(
-                    d.year == widget.today.year
-                        ? sayDate(t, d)
-                        : sayFullDate(t, d),
-                  ),
-              onBringBack: () => widget.onBringBackBill(c, d),
-            ),
-        ],
+        billState: billState,
+        billStateTip: billStateTip,
+        billBehind: (line?.short ?? 0) > 0,
         open: _open == c.id,
         onOpen: () => open(c.id),
         onClose: () => open(null),
@@ -566,6 +585,8 @@ class _BudgetPageState extends State<_BudgetPage> {
                 data,
                 c,
                 line,
+                // A bill's row says it in its one spot.
+                paidGone: !billOne,
                 today: isCurrent,
                 onAccounts: () => open(c.id),
                 onRows: () => widget.onShowRows(c, period),
@@ -625,6 +646,16 @@ class _BudgetPageState extends State<_BudgetPage> {
                 currencies: currencies,
                 usage: usage == null ? null : _usageText(t, usage),
                 atPlan: _openAtPlan,
+                bills: switches,
+                loan: Budget.loanOfCategory(data, c.id) != null,
+                onBills: (skip, back) async {
+                  for (final d in skip) {
+                    await widget.onSkipBill(c, d, line?.left ?? 0);
+                  }
+                  for (final d in back) {
+                    await widget.onBringBackBill(c, d);
+                  }
+                },
                 onShowAllRows: () => widget.onShowAllRows(c),
                 onArchive: () {
                   open(null);
@@ -2407,8 +2438,9 @@ class _CategoryRow extends StatefulWidget {
     this.planNote,
     this.assignPlanned,
     this.onAssignPlanned,
-    this.onSkipBill,
-    this.noBills = const [],
+    this.billState,
+    this.billStateTip,
+    this.billBehind = false,
     this.flags = const [],
     this.moveChoices = const [],
     this.onMove,
@@ -2455,11 +2487,12 @@ class _CategoryRow extends StatefulWidget {
   final String? assignPlanned;
   final VoidCallback? onAssignPlanned;
 
-  /// Skip this bill, while there's a bill on the line to skip.
-  final VoidCallback? onSkipBill;
-
-  /// The bills of this period there won't be.
-  final List<_NoBill> noBills;
+  /// A bill's one spot (#365): "Late", "Skipped", "paid 10.13", "₮200,000
+  /// short", "Paid from archived"; null says nothing. [billStateTip] is its
+  /// tooltip; [billBehind] (short) is in full ink.
+  final String? billState;
+  final String? billStateTip;
+  final bool billBehind;
 
   /// The plan's note was clicked: Edit, at the plan.
   final VoidCallback onPlan;
@@ -2513,6 +2546,7 @@ class _CategoryRowState extends State<_CategoryRow> {
   Widget build(BuildContext context) {
     final t = context.t;
     final c = widget.category;
+    final oneLine = widget.bill && widget.planNote != null;
     return MenuAnchor(
       controller: _menu,
       style: _menuStyle,
@@ -2545,7 +2579,7 @@ class _CategoryRowState extends State<_CategoryRow> {
                 horizontal: 12,
                 vertical:
                     widget.fromBefore == null &&
-                        widget.planNote == null &&
+                        (widget.planNote == null || widget.bill) &&
                         widget.flags.isEmpty
                     ? 0
                     : 5,
@@ -2584,10 +2618,72 @@ class _CategoryRowState extends State<_CategoryRow> {
                                 ),
                               },
                             ),
-                            Expanded(child: Text(c.name, style: onest(13.5))),
+                            if (oneLine) ...[
+                              Flexible(child: Text(c.name, style: onest(13.5))),
+                              const SizedBox(width: 12),
+                              Tooltip(
+                                message:
+                                    '${widget.planNote!.text}\n${t.planEditTip}',
+                                waitDuration: const Duration(milliseconds: 600),
+                                child: Hoverable(
+                                  key: ValueKey('plan-note-${c.id}'),
+                                  onTap: widget.onPlan,
+                                  builder: (hover) => Text(
+                                    widget.planNote!.amount,
+                                    style: onest(
+                                      12.5,
+                                      color: hover ? Mid.ink : Mid.ink2,
+                                      tabular: true,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (widget.billState case final state?) ...[
+                                const SizedBox(width: 10),
+                                Tooltip(
+                                  message: widget.billStateTip ?? '',
+                                  waitDuration: const Duration(
+                                    milliseconds: 400,
+                                  ),
+                                  child: Text(
+                                    state,
+                                    key: ValueKey('plan-state-${c.id}'),
+                                    style: onest(
+                                      12,
+                                      color: widget.billBehind
+                                          ? Mid.ink
+                                          : Mid.ink2,
+                                      tabular: true,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (widget.assignPlanned case final amount?) ...[
+                                const SizedBox(width: 10),
+                                Hoverable(
+                                  key: ValueKey('plan-assign-${c.id}'),
+                                  onTap: widget.onAssignPlanned,
+                                  builder: (hover) => Text(
+                                    t.planAssignThis(amount),
+                                    style:
+                                        onest(
+                                          12,
+                                          color: Mid.blue,
+                                          tabular: true,
+                                        ).copyWith(
+                                          decoration: hover
+                                              ? TextDecoration.underline
+                                              : null,
+                                          decorationColor: Mid.blue,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ] else
+                              Expanded(child: Text(c.name, style: onest(13.5))),
                           ],
                         ),
-                        if (widget.planNote case final note?)
+                        if (widget.planNote case final note? when !oneLine)
                           Padding(
                             padding: const EdgeInsets.only(left: _ringIndent),
                             child: _PlanNoteLine(
@@ -2596,9 +2692,6 @@ class _CategoryRowState extends State<_CategoryRow> {
                               assign: widget.assignPlanned,
                               onAssign: widget.onAssignPlanned,
                               onPlan: widget.onPlan,
-                              onSkipBill: widget.onSkipBill,
-                              rowHover: _hover,
-                              noBills: widget.noBills,
                             ),
                           ),
                         // What they wrote about it (#100): one line, the
@@ -4196,13 +4289,9 @@ class _StartOffer extends StatelessWidget {
   );
 }
 
-/// A bill that won't come: "No bill on 11.15", and what brings it back.
-typedef _NoBill = ({String words, VoidCallback onBringBack});
-
 /// The plan under a category's name. Clicking it opens Edit at the plan; "Assign
-/// ₮200,000" at its end assigns what the plan wants this period. A bill's
-/// line says **Skip this bill** on the row the pointer is on, as a row says
-/// Move money beside its Left, and a bill there won't be has a line of its own.
+/// ₮200,000" at its end assigns what the plan wants this period. (A bill's row
+/// is one line without it, #365.)
 class _PlanNoteLine extends StatelessWidget {
   const _PlanNoteLine({
     required this.id,
@@ -4210,23 +4299,16 @@ class _PlanNoteLine extends StatelessWidget {
     required this.assign,
     required this.onAssign,
     required this.onPlan,
-    this.onSkipBill,
-    this.rowHover = false,
-    this.noBills = const [],
   });
   final int id;
   final PlanNote note;
   final String? assign;
   final VoidCallback? onAssign;
   final VoidCallback? onPlan;
-  final VoidCallback? onSkipBill;
-  final bool rowHover;
-  final List<_NoBill> noBills;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final words = onest(12, color: Mid.ink2, tabular: true);
     TextStyle blue(bool hover) =>
         onest(12, color: Mid.blue, tabular: true).copyWith(
           decoration: hover ? TextDecoration.underline : null,
@@ -4280,33 +4362,8 @@ class _PlanNoteLine extends StatelessWidget {
                       Text(t.planAssignThis(amount), style: blue(hover)),
                 ),
               ],
-              if (onSkipBill case final skip?)
-                Hoverable(
-                  key: ValueKey('plan-skip-$id'),
-                  onTap: skip,
-                  // In the tree off the row too, so Tab finds it.
-                  builder: (hover) => hover || rowHover
-                      ? Padding(
-                          padding: const EdgeInsets.only(left: 10),
-                          child: Text(t.planSkipBill, style: blue(hover)),
-                        )
-                      : const SizedBox.shrink(),
-                ),
             ],
           ),
-          for (final (i, b) in noBills.indexed)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(child: Text('${b.words} · ', style: words)),
-                Hoverable(
-                  key: ValueKey('plan-back-$id-$i'),
-                  onTap: b.onBringBack,
-                  builder: (hover) =>
-                      Text(t.planBringBackBill, style: blue(hover)),
-                ),
-              ],
-            ),
         ],
       ),
     );
@@ -4541,6 +4598,7 @@ List<_LineFlag> _lineFlags(
   AccountInfo c,
   EnvelopeLine line, {
   required bool today,
+  required bool paidGone,
   required VoidCallback onAccounts,
   required VoidCallback onRows,
   required VoidCallback onAllRows,
@@ -4552,7 +4610,7 @@ List<_LineFlag> _lineFlags(
   return [
     // Its account put away: nothing of it is in a forecast until another
     // is picked (warn, don't block).
-    if (paid != null && (paid.archived || paid.deleted))
+    if (paidGone && paid != null && (paid.archived || paid.deleted))
       (text: t.planPaidFromGone(paid.name), color: Mid.ink2, onTap: onAccounts),
     if (line.backing case final b? when today)
       (
@@ -4601,6 +4659,9 @@ class _CategoryEditor extends StatefulWidget {
     required this.onCancel,
     required this.onArchive,
     required this.onShowAllRows,
+    this.bills = const [],
+    this.loan = false,
+    this.onBills,
     this.onAdd,
     this.offerAnother = false,
     this.nameNote,
@@ -4638,6 +4699,14 @@ class _CategoryEditor extends StatefulWidget {
 
   /// Opened from the plan's note: the cursor starts in the plan's amount.
   final bool atPlan;
+
+  /// This period's bills, each a switch (#365): on while it's expected.
+  /// Save skips those switched off and brings back those switched on, by
+  /// [onBills] (the dates to skip, the dates to bring back).
+  final List<({DateTime date, bool skipped})> bills;
+  final bool loan;
+  final Future<void> Function(List<DateTime> skip, List<DateTime> back)?
+  onBills;
   final ValueChanged<_CategoryEdit> onSave;
   final VoidCallback onCancel;
   final VoidCallback onArchive;
@@ -4666,6 +4735,11 @@ class _CategoryEditor extends StatefulWidget {
 class _CategoryEditorState extends State<_CategoryEditor> {
   late final _d = widget.keep ?? _EditDraft(widget.category, widget.today);
   TextEditingController get _name => _d.name;
+
+  /// A bill's switch is on while it's expected: a skipped bill's begins
+  /// off, and a flip turns it over (#365).
+  bool _expected(({DateTime date, bool skipped}) b) =>
+      b.skipped == _d.flips.contains(b.date);
 
   /// The plan's answers, and what they add up to: the phone's New
   /// category page asks the same.
@@ -5044,7 +5118,20 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       note: _d.note.text.trim().isEmpty ? null : _d.note.text.trim(),
     );
     final add = widget.onAdd;
-    if (add == null) return widget.onSave(edit);
+    if (add == null) {
+      // One after the other, so each one's popup reads what the last did.
+      await widget.onBills?.call(
+        [
+          for (final b in widget.bills)
+            if (!b.skipped && _d.flips.contains(b.date)) b.date,
+        ],
+        [
+          for (final b in widget.bills)
+            if (b.skipped && _d.flips.contains(b.date)) b.date,
+        ],
+      );
+      return widget.onSave(edit);
+    }
     final made = await add(edit, another: another);
     // Not made: the answers stay, to be changed and added again.
     if (!made && mounted) _done = false;
@@ -5548,6 +5635,39 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     return _formRow(t.planGroup, control);
   }
 
+  /// This period's bills, a switch each (#365; owner, 2026-11-03: skipping
+  /// is the category's Edit's, saved with Save).
+  Widget _billsRow(Words t) => _formRow(
+    widget.loan ? t.planPaymentsHere : t.planBillsHere,
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final b in widget.bills)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Switch(
+                key: ValueKey('bill-switch-${dateKey(b.date)}'),
+                value: _expected(b),
+                onChanged: (_) => setState(() {
+                  if (!_d.flips.remove(b.date)) _d.flips.add(b.date);
+                }),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                (widget.loan ? t.planPaymentComes : t.planBillComes)(
+                  b.date.year == widget.today.year
+                      ? sayDate(t, b.date)
+                      : sayFullDate(t, b.date),
+                ),
+                style: onest(13.5),
+              ),
+            ],
+          ),
+      ],
+    ),
+  );
+
   /// What the person wants to remember about it, under its name (#100).
   Widget _noteRow(Words t) => _formRow(
     t.planNote,
@@ -6018,6 +6138,8 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                 !widget.isNew)
                               _groupRow(t),
                             if (!widget.isNew) _noteRow(t),
+                            if (!widget.isNew && widget.bills.isNotEmpty)
+                              _billsRow(t),
                             // The row, as it will read after Save.
                             const SizedBox(height: 6),
                             Text(
@@ -6304,6 +6426,11 @@ class _EditDraft {
   final int id;
   final TextEditingController name;
   final PlanAnswers p;
+
+  /// The bills' switches the person turned in Edit (#365), by date: only
+  /// their flips, so a bill that changes under an open Edit isn't undone
+  /// by Save, and the flips stay across a page change.
+  final flips = <DateTime>{};
 
   /// What's written about it, shown under its name (#100).
   final TextEditingController note;

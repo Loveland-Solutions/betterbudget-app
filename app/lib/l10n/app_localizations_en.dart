@@ -6433,9 +6433,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planSkipBill => 'Skip this bill';
-
-  @override
   String planNoBillOn(String date) {
     return 'No bill on $date';
   }
@@ -6456,7 +6453,29 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planBringBackBill => 'Bring it back';
+  String get planBillLate => 'Late';
+
+  @override
+  String get planBillSkipped => 'Skipped';
+
+  @override
+  String get planBillArchived => 'Paid from archived';
+
+  @override
+  String get planBillsHere => 'Bills in this period';
+
+  @override
+  String get planPaymentsHere => 'Payments in this period';
+
+  @override
+  String planBillComes(String date) {
+    return 'Bill on $date';
+  }
+
+  @override
+  String planPaymentComes(String date) {
+    return 'Payment on $date';
+  }
 
   @override
   String ledgerBillsPaidCount(int count) {
