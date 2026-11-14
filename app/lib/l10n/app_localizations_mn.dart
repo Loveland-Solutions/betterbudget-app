@@ -6234,9 +6234,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planSkipBill => 'Энэ төлбөрийг алгасах';
-
-  @override
   String planNoBillOn(String date) {
     return '$date-нд төлбөргүй';
   }
@@ -6257,7 +6254,29 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planBringBackBill => 'Буцааж нэмэх';
+  String get planBillLate => 'Хоцорсон';
+
+  @override
+  String get planBillSkipped => 'Алгассан';
+
+  @override
+  String get planBillArchived => 'Архивласан данснаас төлдөг';
+
+  @override
+  String get planBillsHere => 'Энэ үеийн төлбөрүүд';
+
+  @override
+  String get planPaymentsHere => 'Энэ үеийн төлөлтүүд';
+
+  @override
+  String planBillComes(String date) {
+    return '$date-ний төлбөр';
+  }
+
+  @override
+  String planPaymentComes(String date) {
+    return '$date-ний төлөлт';
+  }
 
   @override
   String ledgerBillsPaidCount(int count) {

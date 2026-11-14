@@ -8982,12 +8982,6 @@ abstract class Words {
   /// **'The {name} bill on {date} is back.'**
   String ledgerBillBack(String name, String date);
 
-  /// On a bill's Budget line, on the row the pointer is on.
-  ///
-  /// In en, this message translates to:
-  /// **'Skip this bill'**
-  String get planSkipBill;
-
   /// On a bill's Budget line: a skipped bill in this period.
   ///
   /// In en, this message translates to:
@@ -9012,11 +9006,47 @@ abstract class Words {
   /// **'No {name} payment on {date}. The balance is still owed.'**
   String ledgerNoPaymentLast(String name, String date);
 
-  /// Beside No bill on a date: the bill is expected again.
+  /// The one spot on a bill's Budget row (#365): this period's bill is past its date and not paid.
   ///
   /// In en, this message translates to:
-  /// **'Bring it back'**
-  String get planBringBackBill;
+  /// **'Late'**
+  String get planBillLate;
+
+  /// The one spot on a bill's Budget row (#365): this period's bill won't come.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get planBillSkipped;
+
+  /// The one spot on a bill's Budget row (#365): the account it's paid from is put away, so no forecast has it. The row's tooltip says which.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid from archived'**
+  String get planBillArchived;
+
+  /// In a bill's Edit (#365): the label of a switch for each of this period's bills.
+  ///
+  /// In en, this message translates to:
+  /// **'Bills in this period'**
+  String get planBillsHere;
+
+  /// In a loan's or card's Edit (#365): the label of a switch for each of this period's payments.
+  ///
+  /// In en, this message translates to:
+  /// **'Payments in this period'**
+  String get planPaymentsHere;
+
+  /// In a bill's Edit: a switch, on while that bill is expected, off to skip it.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill on {date}'**
+  String planBillComes(String date);
+
+  /// In a loan's or card's Edit: a switch, on while that payment is expected, off to skip it.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment on {date}'**
+  String planPaymentComes(String date);
 
   /// Popup after the phone's rows or a bank file: that many bills they paid.
   ///

@@ -9351,10 +9351,6 @@
       }
     }
   },
-  "planSkipBill": "Skip this bill",
-  "@planSkipBill": {
-    "description": "On a bill's Budget line, on the row the pointer is on."
-  },
   "planNoBillOn": "No bill on {date}",
   "@planNoBillOn": {
     "description": "On a bill's Budget line: a skipped bill in this period.",
@@ -9400,9 +9396,43 @@
       }
     }
   },
-  "planBringBackBill": "Bring it back",
-  "@planBringBackBill": {
-    "description": "Beside No bill on a date: the bill is expected again."
+  "planBillLate": "Late",
+  "@planBillLate": {
+    "description": "The one spot on a bill's Budget row (#365): this period's bill is past its date and not paid."
+  },
+  "planBillSkipped": "Skipped",
+  "@planBillSkipped": {
+    "description": "The one spot on a bill's Budget row (#365): this period's bill won't come."
+  },
+  "planBillArchived": "Paid from archived",
+  "@planBillArchived": {
+    "description": "The one spot on a bill's Budget row (#365): the account it's paid from is put away, so no forecast has it. The row's tooltip says which."
+  },
+  "planBillsHere": "Bills in this period",
+  "@planBillsHere": {
+    "description": "In a bill's Edit (#365): the label of a switch for each of this period's bills."
+  },
+  "planPaymentsHere": "Payments in this period",
+  "@planPaymentsHere": {
+    "description": "In a loan's or card's Edit (#365): the label of a switch for each of this period's payments."
+  },
+  "planBillComes": "Bill on {date}",
+  "@planBillComes": {
+    "description": "In a bill's Edit: a switch, on while that bill is expected, off to skip it.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planPaymentComes": "Payment on {date}",
+  "@planPaymentComes": {
+    "description": "In a loan's or card's Edit: a switch, on while that payment is expected, off to skip it.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "ledgerBillsPaidCount": "{count, plural, =1{1 bill paid.} other{{count} bills paid.}}",
   "@ledgerBillsPaidCount": {

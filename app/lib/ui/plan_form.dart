@@ -756,7 +756,10 @@ String? ownPayName(Words t, LedgerData data, CategoryPlan plan) {
 /// What a plan says under its category's name: the plan, then whether a
 /// dated one has what it should ("on track", or "₮200,000 short" in
 /// full ink), or that this period's bill was paid ("paid 10.15").
-typedef PlanNote = ({String text, String? state, bool behind});
+///
+/// [amount] is what the plan comes to in one word (a bill's own amount), for
+/// the Bills rows, which show that and nothing else (#365).
+typedef PlanNote = ({String text, String? state, bool behind, String amount});
 
 PlanNote planNote(
   Words t,
@@ -895,5 +898,10 @@ PlanNote planNote(
   } else {
     state = null;
   }
-  return (text: parts.join(' · '), state: state, behind: line.short > 0);
+  return (
+    text: parts.join(' · '),
+    state: state,
+    behind: line.short > 0,
+    amount: money(p.plan.amount),
+  );
 }

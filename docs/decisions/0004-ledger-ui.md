@@ -6114,3 +6114,22 @@ the main thing. The wealth building is."
 - **Rejected:** the Microsoft Store's opening, "BetterBudget is a budget you keep on your
   own computer…", as the first line. The Microsoft Store and Play listings follow when
   next changed (#377).
+
+## Bills on the Budget page: one line each (owner, 2026-11-03, built 2026-11-14, #365)
+
+Owner, on the sentence or two under every bill: "This looks like garbage. It's messy. Too
+much text." and "I don't know that everything in the world needs to be constantly written on
+the screen." Of the design committee's sketches, "B, cut down".
+
+- **A bill is one line, as tall as an everyday category:** its name, the bill's amount, one
+  spot that says something only when it matters (₮… short, paid 10.13, Late, Skipped, Paid
+  from archived; "on track" is no longer said), and **Assign ₮…** only while this period's part
+  isn't in.
+- **The plan's whole sentence is the amount's tooltip**; clicking the amount opens Edit at the
+  plan, as the sentence did. The tooltip of Paid from archived names the account.
+- **Skipping a bill moves into the category's Edit** (owner: "Yes, it's all right. I changed
+  my mind", reversing #357's choice of the row): under Bills in this period, a switch for each
+  of the period's bills, saved with Save. Skip this bill and Bring it back leave the row.
+  Switching one off skips it, on brings it back, each as before with its popup and Undo.
+- **Rejected:** the date tile before the name ("what's the point of the dates on the left?"),
+  a track of months to the date, switches on the row, chips, a month lane.
