@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-13** · version 0.88.1 · schema v26 · 1091 tests pass
+**Last updated: 2026-11-14** · version 0.90.0 · schema v26 · 1091 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -12,11 +12,10 @@ not for reading unless the owner asks.
 
 ## Next step
 
-The New category type cards are in (#429, 0.89.0), on the computer and the phone. Next
-Beta features offered: bills on
-the Budget page one line each (#365); the Budget page's tabs reading as tabs, with Add
-other regular income beside the incomes (#435 with #436). The Mongolian of everything
-since #90's last pass is a draft until Tanan checks it (#90).
+The Budget page's Spending and Income are folder tabs, and Add regular income sits
+under the incomes (#435, #436, 0.90.0), on the computer; the phone has no such tabs.
+Next Beta feature offered: bills on the Budget page one line each (#365). The Mongolian
+of everything since #90's last pass is a draft until Tanan checks it (#90).
 
 ## In the stores
 
