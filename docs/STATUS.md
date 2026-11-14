@@ -12,9 +12,8 @@ not for reading unless the owner asks.
 
 ## Next step
 
-The New category window opens on four type cards, Day-to-day, Fund, Bill and Goal
-(#429, sketch A, 0.89.0), and the phone's New category page does too: the owner tries it
-in the app, then the PR. Next Beta features offered: bills on
+The New category type cards are in (#429, 0.89.0), on the computer and the phone. Next
+Beta features offered: bills on
 the Budget page one line each (#365); the Budget page's tabs reading as tabs, with Add
 other regular income beside the incomes (#435 with #436). The Mongolian of everything
 since #90's last pass is a draft until Tanan checks it (#90).
@@ -24,8 +23,8 @@ since #90's last pass is a draft until Tanan checks it (#90).
 | Store | Has | Waiting |
 | --- | --- | --- |
 | Google Play (`mn.lls.betterbudget`) | 0.88.1 (679) on Internal testing; alpha and production sent to Google's review 2026-11-13 | — |
-| Microsoft Store (`9NH3HJNFJN4G`) | 0.71.0, published | 0.88.1 in certification (2026-11-13), then the owner's Publish now |
-| Mac App Store, "The BetterBudget" | 0.72.1 (598), live; free in 174 countries | 0.88.1 (679) uploaded 2026-11-13: the owner adds version 0.88.1 with build 679 and submits it for review. The EU's 27 until the owner gives the Digital Services Act trader details (#375), which the EU shows publicly |
+| Microsoft Store (`9NH3HJNFJN4G`) | 0.88.1, published at the owner's Publish now (2026-11-14) | — |
+| Mac App Store, "The BetterBudget" | 0.72.1 (598), live; free in 174 countries | 0.88.1 (679) in Apple's review, submitted 2026-11-14. The EU's 27 until the owner gives the Digital Services Act trader details (#375), which the EU shows publicly |
 | iPhone App Store, same record | Nothing yet; TestFlight has 0.73.1 (604) | 0.73.1 in Apple's review, resubmitted 2026-11-12 with a screen recording and answers in its Review Notes, after a Guideline 2.1 "information needed" rejection. A check with Google Drive on a real iPhone is on #114 |
 
 Listings lead with building wealth (ADR 0004); Play's and the Microsoft Store's follow
