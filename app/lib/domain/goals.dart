@@ -1,12 +1,14 @@
+import 'dart:math';
+
 import 'budget.dart';
 import 'ledger.dart';
 import 'money.dart';
 import 'readiness.dart';
 
-/// A goal on Savings (#101, #102; ADR 0004 "Goals on Savings"): a
-/// once-only "On a date" budget line marked [ReadyKeys.goal], such as a
-/// wedding by June 2028. Budget asks for its parts; Savings says how far
-/// along it is.
+/// A goal on Savings (#101, #102; ADR 0004 "Goals on Savings"): an "On a
+/// date" budget line marked [ReadyKeys.goal], such as a wedding by June
+/// 2028, or Christmas every year (#429). Budget asks for its parts; Savings
+/// says how far along it is.
 class Goal {
   const Goal({
     required this.category,
@@ -21,14 +23,16 @@ class Goal {
     required this.pastDate,
     required this.finished,
     required this.left,
+    this.next,
   });
 
   final AccountInfo category;
   final CategoryPlan plan;
 
   /// What was put toward it, as Budget counts it ([PlanLine.toward]):
-  /// what the category held when the plan began, and every amount
-  /// assigned since, less what was moved out. Money spent on the thing
+  /// what the category held when the plan began (one that repeats: what
+  /// it carried toward this date), and every amount assigned since, less
+  /// what was moved out. Money spent on the thing
   /// itself (a deposit on the hall) doesn't take it down (owner,
   /// 2026-10-27: "like saving for a birthday or Christmas").
   final int saved;
@@ -50,8 +54,11 @@ class Goal {
   /// of the rest at once ([ReadyKeys.goalLate]).
   final bool askAll;
 
+  /// A repeating goal's next date; null for one that happens once.
+  final DateTime? next;
+
   int get amount => plan.amount;
-  DateTime get due => plan.due!;
+  DateTime get due => next ?? plan.due!;
   Currency get currency => category.currency;
   int get toGo => saved >= amount ? 0 : amount - saved;
   bool get ready => toGo == 0;
@@ -83,6 +90,9 @@ class Goal {
   /// Its plan with the date moved into [month], on its own day when that
   /// month has it.
   CategoryPlan movedTo(DateTime month) {
+    // Only a goal that happens once is ever late with a part to move (one
+    // that repeats asks no usual part): this copy keeps no repeat.
+    assert(!plan.repeats, 'a repeating goal is moved by #425, not here');
     final last = DateTime(month.year, month.month + 1, 0).day;
     final day = due.day < last ? due.day : last;
     return CategoryPlan(
@@ -110,7 +120,10 @@ List<Goal> goalsOf(LedgerData data, Budget budget, DateTime today) {
     final plan = data.plans[c.id]!;
     final line = budget.lines[c.id];
     final p = line?.plan;
-    final saved = p?.toward ?? 0;
+    // One that repeats counts what was put toward its next date, so
+    // presents bought early don't make it look behind (owner, 2026-11-13).
+    // What it shows once that date has gone by is #425's.
+    final saved = plan.repeats ? max(p?.toward ?? 0, 0) : p?.toward ?? 0;
     final pastDate = p?.pastDate ?? false;
     final late = data.prefs[ReadyKeys.goalLate(c.id)];
     final finished = pastDate && late == 'done';
@@ -130,6 +143,7 @@ List<Goal> goalsOf(LedgerData data, Budget budget, DateTime today) {
         askAll: late == 'all',
         finished: finished,
         left: left,
+        next: plan.repeats ? p?.due : null,
       ),
     );
   }

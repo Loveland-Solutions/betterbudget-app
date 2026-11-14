@@ -6011,6 +6011,62 @@ counted things that aren't everyday.
   paid back needs no kind of its own; weekly amounts and income with no set day are
   not being built.
 
+## New category opens on four type cards (owner, 2026-11-13, #429)
+
+The owner (2026-11-11): "I want to overhaul the create budget page. It's too busy. I
+want it to be more fun, maybe with graphics that help them understand the
+differences." The window asked every category every question, twelve for a car
+repair fund, and three of them ("Is there a due date?", "This money is", "Show on
+Savings as a goal?") were the category's type asked in pieces.
+
+- **Chosen, sketch A: four cards on top.** "How will this money be spent?" over
+  four cards, **Day-to-day**, **Fund**, **Bill**, **Goal**, each with its name, one
+  sentence ("You pay it to someone all at once, on a set date."), examples, and a
+  small chart of its money over the same stretch of time, so the shapes tell them
+  apart: spent down each month; up a step a month with a dip; built up and paid out
+  on a date to someone else's door; ready by a flagged date, then spent in a few
+  purchases. The picked card is lit, and only its questions show: Day-to-day, Set
+  aside each month and What's left at month's end; Fund, Set aside each month and
+  **Most it holds** (was "Up to"); Bill, Amount due, How often, Due; Goal, **Amount
+  to have ready**, How often, **Ready by**. Paid from for all four.
+- One window, not a wizard (the owner's earlier call): the cards stay, and changing
+  type is one click that keeps what's typed. Day-to-day is lit when it opens: a
+  category with only a name is one. A new bill's How often starts on Every month, a
+  goal's on Once, until How often is picked.
+- A fund can be made with no amount ("whatever's left goes to car repairs"; warn,
+  don't block, budget review): with no plan to say its money is built up, the setting
+  `budget.fund.<id>` keeps it on the Fund card. It changes no figure.
+- **Edit has the same cards**, under the name, so a category's type can be changed
+  there, with the warnings Edit already gives. The Safety net has none: it's built
+  in as money put by.
+- **A goal can repeat** (the new direction of 2026-11-11): Christmas every year is a
+  Goal. Savings shows a repeating goal by what was put toward its next date, as a
+  once-only goal's is counted, so presents bought early don't make it look behind
+  (owner, 2026-11-13: "Yes"); what it does once that date has passed, or once its
+  repeats have ended, is #425. As a once-only goal's is, its part each month counts on the income bar as put
+  aside, not spent. Nothing in a ledger changed: only a once-only line could be marked
+  a goal before, and Edit cleared the mark from any line it made repeat.
+- **No type is stored**: it comes from the answers a category already has, so no
+  ledger is upgraded and a category opens on the card its plan already is.
+- The window keeps to what makes the type: Group, Note and "In a month of
+  expenses?" are in Edit. Its buttons say the whole act: **Add to the budget**, and
+  **Add, then start another**.
+- **Rejected:** B, the form beside a large live chart of the category's year (the
+  window a third wider, as #237's rejected second layout was); C, Add category
+  opening four cards and then a window for that type alone (a step before every
+  category, and the pictures gone while the form is filled in); a sentence to fill
+  in ("Rent is money we pay to someone on a date"), dropped before drawing, since
+  Mongolian puts the verb last and the fields would have to be placed per language.
+- **A goal is never marked paid** (owner, 2026-11-13: "A bill should really only be
+  paid once per period"): a goal is spent in several purchases, so none of them
+  marks its date "paid 10.20" as a bill's payment does. A bill keeps its one mark a
+  period.
+- **The phone's New category opens on the same cards** (owner, 2026-11-13: "Yes"),
+  two to a row, with the same questions under each. The phone's file says the type
+  picked (a `category_types` table, 0.89.0), for what a plan can't: a Goal, or a
+  Fund with no amount yet; a computer before 0.89.0 reads neither and makes the
+  category as before.
+
 ## A store listing leads with building wealth (owner, 2026-11-03)
 
 The first Mac App Store listing was drafted from the Microsoft Store's, which opens on

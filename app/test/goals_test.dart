@@ -7,8 +7,9 @@ import 'package:betterbudget/ui/plan_form.dart';
 import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 
-/// Goals on Savings (#101, #102): a once-only "On a date" line marked a
-/// goal, counted by what was put toward it.
+/// Goals on Savings (#101, #102): an "On a date" line marked a goal,
+/// counted by what was put toward it; one that repeats, by what it holds
+/// (#429).
 void main() {
   const checking = 1, wedding = 2, opening = 3;
   var nextId = 100;
@@ -147,20 +148,28 @@ void main() {
     });
   });
 
-  test('only an amount by one date is a goal', () {
-    final repeating = ledger(
-      plan: CategoryPlan(
-        categoryId: wedding,
-        kind: PlanKind.byDate,
-        amount: 1200000,
-        start: DateTime(2026, 9),
-        due: DateTime(2026, 12, 31),
-        everyMonths: 12,
-      ),
+  test('a goal can repeat: shown by what was put toward it, against its '
+      'next date '
+      '(#429)', () {
+    final yearly = CategoryPlan(
+      categoryId: wedding,
+      kind: PlanKind.byDate,
+      amount: 1200000,
+      start: DateTime(2026, 9),
+      due: DateTime(2026, 12, 31),
+      everyMonths: 12,
     );
-    expect(isGoal(repeating, wedding), isFalse);
+    final repeating = ledger(plan: yearly, assigned: {9: 300000, 10: 300000});
+    expect(isGoal(repeating, wedding), isTrue);
     expect(isGoal(ledger(), wedding), isTrue);
     expect(isGoal(ledger(prefs: const {}), wedding), isFalse);
+    final g = goalOn(repeating, DateTime(2026, 10, 16));
+    expect(g.saved, 600000);
+    expect(g.due, DateTime(2026, 12, 31));
+    expect(g.late, isFalse);
+    // Its date gone by: the next one.
+    final next = goalOn(repeating, DateTime(2027, 1, 10));
+    expect(next.due, DateTime(2027, 12, 31));
   });
 
   test('moving the date keeps its day where the month has it', () {
@@ -188,6 +197,59 @@ void main() {
     plans: data.plans.values.toList(),
     budgetAmounts: data.budgetAmounts,
   );
+
+  test('a repeating goal counts what was put toward this date: presents '
+      'bought early don\'t take it down (owner, 2026-11-13)', () {
+    final yearly = CategoryPlan(
+      categoryId: wedding,
+      kind: PlanKind.byDate,
+      amount: 1200000,
+      start: DateTime(2026, 9),
+      due: DateTime(2026, 12, 31),
+      everyMonths: 12,
+    );
+    final bought = spend(
+      ledger(plan: yearly, assigned: {9: 300000, 10: 300000}),
+      DateTime(2026, 10, 5),
+      200000,
+    );
+    final g = goalOn(bought, DateTime(2026, 10, 16));
+    expect(g.saved, 600000);
+    expect(g.left, 400000);
+    // A goal's purchases never mark its date paid, as a bill's do: not
+    // even one taken as its bill.
+    final tied = LedgerData(
+      accounts: bought.accounts.values.toList(),
+      txns: [
+        ...bought.txns,
+        TxnData(
+          id: nextId++,
+          date: DateTime(2026, 12, 20),
+          planCategoryId: wedding,
+          entries: [
+            EntryData(id: nextId++, accountId: checking, amount: -300000),
+            EntryData(id: nextId++, accountId: wedding, amount: 300000),
+          ],
+        ),
+      ],
+      prefs: bought.prefs,
+      plans: bought.plans.values.toList(),
+      budgetAmounts: bought.budgetAmounts,
+    );
+    final day = DateTime(2026, 12, 22);
+    expect(monthBudget(tied, day).lines[wedding]!.paidOn, isNull);
+    final bill = LedgerData(
+      accounts: tied.accounts.values.toList(),
+      txns: tied.txns,
+      prefs: const {},
+      plans: tied.plans.values.toList(),
+      budgetAmounts: tied.budgetAmounts,
+    );
+    expect(
+      monthBudget(bill, day).lines[wedding]!.paidOn,
+      DateTime(2026, 12, 20),
+    );
+  });
 
   test('a category with a past, made a goal, counts only what it held', () {
     // Assigned and spent on repairs before the plan began in October.
@@ -410,18 +472,30 @@ void main() {
     // Other days, Starts left as it was: from that first bill, since it's
     // still ahead (code review: not from today).
     later.day2.text = '20';
-    expect(later.draft(categoryId: wedding, old: p)!.due, DateTime(2026, 12, 1));
+    expect(
+      later.draft(categoryId: wedding, old: p)!.due,
+      DateTime(2026, 12, 1),
+    );
     later.day1.text = '5';
-    expect(later.draft(categoryId: wedding, old: p)!.due, DateTime(2026, 12, 5));
+    expect(
+      later.draft(categoryId: wedding, old: p)!.due,
+      DateTime(2026, 12, 5),
+    );
     // A new Starts typed: from it.
     later.start.text = '2027.01.10';
-    expect(later.draft(categoryId: wedding, old: p)!.due, DateTime(2027, 1, 20));
+    expect(
+      later.draft(categoryId: wedding, old: p)!.due,
+      DateTime(2027, 1, 20),
+    );
     // Emptied: this month, as "This month" says (code review).
     later
       ..start.clear()
       ..day1.text = '1'
       ..day2.text = '15';
-    expect(later.draft(categoryId: wedding, old: p)!.due, DateTime(2026, 11, 1));
+    expect(
+      later.draft(categoryId: wedding, old: p)!.due,
+      DateTime(2026, 11, 1),
+    );
     later.dispose();
 
     // One whose first bill has gone by: emptied or left, it keeps it;
@@ -438,7 +512,10 @@ void main() {
     now.start.clear();
     expect(now.draft(categoryId: wedding, old: august)!.due, august.due);
     now.day2.text = '25';
-    expect(now.draft(categoryId: wedding, old: august)!.due, DateTime(2026, 11, 25));
+    expect(
+      now.draft(categoryId: wedding, old: august)!.due,
+      DateTime(2026, 11, 25),
+    );
     now.dispose();
 
     // Every month's date carries over as the start while it's ahead; one
@@ -493,8 +570,12 @@ void main() {
       ..amount.text = '50000'
       ..day1.text = '1'
       ..day2.text = '15';
-    String? note({CategoryPlan? old}) =>
-        a.startNote(t, a.draft(categoryId: wedding, old: old), say, old: old);
+    String? note({CategoryPlan? old}) => a.startNote(
+      t,
+      a.draft(categoryId: wedding, old: old),
+      say,
+      old: old,
+    );
     // Empty on the 20th: this month's two have gone by.
     expect(
       note(),
@@ -518,7 +599,12 @@ void main() {
       ..askStart = true
       ..show(saved);
     expect(
-      b.startNote(t, b.draft(categoryId: wedding, old: saved), say, old: saved),
+      b.startNote(
+        t,
+        b.draft(categoryId: wedding, old: saved),
+        say,
+        old: saved,
+      ),
       isNull,
     );
     a.dispose();

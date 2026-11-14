@@ -21,6 +21,7 @@ import '../language.dart';
 import '../plan_form.dart';
 import '../schemes.dart';
 import '../amount_input.dart';
+import '../category_types.dart';
 import '../theme.dart';
 
 part 'phone_new_category.dart';
@@ -91,6 +92,7 @@ class PhoneStore extends ChangeNotifier {
     Currency currency, {
     CategoryPlan? plan,
     String? paidFromId,
+    CategoryType? type,
   }) {
     final already = categoryNamed(categories, name);
     if (already != null) return already;
@@ -103,6 +105,7 @@ class PhoneStore extends ChangeNotifier {
       madeHere: true,
       plan: plan,
       paidFromId: paidFromId,
+      type: type,
       // A bill's date shows here as the computer's bills do.
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
@@ -124,6 +127,7 @@ class PhoneStore extends ChangeNotifier {
     Currency currency, {
     CategoryPlan? plan,
     String? paidFromId,
+    CategoryType? type,
   }) {
     final at = _made.indexWhere((c) => c.id == id);
     if (at < 0) return false;
@@ -135,6 +139,7 @@ class PhoneStore extends ChangeNotifier {
       madeHere: true,
       plan: plan,
       paidFromId: paidFromId,
+      type: type,
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
     notifyListeners();

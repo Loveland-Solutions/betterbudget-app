@@ -4728,21 +4728,6 @@ class WordsEn extends Words {
       'Left out, like a card\'s payment when what\'s bought on the card is in its own categories.';
 
   @override
-  String get planDueDateQ => 'Is there a due date?';
-
-  @override
-  String get planDueNoMeans =>
-      'An amount you spend as the month goes, like groceries.';
-
-  @override
-  String get planDueNoMeansPay =>
-      'An amount you spend as the pay period goes, like groceries.';
-
-  @override
-  String get planDueYesMeans =>
-      'An amount to have ready by a date, like rent or insurance.';
-
-  @override
   String get planNo => 'No';
 
   @override
@@ -4799,14 +4784,14 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planStopAt => 'Up to';
+  String get planStopAt => 'Most it holds';
 
   @override
   String get planNoLimit => 'no limit';
 
   @override
   String get planStopAtHint =>
-      'Once it holds this much, the plan stops adding to it.';
+      'When it holds this much, nothing more is set aside.';
 
   @override
   String get planAmountDue => 'Amount due';
@@ -7151,13 +7136,67 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planGoalQ => 'Show on Savings as a goal?';
+  String get planTypeQ => 'How will this money be spent?';
 
   @override
-  String get planGoalYesMeans => 'Savings shows how far along it is.';
+  String get planTypeDay => 'Day-to-day';
 
   @override
-  String get planGoalNoMeans => 'Only here, like a birthday present.';
+  String get planTypeDayMeans =>
+      'You spend it a little at a time, every month.';
+
+  @override
+  String get planTypeDayMeansPay =>
+      'You spend it a little at a time, every pay period.';
+
+  @override
+  String get planTypeDayFor => 'Groceries, fuel';
+
+  @override
+  String get planTypeFund => 'Fund';
+
+  @override
+  String get planTypeFundMeans =>
+      'You save a little each month and spend it when something comes up.';
+
+  @override
+  String get planTypeFundMeansPay =>
+      'You save a little each pay period and spend it when something comes up.';
+
+  @override
+  String get planTypeFundFor => 'Car repairs, the doctor';
+
+  @override
+  String get planTypeBill => 'Bill';
+
+  @override
+  String get planTypeBillMeans =>
+      'You pay it to someone all at once, on a set date.';
+
+  @override
+  String get planTypeBillFor => 'Rent, insurance, school fees';
+
+  @override
+  String get planTypeGoal => 'Goal';
+
+  @override
+  String get planTypeGoalMeans =>
+      'You save it up by a date, then spend it yourself.';
+
+  @override
+  String get planTypeGoalFor => 'A laptop, Christmas every year';
+
+  @override
+  String get planAmountReady => 'Amount to have ready';
+
+  @override
+  String get planReadyBy => 'Ready by';
+
+  @override
+  String get planAddToBudget => 'Add to the budget';
+
+  @override
+  String get planAddThenAnother => 'Add, then start another';
 
   @override
   String get goalEnterDate => 'Enter the date it\'s wanted by';

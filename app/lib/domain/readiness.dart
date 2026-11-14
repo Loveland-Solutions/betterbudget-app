@@ -81,8 +81,8 @@ abstract final class ReadyKeys {
   /// 2026-10-27).
   static const method = 'ready.method';
 
-  /// 'yes': the category's once-only "On a date" line is a goal, shown on
-  /// Savings (#101). Kept by category id.
+  /// 'yes': the category's "On a date" line, once or repeating, is a
+  /// goal, shown on Savings (#101, #429). Kept by category id.
   static String goal(int categoryId) => 'ready.goal.$categoryId';
 
   /// 'all': a goal whose date has passed short asks for the rest at once,
@@ -93,13 +93,13 @@ abstract final class ReadyKeys {
 }
 
 /// Whether category [id] is a goal ([ReadyKeys.goal]): marked so, with a
-/// plan that is an amount by one date.
+/// plan that is an amount by a date, once or repeating (owner, 2026-11-11;
+/// #429).
 bool isGoal(LedgerData data, int id) {
   final p = data.plans[id];
   return data.prefs[ReadyKeys.goal(id)] == 'yes' &&
       p != null &&
-      p.kind == PlanKind.byDate &&
-      !p.repeats;
+      p.kind == PlanKind.byDate;
 }
 
 /// Whether category [id] counts in a month of expenses ([ReadyKeys.leftOut]).

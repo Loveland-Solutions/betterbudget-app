@@ -514,7 +514,9 @@ class PlanAnswers {
     final s = typedStart;
     final had = old?.monthDays == null ? null : old!.due;
     if (had == null) {
-      return s == null ? firstOfMonthDays(days) : nextOfMonthDays(days, from: s);
+      return s == null
+          ? firstOfMonthDays(days)
+          : nextOfMonthDays(days, from: s);
     }
     final ahead = had.isAfter(today);
     // Emptied while its first bill was still ahead: this month. One that

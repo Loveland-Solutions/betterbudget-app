@@ -4,8 +4,10 @@ part of 'phone_app.dart';
 // phone opens the computer's window too, phone-sized). One page with every
 // question the computer's window asks, in its order and words (ADR 0004 "New
 // category: one window with everything"; laid out as one page, the owner's
-// pick of three). [PlanAnswers] makes the plan as the computer's form does;
-// the category waits with the phone's entries and comes in with its plan.
+// pick of three), opening on the same four type cards, two to a row
+// (owner, 2026-11-13, #429). [PlanAnswers] makes the plan as the computer's
+// form does; the category waits with the phone's entries and comes in with
+// its plan and its type.
 
 /// Opens New category. [forEntry]: from an entry's Category list, in the
 /// entry's [currency] with no other offered, and no Add another; the
@@ -104,6 +106,65 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   /// Each Add another starts the name's field afresh, keyboard up.
   int _round = 0;
 
+  /// The Goal card was picked over Bill: both are an amount by a date.
+  late bool _goal = widget.editing?.type == CategoryType.goal;
+
+  bool get _isGoal => _p.hasDate && _goal;
+
+  /// The type the answers make, as on the computer: its card is lit.
+  CategoryType get _type => _p.hasDate
+      ? (_isGoal ? CategoryType.goal : CategoryType.bill)
+      : _p.spentEach
+      ? CategoryType.dayToDay
+      : CategoryType.fund;
+
+  /// How often as the page last set it for a type: while it's still that,
+  /// How often wasn't picked, and another type can set its own.
+  static const Object _repeatAtStart = (
+    PlanRepeat.once,
+    false,
+    '1',
+    PlanUnit.months,
+  );
+  Object? _repeatSet = _repeatAtStart;
+  Object get _repeatNow => (_p.repeat, _p.custom, _p.everyN.text, _p.unit);
+
+  /// A day-to-day category that had a cap when the page opened keeps the
+  /// row while it's typed in.
+  late bool _capWas = _p.upTo.text.trim().isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    // A Fund with no amount yet has no plan to say it's built up.
+    if (widget.editing case final c?
+        when c.plan == null && c.type == CategoryType.fund) {
+      _p.spentEach = false;
+    }
+  }
+
+  /// A type card picked: the answers it stands for. An amount, a date and
+  /// Paid from stay for another card.
+  void _pickType(CategoryType type) {
+    final dated = type == CategoryType.bill || type == CategoryType.goal;
+    setState(() {
+      _p.hasDate = dated;
+      if (!dated) _p.spentEach = type == CategoryType.dayToDay;
+      if (dated) _goal = type == CategoryType.goal;
+      // A new one's How often starts where its type usually is: a bill
+      // every month, a goal once. Until How often is picked.
+      if (widget.editing == null && _repeatNow == _repeatSet) {
+        if (type == CategoryType.bill) _p.preset(1, PlanUnit.months);
+        if (type == CategoryType.goal) {
+          _p.repeat = PlanRepeat.once;
+          _p.custom = false;
+        }
+        _repeatSet = _repeatNow;
+      }
+      _tried = false;
+    });
+  }
+
   PlanAnswers _fresh(Currency currency) =>
       PlanAnswers(today: widget.today, currency: currency)
         ..askStart = true
@@ -146,6 +207,8 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     categoryId: _pageCategoryId,
     paidFrom: _paidFrom,
     old: widget.editing?.plan,
+    // A goal counts from where it began (#101).
+    keepOnceStart: _isGoal,
   );
 
   /// Each typed field's focus, by its key: a tap on its row puts the
@@ -218,6 +281,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       _currency,
       plan: _draft,
       paidFromId: _paidFromId?.toString(),
+      type: _type,
     );
     if (!another) {
       Navigator.of(context).pop(made);
@@ -231,6 +295,9 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       // Only the currency and Paid from stay: a bill's Yes kept from Rent
       // would make Food a bill unseen.
       _p = _fresh(keep);
+      _goal = false;
+      _repeatSet = _repeatAtStart;
+      _capWas = false;
       _tried = false;
       _round++;
     });
@@ -246,6 +313,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       _currency,
       plan: _draft,
       paidFromId: _paidFromId?.toString(),
+      type: _type,
     );
     if (!kept) {
       final t = context.t;
@@ -652,7 +720,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       ),
       _ => _choiceRow(
         'plan-date',
-        t.planLabelDueDate,
+        _isGoal ? t.planReadyBy : t.planLabelDueDate,
         switch (a.typedDate) {
           final d? =>
             d.year == widget.today.year ? sayDate(t, d) : sayFullDate(t, d),
@@ -697,6 +765,8 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       ),
     ];
     if (!a.hasDate) {
+      final fund = !a.spentEach;
+      final capRow = a.rollover && hasAmount && (fund || _capWas);
       return [
         _card([
           _fieldRow(
@@ -719,24 +789,27 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         if (!hasAmount) _aside(byPay ? t.planEmptyHintPay : t.planEmptyHint),
         const SizedBox(height: 14),
         _card([
-          _asked(
-            byPay ? t.planLeftPeriodEnd : t.planLeftMonthEnd,
-            _segments([
-              (
-                'plan-carry-on',
-                t.planStaysHere,
-                a.rollover,
-                () => setState(() => a.rollover = true),
-              ),
-              (
-                'plan-carry-off',
-                t.planGoesBack,
-                !a.rollover,
-                () => setState(() => a.rollover = false),
-              ),
-            ]),
-          ),
-          if (a.rollover && hasAmount)
+          // A fund keeps what's left: the question is a day-to-day
+          // category's, and a fund's only while it says otherwise.
+          if (!fund || !a.rollover)
+            _asked(
+              byPay ? t.planLeftPeriodEnd : t.planLeftMonthEnd,
+              _segments([
+                (
+                  'plan-carry-on',
+                  t.planStaysHere,
+                  a.rollover,
+                  () => setState(() => a.rollover = true),
+                ),
+                (
+                  'plan-carry-off',
+                  t.planGoesBack,
+                  !a.rollover,
+                  () => setState(() => a.rollover = false),
+                ),
+              ]),
+            ),
+          if (capRow)
             _fieldRow(
               'plan-up-to',
               t.planStopAt,
@@ -747,7 +820,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
             ),
           paidRow,
         ]),
-        if (a.rollover && hasAmount) _aside(t.planStopAtHint),
+        if (capRow) _aside(t.planStopAtHint),
       ];
     }
     final paidAccount = _data.accounts[_paidFrom];
@@ -771,7 +844,8 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       _card([
         _fieldRow(
           'plan-amount',
-          t.planAmountDue,
+          // Nothing is owed on a goal: it's an amount to have ready.
+          _isGoal ? t.planAmountReady : t.planAmountDue,
           a.amount,
           money: true,
           wrong: missing == PlanMissing.amount,
@@ -866,7 +940,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                 // The amount has the room; the label goes to two lines.
                 Expanded(
                   child: Text(
-                    t.planSetAsideMonth,
+                    byPay ? t.planSetAsidePay : t.planSetAsideMonth,
                     style: onest(15, color: Mid.ink2),
                   ),
                 ),
@@ -1051,38 +1125,11 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                                 : Mid.ink2,
                           ),
                         const SizedBox(height: 14),
-                        _card([
-                          _asked(
-                            t.planDueDateQ,
-                            _segments([
-                              (
-                                'plan-dated-no',
-                                t.planNo,
-                                !_p.hasDate,
-                                () => setState(() {
-                                  _p.hasDate = false;
-                                  _tried = false;
-                                }),
-                              ),
-                              (
-                                'plan-dated-yes',
-                                t.planYes,
-                                _p.hasDate,
-                                () => setState(() {
-                                  _p.hasDate = true;
-                                  _tried = false;
-                                }),
-                              ),
-                            ]),
-                          ),
-                        ]),
-                        // What the answer picked means, in one example.
-                        _aside(
-                          _p.hasDate
-                              ? t.planDueYesMeans
-                              : _p.eachPayId != null
-                              ? t.planDueNoMeansPay
-                              : t.planDueNoMeans,
+                        TypeCards(
+                          type: _type,
+                          byPay: _p.eachPayId != null,
+                          columns: 2,
+                          onPick: _pickType,
                         ),
                         const SizedBox(height: 14),
                         ..._planRows(t, line: line),

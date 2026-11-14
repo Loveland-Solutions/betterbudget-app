@@ -41,6 +41,7 @@ import '../import/mapping.dart';
 import '../import/sheet.dart';
 import 'amount_input.dart';
 import 'balance_header.dart';
+import 'category_types.dart';
 import 'entry_row.dart';
 import 'reconcile.dart';
 import 'recovery_key_screen.dart';
@@ -5547,6 +5548,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // its own.
     final lateKey = ReadyKeys.goalLate(c.id);
     final lateWas = data.prefs[lateKey];
+    // A fund with no amount (#429).
+    final fundKey = BudgetKeys.fund(c.id);
+    final fundWas = data.prefs[fundKey];
+    final fund = e.fund != (fundWas == 'yes');
     // Its group and note (#100).
     final details = e.group != c.budgetGroup || e.note != c.note;
     final changes = [
@@ -5555,10 +5560,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       plan,
       month,
       goal,
+      fund,
       details,
     ].where((x) => x);
     if (changes.isEmpty) return;
-    if (changes.length == 1 && !month && !goal && !details) {
+    if (changes.length == 1 && !month && !goal && !fund && !details) {
       if (renamed) return _renameCategory(data, c, e.name);
       if (money) return _setCategoryMoney(c, e.currency, e.paidFrom);
       return _setCategoryPlan(c, e.plan);
@@ -5610,6 +5616,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         await db.setPreference(goalKey, e.goal ? 'yes' : null);
         await db.setPreference(lateKey, null);
       }
+      if (fund) await db.setPreference(fundKey, e.fund ? 'yes' : null);
       if (details) {
         await db.setCategoryDetails(c.id, group: e.group, note: e.note);
       }
@@ -5633,6 +5640,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           await db.setPreference(goalKey, goalWas);
           await db.setPreference(lateKey, lateWas);
         }
+        if (fund) await db.setPreference(fundKey, fundWas);
         if (plan) await db.undoPlanChange(c.id, planChange!);
         if (money) {
           await db.restoreCategoryMoney(c.id, moneyBefore);
@@ -5773,6 +5781,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           plan: e.plan,
           inMonth: e.inMonth,
           goal: e.goal,
+          fund: e.fund,
           // What it had stays unless the window gave it something new.
           group: e.group ?? existing.budgetGroup,
           note: e.note ?? existing.note,
@@ -5789,6 +5798,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await db.setPreference(ReadyKeys.leftOut(id), e.inMonth ? null : 'yes');
       await db.setPreference(ReadyKeys.goal(id), e.goal ? 'yes' : null);
       await db.setPreference(ReadyKeys.goalLate(id), null);
+      await db.setPreference(BudgetKeys.fund(id), e.fund ? 'yes' : null);
       if (e.group != null || e.note != null) {
         await db.setCategoryDetails(id, group: e.group, note: e.note);
       }
@@ -5818,6 +5828,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         }
         await db.setPreference(ReadyKeys.leftOut(id), null);
         await db.setPreference(ReadyKeys.goal(id), null);
+        await db.setPreference(BudgetKeys.fund(id), null);
         _expect(await db.deleteEmptyAccount(id));
       }),
       redo: () => db.transaction(() async {

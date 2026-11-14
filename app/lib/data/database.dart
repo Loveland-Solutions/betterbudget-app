@@ -5,13 +5,15 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
-import '../domain/budget.dart' show Budget, BudgetKeys, uncategorizedNames;
+import '../domain/budget.dart'
+    show Budget, BudgetKeys, CategoryType, uncategorizedNames;
 import '../domain/combine.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
 import '../domain/payee_rules.dart';
 import '../domain/phone.dart';
+import '../domain/readiness.dart' show ReadyKeys;
 import 'phone_inbox.dart' show planToJson;
 import '../domain/setup.dart' show SetupKeys;
 import '../domain/sync.dart';
@@ -703,6 +705,8 @@ String phoneCategoryPrint(PhoneCategory c) => jsonEncode({
   // Only when there is one, so a category a phone before 0.62.0 sent
   // prints as it did and isn't taken for changed.
   'paidFrom': ?c.paidFromId,
+  // Likewise its type, from a phone since 0.89.0 (#429).
+  'type': ?c.type?.name,
 });
 
 /// What a row of a bank file does on import. The person can turn a match
@@ -6264,6 +6268,15 @@ class AppDatabase extends _$AppDatabase {
       );
     }
     final p = c.plan;
+    // What its type says that its plan can't (#429), for a category made
+    // now: undoing the take deletes it, and redoing brings it back with
+    // these.
+    if (isNew && c.type == CategoryType.fund && p == null) {
+      await setPreference(BudgetKeys.fund(id), 'yes');
+    }
+    if (isNew && c.type == CategoryType.goal && p?.kind == PlanKind.byDate) {
+      await setPreference(ReadyKeys.goal(id), 'yes');
+    }
     if (p == null) return true;
     if (p.payScheduleId != null && !pays.contains(p.payScheduleId)) {
       return false;
