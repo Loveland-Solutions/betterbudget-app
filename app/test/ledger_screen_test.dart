@@ -7324,7 +7324,7 @@ void main() {
     testWidgets('Left moves money out, or in when short; warns; ⌘Z (#99)', (
       tester,
     ) async {
-      final db = await pumpLedger(tester);
+      final db = await pumpLedger(tester, size: const Size(1440, 960));
       await openBudget(tester);
       var data = (await tester.runAsync(db.loadLedger))!;
       int id(String name) =>
@@ -7731,7 +7731,7 @@ void main() {
     testWidgets('plans: the four kinds, Assign, the top button, ⌘Z', (
       tester,
     ) async {
-      final db = await pumpLedger(tester);
+      final db = await pumpLedger(tester, size: const Size(1440, 960));
       await openBudget(tester);
       var data = (await tester.runAsync(db.loadLedger))!;
       int id(String name) =>
@@ -7978,7 +7978,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const ValueKey('plan-type-dayToDay')));
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('plan-type-dayToDay')),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('plan-type-dayToDay')));
       await tester.pumpAndSettle();
@@ -10161,8 +10163,20 @@ void main() {
       // Pay is set up from the Budget page's Income tab.
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('add-category')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
       await tester.pumpAndSettle();
+      // Add category belongs to Spending; Add regular income sits under the
+      // incomes, below the tabs, not in the page's top row (#435, #436).
+      expect(find.byKey(const ValueKey('add-category')), findsNothing);
+      expect(
+        tester.getTopLeft(find.byKey(const ValueKey('income-add-pay'))).dy,
+        greaterThan(
+          tester
+              .getBottomLeft(find.byKey(const ValueKey('budget-tab-income')))
+              .dy,
+        ),
+      );
       await tester.runAsync(() async {
         await tester.tap(find.byKey(const ValueKey('income-add-pay')));
         await Future<void>.delayed(const Duration(milliseconds: 200));

@@ -6067,6 +6067,34 @@ Savings as a goal?") were the category's type asked in pieces.
   Fund with no amount yet; a computer before 0.89.0 reads neither and makes the
   category as before.
 
+## Budget's Spending and Income are folder tabs; Add regular income sits with the incomes (owner, 2026-11-14, #435, #436)
+
+Owner (2026-11-11): "I also need these to stand out more as maybe different tabs.
+They're kind of hidden as they are." and "I don't think that green button should be
+up there. It should be down where the incomes are shown." The chosen tab was a faint
+blue chip and the other gray text with no outline, so neither read as a thing to click
+or as two places.
+
+Three ways were drawn, live (https://claude.ai/artifact/74Mw749J9rPuEoxjo7DeHE): **A**,
+two boxed buttons each in its color, as the register's filters (recommended); **B**,
+folder tabs joined to the page; **C**, one switch with the chosen side solid blue. The
+owner chose **B**.
+
+- **The two tabs sit on the panel's top edge.** The one you're on is the panel's own
+  color, a little taller, with a 3-point bar of its color across the top, and covers the
+  panel's edge so tab and panel are one piece. The other is lowered, on the raised gray,
+  with the panel's edge running under it. Spending's bar is the blue of what you click;
+  Income's is the green of money in. The blue dot on Income, when pay wants attention,
+  stays (`_PageTab`, `_TabShape` in `ui/budget.dart`).
+- **The column heads (Assigned, Spent, Left) stay inside the panel** as the first row of
+  Spending's list; Income has none.
+- **Add regular income moved to the Income tab**, a green button under the incomes it
+  adds to ("Add your regular income" while there is none). The page's top-right button is
+  Add category on Spending and nothing on Income.
+- **Rejected:** A (the register's look; the owner wanted the tabs to read as places, not
+  as filters) and C (a mode switch, and a solid blue block beside the green main button).
+- The panel is about 24 points shorter than before, the tabs sitting above it.
+
 ## A store listing leads with building wealth (owner, 2026-11-03)
 
 The first Mac App Store listing was drafted from the Microsoft Store's, which opens on

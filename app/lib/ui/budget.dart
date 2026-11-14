@@ -336,58 +336,67 @@ class _BudgetPageState extends State<_BudgetPage> {
       edit(i >= 0 && i < spending.length ? spending[i].id : null);
     }
 
-    // The panel's top row: the two tabs, and over the categories their
-    // column heads. A blue dot on Income says pay wants attention (not set
-    // up, or an estimate to update).
-    Widget tabs() => CustomPaint(
-      foregroundPainter: _tab == _BudgetTab.spending
-          ? _ColumnLines(Mid.ink3)
-          : null,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 0, 12, 6),
-        child: Row(
-          children: [
-            _PageTab(
-              key: const ValueKey('budget-tab-spending'),
-              label: t.planSpending,
-              active: _tab == _BudgetTab.spending,
-              onTap: () => setState(() => _tab = _BudgetTab.spending),
-            ),
-            _PageTab(
-              key: const ValueKey('budget-tab-income'),
-              label: t.planIncomeTab,
-              active: _tab == _BudgetTab.income,
-              dot: _payNote(t, data).nudge,
-              // The Spending list stays mounted under Income, so an Edit
-              // open there keeps what was typed (code review, 2026-10-05).
-              onTap: () => setState(() => _tab = _BudgetTab.income),
-            ),
-            const Spacer(),
-            if (_tab == _BudgetTab.spending) ...[
-              // Each word is centred in its column as the dotted lines draw
-              // it (owner, 2026-10-07): between two lines, and for Left
-              // between its line and where the amounts end.
-              for (final (h, from, width) in [
-                (t.planAssigned, _ColumnLines._gap, _amountWidth),
-                (t.planSpent, _ColumnLines._gap, _amountWidth),
-                (t.planLeft, _ColumnLines._gap / 2, _leftWidth),
-              ])
-                SizedBox(
-                  width: width,
-                  child: Padding(
-                    padding: EdgeInsets.only(left: from * 2),
-                    child: Text(
-                      h,
-                      textAlign: TextAlign.center,
-                      style: onest(12.5, color: Mid.ink3),
+    // The two tabs sit on the panel's top edge (`tabStrip`). Inside it, over
+    // the categories, their column heads; the Income tab has none.
+    Widget heads() => _tab == _BudgetTab.income
+        ? const SizedBox.shrink()
+        : CustomPaint(
+            foregroundPainter: _ColumnLines(Mid.ink3),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 0, 12, 6),
+              child: Row(
+                children: [
+                  const Spacer(),
+                  // Each word is centred in its column as the dotted lines
+                  // draw it (owner, 2026-10-07): between two lines, and for
+                  // Left between its line and where the amounts end.
+                  for (final (h, from, width) in [
+                    (t.planAssigned, _ColumnLines._gap, _amountWidth),
+                    (t.planSpent, _ColumnLines._gap, _amountWidth),
+                    (t.planLeft, _ColumnLines._gap / 2, _leftWidth),
+                  ])
+                    SizedBox(
+                      width: width,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: from * 2),
+                        child: Text(
+                          h,
+                          textAlign: TextAlign.center,
+                          style: onest(12.5, color: Mid.ink3),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              const SizedBox(width: 40),
-            ],
-          ],
+                  const SizedBox(width: 40),
+                ],
+              ),
+            ),
+          );
+
+    // The tabs, folder-style (owner, 2026-11-14, #435): the one you're on is
+    // the panel's own color and joins it; the other sits lowered behind its
+    // edge. A blue dot on Income says pay wants attention (not set up, or an
+    // estimate to update).
+    Widget tabStrip() => Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PageTab(
+          key: const ValueKey('budget-tab-spending'),
+          label: t.planSpending,
+          hue: Mid.blue,
+          active: _tab == _BudgetTab.spending,
+          onTap: () => setState(() => _tab = _BudgetTab.spending),
         ),
-      ),
+        _PageTab(
+          key: const ValueKey('budget-tab-income'),
+          label: t.planIncomeTab,
+          hue: Mid.green,
+          active: _tab == _BudgetTab.income,
+          dot: _payNote(t, data).nudge,
+          // The Spending list stays mounted under Income, so an Edit
+          // open there keeps what was typed (code review, 2026-10-05).
+          onTap: () => setState(() => _tab = _BudgetTab.income),
+        ),
+      ],
     );
 
     // This period's pay, by currency: what the schedules expect in it,
@@ -1098,18 +1107,9 @@ class _BudgetPageState extends State<_BudgetPage> {
                   ),
                 ],
                 const Spacer(),
-                // One button for the tab that's on: a category, or a pay.
-                if (_tab == _BudgetTab.income)
-                  _PrimaryButton(
-                    key: const ValueKey('income-add-pay'),
-                    label: data.paySchedules.isEmpty
-                        ? t.setupAddYourPay
-                        : t.setupAddOtherPay,
-                    icon: Icons.add_rounded,
-                    tooltip: t.setupAddPayTip,
-                    onTap: () => widget.onPay(null),
-                  )
-                else
+                // Add category belongs to Spending. Income's button sits with
+                // the incomes it adds to (#436).
+                if (_tab == _BudgetTab.spending)
                   _PrimaryButton(
                     key: const ValueKey('add-category'),
                     label: t.planAddCategory,
@@ -1159,161 +1159,194 @@ class _BudgetPageState extends State<_BudgetPage> {
                     ),
                   ),
                   Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Mid.panel,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Mid.rule),
-                      ),
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
-                        children: [
-                          tabs(),
-                          if (_tab == _BudgetTab.income)
-                            _IncomeTab(
-                              data: data,
-                              cameIn: income == null
-                                  ? const []
-                                  : _cameIn(
-                                      budget.cameIn[income.id],
-                                      budget.currency,
-                                    ),
-                              fromPay: fromPay,
-                              expectedPay: expectedPay,
-                              onShowRows: income == null
-                                  ? null
-                                  : () => widget.onShowRows(income, period),
-                              waiting: [
-                                for (final (c, v) in _cameIn(
-                                  budget.cameInUncategorized,
-                                  budget.currency,
-                                ))
-                                  if (v > 0) (c, v),
-                              ],
-                              onShowWaiting: switch (data.accounts.values
-                                  .where(
-                                    (a) => !a.deleted && isUncategorized(a),
-                                  )
-                                  .firstOrNull) {
-                                final w? => () => widget.onShowRows(w, period),
-                                null => null,
-                              },
-                              onPay: widget.onPay,
-                              onAskAgain: widget.onAskAgain,
+                    child: Stack(
+                      children: [
+                        // The panel starts 1 point up under the tabs' feet, so
+                        // the chosen tab covers its top edge and joins it.
+                        Positioned.fill(
+                          top: _tabFeet,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Mid.panel,
+                              borderRadius: const BorderRadius.only(
+                                topRight: Radius.circular(16),
+                                bottomLeft: Radius.circular(16),
+                                bottomRight: Radius.circular(16),
+                              ),
+                              border: Border.all(color: Mid.rule),
                             ),
-                          Offstage(
-                            offstage: _tab == _BudgetTab.income,
-                            // Hidden, but kept so what was typed in it stays:
-                            // Tab mustn't walk through it (#163).
-                            child: ExcludeFocus(
-                              excluding: _tab == _BudgetTab.income,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  for (final (i, c) in spending.indexed) ...[
-                                    if (groupAt[i] case final g?)
-                                      heading(g, 'budget-group-$g'),
-                                    if (i == firstBill)
-                                      heading(t.phoneBills, 'budget-bills'),
-                                    if (i == firstSaved) ...[
-                                      ...totals(),
-                                      heading(t.planSaved, 'budget-saved'),
+                            child: ListView(
+                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
+                              children: [
+                                heads(),
+                                if (_tab == _BudgetTab.income)
+                                  _IncomeTab(
+                                    data: data,
+                                    cameIn: income == null
+                                        ? const []
+                                        : _cameIn(
+                                            budget.cameIn[income.id],
+                                            budget.currency,
+                                          ),
+                                    fromPay: fromPay,
+                                    expectedPay: expectedPay,
+                                    onShowRows: income == null
+                                        ? null
+                                        : () =>
+                                              widget.onShowRows(income, period),
+                                    waiting: [
+                                      for (final (c, v) in _cameIn(
+                                        budget.cameInUncategorized,
+                                        budget.currency,
+                                      ))
+                                        if (v > 0) (c, v),
                                     ],
-                                    row(c, striped: i.isOdd),
-                                  ],
-                                  if (firstSaved < 0) ...totals(),
-                                  const SizedBox(height: 14),
-                                  if (archived.isNotEmpty) ...[
-                                    Hoverable(
-                                      key: const ValueKey(
-                                        'show-archived-categories',
+                                    onShowWaiting: switch (data.accounts.values
+                                        .where(
+                                          (a) =>
+                                              !a.deleted && isUncategorized(a),
+                                        )
+                                        .firstOrNull) {
+                                      final w? => () => widget.onShowRows(
+                                        w,
+                                        period,
                                       ),
-                                      onTap: () => setState(
-                                        () => _showArchived = !_showArchived,
-                                      ),
-                                      builder: (hover) => Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          12,
-                                          6,
-                                          12,
-                                          6,
-                                        ),
-                                        child: Text(
-                                          _showArchived
-                                              ? t.planHideArchived(
-                                                  archived.length,
-                                                )
-                                              : t.planShowArchived(
-                                                  archived.length,
-                                                ),
-                                          style: onest(
-                                            12.5,
-                                            color: hover ? Mid.ink2 : Mid.ink3,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    if (_showArchived)
-                                      for (final c in archived)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 4,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  c.name,
-                                                  style: onest(
-                                                    13.5,
-                                                    color: Mid.ink2,
+                                      null => null,
+                                    },
+                                    onPay: widget.onPay,
+                                    onAskAgain: widget.onAskAgain,
+                                  ),
+                                Offstage(
+                                  offstage: _tab == _BudgetTab.income,
+                                  // Hidden, but kept so what was typed in it stays:
+                                  // Tab mustn't walk through it (#163).
+                                  child: ExcludeFocus(
+                                    excluding: _tab == _BudgetTab.income,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        for (final (i, c)
+                                            in spending.indexed) ...[
+                                          if (groupAt[i] case final g?)
+                                            heading(g, 'budget-group-$g'),
+                                          if (i == firstBill)
+                                            heading(
+                                              t.phoneBills,
+                                              'budget-bills',
+                                            ),
+                                          if (i == firstSaved) ...[
+                                            ...totals(),
+                                            heading(
+                                              t.planSaved,
+                                              'budget-saved',
+                                            ),
+                                          ],
+                                          row(c, striped: i.isOdd),
+                                        ],
+                                        if (firstSaved < 0) ...totals(),
+                                        const SizedBox(height: 14),
+                                        if (archived.isNotEmpty) ...[
+                                          Hoverable(
+                                            key: const ValueKey(
+                                              'show-archived-categories',
+                                            ),
+                                            onTap: () => setState(
+                                              () => _showArchived =
+                                                  !_showArchived,
+                                            ),
+                                            builder: (hover) => Padding(
+                                              padding:
+                                                  const EdgeInsets.fromLTRB(
+                                                    12,
+                                                    6,
+                                                    12,
+                                                    6,
                                                   ),
-                                                ),
-                                              ),
-                                              Text(
-                                                _usageText(
-                                                  t,
-                                                  data.categoryUsage[c.id],
-                                                ),
+                                              child: Text(
+                                                _showArchived
+                                                    ? t.planHideArchived(
+                                                        archived.length,
+                                                      )
+                                                    : t.planShowArchived(
+                                                        archived.length,
+                                                      ),
                                                 style: onest(
                                                   12.5,
-                                                  color: Mid.ink3,
+                                                  color: hover
+                                                      ? Mid.ink2
+                                                      : Mid.ink3,
                                                 ),
                                               ),
-                                              // Money can still sit in an archived one.
-                                              if (budget.lines[c.id]?.left
-                                                  case final left?
-                                                  when left != 0) ...[
-                                                const SizedBox(width: 16),
-                                                Money(
-                                                  left,
-                                                  size: 13,
-                                                  currency: c.currency,
-                                                  color: left < 0
-                                                      ? Mid.coral
-                                                      : Mid.ink2,
-                                                ),
-                                              ],
-                                              const SizedBox(width: 16),
-                                              BarButton(
-                                                key: ValueKey(
-                                                  'unarchive-category-${c.id}',
-                                                ),
-                                                label: t.planShowInMenus,
-                                                onTap: () =>
-                                                    widget.onUnarchive(c),
-                                              ),
-                                            ],
+                                            ),
                                           ),
-                                        ),
-                                  ],
-                                ],
-                              ),
+                                          if (_showArchived)
+                                            for (final c in archived)
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 4,
+                                                    ),
+                                                child: Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        c.name,
+                                                        style: onest(
+                                                          13.5,
+                                                          color: Mid.ink2,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      _usageText(
+                                                        t,
+                                                        data.categoryUsage[c
+                                                            .id],
+                                                      ),
+                                                      style: onest(
+                                                        12.5,
+                                                        color: Mid.ink3,
+                                                      ),
+                                                    ),
+                                                    // Money can still sit in an archived one.
+                                                    if (budget.lines[c.id]?.left
+                                                        case final left?
+                                                        when left != 0) ...[
+                                                      const SizedBox(width: 16),
+                                                      Money(
+                                                        left,
+                                                        size: 13,
+                                                        currency: c.currency,
+                                                        color: left < 0
+                                                            ? Mid.coral
+                                                            : Mid.ink2,
+                                                      ),
+                                                    ],
+                                                    const SizedBox(width: 16),
+                                                    BarButton(
+                                                      key: ValueKey(
+                                                        'unarchive-category-${c.id}',
+                                                      ),
+                                                      label: t.planShowInMenus,
+                                                      onTap: () =>
+                                                          widget.onUnarchive(c),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        Positioned(left: 0, top: 0, child: tabStrip()),
+                      ],
                     ),
                   ),
                 ],
@@ -1327,6 +1360,10 @@ class _BudgetPageState extends State<_BudgetPage> {
 }
 
 const double _amountWidth = 136;
+
+/// Where the tabs end and the panel's top edge is: the chosen tab is one
+/// point taller and covers that edge.
+const double _tabFeet = 41;
 
 /// What the categories keep under the cards at the top of the Budget page:
 /// the tabs and a few rows (#234).
@@ -1462,44 +1499,108 @@ class _TotalsRow extends StatelessWidget {
 
 enum _BudgetTab { spending, income }
 
-/// A tab in the panel's top row, drawn like the register's.
+/// A folder tab's outline: top corners rounded, sides and top stroked, the
+/// bottom left open so the panel shows through, and for the chosen tab a
+/// 3-point bar of its hue along the top. (A `Border` can't round corners
+/// with sides of different colors.)
+class _TabShape extends ShapeBorder {
+  const _TabShape({required this.rule, this.bar});
+  final Color rule;
+  final Color? bar;
+
+  static const _radius = Radius.circular(10);
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) => Path()
+    ..addRRect(
+      RRect.fromRectAndCorners(rect, topLeft: _radius, topRight: _radius),
+    );
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      getOuterPath(rect, textDirection: textDirection);
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
+    final edge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = rule;
+    // Stroked half a point in, so the line lies inside the tab.
+    final r = rect.deflate(0.5);
+    canvas.drawPath(
+      Path()
+        ..moveTo(r.left, r.bottom)
+        ..lineTo(r.left, r.top + _radius.x)
+        ..arcToPoint(Offset(r.left + _radius.x, r.top), radius: _radius)
+        ..lineTo(r.right - _radius.x, r.top)
+        ..arcToPoint(Offset(r.right, r.top + _radius.x), radius: _radius)
+        ..lineTo(r.right, r.bottom),
+      edge,
+    );
+    if (bar case final c?) {
+      canvas.save();
+      canvas.clipPath(getOuterPath(rect));
+      canvas.drawRect(
+        Rect.fromLTWH(rect.left, rect.top, rect.width, 3),
+        Paint()..color = c,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  ShapeBorder scale(double t) => this;
+}
+
+/// A folder tab on the panel's top edge (owner's pick B, 2026-11-14, #435).
+/// The one you're on is the panel's own color, 42 tall, with a 3-point bar
+/// of its [hue] across the top, and covers the panel's edge so the two are
+/// one piece. The other is lowered, 36 tall, on the raised gray, with the
+/// panel's edge running under it. Spending's hue is the blue of what you
+/// click and Income's the green of money in.
 class _PageTab extends StatelessWidget {
   const _PageTab({
     super.key,
     required this.label,
     required this.active,
     required this.onTap,
+    required this.hue,
     this.dot = false,
   });
   final String label;
   final bool active;
   final VoidCallback onTap;
+  final Color hue;
 
   /// Something on the tab wants attention: a small blue dot after it.
   final bool dot;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(right: 8),
+    padding: EdgeInsets.only(right: 4, top: active ? 0 : _tabFeet - 36),
     child: Hoverable(
       onTap: onTap,
       builder: (hover) => Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          // The tab you're on is tinted like the row you've chosen.
-          color: active
-              ? Mid.blueWash
-              : (hover ? Mid.hover : Colors.transparent),
-          borderRadius: BorderRadius.circular(8),
+        height: active ? _tabFeet + 1 : 36,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: ShapeDecoration(
+          color: active ? Mid.panel : (hover ? Mid.hover : Mid.raised),
+          shape: _TabShape(rule: Mid.rule, bar: active ? hue : null),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               label,
-              // Color only: a heavier word would nudge the tabs beside it.
-              style: onest(13, color: active ? Mid.blue : Mid.ink3),
+              style: onest(
+                14,
+                color: active ? Mid.ink : Mid.ink2,
+                weight: active ? 600 : 400,
+              ),
             ),
             if (dot) ...[
               const SizedBox(width: 6),
@@ -1771,6 +1872,21 @@ class _IncomeTab extends StatelessWidget {
                     style: onest(13.5, color: Mid.note),
                   ),
           ),
+        // With the incomes it adds to, not up in the page's top row (#436).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+          child: Row(
+            children: [
+              _PrimaryButton(
+                key: const ValueKey('income-add-pay'),
+                label: pays.isEmpty ? t.setupAddYourPay : t.setupAddOtherPay,
+                icon: Icons.add_rounded,
+                tooltip: t.setupAddPayTip,
+                onTap: () => onPay(null),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
