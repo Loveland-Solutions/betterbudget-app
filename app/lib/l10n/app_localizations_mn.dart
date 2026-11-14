@@ -1175,6 +1175,14 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planRunsOutToday => 'Мөнгө өнөөдөр дуусна';
+
+  @override
+  String planRunsOutTodayBy(String amount) {
+    return 'Мөнгө өнөөдөр дуусна · $amount дутна';
+  }
+
+  @override
   String planRunsOutZero(String date) {
     return 'Мөнгө дуусах өдөр: $date';
   }
@@ -4376,7 +4384,7 @@ class WordsMn extends Words {
 
   @override
   String planFillOver(String amount) {
-    return 'Энэ нь байгаа мөнгөнөөс $amount илүү';
+    return 'Зөвхөн $amount хуваарилаагүй байна';
   }
 
   @override
@@ -4389,13 +4397,26 @@ class WordsMn extends Words {
   String get planKeyCashBank => 'Бэлэн мөнгө ба банк';
 
   @override
-  String get planKeyAssigned => 'Ангилалд байгаа';
+  String get planKeyOverspent => 'Хэтэрсэн';
+
+  @override
+  String planSumFromMonth(String month) {
+    return '$monthын үлдэгдэл';
+  }
+
+  @override
+  String get planSumFromPay => 'Өмнөх орлогын үеийн үлдэгдэл';
+
+  @override
+  String planSumShortFromMonth(String month) {
+    return '$monthын дутагдал';
+  }
+
+  @override
+  String get planSumShortFromPay => 'Өмнөх орлогын үеийн дутагдал';
 
   @override
   String get planKeyNotAssigned => 'Хуваарилаагүй';
-
-  @override
-  String get planKeyOverspent => 'Хэтэрсэн';
 
   @override
   String get planKeyNotBegun =>
@@ -4413,7 +4434,7 @@ class WordsMn extends Words {
 
   @override
   String planKeyBeganInside(String date) {
-    return 'Төсөв эхэлсэн өдөр $date. Түүнээс өмнөх зарлага ангилалд тооцогдохгүй.';
+    return 'Төсөв эхэлсэн өдөр $date. Түүнээс өмнөх орлого, зарлага тооцогдохгүй.';
   }
 
   @override
@@ -4422,9 +4443,6 @@ class WordsMn extends Words {
   @override
   String get planMoveNothingFrom =>
       'Энэ валютаар шилжүүлэх мөнгөтэй өөр ангилал алга, хуваарилаагүй мөнгө ч алга.';
-
-  @override
-  String get planKeyAsOfToday => 'Өнөөдрийн байдлаар';
 
   @override
   String get planKeyOver => 'Илүү хуваарилсан';
@@ -4497,7 +4515,7 @@ class WordsMn extends Words {
     String category,
     String rest,
   ) {
-    return '$account дансны $held нь $category ангиллынх. Тэнд байгаа $rest нь одоохондоо ямар ч ангилалд ороогүй тул хуваарилж болно.';
+    return '$account дансны $held нь $category ангиллынх. Тэнд байгаа $rest нь ямар ч ангилалд ороогүй.';
   }
 
   @override
@@ -4512,21 +4530,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String planBackingOne(String held, String account, String have) {
-    return 'Энд $held үлдсэн боловч $account дансанд $have л байна';
-  }
-
-  @override
-  String planBackingShared(
-    String held,
-    int count,
-    String account,
-    String have,
-  ) {
-    return '$account дансанд хадгалдаг $count ангилалд $held үлдсэн боловч тэр дансанд $have л байна';
-  }
-
-  @override
   String get planEdit => 'Засах';
 
   @override
@@ -4534,7 +4537,7 @@ class WordsMn extends Words {
 
   @override
   String planFundOverAssigned(String amount) {
-    return 'Төсөвт тань байгаа мөнгөнөөс илүү хуваарилсан дүн: $amount.';
+    return 'Төсөвт хэт их хуваарилсан дүн: $amount.';
   }
 
   @override
@@ -5518,7 +5521,7 @@ class WordsMn extends Words {
 
   @override
   String ledgerCombinedOverAssigned(String amount) {
-    return 'Байгаа мөнгөнөөс илүү хуваарилсан: $amount';
+    return 'Хэт их хуваарилсан: $amount';
   }
 
   @override
@@ -6998,41 +7001,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String planFitOverMonth(String month, String amount) {
-    return '$monthын төлөвлөгөө орлогоосоо илүү байна: $amount';
-  }
-
-  @override
-  String planFitOverPay(String amount) {
-    return 'Энэ орлогын үеийн төлөвлөгөө орлогоосоо илүү байна: $amount';
-  }
-
-  @override
-  String planFitSpareMonth(String month, String amount) {
-    return '$monthын төлөвлөгөө орлогод багтаж байна, илүү гарах нь: $amount';
-  }
-
-  @override
-  String planFitSparePay(String amount) {
-    return 'Энэ орлогын үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: $amount';
-  }
-
-  @override
-  String planFitEvenMonth(String month) {
-    return '$monthын төлөвлөгөө орлоготой яг тэнцүү';
-  }
-
-  @override
-  String get planFitEvenPay =>
-      'Энэ орлогын үеийн төлөвлөгөө орлоготой яг тэнцүү';
-
-  @override
-  String get planFitSpent => 'Одоогоор зарцуулсан';
-
-  @override
-  String get planFitToSpend => 'Цаашид зарцуулах';
-
-  @override
   String get planFitAside => 'Хуримтлал';
 
   @override
@@ -7042,20 +7010,6 @@ class WordsMn extends Words {
   String planFitToCome(String amount) {
     return 'Цаашид орох: $amount';
   }
-
-  @override
-  String planFitOverPayThen(String amount) {
-    return 'Тэр орлогын үеийн төлөвлөгөө орлогоосоо илүү байна: $amount';
-  }
-
-  @override
-  String planFitSparePayThen(String amount) {
-    return 'Тэр орлогын үеийн төлөвлөгөө орлогод багтаж байна, илүү гарах нь: $amount';
-  }
-
-  @override
-  String get planFitEvenPayThen =>
-      'Тэр орлогын үеийн төлөвлөгөө орлоготой яг тэнцүү';
 
   @override
   String phoneCategoryTakenMeanwhile(String name) {

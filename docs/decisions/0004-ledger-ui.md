@@ -6133,3 +6133,274 @@ the screen." Of the design committee's sketches, "B, cut down".
   Switching one off skips it, on brings it back, each as before with its popup and Undo.
 - **Rejected:** the date tile before the name ("what's the point of the dates on the left?"),
   a track of months to the date, switches on the row, chips, a month lane.
+
+## Budget: Add category on the tabs' row, the income as a sum, bars as long as the money (owner, 2026-11-14, #460)
+
+Owner, on the Budget page: "I think it's a little ugly." Three things:
+
+- "I don't like where the 'Add Category' button is. I think it should be moved down on the
+  same row as the spending and income tabs." **Add category sits at the right end of the
+  tabs' row**, its right edge on the panel's, on Spending only (Income's button stays under
+  the incomes, #436). Not beside the tabs, where it would read as a third one.
+- "I don't like the bar graph area. It's hard to understand. I don't mind some kind of
+  visualization, but I don't like the colors, and I don't understand what that bar is
+  trying to tell me." Once spending passed the income, everything past the income's mark
+  was painted coral: the blue stopped at the income and not at what was spent, and the
+  key's green Still to spend was nowhere on the bar.
+- "The little circle visualization to the left of each budget. It's too small to be
+  helpful. We need some other way of visualizing this and making it pleasant to look at."
+  With nothing assigned, eleven rows carried the same full coral ring.
+
+The design committee's reports were drawn as three ways each, live, on a month like the
+owner's and an ordinary one (<https://claude.ai/artifact/6PuasDby67XdpnhSWDBeye>). The
+owner chose **C** of both.
+
+**The income card is a sum, with no picture** (C: "I like 'C' the best"):
+Income − Spent − Still to spend − Saved = the result, each a figure under its name.
+
+- The result's name says which way it went, **More than November's income** or **Left of
+  November's income** ("this pay period's", "that pay period's"), on a tint of its color:
+  coral when over, green when something is left, plain at exactly zero, and plain when over
+  with no regular income set up, since more may still come (the rule from #234).
+- Income is green once some has come in, with "₮2,100,000 still to come" beside its name.
+  The terms are ordinary ink: they are money out. A term at zero is left out. **This
+  replaces the green Still to spend of 2026-10-28** ("Green on the Budget page", #327) on
+  this card: the sketch the owner picked drew it in ink, and green here is now the
+  income and what is left of it.
+- With no regular income set up and the period still open, the result is named **More
+  than November's income so far** (budget review).
+- The heading sentence ("November's plans take ₮… more than its income") went: the sum
+  says it. **Spent** replaces "Spent so far", which was false on a month gone by.
+- What the figures count is unchanged (#234, "Living on the income").
+- *Rejected:* **A**, two bars on one scale, Income over Spending, solid for what has
+  happened and an outline for what hasn't (the committee's recommendation); **B**, the
+  month as a line, spending climbing day by day against the income.
+
+**A bar after each name, as long as the money** (C: "I like 'C' here the best also"),
+where the ring was (this replaces "How used up a category is: a ring before the name" on
+the computer):
+
+- **Its length is what the category had this period**, on one scale down the list in each
+  currency: the longest bar is the category that had, or spent, the most. Groceries is
+  long; Bank fees is a sliver, never thinner than 4 points.
+- **The colored part is what's left of it**, from the left, sliding green through gold to
+  coral as it's used (`usedColor`, the ring's own slide, so the owner's "green
+  progressively to red" stands); the rest is the track. It empties where the ring filled.
+- **Past it, hatched coral: what was spent with nothing behind it.** A category spent
+  from with nothing assigned is only that; one that had money and ran over is an emptied
+  track and then the hatched part. So the two no longer look alike, and in a month with
+  nothing assigned the bars show where the money went.
+- Every bar starts at the same place: names keep a column, and a bar is at most 520
+  points long. The same rows as the ring: not a bill, not under Saved, not a row with
+  nothing had and nothing spent. With the ring gone, names start at the row's edge.
+- The words are the ring's, as the bar's tooltip ("₮612,300 of ₮900,000 used").
+- A refund that leaves more than the category had makes the bar as long as its Left, and
+  a category holding only a refund gets a bar too (budget review).
+- *Rejected:* **A**, a short level before the name that drains (the committee's
+  recommendation); **B**, the ring at twice the size around the name's emoji.
+- **The phone keeps its ring**: asked, the owner didn't say, and its rows have no room
+  for a bar on one scale.
+
+**The key card's notes are stacked** (owner, the same day, on Assign what's planned, "That's
+₮… more than you have" and Clear November's Assigned in one line: "I don't like how those
+three are horizontally next to each other. It seems like they should be stacked"). They sit
+beside the figures one under another: Assign what's planned level with In categories,
+then Clear. "As of today" keeps its place beside the
+first row. The line over Not assigned now runs under the figures only, as a sum's line.
+With three currencies or more the notes still go under their row.
+
+**The Assign what's planned warning is inside the button** (owner, the same day, on "That's
+₮4,500,000 more than you have" under the button: "what does this number mean??", then,
+offered other words for the same line, "How would the user know what that text is
+referring to?"). A line beside or under a button is tied to it by nothing but nearness.
+
+- The warning is the button's own second line, coral, inside its outline: "Assign what's
+  planned · ₮5,300,000 in 5 categories" over **"Only ₮800,000 is not assigned"**.
+- It names the figure the card shows as Not assigned, not the difference: the shortfall
+  was on the page nowhere else, and "you have" could as well have meant Bank. Both of the
+  button's amounts can now be checked on the card before the click; after it, the coral
+  Assigned too much row says by how much. The same sentence opens Move money's warning.
+- *Rejected:* "₮4,500,000 more than is not assigned" (the unverifiable figure again);
+  the line left outside the button with clearer words.
+
+**The balance is off the Budget page** (owner, the same day: "Some of these numbers aren't
+necessarily related, so they're confusing. Your balance isn't related to how much you
+overspent", then "I don't think the balance belongs on the budget page. It confuses the
+issue. It's on the ledger page"). The top card had drawn Cash & bank, In categories and
+Overspent one under another over a line and Not assigned, which read as one sum; Overspent
+took no part in it.
+
+- **The top card holds Not assigned**, large and green, and beside it Assign what's
+  planned and Clear, stacked; under it Assigned too much when there is any, and the notes
+  about a budget's start as before. "As of today", for another period, is the first line
+  beside it.
+- **Cash & bank went**, and with it **In categories**, which was only there to come off
+  it, and the **Overspent** total: each overspent category says its own in coral under
+  Left, and the hatched bars show them. This replaces "The top pane: the key" (2026-10-05)
+  and the red Overspent line of 2026-10-24 (#163).
+- **Not assigned is counted as before**: cash and bank money not in any category; an
+  overspent category's minus still isn't added back. Only the working left the page.
+- The page now asks two things, each a card: what there is to give out, and whether the
+  period's income is enough (the sum under it).
+
+**On the income sum, green is income and red is expense** (owner, the same day: "Let's make
+the colors do the work, though. Green is income, red is expense"). Spent and Still to
+spend are coral, Income green; Saved stays ink, being money kept. The result keeps its
+tinted box, which is what sets "More than November's income" apart from the coral terms
+beside it. This narrows "money out is ordinary ink" (2026-10-09) to the Ledger's register,
+where the owner set it and where it stays; on this card it replaces the ink terms above.
+
+**Still to spend is yellow, and Clear sits at the card's right end** (owner, the same day,
+on the two cards as built: "This looks good. Let's make still to spend yellow, and move
+'Clear November's Assigned' to the right. It looks out of place there").
+
+- On the income sum: Income green, Spent coral, **Still to spend gold** (it hasn't gone
+  yet), Saved ink. This is gold's one use for money not yet spent; "gold is an accent"
+  otherwise stands.
+- On the top card: Assign what's planned stays beside Not assigned; **Clear is at the
+  right end of the card**, apart from the figure it isn't about. This replaces Clear under
+  Assign in the stack above.
+
+**Every figure of the sum is in its own box** (owner, the same day, of the tinted box the
+result had: "Love the box on the end. Let's put a box around each of them"). Income, Spent,
+Still to spend, Saved and the result each sit in a box tinted with their own color, name
+and figure in that color; one with no color of its own (Saved, or an income with nothing
+come in yet) is in a faint tint of the ink. The result's figure stays a size larger.
+
+**Not assigned steps aside for Assigned too much** (owner, the same day, on "Not assigned
+₮0.00" over "Assigned too much ₮2,500,000": "Does 'Not Assigned' need to be visible when
+'Assigned too much' is there?"). It doesn't: the ₮0.00 says what the row under it already
+says. When every currency is over, the top card shows Assigned too much alone; with two
+currencies and one of them over, both rows stay and the over one's Not assigned cell is
+empty. This narrows "Assigned too much: no minus beside Not assigned" (2026-10-06), which
+kept the zero.
+
+## The sidebar says in words when an account will run out (owner, 2026-11-14, #461)
+
+The owner had asked on 2026-10-05 for the sidebar to say, from anywhere in the app, that
+an account's forecast goes below zero; it was built as a 7-point coral dot beside the
+account's name with its words in a tooltip. On 2026-11-14 they asked for it again, not
+having seen it: "We should probably put some kind of an alert letting them know that one
+of their accounts will dip below zero. Maybe on the left sidebar? A badge or something
+letting me know that my MNT is forecast to dip below zero within 60 days?" A mark that has
+to be hovered to be read isn't an alert.
+
+Three ways were offered: **A**, the words under the account's balance (recommended);
+**B**, a coral badge with the date beside the name; **C**, one line above Net worth for
+all accounts. The owner chose **A**.
+
+- **A third line on the account, in coral: "Runs out on 12.01"**, under its balance, always
+  there, no hover. Its tooltip adds how much short ("Runs out on 12.01 · ₮357,750 short").
+  The dot is gone. An account already below zero still shows its balance in coral
+  instead.
+- **When the day is today it says "Runs out today"**, not today's date: a late bill is
+  counted as due today, so an account holding less than its late bills runs out today
+  (seen on the owner's ledger the first time it ran: "Runs out on 11.14", on 11.14).
+- **It looks 60 days ahead, every account alike** (the owner's "within 60 days"). Before,
+  an account income goes into was looked at a year of income ahead, so a dip ten months
+  off lit the dot.
+- **The line above an account's own forecast is unchanged**: "After 11.10: runs out on
+  11.20 · ₮… short" still looks a year of income ahead for the account income goes into,
+  since there the person is looking at that account. So that line can speak of a dip the
+  sidebar doesn't yet.
+- **Computer only**: asked whether the phone's Accounts list should say it too, the owner
+  didn't say.
+- *Rejected:* B (a bare date in a pill has to be decoded, the dot's fault again); C (the
+  loudest, and away from the account it is about).
+- This is the Ledger's side of "Budget counts income against outflow, not the bank"
+  (#461): what will happen to a bank account is said on the account, not on Budget.
+
+## The budget counts income against outflow, not the bank (owner, 2026-11-14, #461)
+
+With the balance off the Budget page, "Assigned too much ₮2,500,000" stood beside a row
+of boxes that measured against the month's income, and the owner asked: "How does assigned
+too much correlate with the other numbers?" It didn't: Not assigned was cash and bank less
+what the categories held, and the boxes were income less plans. Two yardsticks, two
+unrelated "too much" figures. The owner:
+
+> Really, a budget shouldn't care how much they have in the bank. We should care how much
+> they're getting in vs what they're spending. That being said, we want to protect the
+> user, so we want to let them know when they're running into danger. It's the ledger
+> screen's job to tell them what's going to happen to their bank account. The problem with
+> trying to warn them about their bank account on the budget page is that we could
+> potentially be dealing with many bank accounts.
+
+With several accounts, one pooled figure calls everything fine while the account that
+pays the bills runs dry. Each account's forecast already takes out its own bills and
+day-to-day spending (every category has one Paid from), and the sidebar says when an
+account will run out (the section above).
+
+**The count.** Not assigned starts at ₮0 the day the budget began: income in, less what
+was given to categories or went out with nothing behind it, through the end of the period
+on screen (`BudgetPool`, `Budget.of`). No stored row changes; the same rows are read
+differently. The budget expert worked the cases; the owner decided three:
+
+- **Income still to come counts from the period's first day.** On 11.01, with ₮1,000,000
+  due the 10th and ₮1,500,000 the 25th, Not assigned reads ₮2,500,000. "Yes. The
+  inconvenience of the situation shouldn't change how a budget should work."
+- **What a period leaves carries into the next, short or spare.** ₮500,000 of October's
+  income left unassigned is Not assigned in November ("yes, the remaining 500,000 would be
+  not assigned"). And a shortfall carries too: the expert recommended each period start
+  clean, and the owner refused: "It has to carry forward. The money can't just disappear.
+  … If you overspend, you have to make up for it. Otherwise, what is the point of a
+  budget??" Nothing is reset at a period's end.
+- **Money in the bank before any income is not income.** Someone with ₮2,000,000 in an
+  account and nothing come in has ₮0 to assign; they may assign anyway, and the page says
+  Assigned too much. "Blech. I see the problem, but I stand by what I said. They should be
+  allowed to do it, but they still need to know that they're spending more than they're
+  bringing in."
+
+Decided along those lines:
+
+- **Overspending comes off Not assigned**: it is money out with nothing behind it.
+  Covering it later moves nothing (Assigned up, Overspent down by the same).
+- **Money out with no category comes off too**, as a figure of its own: still Not
+  categorized, a long loan paid by a plain transfer, a row in a currency its category
+  isn't in, a row from before its category counted, spending in a category since deleted.
+  Money in waiting in Not categorized isn't income until it's filed.
+- A card purchase is its category's spending and moves nothing else; counted from the
+  bank, it used to raise Not assigned until the card was paid.
+- Funds, bills, goals and the Safety net count when assigned; spending from them never
+  moves Not assigned. A day-to-day category's leftover going back raises it, as before.
+- Each currency counts alone, from its own first day. Money exchanged between two is to
+  count as gone from one and come in to the other; not built yet.
+- Before any amount is assigned, the count is the period's own income, and no spending
+  counts yet, in a category or out of one (budget review: imported rows had opened a new
+  budget on Assigned too much).
+- Savings reads Not assigned for the period the Budget page is on today, a pay period
+  when one is set, and assigns into that period (code review: it read the calendar
+  month's, which under pay periods was another figure).
+
+**One card, one sum** (the owner, shown the expert's merged row: "I like it. Let's see
+it"). The top card and the income card became one row of boxes for each currency:
+
+```
+[Income] + [From October] − [Assigned] − [Saved] − [Overspent] − [Not categorized] = [Not assigned]
+```
+
+- Each figure is in its own box in its own color: Income green (with "₮… still to come"
+  beside its name), From October green, Assigned gold (given out, not gone yet, as Still
+  to spend was), Saved ink, Overspent coral. A figure at zero is left out.
+- A period that left short is "− Short from October" in coral, in From October's place.
+- The result is **Not assigned** (green; ink at zero) or, in its place, **Assigned too
+  much** (coral): never a minus, never a ₮0 beside it.
+- Assigned and Overspent can be checked against the list: the Total row, and the coral
+  Left amounts. So Saved holds only what sits under Saved in the list (a goal among the
+  bills is in Assigned), and money out with no category has its own box, **Not
+  categorized**, and isn't folded into Overspent (budget review). **Spent**, **Still to spend** and "Left of / More than November's income"
+  left the top: Spent is a column of the list, and the plans still to assign are on Assign
+  what's planned.
+- Under the sum: Assign what's planned, its warning inside it, and Clear at the right
+  end. The warning's check now leaves out the part of an assignment that covers
+  overspending; it had said assigning would overdraw by ₮4,500,000 when it overdrew by
+  ₮2,500,000. Move money's warning leaves it out the same way.
+- Gone from the page with the bank: "As of today"; the line under a category when its
+  Paid from account held less than its categories had Left (`EnvelopeLine.backing` is
+  still worked out, and no longer shown); "more than you have" in the popup after another
+  computer's changes and on Savings (now "assigned too much"); "and can be assigned" in a
+  category's Edit note about its account.
+- This replaces "The top pane: the key" (2026-10-05), the red Overspent line of
+  2026-10-24, "Living on the income" (#234) as a card of its own, and today's earlier
+  sections on the income sum's terms.
+- *Rejected:* each period starting clean (the expert's recommendation); keeping the bank
+  as the yardstick with the balance said inside one sentence.

@@ -1754,6 +1754,19 @@
       }
     }
   },
+  "planRunsOutToday": "Runs out today",
+  "@planRunsOutToday": {
+    "description": "Sidebar, in coral under an account's balance (#461): with what is due today, late bills among them, the account's balance goes to zero or below today. As planRunsOutZero, when the day is today."
+  },
+  "planRunsOutTodayBy": "Runs out today · {amount} short",
+  "@planRunsOutTodayBy": {
+    "description": "Sidebar, tooltip of planRunsOutToday: as planRunsOutBy, when the day is today. {amount} is how far below zero the balance goes.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "planRunsOutZero": "Runs out on {date}",
   "@planRunsOutZero": {
     "description": "Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip",
@@ -6582,7 +6595,7 @@
   },
   "planUsedOf": "{used} of {had} used",
   "@planUsedOf": {
-    "description": "Budget page: tooltip on the ring before a category's name: how much of what it had this period (carried in plus assigned) is used",
+    "description": "Budget page: tooltip on the bar after a category's name: how much of what it had this period (carried in plus assigned) is used",
     "placeholders": {
       "used": {
         "type": "String"
@@ -6594,7 +6607,7 @@
   },
   "planUsedNone": "{amount} overspent, with nothing assigned",
   "@planUsedNone": {
-    "description": "Budget page: tooltip on the full red ring before a category's name when money was spent from it this period but nothing was assigned to it (and nothing carried in)",
+    "description": "Budget page: tooltip on the hatched coral bar after a category's name when money was spent from it this period but nothing was assigned to it (and nothing carried in)",
     "placeholders": {
       "amount": {
         "type": "String"
@@ -6603,7 +6616,7 @@
   },
   "planUsedOver": "{amount} overspent",
   "@planUsedOver": {
-    "description": "Budget page: tooltip on the full red ring before a category's name when it is over and what it had this period is nothing or less (an overspend carried in outweighs what was assigned)",
+    "description": "Budget page: tooltip on the hatched coral bar after a category's name when it is over and what it had this period is nothing or less (an overspend carried in outweighs what was assigned)",
     "placeholders": {
       "amount": {
         "type": "String"
@@ -6652,9 +6665,9 @@
       }
     }
   },
-  "planFillOver": "That’s {amount} more than you have",
+  "planFillOver": "Only {amount} is not assigned",
   "@planFillOver": {
-    "description": "Budget page, the key card, beside \"Assign what's planned\" on the Assigned row: what it would take beyond the money free. Coral; said before it's done.",
+    "description": "Budget page, the key card: the second line inside the button \"Assign what's planned · ₮5,300,000 in 5 categories\", coral, when the plans come to more than the card's Not assigned figure. {amount} is that Not assigned figure, as the card shows it. Said before the click; the same sentence opens the Move money box's warning (planMoveWarnNotAssigned).",
     "placeholders": {
       "amount": {
         "type": "String"
@@ -6673,17 +6686,39 @@
   "@planKeyCashBank": {
     "description": "Budget page, the key card, first row's label: what is in the cash and bank accounts, one figure per currency. Deliberately the same words as the sidebar group ledgerGroupCashBank, so the figure can be checked against it. Short."
   },
-  "planKeyAssigned": "In categories",
-  "@planKeyAssigned": {
-    "description": "Budget page, the key card, second row's label: what the categories hold now (assigned, less spent since the budget began; below zero when overspent). Short."
+  "planKeyOverspent": "Overspent",
+  "@planKeyOverspent": {
+    "description": "Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. The name over what the overspent categories are over by, together, with money out that has no category yet."
+  },
+  "planSumFromMonth": "From {month}",
+  "@planSumFromMonth": {
+    "description": "Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. The name over what the month before left to give out. {month} is that month's name, like October.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planSumFromPay": "From the pay period before",
+  "@planSumFromPay": {
+    "description": "Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. As planSumFromMonth, when the Budget page is by pay period."
+  },
+  "planSumShortFromMonth": "Short from {month}",
+  "@planSumShortFromMonth": {
+    "description": "Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. The name over what the month before was short by: more was given out or spent than came in, and it has to be made up. {month} is that month's name.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planSumShortFromPay": "Short from the pay period before",
+  "@planSumShortFromPay": {
+    "description": "Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. As planSumShortFromMonth, when the Budget page is by pay period."
   },
   "planKeyNotAssigned": "Not assigned",
   "@planKeyNotAssigned": {
     "description": "Budget page, the key card, the result row's label under the rule: what's free to assign (You have less Assigned). Short."
-  },
-  "planKeyOverspent": "Overspent",
-  "@planKeyOverspent": {
-    "description": "Budget page's top card, the line under In categories: what overspent categories went over, together. Already spent from Cash & bank, so not taken off Not assigned again."
   },
   "planKeyNotBegun": "Spending counts against a category once you assign money to it.",
   "@planKeyNotBegun": {
@@ -6710,7 +6745,7 @@
       }
     }
   },
-  "planKeyBeganInside": "Spending before {date}, when the budget began, isn't counted against its categories.",
+  "planKeyBeganInside": "Income and spending before {date}, when the budget began, aren’t counted.",
   "@planKeyBeganInside": {
     "description": "Budget page's top card, when the period on screen holds the day the budget began: Spent shows the period's spending, Left only what came after that day.",
     "placeholders": {
@@ -6726,10 +6761,6 @@
   "planMoveNothingFrom": "No other category in this currency has money to move, and none is unassigned.",
   "@planMoveNothingFrom": {
     "description": "Move box's list, when there's nothing to move from: every other category in the currency is at zero or overspent, and Not assigned is zero."
-  },
-  "planKeyAsOfToday": "As of today",
-  "@planKeyAsOfToday": {
-    "description": "Budget page's top card, beside Cash & bank, while another period than today's is on screen: the top card's figures are today's, the rows below are that period's."
   },
   "planKeyOver": "Assigned too much",
   "@planKeyOver": {
@@ -6845,7 +6876,7 @@
   "@planMoneyChangePlan": {
     "description": "The same line, for a category with a plan and nothing assigned"
   },
-  "planMoneyRestOne": "{held} of what’s in {account} is for {category}. {rest} there is in no category yet and can be assigned.",
+  "planMoneyRestOne": "{held} of what’s in {account} is for {category}. {rest} there is in no category.",
   "@planMoneyRestOne": {
     "description": "Category Edit, under Paid from, for a category that keeps money (a bill, savings, one that carries over) paid from a cash or bank account: what of the account is this category's, and what's left in it once every category paid from it has its share (#183). Shown only when that's above zero.",
     "placeholders": {
@@ -6881,45 +6912,12 @@
       }
     }
   },
-  "planBackingOne": "{held} left here, but {account} holds {have}",
-  "@planBackingOne": {
-    "description": "Budget page: coral note under a category's name; it keeps its money in one account and that account holds less than the category has left",
-    "placeholders": {
-      "held": {
-        "type": "String"
-      },
-      "account": {
-        "type": "String"
-      },
-      "have": {
-        "type": "String"
-      }
-    }
-  },
-  "planBackingShared": "{held} left in {count} categories kept in {account}, which holds {have}",
-  "@planBackingShared": {
-    "description": "The same note, when several categories paid from the same account and keeping money in it together have more left than it holds. {account} is the account, like “Khan Savings”.",
-    "placeholders": {
-      "held": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      },
-      "account": {
-        "type": "String"
-      },
-      "have": {
-        "type": "String"
-      }
-    }
-  },
   "planEdit": "Edit",
   "@planEdit": {
     "description": "Budget page, a category's menu (⋯ or right-click): opens everything about the category under its row; a double-click on the row does the same"
   },
   "planEditName": "Name",
-  "planFundOverAssigned": "Your budget has assigned {amount} more than you have.",
+  "planFundOverAssigned": "Your budget has assigned {amount} too much.",
   "@planFundOverAssigned": {
     "description": "Savings, step 1, under the safety net's figures: the Budget page has assigned more than there is in cash and bank, so the safety net's money may not all be there. The step keeps its check (owner, 2026-10-26)",
     "placeholders": {
@@ -8238,7 +8236,7 @@
       }
     }
   },
-  "ledgerCombinedOverAssigned": "{amount} more is assigned than you have",
+  "ledgerCombinedOverAssigned": "{amount} is assigned too much",
   "@ledgerCombinedOverAssigned": {
     "description": "A line of the popup that says changes came from another computer, when the amounts assigned to categories on the two computers together come to more money than there is. {amount} is the shortfall with its currency, like “₮3,000,000”; it is the figure the Budget page shows as Assigned too much.",
     "placeholders": {
@@ -10721,107 +10719,22 @@
       }
     }
   },
-  "planFitOverMonth": "{month}’s plans take {amount} more than its income",
-  "@planFitOverMonth": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned (spending and money put aside) is more than the month's income; the amount is in coral.",
-    "placeholders": {
-      "month": {
-        "type": "String"
-      },
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planFitOverPay": "This pay period’s plans take {amount} more than its income",
-  "@planFitOverPay": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitOverMonth, when the Budget page is by pay period.",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planFitSpareMonth": "{month}’s plans fit in its income, with {amount} to spare",
-  "@planFitSpareMonth": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned is less than the month's income.",
-    "placeholders": {
-      "month": {
-        "type": "String"
-      },
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planFitSparePay": "This pay period’s plans fit in its income, with {amount} to spare",
-  "@planFitSparePay": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitSpareMonth, by pay period.",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planFitEvenMonth": "{month}’s plans take exactly its income",
-  "@planFitEvenMonth": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned is exactly the month's income.",
-    "placeholders": {
-      "month": {
-        "type": "String"
-      }
-    }
-  },
-  "planFitEvenPay": "This pay period’s plans take exactly its income",
-  "@planFitEvenPay": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitEvenMonth, by pay period."
-  },
-  "planFitSpent": "Spent so far",
-  "@planFitSpent": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's first part: what the spending categories have spent in the period."
-  },
-  "planFitToSpend": "Still to spend",
-  "@planFitToSpend": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's second part: what the spending categories' plans (or what's assigned to them) still take past what's spent."
-  },
   "planFitAside": "Saved",
   "@planFitAside": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's third part: the Safety net and savings goals, the word they sit under on this page (planSaved)."
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): a term of the sum: the Safety net and savings goals, the word they sit under on this page (planSaved)."
   },
   "planFitIncome": "Income",
   "@planFitIncome": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): the mark on the bar where the period's income ends."
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): the sum's first term: the period's income."
   },
   "planFitToCome": "{amount} still to come",
   "@planFitToCome": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): under Income: pay the schedules still expect in the period.",
+    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): beside Income: pay the schedules still expect in the period.",
     "placeholders": {
       "amount": {
         "type": "String"
       }
     }
-  },
-  "planFitOverPayThen": "That pay period’s plans take {amount} more than its income",
-  "@planFitOverPayThen": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitOverPay, for a pay period other than today's.",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planFitSparePayThen": "That pay period’s plans fit in its income, with {amount} to spare",
-  "@planFitSparePayThen": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitSparePay, for a pay period other than today's.",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "planFitEvenPayThen": "That pay period’s plans take exactly its income",
-  "@planFitEvenPayThen": {
-    "description": "Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitEvenPay, for a pay period other than today's."
   },
   "phoneCategoryTakenMeanwhile": "The computer took in {name} while this was open, so these changes weren’t kept. Change it on the computer’s Budget page.",
   "@phoneCategoryTakenMeanwhile": {
