@@ -795,7 +795,7 @@ void main() {
           .data!
           .split('\n');
       expect(said.first, '1 looks the same as one already here');
-      expect(said.last, endsWith(' more is assigned than you have'));
+      expect(said.last, endsWith(' is assigned too much'));
       expect(said.last, startsWith('₮'));
       expect(find.text('Undo'), findsNothing);
       expect(find.text('Show'), findsOneWidget);

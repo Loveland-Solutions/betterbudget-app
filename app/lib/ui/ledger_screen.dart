@@ -481,7 +481,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// here, and the two together are written to the folder. This computer's
   /// ledger as it was is saved first, in Backups. The popup says what came,
   /// and what the person would want to look at: a row that looks the same
-  /// as one already here, more assigned than there is, and what both
+  /// as one already here, more assigned than came in, and what both
   /// changed two ways that was settled over this computer's version (ADR
   /// 0004, "Two computers, step 4"), a whole sentence for one and a count
   /// for more, with Show; that popup stays until it is closed.
@@ -493,7 +493,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _selected = null;
       _adding = false;
     });
-    // How much more is assigned than there is, by currency.
+    // How much too much is assigned, by currency (#461: than came in).
     Map<Currency, int> over(LedgerData? data) {
       if (data == null) return const {};
       final p = budgetPeriod(today, data.periodSchedule);
@@ -565,7 +565,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       null when done.others == 0 => t.ledgerCombined(n),
       null => t.ledgerCombinedMore(n),
     };
-    // More assigned than there is, where it wasn't or was less before.
+    // Assigned too much, where it wasn't or was less before.
     final short = overNow.entries
         .where((e) => e.value > (overBefore[e.key] ?? 0))
         .firstOrNull;
@@ -2491,12 +2491,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
     return (date: f.firstShort!, low: f.firstShortBalance);
   }
 
-  /// Accounts whose balance goes to zero or below within a year of
-  /// paychecks, with the header's own warning for each: a dot beside the
-  /// account in the sidebar says so from anywhere in the app (owner's
-  /// request, 2026-10-05). One already below zero shows its balance in
-  /// coral there instead.
-  Map<int, String> _runsOut(LedgerData data) {
+  /// How far ahead the sidebar's warning looks (owner, 2026-11-14: "my MNT
+  /// is forecast to dip below zero within 60 days").
+  static const _warnSpan = ForecastSpan.days60;
+
+  /// As [_shortAhead], for the sidebar: the first day within [_warnSpan]
+  /// that an account's balance goes to zero or below, every account
+  /// looked at the same distance ahead.
+  ({DateTime date, int low})? _shortSoon(LedgerData data, AccountInfo a) {
+    if (a.isOwed) return null;
+    final f = _forecastFor(data, a, span: _warnSpan);
+    if (!f.isShort || f.shortNow) return null;
+    return (date: f.firstShort!, low: f.firstShortBalance);
+  }
+
+  /// Accounts whose balance goes to zero or below within 60 days: the
+  /// sidebar says so under the account's balance, in words, from anywhere
+  /// in the app (owner's request, 2026-10-05; a dot with its words in a
+  /// tooltip until 2026-11-14, when the owner asked for it again and
+  /// picked the words, A of three). [line] is what it says, [more] its
+  /// tooltip, with how much short. One already below zero shows its
+  /// balance in coral there instead.
+  Map<int, ({String line, String more})> _runsOut(LedgerData data) {
     // Worked out once per ledger snapshot (and language), not on every
     // hover or keystroke: it's a year's projection per account.
     final t = context.t;
@@ -2507,19 +2523,31 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _runsOutWords = t;
     return _runsOutCache = {
       for (final a in data.openAccounts)
-        if (_shortAhead(data, a) case final s?)
-          a.id: s.low == 0
-              ? t.planRunsOutZero(sayDate(t, s.date))
-              : t.planRunsOutBy(
-                  sayDate(t, s.date),
-                  roundedIn(context, s.low.abs()),
+        if (_shortSoon(data, a) case final s?)
+          // With late bills counted as due today, the day can be today:
+          // "Runs out today", not today's date.
+          a.id: s.date == today
+              ? (
+                  line: t.planRunsOutToday,
+                  more: s.low == 0
+                      ? t.planRunsOutToday
+                      : t.planRunsOutTodayBy(roundedIn(context, s.low.abs())),
+                )
+              : (
+                  line: t.planRunsOutZero(sayDate(t, s.date)),
+                  more: s.low == 0
+                      ? t.planRunsOutZero(sayDate(t, s.date))
+                      : t.planRunsOutBy(
+                          sayDate(t, s.date),
+                          roundedIn(context, s.low.abs()),
+                        ),
                 ),
     };
   }
 
   LedgerData? _runsOutFor;
   Words? _runsOutWords;
-  Map<int, String> _runsOutCache = const {};
+  Map<int, ({String line, String more})> _runsOutCache = const {};
 
   ({DateTime date, int amount})? _paydayAfter(
     LedgerData data,
@@ -7262,16 +7290,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                             ),
                                     setPrefs: _setPrefs,
                                     assign: (category, total, label) {
-                                      final day = dateOnly(widget.clock());
-                                      _setBudgetAmount(label: label, category, (
-                                        start: DateTime(day.year, day.month),
-                                        end: DateTime(
-                                          day.year,
-                                          day.month + 1,
-                                          0,
+                                      // In the period the Budget page is
+                                      // on today, where Savings read Not
+                                      // assigned from (#461).
+                                      _setBudgetAmount(
+                                        label: label,
+                                        category,
+                                        budgetPeriod(
+                                          dateOnly(widget.clock()),
+                                          data.periodSchedule,
                                         ),
-                                        label: '',
-                                      ), total);
+                                        total,
+                                      );
                                     },
                                     editCategory: _editCategory,
                                     addGoal: _addGoal,
@@ -7641,8 +7671,9 @@ class _Sidebar extends StatelessWidget {
   final bool allActive;
   final VoidCallback onAll;
 
-  /// Accounts whose forecast goes below zero, each with the warning.
-  final Map<int, String> runsOut;
+  /// Accounts whose forecast goes below zero within 60 days, each with
+  /// the warning's line and its tooltip.
+  final Map<int, ({String line, String more})> runsOut;
 
   /// For the right-click menu on each account.
   final _AccountActions Function(AccountInfo) actionsFor;
@@ -9307,9 +9338,9 @@ class _AccountTile extends StatefulWidget {
   final VoidCallback onTap;
   final _AccountActions actions;
 
-  /// Its forecast goes below zero: the header's warning, for a coral dot
-  /// beside the name.
-  final String? runsOut;
+  /// Its forecast goes below zero within 60 days: what the line under its
+  /// balance says, and that line's tooltip.
+  final ({String line, String more})? runsOut;
 
   @override
   State<_AccountTile> createState() => _AccountTileState();
@@ -9367,22 +9398,6 @@ class _AccountTileState extends State<_AccountTile> {
                     ),
                   ),
                 ),
-                if (widget.runsOut case final why?) ...[
-                  const SizedBox(width: 7),
-                  Tooltip(
-                    message: why,
-                    waitDuration: const Duration(milliseconds: 400),
-                    child: Container(
-                      key: ValueKey('runs-out-${widget.account.id}'),
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Mid.sideCoral,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
             const SizedBox(height: 2),
@@ -9400,6 +9415,22 @@ class _AccountTileState extends State<_AccountTile> {
                 tabular: true,
               ),
             ),
+            // In words, where it can't be missed (owner, 2026-11-14, pick A
+            // of three): "Runs out on 12.01". How much short is its tooltip.
+            if (widget.runsOut case final why?) ...[
+              const SizedBox(height: 2),
+              Tooltip(
+                message: why.more,
+                waitDuration: const Duration(milliseconds: 400),
+                child: Text(
+                  why.line,
+                  key: ValueKey('runs-out-${widget.account.id}'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(12.5, color: Mid.sideCoral, tabular: true),
+                ),
+              ),
+            ],
           ],
         ),
       ),

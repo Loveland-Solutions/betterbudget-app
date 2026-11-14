@@ -6308,17 +6308,18 @@ void main() {
     await settle(tester);
     // No headline: the chart says it, going coral under ₮0 with the dip's
     // own figure (ADR 0004, "The forecast's chart does the talking"). The
-    // sidebar's dot still carries the words, for an account you aren't on.
-    expect(find.textContaining('Runs out on'), findsNothing);
-    // The sidebar says so, with a coral dot beside the account.
+    // sidebar carries the words, for an account you aren't on: a line
+    // under the account's balance (owner, 2026-11-14, #461).
     final short = find.byWidgetPredicate(
       (w) =>
           w.key is ValueKey<String> &&
           (w.key as ValueKey<String>).value.startsWith('runs-out-'),
     );
     expect(short, findsOneWidget);
-    // The dot names the first dip, what it would take to stay above zero
-    // that day; the headline keeps the lowest point.
+    expect(tester.widget<Text>(short).data, 'Runs out on 09.30');
+    expect(find.textContaining('Runs out on'), findsOneWidget);
+    // Its tooltip names the first dip, what it would take to stay above
+    // zero that day; the headline keeps the lowest point.
     expect(
       find.byTooltip('Runs out on 09.30 · ₮357,750 short'),
       findsOneWidget,
@@ -6333,6 +6334,43 @@ void main() {
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/ledger_short.png'),
     );
+    await tidy(tester, db);
+  });
+
+  testWidgets('a late bill bigger than the balance: the sidebar says the '
+      'account runs out today (#461)', (tester) async {
+    final db = await pumpLedger(tester);
+    // A scheduled ₮5,000,000 bill a week late, against ₮4,182,450: the
+    // forecast counts a late bill as due today, so today is the day.
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.openAccounts
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      final tuition = ledger.categories
+          .firstWhere((c) => c.name == 'Tuition')
+          .id;
+      await db.postTransaction(
+        date: DateTime(2026, 9, 9),
+        payee: 'МУИС',
+        scheduled: true,
+        lines: [
+          (accountId: checking, amount: -500000000, cleared: Cleared.uncleared),
+          (accountId: tuition, amount: 500000000, cleared: Cleared.uncleared),
+        ],
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    final short = find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key as ValueKey<String>).value.startsWith('runs-out-'),
+    );
+    expect(short, findsOneWidget);
+    // Not "Runs out on 09.16", today's own date.
+    expect(tester.widget<Text>(short).data, 'Runs out today');
+    expect(find.byTooltip('Runs out today · ₮817,550 short'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -6369,17 +6407,22 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await settle(tester);
-    // The headline is calm; the line above the title isn't, and the
-    // sidebar's dot agrees. Both name the first dip: what it would take
-    // to stay above zero that day.
+    // The headline is calm; the line above the title isn't. It names the
+    // first dip: what it would take to stay above zero that day. The
+    // sidebar says nothing yet: it looks 60 days ahead, and 11.20 is 65
+    // days off (owner, 2026-11-14, #461).
     expect(find.text('To income'), findsOneWidget);
     expect(
       find.text('After 11.10: runs out on 11.20 · ₮1,607,750 short'),
       findsOneWidget,
     );
     expect(
-      find.byTooltip('Runs out on 11.20 · ₮1,607,750 short'),
-      findsOneWidget,
+      find.byWidgetPredicate(
+        (w) =>
+            w.key is ValueKey<String> &&
+            (w.key as ValueKey<String>).value.startsWith('runs-out-'),
+      ),
+      findsNothing,
     );
     // A click looks that far: 90 days reaches 11.20, 60 don't. The
     // December paycheck is expected, not a row.
@@ -7906,6 +7949,43 @@ void main() {
         const Offset(0, 400),
       );
       await tester.pumpAndSettle();
+      // The top card is one sum, every figure in its own box (owner,
+      // 2026-11-14, #461): September's income, less what was assigned and
+      // what categories overspent, is Not assigned. No bank figure is in
+      // it: ₮16,868,950 sits in the accounts, and it isn't on this page.
+      String boxed(String key) => tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(ValueKey(key)),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((w) => w.data)
+          .join(' ');
+      expect(boxed('sum-assigned'), 'Assigned ₮900,000');
+      expect(boxed('sum-overspent'), 'Overspent ₮295,090.50');
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('not-assigned'))).data,
+        '₮1,304,909.50',
+      );
+      expect(find.text('Income'), findsWidgets);
+      expect(find.byKey(const ValueKey('sum-from')), findsNothing);
+      expect(find.byKey(const ValueKey('you-have')), findsNothing);
+      expect(find.text('Cash & bank'), findsNothing);
+      expect(find.text('In categories'), findsNothing);
+      expect(find.textContaining('16,868,950'), findsNothing);
+      // Under the sum: Assign what's planned, and Clear September's
+      // Assigned apart from it, at the card's right end (owner,
+      // 2026-11-14).
+      final assignAll = tester.getRect(
+        find.byKey(const ValueKey('assign-planned')),
+      );
+      final clearAll = tester.getRect(
+        find.byKey(const ValueKey('clear-assigned')),
+      );
+      final card = tester.getRect(find.byKey(const ValueKey('budget-key')));
+      expect(clearAll.left, greaterThan(assignAll.right + 100));
+      expect(card.right - clearAll.right, lessThan(40));
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/budget_plans.png'),
@@ -7927,11 +8007,37 @@ void main() {
       // (#365).
       expect(find.byKey(ValueKey('plan-state-$tuition')), findsNothing);
       expect(find.textContaining('on track'), findsNothing);
-      // The ring before a name (#241): Groceries has used ₮276,650.50 of
-      // its ₮900,000; Childcare, with nothing in it and nothing spent,
-      // has none; Tuition and Clothing save for a date, so they sit under
-      // Bills, after the everyday categories, with no ring (#274).
+      // The bar after a name (#460, where the ring was, #241): Groceries
+      // has used ₮276,650.50 of its ₮900,000; Childcare, with nothing in
+      // it and nothing spent, has none; Tuition and Clothing save for a
+      // date, so they sit under Bills, after the everyday categories, with
+      // no bar (#274).
       expect(find.byKey(ValueKey('used-$groceries')), findsOneWidget);
+      expect(find.byType(UsedRing), findsNothing);
+      // A bar is as long as what the category had, on one scale down the
+      // list: Groceries had the most, ₮900,000, so it sets the scale, and
+      // ₮623,349.50 of it is left. Transport spent ₮120,000 with nothing
+      // assigned: no track, only what's over.
+      dynamic bar(int category) => tester
+          .widget<CustomPaint>(
+            find.descendant(
+              of: find.byKey(ValueKey('used-$category')),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .painter;
+      expect(bar(groceries).had, 90000000);
+      expect(bar(groceries).left, 62334950);
+      expect(bar(groceries).over, 0);
+      expect(bar(groceries).top, 90000000);
+      expect(bar(id('Transport')).had, 0);
+      expect(bar(id('Transport')).over, 12000000);
+      expect(bar(id('Transport')).top, 90000000);
+      // Every bar starts at the same place, whatever the name's length.
+      expect(
+        tester.getTopLeft(find.byKey(ValueKey('used-$groceries'))).dx,
+        tester.getTopLeft(find.byKey(ValueKey('used-${id('Transport')}'))).dx,
+      );
       expect(find.byKey(ValueKey('used-${id('Childcare')}')), findsNothing);
       expect(find.byKey(ValueKey('used-$tuition')), findsNothing);
       expect(find.byKey(ValueKey('used-$clothing')), findsNothing);
@@ -8585,11 +8691,104 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('Assign what’s planned says inside the button when the plans '
+        'are more than is not assigned', (tester) async {
+      final db = await pumpLedger(tester, size: const Size(1440, 960));
+      final data = (await tester.runAsync(db.loadLedger))!;
+      final groceries = data.categories
+          .firstWhere((c) => c.name == 'Groceries')
+          .id;
+      // ₮20,000,000 a month for Groceries, with September's ₮2,500,000 of
+      // income to give out (what the accounts hold is no part of it).
+      await tester.runAsync(
+        () => db.setCategoryPlan(
+          groceries,
+          CategoryPlan(
+            categoryId: groceries,
+            kind: PlanKind.each,
+            amount: 2000000000,
+            start: DateTime(2026, 9, 1),
+          ),
+        ),
+      );
+      await openBudget(tester);
+      await settle(tester);
+      final button = find.byKey(const ValueKey('assign-planned'));
+      final warning = find.byKey(const ValueKey('assign-planned-over'));
+      // The warning names the figure the card shows as Not assigned, and
+      // sits inside the button's own outline, under its words (owner,
+      // 2026-11-14: "How would the user know what that text is referring
+      // to?").
+      expect(
+        tester.widget<Text>(warning).data,
+        'Only ₮2,500,000.00 is not assigned',
+      );
+      expect(find.descendant(of: button, matching: warning), findsOneWidget);
+      final box = tester.getRect(button), line = tester.getRect(warning);
+      expect(box.contains(line.topLeft), isTrue);
+      expect(box.contains(line.bottomRight), isTrue);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_assign_over.png'),
+      );
+      await tidy(tester, db);
+    });
+
+    testWidgets('a bar: the biggest category a little over still draws; the '
+        'sum over its income (#460)', (tester) async {
+      final db = await pumpLedger(tester, size: const Size(1440, 960));
+      final data = (await tester.runAsync(db.loadLedger))!;
+      int id(String name) =>
+          data.categories.firstWhere((c) => c.name == name).id;
+      final groceries = id('Groceries'), gifts = id('Gifts');
+      final sep = DateTime(2026, 9, 1), end = DateTime(2026, 9, 30);
+      // Groceries spent ₮276,650.50: with ₮276,000 assigned it is the
+      // longest bar, a track with a sliver of hatched coral after it, far
+      // thinner than the least a part is drawn. It once threw there.
+      await tester.runAsync(
+        () => db.setBudgetAmount(groceries, sep, end, 27600000),
+      );
+      await openBudget(tester);
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+      dynamic bar(int category) => tester
+          .widget<CustomPaint>(
+            find.descendant(
+              of: find.byKey(ValueKey('used-$category')),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .painter;
+      // Both parts on one row: what it had, and what it spent past that.
+      expect(bar(groceries).had, 27600000);
+      expect(bar(groceries).left, 0);
+      expect(bar(groceries).over, 65050);
+      expect(bar(groceries).top, 27665050);
+      // Gifts is given more than the month's income: it had the most, so
+      // it sets the scale, and all of it is left.
+      await tester.runAsync(
+        () => db.setBudgetAmount(gifts, sep, end, 500000000),
+      );
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+      expect(bar(gifts).had, 500000000);
+      expect(bar(gifts).left, 500000000);
+      expect(bar(groceries).top, 500000000);
+      // ₮5,276,000 given out against September's ₮2,500,000: Assigned too
+      // much takes Not assigned's place in the sum (#461).
+      expect(find.text('Assigned too much'), findsOneWidget);
+      expect(find.text('Not assigned'), findsNothing);
+      expect(find.byKey(const ValueKey('assigned-over')), findsOneWidget);
+      await tidy(tester, db);
+    });
+
     testWidgets(
       'a category’s currency and accounts: two pools, the checklist',
       (tester) async {
         final db = await pumpLedger(tester);
-        // A dollar account with $2,500 in it.
+        // A dollar account, and $2,500 of income paid into it in
+        // September: what there is to assign in dollars is the dollars
+        // that came in, never what an account holds (#461).
         await tester.runAsync(() async {
           final afcu = await db.createAccount(
             name: 'AFCU Checking',
@@ -8599,7 +8798,15 @@ void main() {
           await db.postOpeningBalance(
             accountId: afcu,
             date: DateTime(2026, 9, 1),
-            balance: 250000,
+            balance: 900000,
+          );
+          await db.postSimple(
+            accountId: afcu,
+            date: DateTime(2026, 9, 5),
+            today: DateTime(2026, 9, 16),
+            payee: 'Consulting',
+            counterAccountId: await db.incomeCategory(),
+            amount: 250000,
           );
           await Future<void>.delayed(const Duration(milliseconds: 300));
         });
@@ -8623,9 +8830,9 @@ void main() {
         String text(String key) =>
             tester.widget<Text>(find.byKey(ValueKey(key))).data!;
 
-        // Each currency has its own column in the key.
+        // Each currency has its own sum in the top card.
         expect(text('not-assigned'), startsWith('₮'));
-        expect(text('not-assigned-USD'), r'$2,500.00');
+        expect(text('not-assigned-USD'), r'$2,500');
 
         // A new category in dollars.
         await tester.tap(find.byKey(const ValueKey('add-category')));
@@ -8663,13 +8870,12 @@ void main() {
           await Future<void>.delayed(const Duration(milliseconds: 300));
         });
         await tester.pumpAndSettle();
-        expect(text('not-assigned-USD'), r'$2,380.00');
+        expect(text('not-assigned-USD'), r'$2,380');
         // The tugrik line is its own: no dollars in it.
         expect(text('not-assigned'), startsWith('₮'));
 
-        // More assigned than there is: Not assigned stops at zero, never
-        // a minus, and a row of its own says how much too much, in that
-        // currency's column only.
+        // More assigned than came in: never a minus beside Not assigned;
+        // Assigned too much takes its place, in that currency's sum only.
         Future<void> assign(String amount) async {
           await tester.tap(find.byKey(ValueKey('assigned-$insurance')));
           await tester.pumpAndSettle();
@@ -8686,21 +8892,23 @@ void main() {
 
         expect(find.text('Assigned too much'), findsNothing);
         await assign('3000');
-        expect(text('not-assigned-USD'), r'$0.00');
-        expect(text('assigned-over-USD'), r'$500.00');
+        // Dollars are over: no Not assigned for them, since Assigned too
+        // much says it (owner, 2026-11-14).
+        expect(find.byKey(const ValueKey('not-assigned-USD')), findsNothing);
+        expect(text('assigned-over-USD'), r'$500');
         expect(find.text('Assigned too much'), findsOneWidget);
+        expect(find.text('Not assigned'), findsOneWidget);
         expect(find.byKey(const ValueKey('assigned-over')), findsNothing);
         expect(text('not-assigned'), startsWith('₮'));
-        // Money still to give out is green; none left is ink, and what
-        // was assigned too much is coral (#327).
+        // Money still to give out is green, and what was assigned too
+        // much is coral (#327).
         Color? inkOf(String key) =>
             tester.widget<Text>(find.byKey(ValueKey(key))).style!.color;
         expect(inkOf('not-assigned'), Mid.green);
-        expect(inkOf('not-assigned-USD'), Mid.ink);
         expect(inkOf('assigned-over-USD'), Mid.coral);
         await assign('120');
         expect(find.text('Assigned too much'), findsNothing);
-        expect(text('not-assigned-USD'), r'$2,380.00');
+        expect(text('not-assigned-USD'), r'$2,380');
         expect(inkOf('not-assigned-USD'), Mid.green);
 
         // Its accounts: the one dollar account, checked. Groceries lists
@@ -8866,7 +9074,7 @@ void main() {
         expect(data.budgetAmounts, isEmpty);
         // It counts from this period on in its new currency.
         expect(data.prefs['budget.from.$insurance'], '2026-09-01');
-        expect(text('not-assigned-USD'), r'$2,500.00');
+        expect(text('not-assigned-USD'), r'$2,500');
         await chord(tester, LogicalKeyboardKey.keyZ);
         await settle(tester);
         await reload();
@@ -10215,6 +10423,15 @@ void main() {
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('add-category')), findsOneWidget);
+      // Add category is on the tabs' row, at its right end, as wide as its
+      // words (owner, 2026-11-14).
+      final add = tester.getRect(find.byKey(const ValueKey('add-category')));
+      final spendingTab = tester.getRect(
+        find.byKey(const ValueKey('budget-tab-spending')),
+      );
+      expect(add.top, spendingTab.top);
+      expect(add.left, greaterThan(spendingTab.right + 400));
+      expect(add.width, lessThan(200));
       await tester.tap(find.byKey(const ValueKey('budget-tab-income')));
       await tester.pumpAndSettle();
       // Add category belongs to Spending; Add regular income sits under the

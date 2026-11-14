@@ -65,6 +65,10 @@ void main() {
       // blue Confirm, and the reconciled diamond keeps gold on the tab
       // beside it.
       'register.dart',
+      // Still to spend on the Budget page's income sum (owner, 2026-11-14:
+      // "Let's make still to spend yellow"): income green, spent red,
+      // what hasn't gone yet gold. Its one use for money not yet spent.
+      'budget.dart',
     };
     final using = [
       for (final f in Directory('lib/ui').listSync(recursive: true))

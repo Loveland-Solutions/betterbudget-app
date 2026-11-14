@@ -436,7 +436,8 @@ Color usedColor(double share) {
 /// How much of what a category had this period is used (#241; ADR 0004
 /// "How used up a category is", the owner's pick C of three): a ring
 /// filled clockwise from the top, [usedColor] as it fills, full and coral
-/// at zero or below. On the computer's Budget page and the phone's.
+/// at zero or below. On the phone's Budget; the computer draws a bar
+/// after the name instead (#460).
 /// [words] is its tooltip ("₮612,300 of ₮900,000 used"), when there are
 /// any.
 class UsedRing extends StatelessWidget {

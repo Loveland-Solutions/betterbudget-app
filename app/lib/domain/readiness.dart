@@ -10,6 +10,7 @@ import 'budget.dart';
 import 'goals.dart';
 import 'ledger.dart';
 import 'money.dart';
+import 'pay.dart';
 import 'payoff.dart';
 
 export 'payoff.dart' show PayoffMethod, PayoffPlan;
@@ -509,8 +510,12 @@ class Readiness {
           a.id: v,
     };
     // Not assigned in the currency Savings counts in, whichever the
-    // Budget page began with.
-    final free = budget.pools
+    // Budget page began with: for the period the Budget page is on today,
+    // which is a pay period when one is set, not the calendar month
+    // (#461: the figure is the period's own now).
+    final now = budgetPeriod(day, data.periodSchedule);
+    final free = Budget.of(data, start: now.start, end: now.end, today: today)
+        .pools
         .where((p) => p.currency == main)
         .fold(0, (s, p) => s + p.notAssigned);
     // What each spending category holds today; one overspent holds nothing.
@@ -643,9 +648,9 @@ class Readiness {
   /// Money in the budget not assigned to any category, when there is some.
   final int notAssigned;
 
-  /// How much more the budget has assigned than there is in cash and bank:
-  /// the safety net's Left may not all be there (owner, 2026-10-26: keep
-  /// the check, and say so).
+  /// How much more the budget has given out or spent than came in (#461;
+  /// than there was in cash and bank, before): the safety net's Left may
+  /// not all be there (owner, 2026-10-26: keep the check, and say so).
   final int overAssigned;
 
   /// What this month's bills on the Budget page still ask to be assigned:

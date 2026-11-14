@@ -297,29 +297,63 @@ class PlanLine {
   final int wentBack;
 }
 
-/// One currency's money in the budget (rule 28): tugrik and dollars are
-/// never added together.
+/// One currency's count on the Budget page, for the period on screen
+/// (owner, 2026-11-14, #461): income in, less money out, from the day the
+/// budget began. Never the bank: what will happen to an account is the
+/// Ledger's to say. The sum the page draws, which always adds up:
+/// [income] + [toCome] + [fromBefore] − what was assigned in the period
+/// (less what went back) − [overspent] − [loose] = [notAssigned].
 class BudgetPool {
   const BudgetPool({
     required this.currency,
     required this.money,
     required this.notAssigned,
     this.overspent = 0,
+    this.loose = 0,
+    this.income = 0,
+    this.toCome = 0,
+    this.fromBefore = 0,
   });
   final Currency currency;
 
-  /// Cash and bank in this currency (ADR 0004, "What's owed is not the
-  /// Budget page's job").
+  /// Cash and bank in this currency, as of today. Not part of the count
+  /// since #461, and not shown on the Budget page.
   final int money;
 
-  /// [money] less what this currency's categories with money hold, as of
-  /// today. An overspent category counts as nothing here: what it went
-  /// over is already gone from [money] (owner, 2026-10-24).
+  /// Filed under Income in the period, since the budget began.
+  final int income;
+
+  /// Regular income the schedules still expect in the period, from today
+  /// on: counted before it arrives.
+  final int toCome;
+
+  /// What the periods before left: income since the budget began that
+  /// wasn't given to a category, less money that went out with no
+  /// category. Below zero when more was given out than came in, and it
+  /// stays there until later income makes it up.
+  final int fromBefore;
+
+  /// What is left to give out at the period's end; below zero, how much
+  /// too much was assigned or spent. An overspent category's minus comes
+  /// off it: that money went out with nothing behind it.
   final int notAssigned;
 
-  /// What this currency's overspent categories went over, together, as of
-  /// today: shown under In categories, not taken off again.
+  /// What this currency's overspent categories are over by at the
+  /// period's end, together: the coral Left amounts of the list. Covering
+  /// an overspend later moves nothing: Assigned goes up and this comes
+  /// down by the same amount.
   final int overspent;
+
+  /// Money out in the period with no category behind it: still Not
+  /// categorized, in a category since deleted, or a long loan with no
+  /// category paid by a plain transfer. Its own figure, so [overspent] can
+  /// be checked against the list (budget review).
+  final int loose;
+
+  /// What the period's assignments come to in the sum: the amounts
+  /// assigned in it, less what went back to not assigned inside it.
+  int get assigned =>
+      income + toCome + fromBefore - overspent - loose - notAssigned;
 }
 
 class Budget {
@@ -357,12 +391,14 @@ class Budget {
   /// doesn't count it (owner, 2026-10-28, #182).
   final Map<Currency, int> cameInUncategorized;
 
-  /// In [currency]: what the user has, less what the categories with money
-  /// hold, as of today, with every amount assigned counted, a later
-  /// period's too. Negative when more was assigned than there is.
+  /// In [currency]: income since the budget began, less what was given to
+  /// categories or went out with nothing behind it, through the period's
+  /// end ([BudgetPool.notAssigned]). Negative when more was given out
+  /// than came in.
   int get notAssigned => _main.notAssigned;
 
-  /// What [notAssigned] starts from: cash and bank.
+  /// Cash and bank in [currency], as of today: no part of [notAssigned]
+  /// since #461.
   int get money => _main.money;
 
   /// This period's spending since the budget began in categories nothing
@@ -591,6 +627,33 @@ class Budget {
       if (was == null || d.isAfter(was)) paidOn[category] = d;
     }
 
+    // What Not assigned is counted from (owner, 2026-11-14, #461: "a
+    // budget shouldn't care how much they have in the bank. We should care
+    // how much they're getting in vs what they're spending"): income in,
+    // less money out, from the day the budget began. By currency, before
+    // the period on screen and in it: what was filed under Income, and
+    // money out with no category behind it (still Not categorized, in a
+    // category since deleted, or a long loan paid by a plain transfer).
+    // Before any amount is assigned, the count is the period's own
+    // income, and no spending counts yet, in a category or out of one.
+    final incomeBefore = <Currency, int>{}, incomeIn = <Currency, int>{};
+    final looseBefore = <Currency, int>{}, looseIn = <Currency, int>{};
+    void tally(
+      Map<Currency, int> before,
+      Map<Currency, int> inside,
+      Currency c,
+      DateTime d,
+      int v, {
+      bool out = false,
+    }) {
+      final began = beganFor(c);
+      if (out && began == null) return;
+      final starts = began ?? s;
+      if (d.isBefore(starts) || d.isAfter(e)) return;
+      final m = d.isBefore(s) ? before : inside;
+      m[c] = (m[c] ?? 0) + v;
+    }
+
     for (final t in data.txns) {
       if (t.scheduled) continue;
       final d = dateOnly(t.date);
@@ -601,19 +664,30 @@ class Budget {
       });
       for (final x in t.entries) {
         final a = data.accounts[x.accountId];
-        if (a == null || a.deleted) continue;
+        if (a == null) continue;
+        if (a.deleted) {
+          // Spent all the same, with no category left to hold it.
+          if (a.type == AccountType.expense) {
+            tally(looseBefore, looseIn, x.currency, d, x.amount, out: true);
+          }
+          continue;
+        }
         if (a.type == AccountType.income) {
           // Each currency on its own: pay in dollars is dollars.
           if (within(d)) {
             final came = cameIn.putIfAbsent(a.id, () => {});
             came[x.currency] = (came[x.currency] ?? 0) - x.amount;
           }
+          tally(incomeBefore, incomeIn, x.currency, d, -x.amount);
         } else if (uncategorized.contains(a.id)) {
-          // Holds no money: its rows stay in what's not assigned. Money in
-          // there is said beside Income.
+          // Money in there is said beside Income and isn't counted until
+          // it's filed; money out was spent, whatever it turns out to be.
           if (within(d) && x.amount < 0) {
             cameInUncategorized[x.currency] =
                 (cameInUncategorized[x.currency] ?? 0) - x.amount;
+          }
+          if (x.amount > 0) {
+            tally(looseBefore, looseIn, x.currency, d, x.amount, out: true);
           }
         } else if (envelopes.contains(a.id)) {
           final from = countsFrom[a.id];
@@ -622,13 +696,21 @@ class Budget {
           final counted = budgetBegun && (from == null || !d.isBefore(from));
           if (x.currency != a.currency) {
             // In the other currency: it can't be counted against this
-            // category's amounts, so the line says it's there.
+            // category's amounts, so the line says it's there. It went
+            // out all the same, in the currency it was paid in, with no
+            // category behind it (code review).
+            tally(looseBefore, looseIn, x.currency, d, x.amount, out: true);
             if (counted) {
               otherRows[a.id] = (otherRows[a.id] ?? 0) + 1;
               otherAmount[a.id] = (otherAmount[a.id] ?? 0) + x.amount;
               otherCurrency[a.id] = x.currency;
             }
             continue;
+          }
+          // After the budget began, before the category counts (its
+          // currency was changed later): no category holds it either.
+          if (budgetBegun && !counted) {
+            tally(looseBefore, looseIn, x.currency, d, x.amount, out: true);
           }
           // A bill the plan itself scheduled counts on the date it was
           // for: taken on the 30th instead of the 1st, it's still that
@@ -664,6 +746,13 @@ class Budget {
           if (t.planCategoryId == c) {
             notePaid(c, d, d, of: billDateOf(t, c, d));
           }
+        } else if (isLongLoan(a) &&
+            loans[a.id] == null &&
+            x.amount > 0 &&
+            fromMoney(x.currency)) {
+          // A long loan with no category, paid by a plain transfer: it
+          // left all the same (owner, 2026-10-27).
+          tally(looseBefore, looseIn, x.currency, d, x.amount, out: true);
         }
       }
     }
@@ -674,7 +763,12 @@ class Budget {
     final BudgetSpan viewed = (start: s, end: e, label: '');
 
     final lines = <int, EnvelopeLine>{};
-    final held = <Currency, int>{}, over = <Currency, int>{};
+    // For the count: by currency, what the categories held when the
+    // period began plus what they had spent by then (which is what had
+    // been given to them and stayed), all they have spent by its end, and
+    // what they hold or are over by at its end.
+    final givenBefore = <Currency, int>{}, spentThrough = <Currency, int>{};
+    final heldThen = <Currency, int>{}, overThen = <Currency, int>{};
     final holding = <int, int>{};
     var unassignedCount = 0, unassignedAmount = 0;
     for (final id in envelopes) {
@@ -759,12 +853,14 @@ class Budget {
         otherCurrency: otherCurrency[id],
         plan: planLine,
       );
-      // Only what a category with money holds is out of the money not
-      // assigned; an overspent one's minus was spent from it already.
-      if (holds > 0) {
-        held[currency] = (held[currency] ?? 0) + holds;
+      final through = spentBy[id] ?? 0;
+      givenBefore[currency] =
+          (givenBefore[currency] ?? 0) + (through - counted) + fromBefore;
+      spentThrough[currency] = (spentThrough[currency] ?? 0) + through;
+      if (left > 0) {
+        heldThen[currency] = (heldThen[currency] ?? 0) + left;
       } else {
-        over[currency] = (over[currency] ?? 0) - holds;
+        overThen[currency] = (overThen[currency] ?? 0) - left;
       }
       holding[id] = holds;
       if (currency == main && (assignedBy[id] ?? 0) == 0 && counted > 0) {
@@ -838,6 +934,23 @@ class Budget {
         currencies.add(a.currency);
       }
     }
+    // Regular income still expected in the period counts from its first
+    // day (owner, 2026-11-14: "The inconvenience of the situation
+    // shouldn't change how a budget should work"); for a period ahead of
+    // today, so does what's expected before it begins.
+    final day = dateOnly(today);
+    final toCome = periodPay(data, start: s, end: e, today: today).toCome;
+    // From the start of today's own period, so pay that came early in it
+    // is known to have come and isn't expected again (code review).
+    final nowStart = budgetPeriod(day, by).start;
+    final toComeBefore = s.isAfter(nowStart)
+        ? periodPay(
+            data,
+            start: nowStart,
+            end: DateTime(s.year, s.month, s.day - 1),
+            today: today,
+          ).toCome
+        : const <Currency, int>{};
     final pools = [
       for (final c in currencies)
         () {
@@ -845,11 +958,30 @@ class Budget {
           for (final a in data.accounts.values) {
             if (counts(a, c)) money += data.balanceOf(a.id);
           }
+          final before =
+              (incomeBefore[c] ?? 0) +
+              (toComeBefore[c] ?? 0) -
+              (looseBefore[c] ?? 0);
+          final income = incomeIn[c] ?? 0, ahead = toCome[c] ?? 0;
+          final loose = looseIn[c] ?? 0;
           return BudgetPool(
             currency: c,
             money: money,
-            notAssigned: money - (held[c] ?? 0),
-            overspent: over[c] ?? 0,
+            income: income,
+            toCome: ahead,
+            fromBefore: before - (givenBefore[c] ?? 0),
+            // A shortfall carries: nothing here is reset at a period's
+            // end (owner, 2026-11-14: "If you overspend, you have to make
+            // up for it. Otherwise, what is the point of a budget??").
+            notAssigned:
+                before +
+                income +
+                ahead -
+                loose -
+                (spentThrough[c] ?? 0) -
+                (heldThen[c] ?? 0),
+            overspent: overThen[c] ?? 0,
+            loose: loose,
           );
         }(),
     ];

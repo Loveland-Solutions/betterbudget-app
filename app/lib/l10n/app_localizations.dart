@@ -1704,6 +1704,18 @@ abstract class Words {
   /// **'{count} of them expected'**
   String planOfThemExpected(int count);
 
+  /// Sidebar, in coral under an account's balance (#461): with what is due today, late bills among them, the account's balance goes to zero or below today. As planRunsOutZero, when the day is today.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs out today'**
+  String get planRunsOutToday;
+
+  /// Sidebar, tooltip of planRunsOutToday: as planRunsOutBy, when the day is today. {amount} is how far below zero the balance goes.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs out today · {amount} short'**
+  String planRunsOutTodayBy(String amount);
+
   /// Account header, forecast panel: red headline when the balance lands exactly on zero that day (nothing left, nothing short yet); also the sidebar dot's tooltip
   ///
   /// In en, this message translates to:
@@ -6359,19 +6371,19 @@ abstract class Words {
   /// **'paid {date}'**
   String planPaidOn(String date);
 
-  /// Budget page: tooltip on the ring before a category's name: how much of what it had this period (carried in plus assigned) is used
+  /// Budget page: tooltip on the bar after a category's name: how much of what it had this period (carried in plus assigned) is used
   ///
   /// In en, this message translates to:
   /// **'{used} of {had} used'**
   String planUsedOf(String used, String had);
 
-  /// Budget page: tooltip on the full red ring before a category's name when money was spent from it this period but nothing was assigned to it (and nothing carried in)
+  /// Budget page: tooltip on the hatched coral bar after a category's name when money was spent from it this period but nothing was assigned to it (and nothing carried in)
   ///
   /// In en, this message translates to:
   /// **'{amount} overspent, with nothing assigned'**
   String planUsedNone(String amount);
 
-  /// Budget page: tooltip on the full red ring before a category's name when it is over and what it had this period is nothing or less (an overspend carried in outweighs what was assigned)
+  /// Budget page: tooltip on the hatched coral bar after a category's name when it is over and what it had this period is nothing or less (an overspend carried in outweighs what was assigned)
   ///
   /// In en, this message translates to:
   /// **'{amount} overspent'**
@@ -6413,10 +6425,10 @@ abstract class Words {
   /// **'{count, plural, =1{Assign what’s planned · {amount} in 1 category} other{Assign what’s planned · {amount} in {count} categories}}'**
   String planFill(int count, String amount);
 
-  /// Budget page, the key card, beside "Assign what's planned" on the Assigned row: what it would take beyond the money free. Coral; said before it's done.
+  /// Budget page, the key card: the second line inside the button "Assign what's planned · ₮5,300,000 in 5 categories", coral, when the plans come to more than the card's Not assigned figure. {amount} is that Not assigned figure, as the card shows it. Said before the click; the same sentence opens the Move money box's warning (planMoveWarnNotAssigned).
   ///
   /// In en, this message translates to:
-  /// **'That’s {amount} more than you have'**
+  /// **'Only {amount} is not assigned'**
   String planFillOver(String amount);
 
   /// Budget page, the key card, first row's label when the ledger has bank accounts but no cash account. Matches the sidebar group.
@@ -6437,23 +6449,41 @@ abstract class Words {
   /// **'Cash & bank'**
   String get planKeyCashBank;
 
-  /// Budget page, the key card, second row's label: what the categories hold now (assigned, less spent since the budget began; below zero when overspent). Short.
+  /// Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. The name over what the overspent categories are over by, together, with money out that has no category yet.
   ///
   /// In en, this message translates to:
-  /// **'In categories'**
-  String get planKeyAssigned;
+  /// **'Overspent'**
+  String get planKeyOverspent;
+
+  /// Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. The name over what the month before left to give out. {month} is that month's name, like October.
+  ///
+  /// In en, this message translates to:
+  /// **'From {month}'**
+  String planSumFromMonth(String month);
+
+  /// Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. As planSumFromMonth, when the Budget page is by pay period.
+  ///
+  /// In en, this message translates to:
+  /// **'From the pay period before'**
+  String get planSumFromPay;
+
+  /// Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. The name over what the month before was short by: more was given out or spent than came in, and it has to be made up. {month} is that month's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Short from {month}'**
+  String planSumShortFromMonth(String month);
+
+  /// Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. As planSumShortFromMonth, when the Budget page is by pay period.
+  ///
+  /// In en, this message translates to:
+  /// **'Short from the pay period before'**
+  String get planSumShortFromPay;
 
   /// Budget page, the key card, the result row's label under the rule: what's free to assign (You have less Assigned). Short.
   ///
   /// In en, this message translates to:
   /// **'Not assigned'**
   String get planKeyNotAssigned;
-
-  /// Budget page's top card, the line under In categories: what overspent categories went over, together. Already spent from Cash & bank, so not taken off Not assigned again.
-  ///
-  /// In en, this message translates to:
-  /// **'Overspent'**
-  String get planKeyOverspent;
 
   /// Budget page's top card, only while nothing has been assigned yet: why a row reads Assigned ₮0 · Spent ₮276,650 · Left ₮0.
   ///
@@ -6476,7 +6506,7 @@ abstract class Words {
   /// Budget page's top card, when the period on screen holds the day the budget began: Spent shows the period's spending, Left only what came after that day.
   ///
   /// In en, this message translates to:
-  /// **'Spending before {date}, when the budget began, isn\'t counted against its categories.'**
+  /// **'Income and spending before {date}, when the budget began, aren’t counted.'**
   String planKeyBeganInside(String date);
 
   /// Move box, under the amount, when Move is pressed with no category chosen to move from or to.
@@ -6490,12 +6520,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'No other category in this currency has money to move, and none is unassigned.'**
   String get planMoveNothingFrom;
-
-  /// Budget page's top card, beside Cash & bank, while another period than today's is on screen: the top card's figures are today's, the rows below are that period's.
-  ///
-  /// In en, this message translates to:
-  /// **'As of today'**
-  String get planKeyAsOfToday;
 
   /// Budget page, the key card, label of the coral row under Not assigned, shown only when more is assigned than there is: the figure beside it is how much too much. Not assigned shows zero then, never a minus. Short.
   ///
@@ -6578,7 +6602,7 @@ abstract class Words {
   /// Category Edit, under Paid from, for a category that keeps money (a bill, savings, one that carries over) paid from a cash or bank account: what of the account is this category's, and what's left in it once every category paid from it has its share (#183). Shown only when that's above zero.
   ///
   /// In en, this message translates to:
-  /// **'{held} of what’s in {account} is for {category}. {rest} there is in no category yet and can be assigned.'**
+  /// **'{held} of what’s in {account} is for {category}. {rest} there is in no category.'**
   String planMoneyRestOne(
     String held,
     String account,
@@ -6591,18 +6615,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count, plural, =1{{amount} in 1 row isn’t counted here (this category is in {symbol}); it came out of {other} not assigned} other{{amount} in {count} rows isn’t counted here (this category is in {symbol}); it came out of {other} not assigned}}'**
   String planOtherRows(int count, String amount, String symbol, String other);
-
-  /// Budget page: coral note under a category's name; it keeps its money in one account and that account holds less than the category has left
-  ///
-  /// In en, this message translates to:
-  /// **'{held} left here, but {account} holds {have}'**
-  String planBackingOne(String held, String account, String have);
-
-  /// The same note, when several categories paid from the same account and keeping money in it together have more left than it holds. {account} is the account, like “Khan Savings”.
-  ///
-  /// In en, this message translates to:
-  /// **'{held} left in {count} categories kept in {account}, which holds {have}'**
-  String planBackingShared(String held, int count, String account, String have);
 
   /// Budget page, a category's menu (⋯ or right-click): opens everything about the category under its row; a double-click on the row does the same
   ///
@@ -6619,7 +6631,7 @@ abstract class Words {
   /// Savings, step 1, under the safety net's figures: the Budget page has assigned more than there is in cash and bank, so the safety net's money may not all be there. The step keeps its check (owner, 2026-10-26)
   ///
   /// In en, this message translates to:
-  /// **'Your budget has assigned {amount} more than you have.'**
+  /// **'Your budget has assigned {amount} too much.'**
   String planFundOverAssigned(String amount);
 
   /// Savings, step 1, under “A month of expenses: ₮2,000,000, as you typed it” when the Budget page now holds more than a tenth more for this month. The typed figure stays
@@ -8028,7 +8040,7 @@ abstract class Words {
   /// A line of the popup that says changes came from another computer, when the amounts assigned to categories on the two computers together come to more money than there is. {amount} is the shortfall with its currency, like “₮3,000,000”; it is the figure the Budget page shows as Assigned too much.
   ///
   /// In en, this message translates to:
-  /// **'{amount} more is assigned than you have'**
+  /// **'{amount} is assigned too much'**
   String ledgerCombinedOverAssigned(String amount);
 
   /// Popup when the newer ledger in the folder couldn’t be taken in (damaged, or it has no accounts).
@@ -10086,89 +10098,23 @@ abstract class Words {
   /// **'{amount} this month to your goals'**
   String goalsTotal(String amount);
 
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned (spending and money put aside) is more than the month's income; the amount is in coral.
-  ///
-  /// In en, this message translates to:
-  /// **'{month}’s plans take {amount} more than its income'**
-  String planFitOverMonth(String month, String amount);
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitOverMonth, when the Budget page is by pay period.
-  ///
-  /// In en, this message translates to:
-  /// **'This pay period’s plans take {amount} more than its income'**
-  String planFitOverPay(String amount);
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned is less than the month's income.
-  ///
-  /// In en, this message translates to:
-  /// **'{month}’s plans fit in its income, with {amount} to spare'**
-  String planFitSpareMonth(String month, String amount);
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitSpareMonth, by pay period.
-  ///
-  /// In en, this message translates to:
-  /// **'This pay period’s plans fit in its income, with {amount} to spare'**
-  String planFitSparePay(String amount);
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading when everything planned is exactly the month's income.
-  ///
-  /// In en, this message translates to:
-  /// **'{month}’s plans take exactly its income'**
-  String planFitEvenMonth(String month);
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitEvenMonth, by pay period.
-  ///
-  /// In en, this message translates to:
-  /// **'This pay period’s plans take exactly its income'**
-  String get planFitEvenPay;
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's first part: what the spending categories have spent in the period.
-  ///
-  /// In en, this message translates to:
-  /// **'Spent so far'**
-  String get planFitSpent;
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's second part: what the spending categories' plans (or what's assigned to them) still take past what's spent.
-  ///
-  /// In en, this message translates to:
-  /// **'Still to spend'**
-  String get planFitToSpend;
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): the bar's third part: the Safety net and savings goals, the word they sit under on this page (planSaved).
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): a term of the sum: the Safety net and savings goals, the word they sit under on this page (planSaved).
   ///
   /// In en, this message translates to:
   /// **'Saved'**
   String get planFitAside;
 
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): the mark on the bar where the period's income ends.
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): the sum's first term: the period's income.
   ///
   /// In en, this message translates to:
   /// **'Income'**
   String get planFitIncome;
 
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): under Income: pay the schedules still expect in the period.
+  /// Budget page, the card under the key card that sets the period's plans against its income (#234): beside Income: pay the schedules still expect in the period.
   ///
   /// In en, this message translates to:
   /// **'{amount} still to come'**
   String planFitToCome(String amount);
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitOverPay, for a pay period other than today's.
-  ///
-  /// In en, this message translates to:
-  /// **'That pay period’s plans take {amount} more than its income'**
-  String planFitOverPayThen(String amount);
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitSparePay, for a pay period other than today's.
-  ///
-  /// In en, this message translates to:
-  /// **'That pay period’s plans fit in its income, with {amount} to spare'**
-  String planFitSparePayThen(String amount);
-
-  /// Budget page, the card under the key card that sets the period's plans against its income (#234): heading, as planFitEvenPay, for a pay period other than today's.
-  ///
-  /// In en, this message translates to:
-  /// **'That pay period’s plans take exactly its income'**
-  String get planFitEvenPayThen;
 
   /// Phone app, a box after Save on a category made on the phone and still waiting (#243), when the computer took that category in while the page was open. {name} is the category as it was, like Mobicom.
   ///

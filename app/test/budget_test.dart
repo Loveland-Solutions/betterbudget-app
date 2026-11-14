@@ -122,7 +122,10 @@ void main() {
   Budget of(LedgerData d, ({DateTime start, DateTime end}) p) =>
       Budget.of(d, start: p.start, end: p.end, today: today);
 
-  test('money not given out: cash and bank less cards less categories', () {
+  // Since #461 (owner, 2026-11-14) Not assigned is income in, less what was
+  // given out or spent, from the day the budget began: the ₮5,400,000 in
+  // checking is no part of it.
+  test('money not given out: income less what the categories were given', () {
     final b = of(
       ledger(
         amounts: [
@@ -132,9 +135,13 @@ void main() {
       ),
       oct,
     );
-    // Checking only: what's owed and the dollars aren't counted.
+    // Checking only: what's owed and the dollars aren't counted. And it
+    // is no part of Not assigned: with no income, ₮1,200,000 given out is
+    // ₮1,200,000 too much.
     expect(b.money, 540000000);
-    expect(b.notAssigned, 540000000 - 120000000);
+    expect(b.notAssigned, -120000000);
+    expect(b.pools.first.fromBefore, 0);
+    expect(b.pools.first.assigned, 120000000);
     expect(b.lines[food]!.assigned, 90000000);
     expect(b.lines[food]!.left, 90000000);
     expect(b.began, oct.start);
@@ -146,9 +153,10 @@ void main() {
   test('what a credit card owes is not taken off the money to assign', () {
     final b = of(ledger(), oct);
     // Checking only. The Visa's ₮860,000, the mortgage and the dollars are
-    // all out of it.
+    // all out of it. With no income and nothing given out, nothing is
+    // waiting to be assigned, whatever the bank holds.
     expect(b.money, 540000000);
-    expect(b.notAssigned, 540000000);
+    expect(b.notAssigned, 0);
 
     // Buying on the card is spending in its category and nothing else: the
     // money to assign doesn't move, because no money has left the bank.
@@ -190,17 +198,15 @@ void main() {
     expect(after.lines[food]!.spent, 8800000);
     expect(after.lines[food]!.left, 90000000 - 8800000);
 
-    // Nothing left the bank, so the money stands still while the category
-    // it was bought in gives up ₮88,000 — which leaves that much more not
-    // assigned. The money to pay the card is still in the accounts, and
-    // what's owed is the Savings page's business, not this page's.
+    // Nothing left the bank, and Not assigned doesn't move either: the
+    // ₮88,000 was given to the category and spent from it. (Counted from
+    // the bank, a card purchase used to raise it until the card was paid.)
     expect(after.money, before.money);
-    expect(after.notAssigned, before.notAssigned + 8800000);
+    expect(after.notAssigned, before.notAssigned);
 
-    // Paying the card is what takes it out of the bank. With no category
-    // budgeted for the payment it comes out of what wasn't assigned, and
-    // the category it was bought in doesn't move again: the spending was
-    // counted when it was bought.
+    // Paying the card is what takes it out of the bank. Not assigned
+    // doesn't move, and the category it was bought in doesn't move again:
+    // the spending was counted when it was bought.
     final paid = of(
       ledger(
         amounts: amounts,
@@ -222,7 +228,8 @@ void main() {
       oct,
     );
     expect(b.cameIn[salary], {Currency.mnt: 420000000});
-    expect(b.notAssigned, 540000000 + 420000000);
+    expect(b.notAssigned, 420000000);
+    expect(b.pools.first.income, 420000000);
   });
 
   test('overspending carries as minus into the next period', () {
@@ -282,10 +289,11 @@ void main() {
     );
     final o = of(d, oct);
     expect(o.lines[coffee]!.left, -450000);
-    // Spent from the money not assigned: it's that much less, and the
-    // ₮4,500 over is said, not taken off again (owner, 2026-10-24).
-    expect(o.notAssigned, 540000000 - 450000 - 90000000);
+    // Spent with nothing behind it: it comes off Not assigned, as the
+    // ₮900,000 given to Groceries does, and the ₮4,500 over is said.
+    expect(o.notAssigned, -450000 - 90000000);
     expect(o.pools.first.overspent, 450000);
+    expect(o.pools.first.assigned, 90000000);
   });
 
   test('how used up: the ring\'s share is built from Left', () {
@@ -380,15 +388,114 @@ void main() {
       ],
     );
     expect(of(d, oct).lines[food]!.spent, 0);
-    expect(of(d, oct).notAssigned, 540000000 - 90000000);
+    expect(of(d, oct).notAssigned, -90000000);
   });
 
-  test('a later period already given to counts now', () {
+  test('a later period already given to counts in its own period', () {
     final d = ledger(
       amounts: [put(food, oct.start, 90000000), put(food, nov.start, 90000000)],
     );
     expect(of(d, oct).lines[food]!.left, 90000000);
-    expect(of(d, oct).notAssigned, 540000000 - 180000000);
+    // October's count stops at October's end; November carries it on.
+    expect(of(d, oct).notAssigned, -90000000);
+    final n = of(d, nov);
+    expect(n.pools.first.fromBefore, -90000000);
+    expect(n.notAssigned, -180000000);
+  });
+
+  test('what a period leaves, short or spare, is the next one\'s start', () {
+    // October: ₮4,200,000 came in and ₮900,000 went to Groceries, so
+    // ₮3,300,000 is left. November gives out ₮5,000,000 against no income:
+    // the ₮3,300,000 from October covers part, and it is ₮1,700,000 short.
+    // December brings ₮1,000,000 and gives out nothing: still ₮700,000
+    // short, since a shortfall has to be made up (owner, 2026-11-14).
+    final d = ledger(
+      amounts: [
+        put(food, oct.start, 90000000),
+        put(xmas, nov.start, 500000000),
+      ],
+      rows: [
+        move(DateTime(2026, 10, 10), salary, checking, 420000000),
+        move(DateTime(2026, 12, 10), salary, checking, 100000000),
+      ],
+    );
+    final o = of(d, oct).pools.first;
+    expect(
+      (o.fromBefore, o.income, o.assigned, o.notAssigned),
+      (0, 420000000, 90000000, 330000000),
+    );
+    final n = of(d, nov).pools.first;
+    expect(
+      (n.fromBefore, n.income, n.assigned, n.notAssigned),
+      (330000000, 0, 500000000, -170000000),
+    );
+    final dec = of(d, (
+      start: DateTime(2026, 12, 1),
+      end: DateTime(2026, 12, 31),
+    )).pools.first;
+    expect(
+      (dec.fromBefore, dec.income, dec.assigned, dec.notAssigned),
+      (-170000000, 100000000, 0, -70000000),
+    );
+  });
+
+  test('pay that came early isn\'t expected again from a period ahead', () {
+    // ₮1,500,000 due on the 25th arrives on the 20th; today is the 22nd.
+    // October has it once, and November starts from that, not from twice
+    // it (code review, #461).
+    const pay = PaySchedule(
+      id: 1,
+      categoryId: salary,
+      accountId: checking,
+      amount: 150000000,
+      rule: PayRule.monthly,
+      day1: 25,
+      weekend: PayWeekend.keep,
+    );
+    final d = ledger(
+      pay: [pay],
+      amounts: [put(food, oct.start, 100)],
+      rows: [move(DateTime(2026, 10, 20), salary, checking, 150000000)],
+    );
+    Budget on(({DateTime start, DateTime end}) p) =>
+        Budget.of(d, start: p.start, end: p.end, today: DateTime(2026, 10, 22));
+    final o = on(oct).pools.first;
+    expect((o.income, o.toCome, o.notAssigned), (150000000, 0, 149999900));
+    final n = on(nov).pools.first;
+    expect(n.fromBefore, 149999900);
+    // November's own pay, on the 25th, is still to come.
+    expect((n.income, n.toCome), (0, 150000000));
+    expect(n.notAssigned, 299999900);
+  });
+
+  test('money out in a currency its category isn\'t in still went out', () {
+    // $1,000 came in; $200 of it was filed under Groceries, a tugrik
+    // category. No category can count it, so it is out with none behind
+    // it, in dollars (code review, #461).
+    final d = ledger(
+      // The budget's first day is every currency's until one has its own.
+      prefs: {BudgetKeys.began: '2026-10-01'},
+      amounts: [put(food, oct.start, 100)],
+      rows: [
+        move(
+          DateTime(2026, 10, 2),
+          salary,
+          dollars,
+          100000,
+          currency: Currency.usd,
+        ),
+        move(
+          DateTime(2026, 10, 5),
+          dollars,
+          food,
+          20000,
+          currency: Currency.usd,
+        ),
+      ],
+    );
+    final usd = of(d, oct).pools.firstWhere((p) => p.currency == Currency.usd);
+    expect((usd.income, usd.loose, usd.notAssigned), (100000, 20000, 80000));
+    expect(of(d, oct).lines[food]!.spent, 0);
   });
 
   test('a deleted category gives its money back', () {
@@ -397,7 +504,7 @@ void main() {
       diningDeleted: true,
     );
     expect(of(d, oct).lines.containsKey(dining), isFalse);
-    expect(of(d, oct).notAssigned, 540000000);
+    expect(of(d, oct).notAssigned, 0);
     expect(of(d, oct).began, isNull);
   });
 
@@ -437,7 +544,7 @@ void main() {
       expect(o.began, oct.start);
       // September's dining isn't counted; the ₮1 assigned then is.
       expect(o.lines[dining]!.left, 100);
-      expect(o.notAssigned, 540000000 - 18200000 - 90000000 - 100);
+      expect(o.notAssigned, -90000000 - 100);
     },
   );
 
@@ -453,7 +560,8 @@ void main() {
     expect(of(d, oct).unassignedSpent, (count: 2, amount: 1250000));
   });
 
-  test('Not categorized holds nothing: its rows count in the top line', () {
+  test('Not categorized holds nothing: its money out counts, its money in '
+      'waits to be filed', () {
     final d = ledger(
       amounts: [put(food, oct.start, 90000000)],
       rows: [
@@ -463,7 +571,27 @@ void main() {
     );
     final o = of(d, oct);
     expect(o.lines.containsKey(waiting), isFalse);
-    expect(o.notAssigned, 540000000 + 247000000 - 90000000);
+    // The ₮30,000 out was spent, whatever it turns out to be for; the
+    // ₮2,500,000 in isn't income until it's filed as income (#182).
+    expect(o.notAssigned, -3000000 - 90000000);
+    expect(o.pools.first.loose, 3000000);
+    expect(o.pools.first.overspent, 0);
+    expect(o.pools.first.assigned, 90000000);
+    // Before any amount is assigned no spending counts, out of a category
+    // or in one: only the period's income.
+    final fresh = of(
+      ledger(
+        rows: [
+          move(DateTime(2026, 10, 10), salary, checking, 420000000),
+          move(DateTime(2026, 10, 11), checking, waiting, 3000000),
+          move(DateTime(2026, 10, 12), checking, food, 5000000),
+        ],
+      ),
+      oct,
+    );
+    expect(fresh.began, isNull);
+    expect(fresh.notAssigned, 420000000);
+    expect(fresh.pools.first.loose, 0);
   });
 
   test('a loan paid from a category spends from it', () {
@@ -476,8 +604,9 @@ void main() {
     );
     expect(linked.lines[housing]!.spent, 100000000);
     expect(linked.lines[housing]!.left, 0);
-    expect(linked.notAssigned, 540000000 - 100000000 - 0);
-    // Without the link, the payment just lowers the money.
+    expect(linked.notAssigned, -100000000);
+    // Without the link, the payment went out all the same, with nothing
+    // behind it, while Housing still holds its ₮1,000,000.
     final plain = of(ledger(amounts: amounts, rows: rows), oct);
     expect(plain.lines[housing]!.left, 100000000);
     expect(plain.notAssigned, linked.notAssigned - 100000000);
@@ -636,15 +765,16 @@ void main() {
       expect(o.lines[food]!.fromBefore, 0);
       expect(o.lines[food]!.plan!.wentBack, 4200000);
       expect(o.lines[food]!.left, 80000000);
-      // The money: only October's ₮800,000 is held.
+      // The count: ₮958,000 spent, and October's ₮800,000 held. September's
+      // ₮42,000 is back in it.
       expect(o.money, 540000000 - 85800000 - 10000000);
-      expect(o.notAssigned, o.money - 80000000);
-      // November, not here yet: October's is shown as gone back, but it
-      // still counts as held today.
+      expect(o.notAssigned, -95800000 - 80000000);
+      expect(o.pools.first.fromBefore, -85800000);
+      // November: October's has gone back by then too.
       final n = of(d, nov);
       expect(n.lines[food]!.fromBefore, 0);
       expect(n.lines[food]!.plan!.wentBack, 80000000);
-      expect(n.notAssigned, o.notAssigned);
+      expect(n.notAssigned, -95800000);
     });
 
     test('not carried over: what is overspent still carries', () {
@@ -668,7 +798,8 @@ void main() {
       expect(o.lines[dining]!.fromBefore, -3200000);
       expect(o.lines[dining]!.plan!.wentBack, 0);
       expect(o.lines[dining]!.left, 11800000);
-      expect(o.notAssigned, o.money - 11800000);
+      // Both ₮150,000 were given out; none of it came back.
+      expect(o.notAssigned, -30000000);
     });
 
     test('not carried over, by pay, seen by month: the ring leaves out what '
@@ -1233,7 +1364,7 @@ void main() {
       expect(o.lines[food]!.fromBefore, 10000000);
       expect(o.lines[food]!.left, 2000000);
       expect(o.lines[food]!.plan!.wentBack, 0);
-      expect(o.notAssigned, o.money - 2000000);
+      expect(o.notAssigned, -10000000);
       expect(of(d, nov).lines[food]!.plan!.wentBack, 2000000);
     });
 
@@ -2001,7 +2132,10 @@ void main() {
         expect(l.left, 12000000);
         expect(l.plan!.wentBack, 15000000);
         expect(l.plan!.wentBackOn, DateTime(2026, 10, 9));
-        expect(o.notAssigned, o.money - 12000000);
+        // ₮130,000 spent and ₮120,000 held; the ₮1 pay still to come on
+        // 10.23 counts already.
+        expect(o.notAssigned, -13000000 - 12000000 + 100);
+        expect(o.pools.first.toCome, 100);
         // Its plan by the month: 10.09's ₮200,000 whole, 10.23's 9 of 14
         // days (to ₮100), and 09.25's already in before the month; each
         // own period's share dated where it meets the month.
@@ -2287,12 +2421,12 @@ void main() {
       final l = o.lines[insurance]!;
       expect(l.currency, Currency.usd);
       expect((l.assigned, l.spent, l.left), (12000, 9000, 3000));
-      // Two pools, never added together: $2,500 less the $90 paid, less
-      // the $30 still in the category.
+      // Two pools, never added together: in dollars, $120 given out with
+      // no dollar income.
       expect(o.pools.map((p) => p.currency), [Currency.mnt, Currency.usd]);
       expect(o.pools[1].money, 250000 - 9000);
-      expect(o.pools[1].notAssigned, 250000 - 9000 - 3000);
-      expect(o.notAssigned, 540000000 - 90000000);
+      expect(o.pools[1].notAssigned, -12000);
+      expect(o.notAssigned, -90000000);
     });
 
     test('a row in the other currency is named, not counted', () {
@@ -2397,10 +2531,12 @@ void main() {
         oct,
       );
       expect(o.lines[insurance]!.left, -9000);
-      // What's there, less what the lines with money hold: the $90 over
-      // was spent from it, and is said, not taken off again.
-      expect(o.pools[1].notAssigned, o.pools[1].money);
+      // The $90 was spent with nothing behind it: it comes off, and is
+      // said. September's $600, from before the category counts, went
+      // out too: no category holds it, and October starts $600 short.
       expect(o.pools[1].overspent, 9000);
+      expect(o.pools[1].fromBefore, -60000);
+      expect(o.pools[1].notAssigned, -69000);
     });
 
     test('a category paid from the card: nothing to say where it is kept', () {
