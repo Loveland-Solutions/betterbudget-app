@@ -49,9 +49,10 @@ pushed commit on main; `--check` does everything but the last step.
   sends the new one to certification, set to publish only on the owner's Publish now.
 - **Apple:** `app/tool/release_mac.sh` and `app/tool/release_ios.sh` build, check and
   upload, signing with the team's App Store Connect API key in `~/.config/betterbudget/`
-  (#380; Xcode 27.2's command line can't use Xcode's sign-in). Each build's encryption
-  answer: standard algorithms, not Apple's. France also waits on the French encryption
-  declaration.
+  (#380; Xcode 27.2's command line can't use Xcode's sign-in). Both apps' Info.plist
+  answers the encryption question as exempt (`ITSAppUsesNonExemptEncryption` false, #456),
+  so App Store Connect no longer asks it per build. France also waits on the French
+  encryption declaration.
 
 ## Phase
 
