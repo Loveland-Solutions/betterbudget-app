@@ -7154,6 +7154,114 @@ void main() {
       });
     });
 
+    testWidgets('a month assigned on the month view is kept where each '
+        'paycheck is; a paycheck asks its days and says whose month (#468)', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      late int jenny;
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        int account(String name) =>
+            data.balanceSheetAccounts.firstWhere((a) => a.name == name).id;
+        jenny = (await db.savePaySchedule(
+          accountId: account('Khan Savings'),
+          name: 'Jenny',
+          amount: 120000000,
+          rule: PayRule.everyWeeks,
+          weeks: 2,
+          anchor: DateTime(2026, 9, 11),
+          weekend: PayWeekend.keep,
+          today: DateTime(2026, 9, 16),
+        )).after.id;
+      });
+      await settle(tester);
+      await openBudget(tester);
+      Future<LedgerData> load() async =>
+          (await tester.runAsync(db.loadLedger))!;
+      final groceries = (await load()).accounts.values
+          .firstWhere((a) => a.name == 'Groceries')
+          .id;
+      // ₮900,000 a month, assigned on September's page.
+      await editCategory(tester, 'Groceries');
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(const ValueKey('plan-amount')),
+          matching: find.byType(EditableText),
+          matchRoot: true,
+        ),
+        '900000',
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('edit-save')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(ValueKey('plan-assign-$groceries')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      // Kept by Jenny's paychecks, by days: 09.01–09.10, 09.11–09.24 and
+      // 09.25–09.30 (10, 14 and 6 of 30), not all on the 1st.
+      expect(
+        {
+          for (final b in (await load()).budgetAmounts)
+            if (b.categoryId == groceries) dateOnly(b.date): b.amount,
+        },
+        {
+          DateTime(2026, 9, 1): 30000000,
+          DateTime(2026, 9, 11): 42000000,
+          DateTime(2026, 9, 25): 18000000,
+        },
+      );
+      // The month's page still says ₮900,000.
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('category-row-$groceries')),
+          matching: find.text('₮900,000.00'),
+        ),
+        findsOneWidget,
+      );
+      // By Jenny's paycheck: its own ₮420,000, which the line doesn't say
+      // again.
+      await tester.tap(find.byKey(const ValueKey('budget-view')));
+      await tester.pumpAndSettle();
+      await tapAndWait(tester, find.byKey(ValueKey('budget-view-$jenny')));
+      await settle(tester);
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('category-row-$groceries')),
+          matching: find.text('₮420,000.00'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('₮900,000 a month'), findsOneWidget);
+      expect(find.byKey(ValueKey('plan-assign-$groceries')), findsNothing);
+      // A paycheck that runs into October: each month's part by its name,
+      // September's last 6 days (held already) and October's first 8 of 31,
+      // which Assign offers.
+      await tester.tap(find.byKey(const ValueKey('period-next')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          '₮900,000 a month · about ₮180,000 of September’s this pay period · '
+          'about ₮232,300 of October’s this pay period',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Assign ₮232,300'), findsOneWidget);
+      // A finished paycheck only shows what happened: no Assign.
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.byKey(const ValueKey('period-prev')));
+        await tester.pumpAndSettle();
+      }
+      expect(find.byKey(ValueKey('plan-assign-$groceries')), findsNothing);
+      expect(find.byKey(const ValueKey('assign-planned')), findsNothing);
+      await tidy(tester, db);
+    });
+
     testWidgets(
       'two earners: named pays, the view by one, an amount per the other',
       (tester) async {
@@ -7232,9 +7340,13 @@ void main() {
         final preview = tester
             .widget<Text>(find.byKey(const ValueKey('plan-preview')))
             .data!;
-        // Jeff's period (08.25–09.24) ends with Jenny's: its whole rest is
-        // in view, so nothing is about.
-        expect(preview, '₮600,000 each pay period · Jeff');
+        // Jeff's period (08.25–09.24) ends with Jenny's: her 14 of its 31
+        // days, as about. Its first 17, never filled, aren't asked again
+        // (owner, 2026-11-15, #468).
+        expect(
+          preview,
+          '₮600,000 each pay period · Jeff · about ₮270,900 this pay period',
+        );
         await tester.runAsync(() async {
           await tester.tap(find.byKey(const ValueKey('edit-save')));
           await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -7245,8 +7357,13 @@ void main() {
         expect(plan.payScheduleId, jeff);
         // Seen by Jenny's pay, not its own: Assigned is her period's, so
         // the line is the plan as it was, not set against it (#467).
-        expect(find.text('₮600,000 each pay period · Jeff'), findsOneWidget);
-        expect(find.text('Assign ₮600,000'), findsOneWidget);
+        expect(
+          find.text(
+            '₮600,000 each pay period · Jeff · about ₮270,900 this pay period',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Assign ₮270,900'), findsOneWidget);
         // A period later, Jeff's next (09.25–10.22: the 25th is a Sunday,
         // paid the Friday before) is cut by Jenny's (09.25–10.08): 14 of
         // its 28 days, said as about.
@@ -7258,10 +7375,11 @@ void main() {
           ),
           findsOneWidget,
         );
-        // Jenny's 11.20–12.03 holds the last 5 days of Jeff's 10.23–11.24,
-        // never filled, and 9 of his next 30: said as what that period
-        // still needs, plus the share toward the next, not as "about
-        // ₮780,000" (owner, 2026-10-05).
+        // Jenny's 11.20–12.03 holds the last 5 days of Jeff's 10.23–11.24
+        // and 9 of his next 30: each its days' share, ₮90,900 and
+        // ₮180,000. The 28 days before, never filled, aren't asked again
+        // (owner, 2026-11-15, #468; it was "₮600,000 still to assign for
+        // 10.23–11.24").
         for (var i = 0; i < 4; i++) {
           await tester.tap(find.byKey(const ValueKey('period-next')));
           await tester.pumpAndSettle();
@@ -7269,8 +7387,7 @@ void main() {
         expect(title(), 'Pay period · 11.20–12.03');
         expect(
           find.text(
-            '₮600,000 each pay period · Jeff · ₮600,000 still to assign for '
-            '10.23–11.24 · plus about ₮180,000 toward the next',
+            '₮600,000 each pay period · Jeff · about ₮270,900 this pay period',
           ),
           findsOneWidget,
         );
@@ -8716,9 +8833,11 @@ void main() {
       // sits inside the button's own outline, under its words (owner,
       // 2026-11-14: "How would the user know what that text is referring
       // to?").
+      // And what the click does to it (#468).
       expect(
         tester.widget<Text>(warning).data,
-        'Only ₮2,500,000.00 is not assigned',
+        'Only ₮2,500,000.00 is not assigned, so this makes ₮17,500,000.00 '
+        'assigned too much',
       );
       expect(find.descendant(of: button, matching: warning), findsOneWidget);
       final box = tester.getRect(button), line = tester.getRect(warning);

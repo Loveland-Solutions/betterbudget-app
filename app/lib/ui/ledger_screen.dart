@@ -4087,10 +4087,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // The view it already is: nothing to write or undo.
     if (schedule?.id == _data?.periodSchedule?.id) return;
     late List<int> before;
-    if (!await _accountWrite(
-      () async => before = await db.setPeriodSchedule(schedule?.id),
-      what: 'budget period',
-    )) {
+    if (!await _accountWrite(() async {
+      before = await db.setPeriodSchedule(schedule?.id);
+      // Kept: a month's Assigned is split by the pay last viewed by.
+      if (schedule != null) {
+        await db.setPreference(BudgetKeys.splitBy, '${schedule.id}');
+      }
+    }, what: 'budget period')) {
       return;
     }
     _did(
@@ -5111,6 +5114,47 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final onePeriod =
         own?.id == data.periodSchedule?.id ||
         !budgetPeriod(period.start, own).end.isBefore(period.end);
+    // A month's Assigned, typed on the month's page, is kept where each
+    // paycheck it pays for is (owner, 2026-11-15, #468), so the paycheck
+    // holding the 1st isn't handed the whole month: Day-to-day and Funds
+    // by days, a bill or goal by what each paycheck asks toward it.
+    final split = splitScheduleOf(data);
+    if (onePeriod &&
+        own == null &&
+        split != null &&
+        data.periodSchedule == null &&
+        period.label != payPeriodLabel) {
+      var shares = const <({DateTime date, int amount})>[];
+      if (plan?.kind == PlanKind.byDate) {
+        final by = data.viewedBy(split);
+        shares = [
+          for (
+            var q = budgetPeriod(period.start, split);
+            !q.start.isAfter(period.end);
+            q = nextBudgetPeriod(q, split)
+          )
+            (
+              date: q.start.isBefore(period.start)
+                  ? dateOnly(period.start)
+                  : q.start,
+              amount:
+                  Budget.of(
+                    by,
+                    start: q.start,
+                    end: q.end,
+                    today: today,
+                  ).lines[c.id]?.plan?.planned ??
+                  0,
+            ),
+        ];
+      }
+      return Budget.spread(
+        span: period,
+        own: split,
+        shares: shares,
+        delta: amount,
+      );
+    }
     if (onePeriod) return [(date: period.start, amount: amount)];
     final kept = [
       for (final b in data.budgetAmounts)

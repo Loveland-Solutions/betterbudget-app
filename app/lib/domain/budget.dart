@@ -28,6 +28,10 @@ abstract final class BudgetKeys {
   /// the other currency can't change what the amounts mean.
   static const currency = 'budget.currency';
 
+  /// The pay the Budget page was last viewed by, which a month's Assigned
+  /// is split by (#468).
+  static const splitBy = 'budget.splitBy';
+
   /// '1' once the first-month offer was answered with "Keep".
   static const keptStart = 'budget.keptStart';
 
@@ -70,6 +74,14 @@ bool categoryTakes(AccountInfo category, Currency currency) =>
     category.isIncome ||
     isUncategorized(category) ||
     category.currency == currency;
+
+/// The pay a month's Assigned is split by (owner, 2026-11-15, #468): the
+/// one the Budget page is viewed by, else the one last viewed by
+/// ([BudgetKeys.splitBy]), else the first pay. Null with no pay.
+PaySchedule? splitScheduleOf(LedgerData data) =>
+    data.periodSchedule ??
+    data.payScheduleById(int.tryParse(data.prefs[BudgetKeys.splitBy] ?? '')) ??
+    data.paySchedules.firstOrNull;
 
 /// One spending category in one period.
 class EnvelopeLine {
@@ -839,6 +851,7 @@ class Budget {
                   ? data.prefs[ReadyKeys.goalLate(id)] ?? 'keep'
                   : 'all',
               paid: billsPaid[id] ?? const {},
+              today: today,
             );
       lines[id] = EnvelopeLine(
         assigned: assigned[id] ?? 0,
@@ -1444,6 +1457,7 @@ class Budget {
     String lateWay = 'all',
     Set<DateTime> paid = const {},
     Set<DateTime> paidEver = const {},
+    DateTime? today,
   }) {
     // The day a bill is counted in: the last payday on or before it is
     // due, since that pay is what has to cover it (owner, 2026-10-24).
@@ -1515,12 +1529,16 @@ class Budget {
         );
       }
       // Seen by another period (owner, 2026-10-05: a monthly allowance by
-      // a fortnight's pay, or a fortnightly one by the month): each of
-      // its own periods the span touches still wants its amount less what
-      // was put in before the span began, spread by days over the rest
-      // of that period, and the span takes its days' share. So the
-      // shares add up to the whole over time, and a period already
-      // filled asks for nothing more.
+      // a fortnight's pay, or a fortnightly one by the month): the span
+      // asks each of its own periods it touches for its days' share of
+      // what that period wants, less what was put in that period ahead of
+      // the span beyond the days before it (owner, 2026-11-15, #468: a
+      // paycheck holding a month's last two days asked that month's whole
+      // plan again). A part an earlier span left unfilled isn't asked
+      // again: the days are gone, and what they overspent carries as
+      // "from before". A period that has ended asks nothing. So a span
+      // never asks more than its periods' amounts, and a period already
+      // filled asks nothing more.
       var planned = 0, shared = false;
       final shares = <({DateTime date, int amount})>[];
       var own = budgetPeriod(p.start, pay);
@@ -1528,20 +1546,24 @@ class Budget {
       while (!own.start.isAfter(p.end) && walked++ < _mostPeriods) {
         final from = own.start.isBefore(p.start) ? p.start : own.start;
         final to = own.end.isBefore(p.end) ? own.end : p.end;
-        final need = atLeast0(
-          wanted(heldBefore(own.start), own.start) -
-              assignedIn(own.start, from),
-        );
-        final share = _daysThrough(from, to),
-            rest = _daysThrough(from, own.end);
+        final whole = atLeast0(wanted(heldBefore(own.start), own.start));
+        final days = _daysThrough(own.start, own.end);
+        final share = _daysThrough(from, to);
+        final before = _daysThrough(own.start, from) - 1;
+        int byDays(int n) => n >= days || days == 0
+            ? whole
+            : _ceilTo(whole * n ~/ days, _shareUnit);
+        final ended = today != null && own.end.isBefore(dateOnly(today));
+        final ahead = assignedIn(own.start, from) - byDays(before);
         final int part;
-        if (share >= rest || rest == 0 || need == 0) {
-          // All of what's left of that period is in view: the whole.
-          part = need;
+        if (ended || whole == 0) {
+          part = 0;
         } else {
-          final cut = _ceilTo(need * share ~/ rest, _shareUnit);
-          part = cut > need ? need : cut;
-          shared = true;
+          final mine = byDays(before + share) - byDays(before);
+          final left = atLeast0(whole - assignedIn(own.start, from));
+          final asked = atLeast0(mine - atLeast0(ahead));
+          part = asked > left ? left : asked;
+          if (share < days) shared = true;
         }
         planned += part;
         shares.add((date: from, amount: part));

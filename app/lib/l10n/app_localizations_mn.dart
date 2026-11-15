@@ -4266,6 +4266,31 @@ class WordsMn extends Words {
   }
 
   @override
+  String planMonthShare(String amount, String month) {
+    return 'энэ орлогын үед $monthын $amount';
+  }
+
+  @override
+  String planAboutMonthShare(String amount, String month) {
+    return 'энэ орлогын үед $monthын ойролцоогоор $amount';
+  }
+
+  @override
+  String planFillOverBy(String amount, String over) {
+    return 'Зөвхөн $amount хуваарилаагүй байгаа тул $over-ийг хэт их хуваарилна';
+  }
+
+  @override
+  String planFillOverNone(String over) {
+    return 'Бүгд хуваарилагдсан тул $over-ийг хэт их хуваарилна';
+  }
+
+  @override
+  String planFillOverMore(String over) {
+    return 'Хэт их хуваарилсан дээр $over нэмнэ';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return 'сард $amount';
   }

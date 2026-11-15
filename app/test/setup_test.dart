@@ -425,7 +425,10 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pumpAndSettle();
-    expect(find.textContaining('Type what arrives in the account'), findsNothing);
+    expect(
+      find.textContaining('Type what arrives in the account'),
+      findsNothing,
+    );
     await tidy(tester, db);
   });
 

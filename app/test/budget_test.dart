@@ -2026,14 +2026,16 @@ void main() {
       Budget at(LedgerData d, ({DateTime start, DateTime end}) span) =>
           Budget.of(d, start: span.start, end: span.end, today: today);
       final pp = (start: p.start, end: p.end);
-      // Nothing in yet: the 14 days of October's 23 left from 10.09, said
-      // in its own terms with the share beside it.
+      // Nothing in yet: its own 14 of October's 31 days, as about. The 8
+      // days before it, never filled, aren't asked again (owner,
+      // 2026-11-15, #468: the next paycheck asks only its own share).
       var l = at(ledger(pay: [pay], plans: [groceries]), pp).lines[food]!;
       expect(l.plan!.approx, isTrue);
       expect(l.plan!.each, 60000000);
-      expect(l.plan!.planned, 36530000);
-      expect(l.toAssign, 36530000);
-      // ₮300,000 already in for October: the share is of the rest.
+      expect(l.plan!.planned, 42590000 - 15490000);
+      expect(l.toAssign, 27100000);
+      // ₮300,000 already in for October, more than its first 8 days'
+      // ₮154,900: what's ahead counts toward this share.
       l = at(
         ledger(
           pay: [pay],
@@ -2042,7 +2044,7 @@ void main() {
         ),
         pp,
       ).lines[food]!;
-      expect(l.plan!.planned, 18270000);
+      expect(l.plan!.planned, 27100000 - (30000000 - 15490000));
       // The share put in; the next pay period takes what's left of
       // October (its last 9 days, all of them) and November's first 5 of
       // 30. So the shares add up to the month.
@@ -2082,6 +2084,57 @@ void main() {
       expect(l.plan!.approx, isFalse);
       expect(l.plan!.planned, 60000000);
       expect(l.toAssign, 30000000);
+    });
+
+    test('a paycheck asks its days of each month still running, never a '
+        'month that has ended, nor more than a month (#468)', () {
+      // Paid every 2 weeks from 10.30: 10.30–11.12, then 11.13–11.26.
+      final pay = PaySchedule(
+        id: 1,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100,
+        rule: PayRule.everyWeeks,
+        weeks: 2,
+        anchor: DateTime(2026, 10, 30),
+        weekend: PayWeekend.keep,
+        definesPeriod: true,
+      );
+      final groceries = plan(
+        food,
+        PlanKind.each,
+        60000000,
+        start: DateTime(2026, 9, 1),
+      );
+      final first = budgetPeriod(DateTime(2026, 11, 5), pay);
+      final second = nextBudgetPeriod(first, pay);
+      expect(first.start, DateTime(2026, 10, 30));
+      expect(second.start, DateTime(2026, 11, 13));
+      EnvelopeLine at(BudgetSpan p, List<BudgetAmount> amounts) => Budget.of(
+        ledger(pay: [pay], plans: [groceries], amounts: amounts),
+        start: p.start,
+        end: p.end,
+        today: DateTime(2026, 11, 5),
+      ).lines[food]!;
+      // November filled on its 1st, October never: October has ended, so
+      // its last two days ask nothing (the owner's paycheck asked
+      // October's whole plan again); November's 12 of 30 days are well
+      // covered.
+      final filled = [put(food, DateTime(2026, 11, 1), 60000000)];
+      var l = at(first, filled);
+      expect(l.plan!.shares.first.amount, 0);
+      expect(l.plan!.planned, 24000000);
+      expect(l.toAssign, 0);
+      // The next paycheck: what went in ahead covers its 14 days.
+      l = at(second, filled);
+      expect(l.plan!.planned, 0);
+      expect(l.toAssign, 0);
+      // Nothing assigned in the first: the second asks only its own share,
+      // not the first's too (owner's pick).
+      l = at(second, const []);
+      expect(l.plan!.planned, 52000000 - 24000000);
+      // Never more than a month's amount, whatever is missing.
+      expect(l.plan!.planned, lessThanOrEqualTo(60000000));
     });
 
     test(

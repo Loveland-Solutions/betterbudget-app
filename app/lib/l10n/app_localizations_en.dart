@@ -4422,6 +4422,31 @@ class WordsEn extends Words {
   }
 
   @override
+  String planMonthShare(String amount, String month) {
+    return '$amount of $month’s this pay period';
+  }
+
+  @override
+  String planAboutMonthShare(String amount, String month) {
+    return 'about $amount of $month’s this pay period';
+  }
+
+  @override
+  String planFillOverBy(String amount, String over) {
+    return 'Only $amount is not assigned, so this makes $over assigned too much';
+  }
+
+  @override
+  String planFillOverNone(String over) {
+    return 'Everything is assigned, so this makes $over assigned too much';
+  }
+
+  @override
+  String planFillOverMore(String over) {
+    return 'This adds $over to Assigned too much';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return '$amount a month';
   }

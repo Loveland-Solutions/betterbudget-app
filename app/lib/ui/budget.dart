@@ -472,10 +472,14 @@ class _BudgetPageState extends State<_BudgetPage> {
       }
     }
 
+    // A finished period only shows what happened (owner, 2026-11-15,
+    // #468): no Assign on a row, no Assign what's planned. Typing an
+    // amount still works.
+    final finished = period.end.isBefore(dateOnly(widget.today));
     Widget row(AccountInfo c, {required bool striped}) {
       final line = budget.lines[c.id];
       final planLine = line?.plan;
-      final toAssign = line?.toAssign ?? 0;
+      final toAssign = finished ? 0 : line?.toAssign ?? 0;
       final currency = c.currency;
       final usage = data.categoryUsage[c.id];
       // What a move can trade with: Not assigned in its currency, then the
@@ -549,6 +553,7 @@ class _BudgetPageState extends State<_BudgetPage> {
               besideAssigned:
                   planLine.plan.kind != PlanKind.each ||
                   planLine.plan.payScheduleId == data.periodSchedule?.id,
+              onRow: true,
             );
       // Nothing left to say once Assigned says it (#467): no line.
       final note =
@@ -793,7 +798,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         final planned = {
           for (final x in spending)
             if (budget.lines[x.id] case final l?
-                when x.currency == c && l.toAssign > 0)
+                when !finished && x.currency == c && l.toAssign > 0)
               x: l.plan!.planned,
         };
         if (planned.isEmpty) continue;
@@ -817,11 +822,17 @@ class _BudgetPageState extends State<_BudgetPage> {
             // More planned than there is to give out: said inside the
             // button it is about, with the figure the card shows as Not
             // assigned, so both amounts can be checked before the click.
-            warning: plannedOver > 0
-                ? t.planFillOver(
-                    money(p.notAssigned > 0 ? p.notAssigned : 0, c),
+            // It says what the click does to it, and still runs (#468).
+            warning: plannedOver <= 0
+                ? null
+                : p.notAssigned > 0
+                ? t.planFillOverBy(
+                    money(p.notAssigned, c),
+                    money(plannedOver, c),
                   )
-                : null,
+                : p.notAssigned == 0
+                ? t.planFillOverNone(money(plannedOver, c))
+                : t.planFillOverMore(money(plannedOver, c)),
             warningKey: ValueKey('assign-planned-over$tag'),
             onTap: () {
               setState(() => _editing = null);

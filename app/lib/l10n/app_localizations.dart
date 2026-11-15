@@ -6281,6 +6281,36 @@ abstract class Words {
   /// **'Planned {plan}'**
   String planPlannedLine(String plan);
 
+  /// Budget page by pay period: under a monthly category's name, the part of a month's plan this pay period asks for, all of that month's rest (#468). month is a month name (monthNames).
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} of {month}’s this pay period'**
+  String planMonthShare(String amount, String month);
+
+  /// Budget page by pay period: under a monthly category's name, this pay period's days' share of a month's plan (#468). month is a month name (monthNames); Mongolian puts it in the genitive.
+  ///
+  /// In en, this message translates to:
+  /// **'about {amount} of {month}’s this pay period'**
+  String planAboutMonthShare(String amount, String month);
+
+  /// Budget page, inside Assign what's planned, coral: the plans are more than Not assigned; says what the click does. amount is Not assigned as the card shows it; over is how far past it the click goes (#468).
+  ///
+  /// In en, this message translates to:
+  /// **'Only {amount} is not assigned, so this makes {over} assigned too much'**
+  String planFillOverBy(String amount, String over);
+
+  /// Budget page, inside Assign what's planned, coral, when Not assigned is zero: what the click does (#468).
+  ///
+  /// In en, this message translates to:
+  /// **'Everything is assigned, so this makes {over} assigned too much'**
+  String planFillOverNone(String over);
+
+  /// Budget page, inside Assign what's planned, coral, when the card already shows Assigned too much (#468).
+  ///
+  /// In en, this message translates to:
+  /// **'This adds {over} to Assigned too much'**
+  String planFillOverMore(String over);
+
   /// Budget page: note under a category's name, what its plan puts in each month
   ///
   /// In en, this message translates to:
