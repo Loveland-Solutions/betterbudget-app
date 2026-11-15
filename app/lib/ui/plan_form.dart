@@ -863,8 +863,11 @@ PlanNote planNote(
       // A monthly plan seen by a pay: each month's part named by its
       // month, never one sum more than a month's amount (#468).
       else if (!ownPay && byPay && !(cap != null && p.done)) ...[
-        for (final x in p.shares)
-          if (x.amount > 0)
+        // On the row, only the months whose part isn't in yet: one
+        // Assigned already holds isn't said again (budget app review).
+        for (final (i, x) in p.shares.indexed)
+          if (x.amount > 0 &&
+              !(onRow && i < p.held.length && p.held[i] >= x.amount))
             p.approx
                 ? t.planAboutMonthShare(
                     money(x.amount),

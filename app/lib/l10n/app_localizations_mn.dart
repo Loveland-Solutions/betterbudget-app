@@ -4291,6 +4291,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String planSplitOnce(String month) {
+    return '$monthаас хойшхи хуваарилсан мөнгийг одоо цалин бүрээр хадгалж байгаа тул цалин бүр өөрийн хэсгийг харуулна. Сарын нийт дүн өөрчлөгдөөгүй. Өмнөх дэвтрийн хуулбар Нөөц хуулбарт байна.';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return 'сард $amount';
   }

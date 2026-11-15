@@ -4447,6 +4447,11 @@ class WordsEn extends Words {
   }
 
   @override
+  String planSplitOnce(String month) {
+    return 'Your Assigned from $month on is now kept by paycheck, so each paycheck shows its own part. Month totals didn’t change. A copy of your ledger from before is in Backups.';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return '$amount a month';
   }

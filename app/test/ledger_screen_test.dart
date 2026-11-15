@@ -7239,15 +7239,14 @@ void main() {
       );
       expect(find.text('₮900,000 a month'), findsOneWidget);
       expect(find.byKey(ValueKey('plan-assign-$groceries')), findsNothing);
-      // A paycheck that runs into October: each month's part by its name,
-      // September's last 6 days (held already) and October's first 8 of 31,
-      // which Assign offers.
+      // A paycheck that runs into October: each month's part by its name.
+      // September's last 6 days are held already, so only October's first
+      // 8 of 31 are said, which Assign offers (budget app review).
       await tester.tap(find.byKey(const ValueKey('period-next')));
       await tester.pumpAndSettle();
       expect(
         find.text(
-          '₮900,000 a month · about ₮180,000 of September’s this pay period · '
-          'about ₮232,300 of October’s this pay period',
+          '₮900,000 a month · about ₮232,300 of October’s this pay period',
         ),
         findsOneWidget,
       );
@@ -7259,6 +7258,134 @@ void main() {
       }
       expect(find.byKey(ValueKey('plan-assign-$groceries')), findsNothing);
       expect(find.byKey(const ValueKey('assign-planned')), findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('once, at the first launch with #468, months already '
+        'assigned from this one on are kept by paycheck, with a copy kept '
+        'first', (tester) async {
+      final db = await pumpLedger(tester);
+      late int groceries;
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        groceries = data.accounts.values
+            .firstWhere((a) => a.name == 'Groceries')
+            .id;
+        await db.savePaySchedule(
+          accountId: data.balanceSheetAccounts.first.id,
+          name: 'Jenny',
+          amount: 120000000,
+          rule: PayRule.everyWeeks,
+          weeks: 2,
+          anchor: DateTime(2026, 9, 11),
+          weekend: PayWeekend.keep,
+          today: DateTime(2026, 9, 16),
+        );
+        // As a build before kept it: all of September on its 1st, and
+        // August's, finished, too.
+        for (final m in [8, 9]) {
+          await db.setBudgetAmount(
+            groceries,
+            DateTime(2026, m, 1),
+            DateTime(2026, m + 1, 0),
+            90000000,
+          );
+        }
+        await db.setPreference(BudgetKeys.splitOnce, null);
+      });
+      final backups = _KeptBackups(db);
+      Future<void> launch() => tester.runAsync(() async {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: appTheme(),
+            home: LedgerScreen(
+              demo: true,
+              db: db,
+              backups: backups,
+              clock: () => DateTime(2026, 9, 16, 10),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        await tester.pump();
+      });
+      Future<Map<DateTime, int>> kept() async => {
+        for (final b in (await tester.runAsync(db.loadLedger))!.budgetAmounts)
+          if (b.categoryId == groceries) dateOnly(b.date): b.amount,
+      };
+      await launch();
+      await tester.pump();
+      expect(backups.kept, 1);
+      expect(await kept(), {
+        DateTime(2026, 8, 1): 90000000,
+        DateTime(2026, 9, 1): 30000000,
+        DateTime(2026, 9, 11): 42000000,
+        DateTime(2026, 9, 25): 18000000,
+      });
+      expect(find.textContaining('now kept by paycheck'), findsOneWidget);
+      // Only once.
+      await launch();
+      expect(backups.kept, 1);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a bill assigned on the month view fills its paychecks in '
+        'order, so the one it is due in is full (#468, code review)', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      // Netflix ₮20,000 due 09.20.
+      final bill = await billPlan(
+        tester,
+        db,
+        'Netflix',
+        2000000,
+        DateTime(2026, 9, 20),
+      );
+      late int jenny;
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        jenny = (await db.savePaySchedule(
+          accountId: data.balanceSheetAccounts.first.id,
+          name: 'Jenny',
+          amount: 120000000,
+          rule: PayRule.everyWeeks,
+          weeks: 2,
+          anchor: DateTime(2026, 9, 11),
+          weekend: PayWeekend.keep,
+          today: DateTime(2026, 9, 16),
+        )).after.id;
+      });
+      await settle(tester);
+      await openBudget(tester);
+      final assign = find.byKey(ValueKey('plan-assign-${bill.category}'));
+      await tester.ensureVisible(assign);
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        await tester.tap(assign);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      final rows = [
+        for (final b in (await tester.runAsync(db.loadLedger))!.budgetAmounts)
+          if (b.categoryId == bill.category) (dateOnly(b.date), b.amount),
+      ];
+      // Each paycheck what it asks: by paycheck a bill is saved for in
+      // parts, 09.01–09.10 and 09.11 (the one it's due in) half each.
+      expect(rows, [
+        (DateTime(2026, 9, 1), 1000000),
+        (DateTime(2026, 9, 11), 1000000),
+      ]);
+      // By Jenny's paycheck it's due in: full, nothing to assign.
+      await tester.tap(find.byKey(const ValueKey('budget-view')));
+      await tester.pumpAndSettle();
+      await tapAndWait(tester, find.byKey(ValueKey('budget-view-$jenny')));
+      await settle(tester);
+      expect(
+        find.byKey(ValueKey('plan-assign-${bill.category}')),
+        findsNothing,
+      );
       await tidy(tester, db);
     });
 
@@ -13840,4 +13967,17 @@ Future<void> howOften(WidgetTester tester, String item) async {
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(ValueKey(item)));
   await tester.pumpAndSettle();
+}
+
+/// Backups that only count the copy kept before the one-time split (#468):
+/// an in-memory ledger has no file to copy.
+class _KeptBackups extends Backups {
+  _KeptBackups(super.db);
+  int kept = 0;
+
+  @override
+  Future<File> keepBeforeSplit(DateTime now) async {
+    kept++;
+    return File('kept');
+  }
 }

@@ -6499,6 +6499,15 @@
       }
     }
   },
+  "planSplitOnce": "Your Assigned from {month} on is now kept by paycheck, so each paycheck shows its own part. Month totals didn’t change. A copy of your ledger from before is in Backups.",
+  "@planSplitOnce": {
+    "description": "Popup once, at the first launch that keeps a month's Assigned by paycheck (#468): what the app did to amounts already there. month is a month name (monthNames).",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
   "planEachMonth": "{amount} a month",
   "@planEachMonth": {
     "description": "Budget page: note under a category's name, what its plan puts in each month",

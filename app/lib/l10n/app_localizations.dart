@@ -6311,6 +6311,12 @@ abstract class Words {
   /// **'This adds {over} to Assigned too much'**
   String planFillOverMore(String over);
 
+  /// Popup once, at the first launch that keeps a month's Assigned by paycheck (#468): what the app did to amounts already there. month is a month name (monthNames).
+  ///
+  /// In en, this message translates to:
+  /// **'Your Assigned from {month} on is now kept by paycheck, so each paycheck shows its own part. Month totals didn’t change. A copy of your ledger from before is in Backups.'**
+  String planSplitOnce(String month);
+
   /// Budget page: note under a category's name, what its plan puts in each month
   ///
   /// In en, this message translates to:

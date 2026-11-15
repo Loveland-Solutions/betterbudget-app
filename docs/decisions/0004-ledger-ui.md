@@ -6473,4 +6473,20 @@ into it. Decided:
   (owner's pick; rejected: offering them as before). Typing an amount still works.
 - The line names the month a part is for, and the top button says the result when the
   money isn't there ("so this makes ₮300,000 assigned too much"), and still runs.
+- Built (0.93.0). From the reviews: a month retyped or money moved on the month's page
+  keeps the rows already there and puts only the difference into the paychecks still
+  running; a bill or goal fills its paychecks in order, each what it asks; the month is
+  stored with the same ₮100 rounding a paycheck asks by (a dollar share rounds to $1); a
+  pay period that has ended counts as asking what it was given; a deleted pay splits
+  nothing; ⌘Z of a view switch puts back which pay the month is split by; the line names
+  only the months whose part isn't in yet.
+- Months already assigned (owner, 2026-11-15, asked again after "20000 is assigned to bank
+  fees whether i view it by month or by pay period": "Split November and later now"): at
+  the first launch with it, every category's Assigned from the current month on that is
+  still all on its month's 1st is kept by paycheck. Totals don't change; finished months
+  stay. A copy (`before-paycheck-split-…`) is kept in Backups first and a popup says so;
+  no Undo, as the app did it. Rejected: a button to click, and leaving them.
+- The top button's words when nothing is left to assign are "Everything is assigned, so
+  this makes ₮300,000 assigned too much", not the decided "Nothing is not assigned, …"
+  (a double negative); told to the owner.
 

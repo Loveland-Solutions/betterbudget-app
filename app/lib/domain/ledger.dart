@@ -1341,6 +1341,21 @@ class LedgerData {
   PaySchedule? get periodSchedule =>
       paySchedules.where((p) => p.definesPeriod).firstOrNull;
 
+  /// This ledger with [more] amounts added: what a write would leave,
+  /// worked out before it's done (#468).
+  LedgerData withAmounts(List<BudgetAmount> more) => LedgerData(
+    accounts: accounts.values.toList(),
+    txns: txns,
+    reconciliations: reconciliations,
+    paySchedules: paySchedules,
+    payeeRules: payeeRules,
+    stoppedPaySchedules: stoppedPaySchedules,
+    prefs: prefs,
+    budgetAmounts: [...budgetAmounts, ...more],
+    paidFrom: paidFrom,
+    plans: plans.values.toList(),
+  );
+
   /// This ledger as the Budget page sees it by [schedule]'s pay periods
   /// (by month with null): what a paycheck asks, worked out from the
   /// month's page.
