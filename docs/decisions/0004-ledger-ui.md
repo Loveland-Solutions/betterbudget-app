@@ -6404,3 +6404,73 @@ it"). The top card and the income card became one row of boxes for each currency
   sections on the income sum's terms.
 - *Rejected:* each period starting clean (the expert's recommendation); keeping the bank
   as the yardstick with the balance said inside one sentence.
+
+## A category's plan line doesn't repeat its Assigned (owner, 2026-11-14, #467)
+
+The owner, looking at Groceries on the Budget page, "₮1,000,000 a month" under its name
+and ₮1,000,000.00 under Assigned (stand-in figures): "Why does groceries list how much
+per month in both assigned and in the subtext. I think the subtext here is redundant at
+best, confusing at worst."
+
+- When this period's Assigned is what the plan puts in, the line leaves that part out.
+  A plan with nothing more to say has no line at all; one that says more keeps only
+  that ("what's left goes back to not assigned"). A dated plan keeps its goal ("₮600,000
+  by 12.31") and drops its month's part the same way.
+- While Assigned differs, the part is named as the plan: **Planned ₮1,000,000 a month**,
+  with **Assign ₮400,000** after it when less is in. So Assigned is the figure that
+  counts, and the line says what the plan would make it. Assign what's planned at the
+  top is unchanged.
+- A fund holding its cap ("up to"), a period given its own amount, and a bill's one line
+  (#365) are as they were. Edit's preview still says the whole plan.
+- Rejected: the plan only in a tooltip or Edit. A row short of its plan would show
+  "Assign ₮400,000" with nothing to say what it's toward.
+- Seen by another period than its own (a monthly plan in a paycheck view, or Jeff's pay
+  seen by Jenny's), the line is as it was: there Assigned is that period's, not the
+  plan's.
+
+## A month's money split by paycheck; the Spending tab in sections by type (owner, 2026-11-15, #468, #469)
+
+The owner, switching the Budget page between this month and this paycheck: "when I switch
+views between this month and this paycheck, the assigned amount doesn't change." The
+month view stored a whole month on the 1st, so the paycheck holding the 1st showed all of
+it (and could read Assigned too much while the month was fine), and the next showed ₮0.
+Asked how a paycheck should show it: "That's why we need to show the budgets by type.
+Obviously, the day-to-day budgets are going to show differently. That being said, you
+can ask the experts how to view this." From the budget expert's three options they
+picked:
+
+- **Split by paycheck (#468).** Assigning on the month view stores each paycheck's part
+  where that paycheck is, as assigning on the paycheck view already does: Day-to-day and
+  Funds by days, Bills and Goals by their plan's paycheck parts. Both views then sum the
+  same rows, so every figure stays an exact sum (the 2026-10-05 call stands). It follows
+  the paycheck view last picked, or the one pay; with no pay, the month as before.
+  Months already assigned stay as they are.
+- **Sections by type (#469).** Day-to-day, Funds, Bills (soonest due first), Goals, then
+  Saved, each heading saying once what its Left means. Their own groups stay inside
+  Day-to-day.
+- Rejected: keeping the month on the 1st and saying so on the row (a paycheck holding
+  the 1st still reads Assigned too much), and reading a month's row by days only in a
+  paycheck view (it overturns 2026-10-05 and leaves Bills, Funds and Goals on the 1st).
+
+## What a paycheck asks of a monthly plan (owner, 2026-11-15, #468)
+
+The owner, seeing a paycheck from the 30th to the 15th ask more for Groceries than the
+month view did: "why is it that only on the paycheck view does it say that I need to
+add" it; then "get the experts to talk about this." The paycheck held the last two days
+of a month left unassigned, and "all of a period's rest in view" asked that month's
+whole plan again ("about ₮900,000 this pay period" for a ₮600,000-a-month plan,
+stand-ins). The budget expert, budget app reviewer, first-time reader and UX writer
+agreed it was the ended month asked again, and that the Assign link would have written
+into it. Decided:
+
+- Day-to-day and Funds: a paycheck asks its days' share of each month still running;
+  money in ahead counts toward the next; never more than a month's amount. A month that
+  has ended asks nothing; what it overspent carries as "from before".
+- A skipped paycheck: the next asks only its own share (owner's pick; rejected: making up
+  the first half too, a near-whole month out of half a month's pay).
+- Bills and Goals catch up, only toward a date still ahead.
+- A finished month only shows what happened: no Assign links or Assign what's planned
+  (owner's pick; rejected: offering them as before). Typing an amount still works.
+- The line names the month a part is for, and the top button says the result when the
+  money isn't there ("so this makes ₮300,000 assigned too much"), and still runs.
+

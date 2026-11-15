@@ -7243,6 +7243,8 @@ void main() {
         final plan = (await tester.runAsync(db.loadLedger))!.plans.values
             .firstWhere((p) => p.kind == PlanKind.each);
         expect(plan.payScheduleId, jeff);
+        // Seen by Jenny's pay, not its own: Assigned is her period's, so
+        // the line is the plan as it was, not set against it (#467).
         expect(find.text('₮600,000 each pay period · Jeff'), findsOneWidget);
         expect(find.text('Assign ₮600,000'), findsOneWidget);
         // A period later, Jeff's next (09.25–10.22: the 25th is a Sunday,
@@ -7890,13 +7892,18 @@ void main() {
       await reload();
       expect(data.plans[groceries]!.kind, PlanKind.each);
       expect(data.plans[groceries]!.amount, 90000000);
-      expect(find.text('₮900,000 a month'), findsOneWidget);
+      // Nothing assigned yet, so the line is named as the plan, apart
+      // from the Assigned beside it (#467).
+      expect(find.text('Planned ₮900,000 a month'), findsOneWidget);
 
-      // Its own Assign fills just that line, quietly.
+      // Its own Assign fills just that line, quietly. Then Assigned says
+      // what the line said, so the line goes (#467).
       await click('plan-assign-$groceries');
       await reload();
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(find.byKey(ValueKey('plan-assign-$groceries')), findsNothing);
+      expect(find.byKey(ValueKey('plan-note-$groceries')), findsNothing);
+      expect(find.textContaining('₮900,000 a month'), findsNothing);
 
       // Tuition, a bill due on a date. September to January is five parts.
       await editCategory(tester, 'Tuition');
@@ -7926,7 +7933,7 @@ void main() {
       await editCategory(tester, 'Gifts');
       await type('plan-amount', '50000');
       await save();
-      expect(find.text('₮50,000 a month'), findsOneWidget);
+      expect(find.text('Planned ₮50,000 a month'), findsOneWidget);
 
       // Clothing, an amount by a date, once: September to December is
       // four parts.
@@ -8093,14 +8100,12 @@ void main() {
       await reload();
       expect(data.budgetAmounts, hasLength(4));
 
-      // The note opens Edit at the plan; saving No plan says so, and ⌘Z
+      // Edit, from the menu (the line under the name is gone now that
+      // Assigned says it, #467); saving No plan says so, and ⌘Z
       // brings it back. The toast goes first: it sits over the rows.
       await tester.pump(const Duration(seconds: 7));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(ValueKey('plan-note-$gifts')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ValueKey('plan-note-$gifts')));
-      await tester.pumpAndSettle();
+      await editCategory(tester, 'Gifts');
       // An empty amount is no plan.
       await type('plan-amount', '');
       await save();
@@ -8116,10 +8121,7 @@ void main() {
       // about the plan moves with it, so a Save that only noticed the
       // other answers wrote nothing at all and the row snapped back
       // (#404, code review).
-      await tester.ensureVisible(find.byKey(ValueKey('plan-note-$groceries')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
-      await tester.pumpAndSettle();
+      await editCategory(tester, 'Groceries');
       expect(data.plans[groceries]!.spentEach, isTrue);
       await tester.ensureVisible(find.byKey(const ValueKey('plan-type-fund')));
       await tester.pumpAndSettle();
@@ -8131,10 +8133,7 @@ void main() {
       expect(data.plans[groceries]!.amount, 90000000);
       // And back again, which is the way the Safety net has to come after
       // the v25 upgrade decided for it.
-      await tester.ensureVisible(find.byKey(ValueKey('plan-note-$groceries')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
-      await tester.pumpAndSettle();
+      await editCategory(tester, 'Groceries');
       await tester.ensureVisible(
         find.byKey(const ValueKey('plan-type-dayToDay')),
       );
@@ -8146,10 +8145,7 @@ void main() {
       expect(data.plans[groceries]!.spentEach, isTrue);
 
       // Groceries no longer carries over; Esc on another leaves it alone.
-      await tester.ensureVisible(find.byKey(ValueKey('plan-note-$groceries')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ValueKey('plan-note-$groceries')));
-      await tester.pumpAndSettle();
+      await editCategory(tester, 'Groceries');
       await tester.ensureVisible(find.byKey(const ValueKey('plan-carry-off')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('plan-carry-off')));
@@ -8157,8 +8153,9 @@ void main() {
       await save();
       await reload();
       expect(data.plans[groceries]!.rollover, isFalse);
+      // Assigned already says ₮900,000: only what the plan adds (#467).
       expect(
-        find.text('₮900,000 a month · what’s left goes back to not assigned'),
+        find.text('what’s left goes back to not assigned'),
         findsOneWidget,
       );
       // Clothing saves for a date, so it sits under Bills, lower down.

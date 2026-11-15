@@ -769,6 +769,7 @@ PlanNote planNote(
   Currency currency, {
   String? payName,
   PaySchedule? own,
+  bool besideAssigned = false,
 }) {
   final p = line.plan!;
   // The period on screen, and a set amount's own (its month or its pay,
@@ -812,6 +813,13 @@ PlanNote planNote(
         : t.planOnceMonthLine(money(p.each), month, usual);
   }
 
+  // On the Budget row, beside Assigned (#467): a period's part that says
+  // what Assigned already says is left out, and one that differs is named
+  // as the plan, so it's plain which figure counts. Edit says it all.
+  // Only when the view is the plan's own period: by another, Assigned is
+  // that period's, never the plan's month or pay.
+  final plain = besideAssigned && cap == null && !p.once && ownPay == byPay;
+  final sameAsAssigned = plain && line.assigned == p.each;
   final parts = switch (p.plan.kind) {
     PlanKind.each => [
       // Holding its cap, the line says so in place of the amount.
@@ -819,8 +827,10 @@ PlanNote planNote(
         t.planSetAsideAmount(money(cap))
       else if (p.once)
         onceLine()
-      else
-        each(p.each),
+      else if (!plain)
+        each(p.each)
+      else if (!sameAsAssigned)
+        t.planPlannedLine(each(p.each)),
       // Seen by another period than its own: its share of this one, by
       // days, said as about. More than one period's worth (the one before
       // was never filled, and the rest of it is in view) is said as what
@@ -871,7 +881,11 @@ PlanNote planNote(
         t.planBy(money(p.plan.amount), date(due)),
       // Its last period says all it has to find, a bill before this one's
       // pay included.
-      if (wants) each(p.lastPeriod ? p.planned : p.each),
+      if (wants &&
+          !(besideAssigned &&
+              ownPay == byPay &&
+              line.assigned == (p.lastPeriod ? p.planned : p.each)))
+        each(p.lastPeriod ? p.planned : p.each),
     ],
   };
   final String? state;

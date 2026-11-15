@@ -6436,6 +6436,15 @@
       }
     }
   },
+  "planPlannedLine": "Planned {plan}",
+  "@planPlannedLine": {
+    "description": "Budget page: note under a category's name when its Assigned differs from its plan; plan is e.g. “₮1,000,000 a month” (#467)",
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "planEachMonth": "{amount} a month",
   "@planEachMonth": {
     "description": "Budget page: note under a category's name, what its plan puts in each month",
