@@ -23,9 +23,9 @@ months from November on were split once at launch, after a copy
 and the result's box has an edge; below zero it names what made it short, **Over budget**
 when that is spending (#470, #464). Every category's bar is the same length, a slim pill
 in three colors showing what's left of its own money, and a category that had nothing has
-none; the phone's ring follows, from its next Play build (#465). The line under a category's
-Left names the period its money came from, "₮500,000 from October" or, by paycheck,
-"from 11.01–11.15" (#471). The owner is trying it all. Next: a first-time setup
+none; the phone's ring follows, from its next Play build (#465). No line sits under a
+category's Left: "from before" is gone, and a paycheck spent ahead says so in Left's
+tooltip, so those rows are one height (#471). The owner is trying it all. Next: a first-time setup
 walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 

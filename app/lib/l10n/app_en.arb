@@ -5828,33 +5828,6 @@
   "@planLeft": {
     "description": "Budget page: column title over what each spending category holds now, what carried over included"
   },
-  "planFromMonth": "{amount} from {month}",
-  "@planFromMonth": {
-    "description": "Budget page, by month: small line under a category's Left when it began the month with money (or a minus) the month before left, like '₮500,000 from October' (#471). {month} is the month before's name, as in planSumFromMonth.",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      },
-      "month": {
-        "type": "String"
-      }
-    }
-  },
-  "planFromPay": "{amount} from {start}–{end}",
-  "@planFromPay": {
-    "description": "Like planFromMonth, by paycheck: the pay period before by its first and last day, written as the page's title writes them, like '₮500,000 from 11.01–11.15' (#471).",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      },
-      "start": {
-        "type": "String"
-      },
-      "end": {
-        "type": "String"
-      }
-    }
-  },
   "planPayPeriod": "Pay period",
   "@planPayPeriod": {
     "description": "Budget page: the period title when budgeting by pay period and it isn't the current one"
@@ -6544,7 +6517,7 @@
   },
   "planSpentAhead": "{amount} past this pay period’s part, which {month}’s money still covers",
   "@planSpentAhead": {
-    "description": "Budget page by pay period, under a monthly category's Left when this paycheck spent past its part and the month still has money (#468); Left is then plain ink, not red. month is a month name (monthNames).",
+    "description": "Budget page by pay period, the tooltip on a monthly category's Left (a line of its own, before the Move money tip) when this paycheck spent past its part and the month still has money (#468); Left is then plain ink, not red. month is a month name (monthNames).",
     "placeholders": {
       "amount": {
         "type": "String"

@@ -7284,7 +7284,16 @@ void main() {
         );
       });
       await settle(tester);
-      expect(find.byKey(ValueKey('spent-ahead-$groceries')), findsOneWidget);
+      // Said when Left is pointed at, not on a line under it.
+      expect(
+        tester
+            .widget<Tooltip>(find.byKey(ValueKey('spent-ahead-$groceries')))
+            .message,
+        '₮56,650.50 past this pay period’s part, which September’s money '
+        'still covers\n'
+        'Click to move money in from another category',
+      );
+      expect(find.textContaining('past this pay period’s part'), findsNothing);
       expect(
         tester.widget<Money>(find.byKey(ValueKey('left-$groceries'))).color,
         isNot(Mid.coral),
@@ -7302,14 +7311,6 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Assign ₮232,300'), findsOneWidget);
-      // What the paycheck before left is named by that paycheck's dates,
-      // written as the page's title writes them (#471).
-      expect(
-        tester
-            .widget<Text>(find.byKey(ValueKey('from-before-$groceries')))
-            .data,
-        endsWith(' from 09.11–09.24'),
-      );
       // A finished paycheck only shows what happened: no Assign.
       for (var i = 0; i < 3; i++) {
         await tester.tap(find.byKey(const ValueKey('period-prev')));
@@ -8072,12 +8073,14 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('period-next')));
       await tester.pumpAndSettle();
       expect(find.text('October 2026'), findsOneWidget);
-      // Named by the month it came from, not "from before" (#471).
+      // No line under Left says so, and the row is as tall as one that
+      // carried nothing (owner, 2026-11-16: "I want each row to be the
+      // same height. Kill the text").
+      expect(find.textContaining('from September'), findsNothing);
+      expect(find.textContaining('from before'), findsNothing);
       expect(
-        tester
-            .widget<Text>(find.byKey(ValueKey('from-before-$groceries')))
-            .data,
-        '₮623,349.50 from September',
+        tester.getSize(find.byKey(ValueKey('category-row-$groceries'))).height,
+        tester.getSize(find.byKey(ValueKey('category-row-$health'))).height,
       );
       expect(
         tester.widget<Money>(find.byKey(ValueKey('left-$groceries'))).minor,

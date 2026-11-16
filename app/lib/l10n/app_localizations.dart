@@ -5495,18 +5495,6 @@ abstract class Words {
   /// **'Left'**
   String get planLeft;
 
-  /// Budget page, by month: small line under a category's Left when it began the month with money (or a minus) the month before left, like '₮500,000 from October' (#471). {month} is the month before's name, as in planSumFromMonth.
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} from {month}'**
-  String planFromMonth(String amount, String month);
-
-  /// Like planFromMonth, by paycheck: the pay period before by its first and last day, written as the page's title writes them, like '₮500,000 from 11.01–11.15' (#471).
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} from {start}–{end}'**
-  String planFromPay(String amount, String start, String end);
-
   /// Budget page: the period title when budgeting by pay period and it isn't the current one
   ///
   /// In en, this message translates to:
@@ -6347,7 +6335,7 @@ abstract class Words {
   /// **'Your Assigned from {month} on is now kept by paycheck, so each paycheck shows its own part. Month totals didn’t change. A copy of your ledger from before is in Backups.'**
   String planSplitOnce(String month);
 
-  /// Budget page by pay period, under a monthly category's Left when this paycheck spent past its part and the month still has money (#468); Left is then plain ink, not red. month is a month name (monthNames).
+  /// Budget page by pay period, the tooltip on a monthly category's Left (a line of its own, before the Move money tip) when this paycheck spent past its part and the month still has money (#468); Left is then plain ink, not red. month is a month name (monthNames).
   ///
   /// In en, this message translates to:
   /// **'{amount} past this pay period’s part, which {month}’s money still covers'**

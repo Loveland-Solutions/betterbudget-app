@@ -890,8 +890,6 @@
   "planAssigned": "Хуваарилсан",
   "planSpent": "Зарцуулсан",
   "planLeft": "Үлдсэн",
-  "planFromMonth": "{month}аас {amount}",
-  "planFromPay": "{start}–{end}-ны үеэс {amount}",
   "planPayPeriod": "Орлогын үе",
   "planViewMonth": "Сар",
   "planViewTip": "Сараар, эсвэл нэг тогтмол орлогын үеэр харах",

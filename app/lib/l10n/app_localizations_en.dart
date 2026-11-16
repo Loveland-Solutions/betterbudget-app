@@ -3978,16 +3978,6 @@ class WordsEn extends Words {
   String get planLeft => 'Left';
 
   @override
-  String planFromMonth(String amount, String month) {
-    return '$amount from $month';
-  }
-
-  @override
-  String planFromPay(String amount, String start, String end) {
-    return '$amount from $start–$end';
-  }
-
-  @override
   String get planPayPeriod => 'Pay period';
 
   @override
