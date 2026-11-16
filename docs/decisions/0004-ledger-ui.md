@@ -6735,3 +6735,45 @@ the owner), and the owner picked **C**.
 - *Rejected:* **A**, the heading bigger (18-point) with most of a row of space above it,
   the committee's recommendation; **B**, a band across the panel holding the section's
   name and the three column titles.
+
+## Budget rows are one line: one spot after the name (owner, 2026-11-16, #483)
+
+After the line under Left went (#471), three lines under a category's name could still
+make its row taller: the plan's line with its Assign link, the note the person wrote
+(#100), and a warning. Asked whether those should come off the row too, the owner:
+"Then let's find another way of putting them on the row without impacting the height."
+Three sketches at the window's smallest width (the same canvas as the section names);
+the owner picked **1**, which the layout, flow and words reviewers had each recommended.
+
+- **1, built: one spot after the name** (`_NameAndSpot` in `budget.dart`), where the bar
+  is. It holds a warning if there is one, otherwise "Late", otherwise the Assign link,
+  otherwise any other word the plan has ("₮200,000 short", "Skipped", "paid 10.13"),
+  and the bar when there is room left for it whole. At the smallest window that is one
+  thing; in a wide one the bar comes back beside it. A bar is its full length or not
+  there. This is the bill's row (#365) given to every row; a bill's own amount is the
+  first to give way.
+- **Every row is 40 points**, whatever it has to say. A long name is cut with "…" and
+  never wraps; pointed at, it says the whole name.
+- **The plan's sentence** ("Planned ₮900,000 a month", "₮900,000 a month · about
+  ₮232,300 of October's this pay period") is not on the row. It is the first line of the
+  tooltip on the Assign link or the state word, or on the name when the row shows
+  neither, and Edit says it in full. This undoes #467's "the line stays, so Assign has
+  something to say what it's toward": the link's tooltip carries it, then where the
+  money comes from, "Assigns ₮232,300 more from not assigned, which makes Assigned
+  ₮412,300." The plan's words are no longer a click target (double-click and ⋯ open
+  Edit).
+- **"Assign ₮100,000 more"** once some is assigned, so the link can't read as replacing
+  what is there (UX writer).
+- **The note** is a small mark after the name; pointed at, it shows the note, nothing
+  added.
+- **A warning** is a few words that are never cut, in ink, 600 weight: "Its account is
+  archived", "$120 not counted". The whole sentence shows when pointed at and the click
+  is what it was (Edit; the rows). A bill's "Paid from archived" is the same warning
+  now.
+- Known and accepted: at the smallest window a row has no bar while it asks or warns,
+  and someone who means to assign less than the plan sees the link, not the bar, there.
+- Edit's "The row will read" still draws the plan's sentence under the name, wrapped,
+  which the row no longer does (#483's leftover).
+- *Rejected:* **2**, the bar always, and Assign only on the row under the pointer, as
+  Move money is; **3**, every row two lines, the name over the bar and the words (54
+  points each).

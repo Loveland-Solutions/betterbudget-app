@@ -6521,6 +6521,36 @@ abstract class Words {
   /// **'Assign {amount}'**
   String planAssignThis(String amount);
 
+  /// Budget page: the link after a category's name when the plan wants more assigned this period and some already is, so it can't read as replacing what's there (#483). {amount} is what it adds, like ₮100,000.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign {amount} more'**
+  String planAssignMore(String amount);
+
+  /// Budget page: the last line of the tooltip on a row's Assign link, saying where the money comes from before the click (#483).
+  ///
+  /// In en, this message translates to:
+  /// **'Assigns {amount} from not assigned.'**
+  String planAssignLinkTip(String amount);
+
+  /// Like planAssignLinkTip, when some is already assigned: {total} is what the Assigned column will read after the click.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigns {amount} more from not assigned, which makes Assigned {total}.'**
+  String planAssignMoreLinkTip(String amount, String total);
+
+  /// Budget page: a warning after a category's name, a few words that fit in about 120 points and must not be cut: the account it's paid from was archived or deleted. The whole sentence, planPaidFromGone, shows when it's pointed at; a click opens Edit (#483).
+  ///
+  /// In en, this message translates to:
+  /// **'Its account is archived'**
+  String get planPaidFromGoneShort;
+
+  /// Budget page: a warning after a category's name, a few words that must not be cut: rows in another currency aren't counted here. {amount} is their sum with its symbol, like $120. The whole sentence, planOtherRows, shows when it's pointed at; a click shows the rows (#483).
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} not counted'**
+  String planOtherRowsShort(String amount);
+
   /// Budget page: tooltip on the note under a category's name; clicking it opens Edit with the cursor in the plan's amount
   ///
   /// In en, this message translates to:
@@ -9209,12 +9239,6 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Skipped'**
   String get planBillSkipped;
-
-  /// The one spot on a bill's Budget row (#365): the account it's paid from is put away, so no forecast has it. The row's tooltip says which.
-  ///
-  /// In en, this message translates to:
-  /// **'Paid from archived'**
-  String get planBillArchived;
 
   /// In a bill's Edit (#365): the label of a switch for each of this period's bills.
   ///

@@ -4448,6 +4448,29 @@ class WordsMn extends Words {
   }
 
   @override
+  String planAssignMore(String amount) {
+    return '$amount нэмж хуваарилах';
+  }
+
+  @override
+  String planAssignLinkTip(String amount) {
+    return 'Хуваарилаагүй мөнгөнөөс $amount хуваарилна.';
+  }
+
+  @override
+  String planAssignMoreLinkTip(String amount, String total) {
+    return 'Хуваарилаагүй мөнгөнөөс $amount нэмж хуваарилж, Хуваарилсан нь $total болно.';
+  }
+
+  @override
+  String get planPaidFromGoneShort => 'Төлдөг дансыг архивласан';
+
+  @override
+  String planOtherRowsShort(String amount) {
+    return '$amount тооцогдоогүй';
+  }
+
+  @override
   String get planEditTip => 'Дарж төлөвлөгөөг өөрчлөх';
 
   @override
@@ -6393,9 +6416,6 @@ class WordsMn extends Words {
 
   @override
   String get planBillSkipped => 'Алгассан';
-
-  @override
-  String get planBillArchived => 'Архивласан данснаас төлдөг';
 
   @override
   String get planBillsHere => 'Энэ үеийн төлбөрүүд';

@@ -634,12 +634,6 @@ class _BudgetPageState extends State<_BudgetPage> {
           ? note.state
           : planLine.late
           ? t.planBillLate
-          : paidGone
-          ? t.planBillArchived
-          : null;
-      final String? billStateTip =
-          billOne && paidGone && billState == t.planBillArchived
-          ? t.planPaidFromGone(paidAccount.name)
           : null;
       // The bills of this period that can be skipped or brought back,
       // each a switch in Edit (#365): the one due here, and the skipped.
@@ -675,7 +669,9 @@ class _BudgetPageState extends State<_BudgetPage> {
         // month that's over (#363): a bill further ahead is skipped from
         // its own period's page.
         billState: billState,
-        billStateTip: billStateTip,
+        assignTotal: planLine == null
+            ? null
+            : planMoney(planLine.planned, currency),
         billBehind: (line?.short ?? 0) > 0,
         open: _open == c.id,
         onOpen: () => open(c.id),
@@ -689,8 +685,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                 data,
                 c,
                 line,
-                // A bill's row says it in its one spot.
-                paidGone: !billOne,
+                paidGone: paidGone,
                 onAccounts: () => open(c.id),
                 onRows: () => widget.onShowRows(c, period),
                 onAllRows: () => widget.onShowAllRows(c),
@@ -2557,8 +2552,8 @@ class _CategoryRow extends StatefulWidget {
     this.planNote,
     this.assignPlanned,
     this.onAssignPlanned,
+    this.assignTotal,
     this.billState,
-    this.billStateTip,
     this.billBehind = false,
     this.flags = const [],
     this.moveChoices = const [],
@@ -2606,11 +2601,14 @@ class _CategoryRow extends StatefulWidget {
   final String? assignPlanned;
   final VoidCallback? onAssignPlanned;
 
+  /// What Assigned will be once [assignPlanned] is clicked, for the
+  /// link's tooltip.
+  final String? assignTotal;
+
   /// A bill's one spot (#365): "Late", "Skipped", "paid 10.13", "₮200,000
-  /// short", "Paid from archived"; null says nothing. [billStateTip] is its
-  /// tooltip; [billBehind] (short) is in full ink.
+  /// short"; null says nothing. [billBehind] (short) is in full ink. Its
+  /// account put away is a warning, as on any row (#483).
   final String? billState;
-  final String? billStateTip;
   final bool billBehind;
 
   /// The plan's note was clicked: Edit, at the plan.
@@ -2670,6 +2668,67 @@ class _CategoryRowState extends State<_CategoryRow> {
     final t = context.t;
     final c = widget.category;
     final oneLine = widget.bill && widget.planNote != null;
+    final note = widget.planNote;
+    final planText = (note?.text ?? '').isEmpty ? null : note!.text;
+    // What the row says after its name, in the order it reads; `rank` is
+    // which is kept when there's room for one: a warning, then Late, then
+    // the Assign link, then any other word (the committee, 2026-11-16).
+    final some = (widget.line?.assigned ?? 0) > 0;
+    final state = oneLine ? widget.billState : note?.state;
+    final said = <_Said>[
+      // A bill's amount: the first to give way.
+      if (oneLine)
+        (
+          key: ValueKey('plan-note-${c.id}'),
+          text: note!.amount,
+          style: onest(12.5, color: Mid.ink2, tabular: true),
+          tip: '${note.text}\n${t.planEditTip}',
+          onTap: widget.onPlan,
+          rank: 4,
+        ),
+      for (final (i, f) in widget.flags.indexed)
+        (
+          key: ValueKey('line-flag-${c.id}-$i'),
+          text: f.short,
+          style: onest(12, weight: 600, color: Mid.ink, tabular: true),
+          tip: f.text,
+          onTap: f.onTap,
+          rank: 0,
+        ),
+      if (state != null)
+        (
+          key: ValueKey('plan-state-${c.id}'),
+          text: state,
+          style: onest(
+            12,
+            color: (oneLine ? widget.billBehind : note!.behind)
+                ? Mid.ink
+                : Mid.ink2,
+            tabular: true,
+          ),
+          tip: planText,
+          onTap: null,
+          rank: state == t.planBillLate ? 1 : 3,
+        ),
+      if (widget.assignPlanned case final amount?)
+        (
+          key: ValueKey('plan-assign-${c.id}'),
+          // "more" once some is in, so it can't read as replacing it.
+          text: some ? t.planAssignMore(amount) : t.planAssignThis(amount),
+          style: onest(12, weight: 500, color: Mid.blue, tabular: true),
+          // The plan it's toward, then where the money comes from and
+          // what Assigned will be: two whole sentences, a line each.
+          tip: [
+            ?planText,
+            if (some && widget.assignTotal != null)
+              t.planAssignMoreLinkTip(amount, widget.assignTotal!)
+            else
+              t.planAssignLinkTip(amount),
+          ].join('\n'),
+          onTap: widget.onAssignPlanned,
+          rank: 2,
+        ),
+    ];
     return MenuAnchor(
       controller: _menu,
       style: _menuStyle,
@@ -2700,11 +2759,8 @@ class _CategoryRowState extends State<_CategoryRow> {
               constraints: const BoxConstraints(minHeight: 40),
               padding: EdgeInsets.symmetric(
                 horizontal: 12,
-                vertical:
-                    (widget.planNote == null || widget.bill) &&
-                        widget.flags.isEmpty
-                    ? 0
-                    : 5,
+                // Every row is one height (owner, 2026-11-16, #471, #483).
+                vertical: 0,
               ),
               decoration: BoxDecoration(
                 color: Color.alphaBlend(
@@ -2715,157 +2771,16 @@ class _CategoryRowState extends State<_CategoryRow> {
               ),
               child: Row(
                 children: [
+                  // Its name, then the one spot that says what the row
+                  // needs (#483): never a second line.
                   Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            if (oneLine) ...[
-                              Flexible(child: Text(c.name, style: onest(13.5))),
-                              const SizedBox(width: 12),
-                              Tooltip(
-                                message:
-                                    '${widget.planNote!.text}\n${t.planEditTip}',
-                                waitDuration: const Duration(milliseconds: 600),
-                                child: Hoverable(
-                                  key: ValueKey('plan-note-${c.id}'),
-                                  onTap: widget.onPlan,
-                                  builder: (hover) => Text(
-                                    widget.planNote!.amount,
-                                    style: onest(
-                                      12.5,
-                                      color: hover ? Mid.ink : Mid.ink2,
-                                      tabular: true,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (widget.billState case final state?) ...[
-                                const SizedBox(width: 10),
-                                Tooltip(
-                                  message: widget.billStateTip ?? '',
-                                  waitDuration: const Duration(
-                                    milliseconds: 400,
-                                  ),
-                                  child: Text(
-                                    state,
-                                    key: ValueKey('plan-state-${c.id}'),
-                                    style: onest(
-                                      12,
-                                      color: widget.billBehind
-                                          ? Mid.ink
-                                          : Mid.ink2,
-                                      tabular: true,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              if (widget.assignPlanned case final amount?) ...[
-                                const SizedBox(width: 10),
-                                Hoverable(
-                                  key: ValueKey('plan-assign-${c.id}'),
-                                  onTap: widget.onAssignPlanned,
-                                  builder: (hover) => Text(
-                                    t.planAssignThis(amount),
-                                    style:
-                                        onest(
-                                          12,
-                                          color: Mid.blue,
-                                          tabular: true,
-                                        ).copyWith(
-                                          decoration: hover
-                                              ? TextDecoration.underline
-                                              : null,
-                                          decorationColor: Mid.blue,
-                                        ),
-                                  ),
-                                ),
-                              ],
-                            ] else if (widget.bar case final bar?)
-                              // The name, then its bar: every bar starts
-                              // at the same place down the list (#460).
-                              Expanded(
-                                child: LayoutBuilder(
-                                  builder: (context, box) => Row(
-                                    children: [
-                                      SizedBox(
-                                        width: (box.maxWidth * _barNameShare)
-                                            .clamp(_barNameMin, _barNameMax),
-                                        child: Text(c.name, style: onest(13.5)),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: ConstrainedBox(
-                                            constraints: const BoxConstraints(
-                                              maxWidth: _barMax,
-                                            ),
-                                            child: UsedBar(
-                                              key: ValueKey('used-${c.id}'),
-                                              left: bar.left,
-                                              over: bar.over,
-                                              words: widget.usedWords,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 20),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            else
-                              Expanded(child: Text(c.name, style: onest(13.5))),
-                          ],
-                        ),
-                        if (widget.planNote case final note? when !oneLine)
-                          _PlanNoteLine(
-                            id: c.id,
-                            note: note,
-                            assign: widget.assignPlanned,
-                            onAssign: widget.onAssignPlanned,
-                            onPlan: widget.onPlan,
-                          ),
-                        // What they wrote about it (#100): one line, the
-                        // whole of it when pointed at.
-                        if (c.note case final note?)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 1),
-                            child: Tooltip(
-                              message: note,
-                              waitDuration: const Duration(milliseconds: 600),
-                              child: Text(
-                                note,
-                                key: ValueKey('category-note-${c.id}'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: onest(12, color: Mid.ink3),
-                              ),
-                            ),
-                          ),
-                        for (final (i, f) in widget.flags.indexed)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 1),
-                            child: Hoverable(
-                              key: ValueKey('line-flag-${c.id}-$i'),
-                              onTap: f.onTap,
-                              // Wrapped, not cut: its amounts are the point.
-                              builder: (hover) => Text(
-                                f.text,
-                                style: onest(12, color: f.color, tabular: true)
-                                    .copyWith(
-                                      decoration: hover
-                                          ? TextDecoration.underline
-                                          : null,
-                                      decorationColor: f.color,
-                                    ),
-                              ),
-                            ),
-                          ),
-                      ],
+                    child: _NameAndSpot(
+                      category: c,
+                      bill: oneLine,
+                      planText: widget.planNote?.text,
+                      bar: oneLine ? null : widget.bar,
+                      usedWords: widget.usedWords,
+                      said: said,
                     ),
                   ),
                   if (widget.line case final line?) ...[
@@ -2986,6 +2901,198 @@ class _CategoryRowState extends State<_CategoryRow> {
 /// One side a move can trade with: a category, or Not assigned (null),
 /// what it has left, and the heading it starts (Bills, Saved), if any.
 typedef _MoveChoice = ({AccountInfo? category, int left, String? heading});
+
+/// A category's name and, after it, the one spot that says what its row
+/// needs, on one line (owner, 2026-11-16, of the lines that sat under a
+/// name: "let's find another way of putting them on the row without
+/// impacting the height"; pick 1 of three, #483).
+///
+/// After the name: the bar, then what [said] holds. When there isn't room
+/// for all of it, the lowest `rank` stays and the bar is the first to go,
+/// so at the window's smallest the spot holds a warning if there is one,
+/// otherwise the Assign link, otherwise the bar. The bar is its full
+/// length or not there. A long name is cut, never wrapped, and the note
+/// the person wrote is a mark after it; each says the whole of itself
+/// when pointed at.
+class _NameAndSpot extends StatelessWidget {
+  const _NameAndSpot({
+    required this.category,
+    required this.bill,
+    required this.planText,
+    required this.bar,
+    required this.usedWords,
+    required this.said,
+  });
+
+  final AccountInfo category;
+
+  /// A bill's row: the name as wide as it is, no bar.
+  final bool bill;
+
+  /// The plan's whole sentence.
+  final String? planText;
+  final ({double left, bool over})? bar;
+  final String? usedWords;
+  final List<_Said> said;
+
+  static const _noteMark = 20.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = category;
+    final scaler = MediaQuery.textScalerOf(context);
+    // Measured as a Text draws it: over the page's own text style, whose
+    // spacing a bare style would leave out, and the name came out cut.
+    final base = DefaultTextStyle.of(context).style;
+    double wide(String text, TextStyle style) => (TextPainter(
+      text: TextSpan(text: text, style: base.merge(style)),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout()).width.ceilToDouble();
+    final nameStyle = onest(13.5);
+
+    Widget say(_Said s) {
+      Text text(bool hover) => Text(
+        s.text,
+        key: s.onTap == null ? s.key : null,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+        style: s.style.copyWith(
+          decoration: hover ? TextDecoration.underline : null,
+          decorationColor: s.style.color,
+        ),
+      );
+      final Widget child = s.onTap == null
+          ? text(false)
+          : Hoverable(key: s.key, onTap: s.onTap, builder: text);
+      final tip = s.tip;
+      return tip == null || tip.isEmpty
+          ? child
+          : Tooltip(
+              message: tip,
+              waitDuration: const Duration(milliseconds: 400),
+              child: child,
+            );
+    }
+
+    return LayoutBuilder(
+      builder: (context, box) {
+        final width = box.maxWidth;
+        final note = c.note;
+        final nameWide =
+            wide(c.name, nameStyle) + (note == null ? 0 : _noteMark);
+        // The name's column: the same down the list, so every bar and
+        // every word after a name starts at one place; a bill's is as
+        // wide as its name.
+        final double cell = bill
+            ? (nameWide + 1).clamp(0.0, width / 2)
+            : (width * _barNameShare)
+                  .clamp(_barNameMin, _barNameMax)
+                  .clamp(0.0, width);
+        final cut = nameWide > cell + 0.5;
+        final room = (width - cell - 12 - 20).clamp(0.0, width);
+        // What fits, the most needed first.
+        final byRank = [for (final (i, s) in said.indexed) (i, s)]
+          ..sort(
+            (a, b) => a.$2.rank != b.$2.rank
+                ? a.$2.rank.compareTo(b.$2.rank)
+                : a.$1.compareTo(b.$1),
+          );
+        final kept = <int>{};
+        var used = 0.0;
+        for (final (i, s) in byRank) {
+          final need = wide(s.text, s.style) + 1 + (kept.isEmpty ? 0 : 10);
+          if (used + need <= room) {
+            kept.add(i);
+            used += need;
+          }
+        }
+        // Not even one fits: the most needed shows anyway, cut, with its
+        // sentence when pointed at.
+        final squeezed = kept.isEmpty && byRank.isNotEmpty;
+        if (squeezed) kept.add(byRank.first.$1);
+        final barWide = room < _barMax ? room : _barMax;
+        final showBar =
+            bar != null &&
+            barWide >= 40 &&
+            used + (kept.isEmpty ? 0 : 12) + barWide <= room;
+        // Pointed at, the name says what was cut, and the plan when
+        // nothing on the row carries it.
+        final carried = said.indexed.any(
+          (x) =>
+              kept.contains(x.$1) &&
+              (x.$2.tip ?? '').contains(planText ?? '\u0000'),
+        );
+        final nameTip = [
+          if (cut) c.name,
+          if (planText != null && !carried) planText!,
+        ].join('\n');
+        final name = Text(
+          c.name,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.ellipsis,
+          style: nameStyle,
+        );
+        return Row(
+          children: [
+            SizedBox(
+              width: cell,
+              child: Row(
+                children: [
+                  Flexible(
+                    child: nameTip.isEmpty
+                        ? name
+                        : Tooltip(
+                            message: nameTip,
+                            waitDuration: const Duration(milliseconds: 600),
+                            child: name,
+                          ),
+                  ),
+                  // What they wrote about it (#100): a mark, and the
+                  // whole of it when pointed at.
+                  if (note != null) ...[
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: note,
+                      waitDuration: const Duration(milliseconds: 300),
+                      child: Icon(
+                        Icons.sticky_note_2_outlined,
+                        key: ValueKey('category-note-${c.id}'),
+                        size: 14,
+                        color: Mid.ink3,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (showBar)
+              SizedBox(
+                width: barWide,
+                child: UsedBar(
+                  key: ValueKey('used-${c.id}'),
+                  left: bar!.left,
+                  over: bar!.over,
+                  words: usedWords,
+                ),
+              ),
+            for (final (n, i) in (kept.toList()..sort()).indexed) ...[
+              if (n > 0 || showBar) SizedBox(width: n == 0 ? 12 : 10),
+              // Each has the room it was measured for; only one that
+              // doesn't fit gives way.
+              squeezed ? Flexible(child: say(said[i])) : say(said[i]),
+            ],
+            const SizedBox(width: 20),
+          ],
+        );
+      },
+    );
+  }
+}
 
 /// A category's Left, which opens the move box under it (#99; ADR 0004
 /// "Move money between categories", the owner's pick A of three). With
@@ -4450,87 +4557,6 @@ class _StartOffer extends StatelessWidget {
   );
 }
 
-/// The plan under a category's name. Clicking it opens Edit at the plan; "Assign
-/// ₮200,000" at its end assigns what the plan wants this period. (A bill's row
-/// is one line without it, #365.)
-class _PlanNoteLine extends StatelessWidget {
-  const _PlanNoteLine({
-    required this.id,
-    required this.note,
-    required this.assign,
-    required this.onAssign,
-    required this.onPlan,
-  });
-  final int id;
-  final PlanNote note;
-  final String? assign;
-  final VoidCallback? onAssign;
-  final VoidCallback? onPlan;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    TextStyle blue(bool hover) =>
-        onest(12, color: Mid.blue, tabular: true).copyWith(
-          decoration: hover ? TextDecoration.underline : null,
-          decorationColor: Mid.blue,
-        );
-    return Padding(
-      padding: const EdgeInsets.only(top: 1),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Tooltip(
-                  message: t.planEditTip,
-                  waitDuration: const Duration(milliseconds: 600),
-                  child: Hoverable(
-                    key: ValueKey('plan-note-$id'),
-                    onTap: onPlan,
-                    // A sentence with an amount wraps rather than being cut
-                    // (ADR 0004 "No overflow stripe"); Left took some width.
-                    builder: (hover) => Text(
-                      note.text,
-                      style: onest(
-                        12,
-                        color: hover ? Mid.ink : Mid.ink2,
-                        tabular: true,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (note.state case final state?)
-                Text(
-                  note.text.isEmpty ? state : ' · $state',
-                  key: ValueKey('plan-state-$id'),
-                  style: onest(
-                    12,
-                    color: note.behind ? Mid.ink : Mid.ink2,
-                    tabular: true,
-                  ),
-                ),
-              if (assign case final amount?) ...[
-                const SizedBox(width: 10),
-                Hoverable(
-                  key: ValueKey('plan-assign-$id'),
-                  onTap: onAssign,
-                  builder: (hover) =>
-                      Text(t.planAssignThis(amount), style: blue(hover)),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// A category's currency, picked from a list (owner, 2026-10-02: every
 /// currency is to be supported, so a button each won't do).
 class _CurrencyMenu extends StatefulWidget {
@@ -4716,8 +4742,21 @@ class _CurrencyMenuState extends State<_CurrencyMenu> {
   }
 }
 
-/// One more thing a line says under its name, and what a click on it does.
-typedef _LineFlag = ({String text, Color color, VoidCallback? onTap});
+/// A warning on a line: a few words for the row ([short]), the whole
+/// sentence for when it's pointed at ([text]), and what a click does.
+typedef _LineFlag = ({String text, String short, VoidCallback? onTap});
+
+/// One thing a row says after its name (#483): a few words, with the
+/// whole sentence in [tip] for when it's pointed at. [rank] is which is
+/// kept when there isn't room for all, lowest first.
+typedef _Said = ({
+  Key key,
+  String text,
+  TextStyle style,
+  String? tip,
+  VoidCallback? onTap,
+  int rank,
+});
 
 /// What came in under Income: each currency that has any, [main] alone
 /// when nothing came.
@@ -4769,7 +4808,11 @@ List<_LineFlag> _lineFlags(
     // Its account put away: nothing of it is in a forecast until another
     // is picked (warn, don't block).
     if (paidGone && paid != null && (paid.archived || paid.deleted))
-      (text: t.planPaidFromGone(paid.name), color: Mid.ink2, onTap: onAccounts),
+      (
+        text: t.planPaidFromGone(paid.name),
+        short: t.planPaidFromGoneShort,
+        onTap: onAccounts,
+      ),
     if (line.otherCurrency case final other? when line.otherRows > 0)
       (
         text: t.planOtherRows(
@@ -4778,7 +4821,7 @@ List<_LineFlag> _lineFlags(
           c.currency.shown,
           other.shown,
         ),
-        color: Mid.note,
+        short: t.planOtherRowsShort(money(line.otherAmount, other)),
         onTap: onAllRows,
       ),
   ];
@@ -6328,23 +6371,22 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                             ),
                                             child: Row(
                                               children: [
-                                                // Amounts and dates: smaller
-                                                // rather than cut.
+                                                // The plan's whole
+                                                // sentence, wrapped: Edit
+                                                // is where it's said in
+                                                // full (#483).
                                                 Flexible(
-                                                  child: Shrink(
-                                                    Text(
-                                                      preview,
-                                                      key: const ValueKey(
-                                                        'plan-preview',
-                                                      ),
-                                                      maxLines: 1,
-                                                      style: onest(
-                                                        12.5,
-                                                        color: note!.behind
-                                                            ? Mid.ink
-                                                            : Mid.ink2,
-                                                        tabular: true,
-                                                      ),
+                                                  child: Text(
+                                                    preview,
+                                                    key: const ValueKey(
+                                                      'plan-preview',
+                                                    ),
+                                                    style: onest(
+                                                      12.5,
+                                                      color: note!.behind
+                                                          ? Mid.ink
+                                                          : Mid.ink2,
+                                                      tabular: true,
                                                     ),
                                                   ),
                                                 ),
