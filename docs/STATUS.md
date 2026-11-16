@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-16** · version 0.94.1 · schema v26 · 1119 tests pass
+**Last updated: 2026-11-16** · version 0.95.1 · schema v26 · 1122 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -12,22 +12,21 @@ not for reading unless the owner asks.
 
 ## Next step
 
-The Budget page (0.92.1–0.94.0): a category's "a month" line leaves out what Assigned
-already says (#467). Budgeting by month or by paycheck is chosen in setup's pay step and
-in Settings' Budget card, not beside the period, and a month's title is "November 2026"
-(#474). By paycheck, a month's Assigned is kept where each paycheck it pays for is; a
-paycheck asks only its days' share of months still running, a finished period offers no
-Assign, and spending past a paycheck's part that its month still covers isn't red and
-counts with Assigned on the top card (#468). The owner's months from November on were
-split once at launch, after a copy (`before-paycheck-split-…`) was kept in Backups. The
-owner is trying it. Below zero, the top card's result names what made it short:
-Assigned too much, Overspent, not covered, Not categorized, not covered, Still short
-from October, or Short with its parts (0.94.1, #470). The Spending tab is in sections by
-type, Day-to-day, Funds, Bills, Goals, then Saved, bills soonest due first; groups stay
-inside Day-to-day (0.95.0, #469). Next on the Budget page: "from before" naming when
-(#471), the top card's label (#464), the bars' colors (#465); a first-time setup
-walkthrough is #475. The Mongolian of everything since #90's last pass
-is a draft until Tanan checks it (#90).
+The Budget page (0.92.1–0.95.1). Budgeting by month or by paycheck is chosen in setup's
+pay step and in Settings' Budget card, and a month's title is "November 2026" (#474). By
+paycheck, a month's Assigned is kept where each paycheck it pays for is; a paycheck asks
+only its days' share of months still running, a finished period offers no Assign, and
+spending past a paycheck's part that its month still covers isn't red (#468). The owner's
+months from November on were split once at launch, after a copy
+(`before-paycheck-split-…`) was kept in Backups. The Spending tab is in sections by type
+(#469). The sum at the top has no pane round it, Clear November's Assigned ends its row,
+and the result's box has an edge; below zero it names what made it short, **Over budget**
+when that is spending (#470, #464). Every category's bar is the same length, a slim pill
+in three colors showing what's left of its own money, and a category that had nothing has
+none; the phone's ring follows, from its next Play build (#465). The owner is trying it
+all. Next on the Budget page: "from before" naming when (#471); a first-time setup
+walkthrough is #475. The Mongolian of everything since #90's last pass is a draft until
+Tanan checks it (#90).
 
 ## In the stores
 
@@ -100,7 +99,7 @@ re-ask; bring one up when its screen comes up again.
 | Header | **Working** is the large number (coral below zero; Owed on a card), Cleared and Uncleared under it, each a click that picks out its rows. "Last reconciled on" and Reconcile (not on cash). The forecast chart fills the rest of the card |
 | Forecast | Range buttons To income (with a payday ahead) · 30 days · 90 days · 1 year · Custom…. The line steps at each dated row and slopes with the budget's day-to-day spending, drawn as a band; coral below ₮0, its dip marked Lowest. The key, Money out · Day-to-day · Transfer · Money in, lights its marks and opens every bill with the balance after each. Hover reads any day; a click on an event opens its row. Words only where the chart can't speak: nothing scheduled, a wallet to fill, what a card is owed, running out past the range |
 | Reconcile | Takes the balances' place: Statement date, Bank balance, Cleared here and Off by, with a hint at the likely row. When they differ, "Add ₮… to the balance and lock"; when they match, Lock N transactions. The database refuses changes to locked rows |
-| Budget | Spending and Income tabs; period arrows and Back to today; the title picks Month or an income's pay periods. The top card is one sum in boxes, counted from income and never the bank (#461): Income + From October − Assigned − Saved − Overspent = Not assigned, or Assigned too much in its place; what a period leaves, short or spare, carries into the next; under it Assign what's planned (its warning inside the button) and Clear September's Assigned. Each category reads Assigned · Spent · Left; Left is green, gray at zero, coral when short, and **Move money** moves it. A bar after the name is as long as what the category had, on one scale down the list: the colored part is what's left, hatched coral past it what was spent with nothing behind it (the phone keeps its ring). Add category sits on the tabs' row. Everyday categories, then the person's groups, then **Bills**, one line each: its amount, one word when something is up ("paid 10.20", Late, Skipped, short, Paid from archived) and Assign; skipping is a switch for each of the period's bills in its Edit, then **Saved**; a **Total** row; each currency on its own |
+| Budget | Spending and Income tabs; period arrows and Back to today; the title picks Month or an income's pay periods. At the top, one sum in boxes with no pane round them, counted from income and never the bank (#461, #464): Income + From October − Assigned − Saved − Overspent = Not assigned, its box edged in its color, or in its place what made it short (Assigned too much, Over budget, Still short from October, Short); Clear September's Assigned ends the row; what a period leaves, short or spare, carries into the next; under it Assign what's planned (its warning inside the button). Each category reads Assigned · Spent · Left; Left is green, gray at zero, coral when short, and **Move money** moves it. A bar after the name, the same length for every category (#465): the colored part is what's left of what it had, whole green untouched, gold as it's spent, whole coral when over, and none where it had nothing (the phone's ring follows the same rules). Add category sits on the tabs' row. Everyday categories, then the person's groups, then **Bills**, one line each: its amount, one word when something is up ("paid 10.20", Late, Skipped, short, Paid from archived) and Assign; skipping is a switch for each of the period's bills in its Edit, then **Saved**; a **Total** row; each currency on its own |
 | Budget: Saved | The built-in Safety net, listed last under "Saved"; its money builds up. Renamed and edited, not deleted or archived. Made the first time a ledger past setup opens without one |
 | Categories | Add category and "New category" in the entry row open the same window, with Add, then start another. It and Edit open on four type cards with pictures (#429): **Day-to-day** (an amount each month or pay period, Just for September, what's left at month's end), **Fund** (an amount each period, Most it holds), **Bill** (Amount due, How often: Twice a month with Starts, Every payday, Custom…, On these dates…; Ends), **Goal** (Amount to have ready, Ready by, once or repeating, shown on Savings by what was put toward its next date, never marked paid). The phone's New category has the same cards, two to a row. Also one **Paid from**, Currency; in Edit, Group, Note, In a month of expenses?, Archive, Delete…. The type isn't stored: it comes from the plan. One built-in Income |
 | Regular income | On the Income tab: a name, who it's from, Paid into, the amount (About the same each time, or It varies), How often as a category's or No set day, the first payday, a weekend rule, Ends, each with an ⓘ. "I don't have regular income". "Stop counting on this income" asks what its categories go by from then |
