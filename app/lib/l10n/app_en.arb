@@ -6490,9 +6490,9 @@
       }
     }
   },
-  "planFillOverMore": "This adds {over} to Assigned too much",
+  "planFillOverMore": "Nothing is left to assign, so this assigns {over} too much",
   "@planFillOverMore": {
-    "description": "Budget page, inside Assign what's planned, coral, when the card already shows Assigned too much (#468).",
+    "description": "Budget page, inside Assign what's planned, coral, when the card's result is already below zero, whatever made it (#468, #470).",
     "placeholders": {
       "over": {
         "type": "String"
@@ -6916,7 +6916,80 @@
   },
   "planKeyOver": "Assigned too much",
   "@planKeyOver": {
-    "description": "Budget page, the key card, label of the coral row under Not assigned, shown only when more is assigned than there is: the figure beside it is how much too much. Not assigned shows zero then, never a minus. Short."
+    "description": "Budget page, the top card's result, coral, in place of Not assigned when the only cause is more given out (Assigned and Saved) than there is (#470). The figure beside it is how much too much, never a minus. Short."
+  },
+  "planKeyOverSpent": "Overspent, not covered",
+  "@planKeyOverSpent": {
+    "description": "Budget page, the top card's result, coral, in place of Not assigned when the only cause is overspent categories, past what was left to assign (#470). The figure is the part of Overspent that has no money behind it, never a minus. Short."
+  },
+  "planKeyOverLoose": "Not categorized, not covered",
+  "@planKeyOverLoose": {
+    "description": "Budget page, the top card's result, coral, in place of Not assigned when the only cause is money out with no category, past what was left to assign (#470): the box beside it is Not categorized. Short."
+  },
+  "planKeyOverCarriedMonth": "Still short from {month}",
+  "@planKeyOverCarriedMonth": {
+    "description": "Budget page, the top card's result, coral, in place of Not assigned, by month, when the only cause is what the month before left short, more than this month's income so far (#470). {month} is a month's name, as in Short from {month}. Short.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planKeyOverCarriedPay": "Still short from the pay period before",
+  "@planKeyOverCarriedPay": {
+    "description": "Like planKeyOverCarriedMonth, by paycheck (#470). Short."
+  },
+  "planKeyOverMixed": "Short",
+  "@planKeyOverMixed": {
+    "description": "Budget page, the top card's result, coral, in place of Not assigned when two or more things made it short (#470). Under the figure, a line gives each part by its box's name, joined with ' · ': planKeyOverCarriedMonthPart or planKeyOverCarriedPayPart, planKeyOverAssignedPart, planKeyOverSpentPart, planKeyOverLoosePart."
+  },
+  "planKeyOverAssignedPart": "{amount} assigned too much",
+  "@planKeyOverAssignedPart": {
+    "description": "Budget page, a part of the small line under the top card's result when it is Short (planKeyOverMixed): what was given out past what there is, like '₮300,000 assigned too much'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planKeyOverSpentPart": "{amount} overspent",
+  "@planKeyOverSpentPart": {
+    "description": "Budget page, a part of the line under Short (planKeyOverMixed): what overspent categories took past what was left to assign, like '₮800,000 overspent'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planKeyOverLoosePart": "{amount} not categorized",
+  "@planKeyOverLoosePart": {
+    "description": "Budget page, a part of the line under Short (planKeyOverMixed): money out with no category, past what was left to assign, like '₮50,000 not categorized'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planKeyOverCarriedMonthPart": "{amount} short from {month}",
+  "@planKeyOverCarriedMonthPart": {
+    "description": "Budget page, a part of the line under Short (planKeyOverMixed), by month: what the month before left short that this month's income doesn't make up, like '₮200,000 short from October'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planKeyOverCarriedPayPart": "{amount} short from the pay period before",
+  "@planKeyOverCarriedPayPart": {
+    "description": "Like planKeyOverCarriedMonthPart, by paycheck.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
   },
   "planFilled": "{count, plural, =1{Assigned {amount} to 1 category} other{Assigned {amount} to {count} categories}}",
   "@planFilled": {
@@ -8388,9 +8461,36 @@
       }
     }
   },
-  "ledgerCombinedOverAssigned": "{amount} is assigned too much",
+  "ledgerCombinedOverAssigned": "{amount} is assigned too much now",
   "@ledgerCombinedOverAssigned": {
-    "description": "A line of the popup that says changes came from another computer, when the amounts assigned to categories on the two computers together come to more money than there is. {amount} is the shortfall with its currency, like “₮3,000,000”; it is the figure the Budget page shows as Assigned too much.",
+    "description": "A line of the popup that says changes came from another computer, when the Budget page's result went below zero, or further below, because more is assigned than there is (#470). {amount} is the figure the Budget page shows as Assigned too much, with its currency, like “₮3,000,000”.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCombinedOverSpent": "{amount} of overspending isn’t covered now",
+  "@ledgerCombinedOverSpent": {
+    "description": "Like ledgerCombinedOverAssigned, when the only cause is overspent categories, past what was left to assign (#470). {amount} is the figure the Budget page shows as Overspent, not covered.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCombinedOverLoose": "{amount} spent with no category isn’t covered now",
+  "@ledgerCombinedOverLoose": {
+    "description": "Like ledgerCombinedOverAssigned, when the cause is money out with no category, past what was left to assign (#470). {amount} is the figure the Budget page shows as Not categorized, not covered.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCombinedOverMixed": "The budget is {amount} short now",
+  "@ledgerCombinedOverMixed": {
+    "description": "Like ledgerCombinedOverAssigned, when two or more things made it short, or only what the period before left short (#470). {amount} is the figure the Budget page shows as Short.",
     "placeholders": {
       "amount": {
         "type": "String"

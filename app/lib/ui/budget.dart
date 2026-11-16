@@ -437,31 +437,15 @@ class _BudgetPageState extends State<_BudgetPage> {
     // it, and past it, hatched coral, what was spent with nothing behind
     // it. The rows the ring had (#241): not a bill, not under Saved, not
     // one with nothing had and nothing spent.
-    // Spent ahead (owner, 2026-11-16, #468: "Say it's ahead, not red"): by
-    // a paycheck, a monthly category spent past its part while its month
-    // still has money took it from the month's next part. Not red; red
-    // only once the month's money is used up.
-    final aheadMonth = by == null ? null : budgetPeriod(period.end, null);
-    final monthBudget = aheadMonth == null
-        ? null
-        : Budget.of(
-            data,
-            start: aheadMonth.start,
-            end: aheadMonth.end,
-            today: widget.today,
-          );
-    int? aheadOf(AccountInfo c) {
-      final line = budget.lines[c.id];
-      if (monthBudget == null || line == null || line.left >= 0) return null;
-      final plan = data.plans[c.id];
-      if (plan != null &&
-          (plan.kind != PlanKind.each || plan.payScheduleId != null)) {
-        return null;
-      }
-      final month = monthBudget.lines[c.id];
-      if (month == null || month.left < 0) return null;
-      return -line.left;
-    }
+    // Spent ahead (owner, 2026-11-16, #468): not red, and counted with
+    // Assigned on the top card ([spentAhead]).
+    final aheadBy = spentAhead(
+      data,
+      budget,
+      periodEnd: period.end,
+      today: widget.today,
+    );
+    int? aheadOf(AccountInfo c) => aheadBy[c.id];
 
     ({int had, int left, int over, double used})? barOf(AccountInfo c) {
       final line = budget.lines[c.id];
@@ -688,7 +672,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         ahead: switch (aheadOf(c)) {
           final a? => t.planSpentAhead(
             money(a, currency),
-            monthName(t, aheadMonth!.start.month),
+            monthName(t, budgetPeriod(period.end, null).start.month),
           ),
           null => null,
         },
@@ -958,6 +942,34 @@ class _BudgetPageState extends State<_BudgetPage> {
         final given = p.assigned - aside + ahead;
         final overspent = p.overspent - ahead;
         final over = p.notAssigned < 0;
+        // Below zero, the result is named by what made it (#470): giving
+        // out more than there is, spending past it, or both.
+        final cause = p.shortBy(ahead: ahead);
+        // One cause, named by its box; more than one, Short, with each
+        // part under it by its box's name.
+        final overLabel = switch (cause) {
+          _ when cause.causes > 1 => t.planKeyOverMixed,
+          ShortBy(carried: > 0) when byPay => t.planKeyOverCarriedPay,
+          ShortBy(carried: > 0) => t.planKeyOverCarriedMonth(beforeMonth),
+          ShortBy(spent: > 0) => t.planKeyOverSpent,
+          ShortBy(loose: > 0) => t.planKeyOverLoose,
+          _ => t.planKeyOver,
+        };
+        final overParts = cause.causes < 2
+            ? null
+            : [
+                if (cause.carried > 0)
+                  byPay
+                      ? t.planKeyOverCarriedPayPart(short(cause.carried))
+                      : t.planKeyOverCarriedMonthPart(
+                          short(cause.carried),
+                          beforeMonth,
+                        ),
+                if (cause.assigned > 0)
+                  t.planKeyOverAssignedPart(short(cause.assigned)),
+                if (cause.spent > 0) t.planKeyOverSpentPart(short(cause.spent)),
+                if (cause.loose > 0) t.planKeyOverLoosePart(short(cause.loose)),
+              ].join(' · ');
         Widget after(String sign, Widget child) => Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1055,8 +1067,12 @@ class _BudgetPageState extends State<_BudgetPage> {
             after(
               '=',
               _SumBox(
-                label: over ? t.planKeyOver : t.planKeyNotAssigned,
+                label: over ? overLabel : t.planKeyNotAssigned,
                 figure: short(p.notAssigned.abs()),
+                // More than one cause: the parts, which the boxes beside
+                // it can't split.
+                below: overParts,
+                belowKey: ValueKey('over-parts$tag'),
                 figureKey: ValueKey(
                   over ? 'assigned-over$tag' : 'not-assigned$tag',
                 ),
@@ -2102,14 +2118,19 @@ class _SumBox extends StatelessWidget {
     required this.figure,
     this.hue,
     this.note,
+    this.below,
     this.big = false,
     this.figureKey,
+    this.belowKey,
   });
   final String label, figure;
   final Color? hue;
   final String? note;
+
+  /// A small line under the figure.
+  final String? below;
   final bool big;
-  final Key? figureKey;
+  final Key? figureKey, belowKey;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -2138,6 +2159,14 @@ class _SumBox extends StatelessWidget {
           key: figureKey,
           style: onest(big ? 21 : 18, weight: 600, color: hue, tabular: true),
         ),
+        if (below case final below?) ...[
+          const SizedBox(height: 2),
+          Text(
+            below,
+            key: belowKey,
+            style: onest(12.5, color: Mid.ink3, tabular: true),
+          ),
+        ],
       ],
     ),
   );

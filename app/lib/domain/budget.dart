@@ -378,6 +378,108 @@ class BudgetPool {
   /// assigned in it, less what went back to not assigned inside it.
   int get assigned =>
       income + toCome + fromBefore - overspent - loose - notAssigned;
+
+  /// With [notAssigned] below zero, what made it, part by part (#470),
+  /// each named by a box of the top card. The parts add up to
+  /// −[notAssigned]; all are zero when nothing is short.
+  ///
+  /// This period's income pays off what the periods before left short
+  /// first: what it can't is [ShortBy.carried]. Then what was given out
+  /// (Assigned and Saved) past what is left is [ShortBy.assigned]. The
+  /// rest is spending the money not assigned couldn't cover. That money
+  /// covers overspent categories first, so what's left uncovered is money
+  /// out with no category ([ShortBy.loose]) before overspent categories
+  /// ([ShortBy.spent]): filing it under a category is its fix. [ahead], by a paycheck, is spending its month
+  /// still covers ([spentAhead]): the page counts it with Assigned, not
+  /// Overspent.
+  ShortBy shortBy({int ahead = 0}) {
+    if (notAssigned >= 0) return const ShortBy();
+    final short = -notAssigned;
+    final there = income + toCome + fromBefore;
+    final carried = there < 0 ? min(-there, short) : 0;
+    final past = (assigned + ahead - max(there, 0))
+        .clamp(0, short - carried)
+        .toInt();
+    final rest = short - carried - past;
+    final loosePart = min(rest, loose);
+    return ShortBy(
+      carried: carried,
+      assigned: past,
+      spent: rest - loosePart,
+      loose: loosePart,
+    );
+  }
+}
+
+/// What made a [BudgetPool]'s result short ([BudgetPool.shortBy]).
+class ShortBy {
+  const ShortBy({
+    this.carried = 0,
+    this.assigned = 0,
+    this.spent = 0,
+    this.loose = 0,
+  });
+
+  /// Left short by the periods before, more than this period's income.
+  final int carried;
+
+  /// Given out past what there is.
+  final int assigned;
+
+  /// Overspent categories, past what wasn't assigned.
+  final int spent;
+
+  /// Money out with no category, past what wasn't assigned.
+  final int loose;
+
+  int get total => carried + assigned + spent + loose;
+
+  /// How many of the four are in it.
+  int get causes =>
+      [carried, assigned, spent, loose].where((v) => v > 0).length;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ShortBy &&
+      other.carried == carried &&
+      other.assigned == assigned &&
+      other.spent == spent &&
+      other.loose == loose;
+
+  @override
+  int get hashCode => Object.hash(carried, assigned, spent, loose);
+
+  @override
+  String toString() =>
+      'ShortBy(carried: $carried, assigned: $assigned, spent: $spent, '
+      'loose: $loose)';
+}
+
+/// Spent ahead (owner, 2026-11-16, #468: "Say it's ahead, not red"): by a
+/// paycheck, a monthly category spent past its part while its month still
+/// has money took it from the month's next part. Not red, and the top
+/// card counts it with Assigned. By category id, for [budget], the period
+/// ending [periodEnd]; empty by month. The Budget page and the popup after
+/// another computer's changes both use it, so they name a shortfall alike.
+Map<int, int> spentAhead(
+  LedgerData data,
+  Budget budget, {
+  required DateTime periodEnd,
+  required DateTime today,
+}) {
+  if (data.periodSchedule == null) return const {};
+  final m = budgetPeriod(periodEnd, null);
+  final month = Budget.of(data, start: m.start, end: m.end, today: today);
+  return {
+    for (final MapEntry(key: id, value: line) in budget.lines.entries)
+      if (line.left < 0 &&
+          switch (data.plans[id]) {
+            null => true,
+            final p => p.kind == PlanKind.each && p.payScheduleId == null,
+          } &&
+          (month.lines[id]?.left ?? -1) >= 0)
+        id: -line.left,
+  };
 }
 
 class Budget {

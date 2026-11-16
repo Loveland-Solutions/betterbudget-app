@@ -6305,10 +6305,10 @@ abstract class Words {
   /// **'Everything is assigned, so this makes {over} assigned too much'**
   String planFillOverNone(String over);
 
-  /// Budget page, inside Assign what's planned, coral, when the card already shows Assigned too much (#468).
+  /// Budget page, inside Assign what's planned, coral, when the card's result is already below zero, whatever made it (#468, #470).
   ///
   /// In en, this message translates to:
-  /// **'This adds {over} to Assigned too much'**
+  /// **'Nothing is left to assign, so this assigns {over} too much'**
   String planFillOverMore(String over);
 
   /// Popup once, at the first launch that keeps a month's Assigned by paycheck (#468): what the app did to amounts already there. month is a month name (monthNames).
@@ -6623,11 +6623,71 @@ abstract class Words {
   /// **'No other category in this currency has money to move, and none is unassigned.'**
   String get planMoveNothingFrom;
 
-  /// Budget page, the key card, label of the coral row under Not assigned, shown only when more is assigned than there is: the figure beside it is how much too much. Not assigned shows zero then, never a minus. Short.
+  /// Budget page, the top card's result, coral, in place of Not assigned when the only cause is more given out (Assigned and Saved) than there is (#470). The figure beside it is how much too much, never a minus. Short.
   ///
   /// In en, this message translates to:
   /// **'Assigned too much'**
   String get planKeyOver;
+
+  /// Budget page, the top card's result, coral, in place of Not assigned when the only cause is overspent categories, past what was left to assign (#470). The figure is the part of Overspent that has no money behind it, never a minus. Short.
+  ///
+  /// In en, this message translates to:
+  /// **'Overspent, not covered'**
+  String get planKeyOverSpent;
+
+  /// Budget page, the top card's result, coral, in place of Not assigned when the only cause is money out with no category, past what was left to assign (#470): the box beside it is Not categorized. Short.
+  ///
+  /// In en, this message translates to:
+  /// **'Not categorized, not covered'**
+  String get planKeyOverLoose;
+
+  /// Budget page, the top card's result, coral, in place of Not assigned, by month, when the only cause is what the month before left short, more than this month's income so far (#470). {month} is a month's name, as in Short from {month}. Short.
+  ///
+  /// In en, this message translates to:
+  /// **'Still short from {month}'**
+  String planKeyOverCarriedMonth(String month);
+
+  /// Like planKeyOverCarriedMonth, by paycheck (#470). Short.
+  ///
+  /// In en, this message translates to:
+  /// **'Still short from the pay period before'**
+  String get planKeyOverCarriedPay;
+
+  /// Budget page, the top card's result, coral, in place of Not assigned when two or more things made it short (#470). Under the figure, a line gives each part by its box's name, joined with ' · ': planKeyOverCarriedMonthPart or planKeyOverCarriedPayPart, planKeyOverAssignedPart, planKeyOverSpentPart, planKeyOverLoosePart.
+  ///
+  /// In en, this message translates to:
+  /// **'Short'**
+  String get planKeyOverMixed;
+
+  /// Budget page, a part of the small line under the top card's result when it is Short (planKeyOverMixed): what was given out past what there is, like '₮300,000 assigned too much'.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} assigned too much'**
+  String planKeyOverAssignedPart(String amount);
+
+  /// Budget page, a part of the line under Short (planKeyOverMixed): what overspent categories took past what was left to assign, like '₮800,000 overspent'.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} overspent'**
+  String planKeyOverSpentPart(String amount);
+
+  /// Budget page, a part of the line under Short (planKeyOverMixed): money out with no category, past what was left to assign, like '₮50,000 not categorized'.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} not categorized'**
+  String planKeyOverLoosePart(String amount);
+
+  /// Budget page, a part of the line under Short (planKeyOverMixed), by month: what the month before left short that this month's income doesn't make up, like '₮200,000 short from October'.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} short from {month}'**
+  String planKeyOverCarriedMonthPart(String amount, String month);
+
+  /// Like planKeyOverCarriedMonthPart, by paycheck.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} short from the pay period before'**
+  String planKeyOverCarriedPayPart(String amount);
 
   /// Toast and undo history label after Assign what's planned
   ///
@@ -8139,11 +8199,29 @@ abstract class Words {
   /// **'{count, plural, =1{1 looks the same as one already here} other{{count} look the same as ones already here}}'**
   String ledgerCombinedAlike(int count);
 
-  /// A line of the popup that says changes came from another computer, when the amounts assigned to categories on the two computers together come to more money than there is. {amount} is the shortfall with its currency, like “₮3,000,000”; it is the figure the Budget page shows as Assigned too much.
+  /// A line of the popup that says changes came from another computer, when the Budget page's result went below zero, or further below, because more is assigned than there is (#470). {amount} is the figure the Budget page shows as Assigned too much, with its currency, like “₮3,000,000”.
   ///
   /// In en, this message translates to:
-  /// **'{amount} is assigned too much'**
+  /// **'{amount} is assigned too much now'**
   String ledgerCombinedOverAssigned(String amount);
+
+  /// Like ledgerCombinedOverAssigned, when the only cause is overspent categories, past what was left to assign (#470). {amount} is the figure the Budget page shows as Overspent, not covered.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} of overspending isn’t covered now'**
+  String ledgerCombinedOverSpent(String amount);
+
+  /// Like ledgerCombinedOverAssigned, when the cause is money out with no category, past what was left to assign (#470). {amount} is the figure the Budget page shows as Not categorized, not covered.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} spent with no category isn’t covered now'**
+  String ledgerCombinedOverLoose(String amount);
+
+  /// Like ledgerCombinedOverAssigned, when two or more things made it short, or only what the period before left short (#470). {amount} is the figure the Budget page shows as Short.
+  ///
+  /// In en, this message translates to:
+  /// **'The budget is {amount} short now'**
+  String ledgerCombinedOverMixed(String amount);
 
   /// Popup when the newer ledger in the folder couldn’t be taken in (damaged, or it has no accounts).
   ///

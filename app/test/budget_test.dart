@@ -4060,4 +4060,85 @@ void main() {
       },
     );
   });
+
+  // The top card's result below zero, named by what made it (#470).
+  group('what made the result short', () {
+    BudgetPool pool({
+      int income = 1000000,
+      int fromBefore = 0,
+      required int assigned,
+      int overspent = 0,
+      int loose = 0,
+    }) => BudgetPool(
+      currency: Currency.mnt,
+      money: 0,
+      income: income,
+      fromBefore: fromBefore,
+      overspent: overspent,
+      loose: loose,
+      notAssigned: income + fromBefore - assigned - overspent - loose,
+    );
+
+    test('nothing short', () {
+      expect(pool(assigned: 900000).shortBy(), const ShortBy());
+    });
+    test('assigning: more given out than came in', () {
+      expect(
+        pool(assigned: 1300000).shortBy(),
+        const ShortBy(assigned: 300000),
+      );
+    });
+    test('overspending: what was assigned fits, the spending past it not', () {
+      // The first-time reader's case: ₮900,000 assigned of ₮1,000,000,
+      // ₮1,200,000 overspent. Not "assigned too much".
+      final p = pool(assigned: 900000, overspent: 1200000);
+      expect(p.shortBy(), const ShortBy(spent: 1100000));
+      expect(p.shortBy().causes, 1);
+    });
+    test('money out with no category is its own cause', () {
+      expect(
+        pool(assigned: 1000000, loose: 50000).shortBy(),
+        const ShortBy(loose: 50000),
+      );
+      // The money not assigned covers the overspent categories first.
+      expect(
+        pool(assigned: 900000, overspent: 80000, loose: 70000).shortBy(),
+        const ShortBy(loose: 50000),
+      );
+    });
+    test('more than one, and the parts add up to the figure', () {
+      final p = pool(assigned: 1300000, overspent: 800000, loose: 20000);
+      expect(
+        p.shortBy(),
+        const ShortBy(assigned: 300000, spent: 800000, loose: 20000),
+      );
+      expect(p.shortBy().total, -p.notAssigned);
+      expect(p.shortBy().causes, 3);
+    });
+    test('short from before: income pays it off first', () {
+      // Nothing assigned and no income yet: it's the month before's, not
+      // assigning (budget review).
+      expect(
+        pool(income: 0, fromBefore: -200000, assigned: 0).shortBy(),
+        const ShortBy(carried: 200000),
+      );
+      // Income makes it up; assigning past what's left is too much.
+      expect(
+        pool(fromBefore: -200000, assigned: 900000).shortBy(),
+        const ShortBy(assigned: 100000),
+      );
+      // Short from before by more than came in, and assigning besides.
+      final p = pool(income: 100000, fromBefore: -300000, assigned: 50000);
+      expect(p.shortBy(), const ShortBy(carried: 200000, assigned: 50000));
+      expect(p.shortBy().total, -p.notAssigned);
+    });
+    test('spent ahead counts with Assigned', () {
+      // ₮150,000 of the overspending is a paycheck's month still covering
+      // it: the page shows it under Assigned.
+      expect(
+        pool(assigned: 900000, overspent: 250000).shortBy(ahead: 150000),
+        const ShortBy(assigned: 50000, spent: 100000),
+      );
+    });
+  });
 }

@@ -4,7 +4,8 @@ import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/problem_log.dart';
-import 'package:betterbudget/domain/budget.dart' show Budget, BudgetKeys;
+import 'package:betterbudget/domain/budget.dart'
+    show Budget, BudgetKeys, ShortBy;
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
@@ -9063,11 +9064,59 @@ void main() {
       expect(bar(gifts).had, 500000000);
       expect(bar(gifts).left, 500000000);
       expect(bar(groceries).top, 500000000);
-      // ₮5,276,000 given out against September's ₮2,500,000: Assigned too
-      // much takes Not assigned's place in the sum (#461).
-      expect(find.text('Assigned too much'), findsOneWidget);
+      // ₮5,276,000 given out against September's ₮2,500,000, and
+      // categories overspent besides: the result takes Not assigned's
+      // place in the sum (#461): Short, with its parts under it, each by
+      // its box's name (#470).
+      Future<ShortBy> short() async {
+        final now = (await tester.runAsync(db.loadLedger))!;
+        return Budget.of(
+          now,
+          start: sep,
+          end: end,
+          today: DateTime(2026, 9, 16),
+        ).pools.first.shortBy();
+      }
+
+      String tg(int v) => formatShort(v, currency: Currency.mnt);
+      final both = await short();
+      expect(both.assigned, greaterThan(0));
+      expect(both.spent, greaterThan(65050));
+      expect(both.carried, 0);
+      expect(find.text('Short'), findsOneWidget);
       expect(find.text('Not assigned'), findsNothing);
       expect(find.byKey(const ValueKey('assigned-over')), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('over-parts'))).data,
+        [
+          '${tg(both.assigned)} assigned too much',
+          '${tg(both.spent)} overspent',
+          if (both.loose > 0) '${tg(both.loose)} not categorized',
+        ].join(' · '),
+      );
+      // Gifts given ₮10 less than there is: what was assigned fits, and
+      // the overspending is what's short. It isn't named assigning (the
+      // first-time reader: "The problem is spending, not assigning").
+      await tester.runAsync(
+        () => db.setBudgetAmount(
+          gifts,
+          sep,
+          end,
+          500000000 - both.assigned - 1000,
+        ),
+      );
+      await settle(tester);
+      final rest = both.spent + both.loose - 1000;
+      final loose = rest < both.loose ? rest : both.loose;
+      expect(await short(), ShortBy(spent: rest - loose, loose: loose));
+      expect(loose, 0, reason: 'the demo has nothing uncategorized');
+      expect(find.text('Overspent, not covered'), findsOneWidget);
+      expect(find.text('Assigned too much'), findsNothing);
+      expect(find.byKey(const ValueKey('over-parts')), findsNothing);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('assigned-over'))).data,
+        tg(rest),
+      );
       await tidy(tester, db);
     });
 
