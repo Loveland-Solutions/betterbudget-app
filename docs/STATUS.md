@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-14** · version 0.92.0 · schema v26 · 1103 tests pass
+**Last updated: 2026-11-16** · version 0.94.1 · schema v26 · 1119 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -20,9 +20,11 @@ paycheck asks only its days' share of months still running, a finished period of
 Assign, and spending past a paycheck's part that its month still covers isn't red and
 counts with Assigned on the top card (#468). The owner's months from November on were
 split once at launch, after a copy (`before-paycheck-split-…`) was kept in Backups. The
-owner is trying it. Next on the Budget page: sections by type (#469), the top card's
-words when the cause is overspending (#470), "from before" naming when (#471); a
-first-time setup walkthrough is #475. The Mongolian of everything since #90's last pass
+owner is trying it. Below zero, the top card's result names what made it short:
+Assigned too much, Overspent, not covered, Not categorized, not covered, Still short
+from October, or Short with its parts (0.94.1, #470). Next on the Budget page: sections
+by type (#469), "from before" naming when (#471); a first-time setup walkthrough is
+#475. The Mongolian of everything since #90's last pass
 is a draft until Tanan checks it (#90).
 
 ## In the stores
