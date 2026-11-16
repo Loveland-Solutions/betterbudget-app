@@ -4204,11 +4204,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 if (period != null) ...[
                   _FilterChip(
                     key: const ValueKey('period-chip'),
-                    label: t.ledgerPeriodChip(
-                      _spanName(t, period, today),
-                      shortDate(period.start),
-                      shortDate(period.end),
-                    ),
+                    // A month as the Budget page names it: "November
+                    // 2026" (owner, 2026-11-16).
+                    label: period.label == payPeriodLabel
+                        ? t.ledgerPeriodChip(
+                            _spanName(t, period, today),
+                            shortDate(period.start),
+                            shortDate(period.end),
+                          )
+                        : t.planMonthYear(
+                            monthName(t, period.start.month),
+                            '${period.start.year}',
+                          ),
                     onClear: () => setState(() => _periodFilter = null),
                   ),
                   const SizedBox(width: 8),
@@ -7277,6 +7284,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                 data: data,
                                 today: today,
                                 onDate: _setupSetDate,
+                                onBudgetBy: _budgetBy,
                                 onAdd: _setupAddAccount,
                                 onRemove: _setupRemoveAccount,
                                 onEveryday: (v) => _setPref(
@@ -7379,6 +7387,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                       now: widget.clock,
                                     ),
                                   },
+                                  budget: data.paySchedules.isEmpty
+                                      ? null
+                                      : _BudgetSettings(
+                                          data: data,
+                                          onPick: _budgetBy,
+                                        ),
                                   register: _RegisterSettings(
                                     showSource:
                                         data.prefs[showSourceKey] != '0',
@@ -7408,7 +7422,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   onShowPeriodRows: (period) =>
                                       _openAll(period: period),
                                   onSetAmount: _setBudgetAmount,
-                                  onBudgetBy: _budgetBy,
                                   onStartLater: _startBudgetLater,
                                   onAssignPlanned: _assignPlanned,
                                   onClearAssigned: _clearAssigned,
@@ -8278,6 +8291,7 @@ class _SettingsPage extends StatelessWidget {
     this.appearance,
     this.language,
     this.register,
+    this.budget,
     this.problems,
   });
   final ValueListenable<BackupHealth> health;
@@ -8287,6 +8301,9 @@ class _SettingsPage extends StatelessWidget {
 
   /// The register's own choices (the Source column, and naming phones).
   final Widget? register;
+
+  /// Budget by month or by paycheck, while there's pay (#474).
+  final Widget? budget;
 
   /// When "Back up to…" last worked, said beside it.
   final ValueListenable<CopiedElsewhere?> backedUp;
@@ -8568,6 +8585,7 @@ class _SettingsPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   language!,
                 ],
+                if (budget != null) ...[const SizedBox(height: 16), budget!],
                 if (register != null) ...[
                   const SizedBox(height: 16),
                   register!,

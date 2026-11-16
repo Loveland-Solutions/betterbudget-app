@@ -6547,6 +6547,47 @@
       }
     }
   },
+  "planByMonth": "By month",
+  "@planByMonth": {
+    "description": "Settings and setup, Budget by: the month choice (#474)."
+  },
+  "planByPaycheck": "By paycheck",
+  "@planByPaycheck": {
+    "description": "Settings and setup, Budget by: with one regular income, its paychecks (#474)."
+  },
+  "planByPaychecksOf": "By {name}’s paychecks",
+  "@planByPaychecksOf": {
+    "description": "Settings and setup, Budget by: with more than one regular income, one of them by name (#474).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsBudgetTitle": "Budget",
+  "@settingsBudgetTitle": {
+    "description": "Settings: the card holding Budget by month or by paycheck (#474)."
+  },
+  "setupBudgetByQ": "Do you budget by month or by paycheck?",
+  "@setupBudgetByQ": {
+    "description": "Setup's pay step, once a pay is set up (#474)."
+  },
+  "budgetByHint": "By paycheck, the Budget page shows one paycheck at a time, and each month’s money is shared out over the paychecks it pays for.",
+  "@budgetByHint": {
+    "description": "Settings and setup, under Budget by: what choosing a paycheck changes (#474)."
+  },
+  "planMonthYear": "{month} {year}",
+  "@planMonthYear": {
+    "description": "Budget page by month: the period beside the arrows, e.g. \"November 2026\" (owner, 2026-11-16). month is a month name (monthNames).",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
   "planEachMonth": "{amount} a month",
   "@planEachMonth": {
     "description": "Budget page: note under a category's name, what its plan puts in each month",

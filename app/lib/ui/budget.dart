@@ -42,7 +42,6 @@ class _BudgetPage extends StatefulWidget {
     required this.onShowAllRows,
     required this.onShowPeriodRows,
     required this.onSetAmount,
-    required this.onBudgetBy,
     required this.onKeysBack,
     required this.onStartLater,
     required this.onKeepStart,
@@ -126,9 +125,6 @@ class _BudgetPage extends StatefulWidget {
 
   /// A Put in amount was typed for the period starting on the date.
   final void Function(AccountInfo, BudgetSpan, int) onSetAmount;
-
-  /// The view dropdown: by month (null), or by a pay's periods.
-  final ValueChanged<PaySchedule?> onBudgetBy;
 
   @override
   State<_BudgetPage> createState() => _BudgetPageState();
@@ -1207,17 +1203,23 @@ class _BudgetPageState extends State<_BudgetPage> {
                     _period = previousBudgetPeriod(period, by);
                   }),
                 ),
-                // The title is the view's dropdown once there's pay
-                // (ADR 0004 "The top pane"): Month, or a pay by name.
-                _ViewChoice(
-                  data: data,
-                  by: by,
-                  title: t.planPeriodTitle(
-                    _spanName(t, period, widget.today),
-                    shortDate(period.start),
-                    shortDate(period.end),
-                  ),
-                  onPick: widget.onBudgetBy,
+                // Month or paycheck is chosen at setup and in Settings,
+                // not switched here (owner, 2026-11-16, #474).
+                Text(
+                  // A month by its name and year (owner, 2026-11-16: "Just
+                  // write November 2026"); a pay period needs its dates.
+                  period.label == payPeriodLabel
+                      ? t.planPeriodTitle(
+                          _spanName(t, period, widget.today),
+                          shortDate(period.start),
+                          shortDate(period.end),
+                        )
+                      : t.planMonthYear(
+                          monthName(t, period.start.month),
+                          '${period.start.year}',
+                        ),
+                  key: const ValueKey('period-title'),
+                  style: onest(14.5, weight: 500, color: Mid.ink2),
                 ),
                 _PeriodArrow(
                   key: const ValueKey('period-next'),
@@ -2151,95 +2153,6 @@ String _spanName(Words t, BudgetSpan p, DateTime today) {
   if (p.label == payPeriodLabel) return t.planPayPeriod;
   final m = monthName(t, p.start.month);
   return p.start.year == today.year ? m : '$m ${p.start.year}';
-}
-
-/// The period title ("This month · 10.01–10.31"), which is the view's
-/// dropdown once there's pay: Month, or a pay by name (ADR 0004 "The top
-/// pane"; one control, like the forecast's title). Picking one asks the
-/// screen to view by it; the choice is kept in the ledger (one pay at most
-/// has it). Without pay, the title alone.
-class _ViewChoice extends StatefulWidget {
-  const _ViewChoice({
-    required this.data,
-    required this.by,
-    required this.title,
-    required this.onPick,
-  });
-  final LedgerData data;
-  final PaySchedule? by;
-  final String title;
-  final ValueChanged<PaySchedule?> onPick;
-
-  @override
-  State<_ViewChoice> createState() => _ViewChoiceState();
-}
-
-class _ViewChoiceState extends State<_ViewChoice> {
-  final _menu = MenuController();
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final by = widget.by;
-    final title = Text(
-      widget.title,
-      key: const ValueKey('period-title'),
-      style: onest(14.5, weight: 500, color: Mid.ink2),
-    );
-    if (widget.data.paySchedules.isEmpty) return title;
-    Widget item(String key, String label, bool on, VoidCallback onTap) =>
-        MenuItemButton(
-          key: ValueKey(key),
-          onPressed: onTap,
-          style: ButtonStyle(
-            minimumSize: const WidgetStatePropertyAll(Size(180, 34)),
-            overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-          ),
-          child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
-        );
-    return MenuAnchor(
-      controller: _menu,
-      style: _menuStyle,
-      onOpen: () => setState(() {}),
-      onClose: () {
-        if (mounted) setState(() {});
-      },
-      menuChildren: focusFirstOnKeys([
-        item(
-          'budget-view-month',
-          t.planViewMonth,
-          by == null,
-          () => widget.onPick(null),
-        ),
-        for (final p in widget.data.paySchedules)
-          item(
-            'budget-view-${p.id}',
-            payTitle(t, widget.data, p),
-            by?.id == p.id,
-            () => widget.onPick(p),
-          ),
-      ]),
-      child: Tooltip(
-        message: t.planViewTip,
-        waitDuration: const Duration(milliseconds: 600),
-        child: Hoverable(
-          key: const ValueKey('budget-view'),
-          onTap: () => _menu.isOpen ? _menu.close() : _menu.open(),
-          builder: (hover) {
-            final color = hover || _menu.isOpen ? Mid.ink : Mid.ink3;
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                title,
-                const SizedBox(width: 2),
-                Icon(Icons.expand_more_rounded, size: 16, color: color),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
 }
 
 class _PeriodArrow extends StatelessWidget {
@@ -6508,6 +6421,33 @@ String _moneyChange(Words t, AccountInfo c, int assigned, bool hasPlan) {
       : hasPlan
       ? t.planMoneyChange(amount)
       : t.planMoneyChangeAmount(amount);
+}
+
+/// Budget by month, or by one pay's paychecks (#474): chosen at setup and
+/// in Settings, the only places it's switched (owner, 2026-11-16).
+class _BudgetByChoice extends StatelessWidget {
+  const _BudgetByChoice({required this.data, required this.onPick});
+  final LedgerData data;
+  final ValueChanged<PaySchedule?> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final by = data.periodSchedule;
+    final one = data.paySchedules.length == 1;
+    return _Segmented(
+      items: [
+        ('budget-by-month', t.planByMonth, by == null, () => onPick(null)),
+        for (final p in data.paySchedules)
+          (
+            'budget-by-${p.id}',
+            one ? t.planByPaycheck : t.planByPaychecksOf(payTitle(t, data, p)),
+            by?.id == p.id,
+            () => onPick(p),
+          ),
+      ],
+    );
+  }
 }
 
 /// Two or three answers side by side in one outline, the chosen one

@@ -6335,6 +6335,48 @@ abstract class Words {
   /// **'{over} past this pay period’s part, which {month}’s money still covers'**
   String phoneAheadNow(String over, String month);
 
+  /// Settings and setup, Budget by: the month choice (#474).
+  ///
+  /// In en, this message translates to:
+  /// **'By month'**
+  String get planByMonth;
+
+  /// Settings and setup, Budget by: with one regular income, its paychecks (#474).
+  ///
+  /// In en, this message translates to:
+  /// **'By paycheck'**
+  String get planByPaycheck;
+
+  /// Settings and setup, Budget by: with more than one regular income, one of them by name (#474).
+  ///
+  /// In en, this message translates to:
+  /// **'By {name}’s paychecks'**
+  String planByPaychecksOf(String name);
+
+  /// Settings: the card holding Budget by month or by paycheck (#474).
+  ///
+  /// In en, this message translates to:
+  /// **'Budget'**
+  String get settingsBudgetTitle;
+
+  /// Setup's pay step, once a pay is set up (#474).
+  ///
+  /// In en, this message translates to:
+  /// **'Do you budget by month or by paycheck?'**
+  String get setupBudgetByQ;
+
+  /// Settings and setup, under Budget by: what choosing a paycheck changes (#474).
+  ///
+  /// In en, this message translates to:
+  /// **'By paycheck, the Budget page shows one paycheck at a time, and each month’s money is shared out over the paychecks it pays for.'**
+  String get budgetByHint;
+
+  /// Budget page by month: the period beside the arrows, e.g. "November 2026" (owner, 2026-11-16). month is a month name (monthNames).
+  ///
+  /// In en, this message translates to:
+  /// **'{month} {year}'**
+  String planMonthYear(String month, String year);
+
   /// Budget page: note under a category's name, what its plan puts in each month
   ///
   /// In en, this message translates to:

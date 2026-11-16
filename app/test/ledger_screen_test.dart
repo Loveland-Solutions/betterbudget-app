@@ -6922,6 +6922,24 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    // Budget by month or by a pay's paychecks: in Settings (#474), then
+    // back to Budget.
+    Future<void> budgetBy(WidgetTester tester, int? pay) async {
+      await tester.tap(find.text('Settings').first);
+      await tester.pumpAndSettle();
+      final choice = find.byKey(
+        ValueKey(pay == null ? 'budget-by-month' : 'budget-by-$pay'),
+      );
+      await tester.ensureVisible(choice);
+      await tester.pumpAndSettle();
+      await tapAndWait(tester, choice);
+      await settle(tester);
+      // The sidebar's Budget: Settings has a Budget card of its own.
+      await tester.tap(find.text('Budget').first);
+      await tester.pumpAndSettle();
+      await settle(tester);
+    }
+
     Future<void> categoryMenu(
       WidgetTester tester,
       String name,
@@ -7226,10 +7244,7 @@ void main() {
       );
       // By Jenny's paycheck: its own ₮420,000, which the line doesn't say
       // again.
-      await tester.tap(find.byKey(const ValueKey('budget-view')));
-      await tester.pumpAndSettle();
-      await tapAndWait(tester, find.byKey(ValueKey('budget-view-$jenny')));
-      await settle(tester);
+      await budgetBy(tester, jenny);
       expect(
         find.descendant(
           of: find.byKey(ValueKey('category-row-$groceries')),
@@ -7413,10 +7428,7 @@ void main() {
         (DateTime(2026, 9, 11), 1000000),
       ]);
       // By Jenny's paycheck it's due in: full, nothing to assign.
-      await tester.tap(find.byKey(const ValueKey('budget-view')));
-      await tester.pumpAndSettle();
-      await tapAndWait(tester, find.byKey(ValueKey('budget-view-$jenny')));
-      await settle(tester);
+      await budgetBy(tester, jenny);
       expect(
         find.byKey(ValueKey('plan-assign-${bill.category}')),
         findsNothing,
@@ -7457,16 +7469,15 @@ void main() {
         String title() => tester
             .widget<Text>(find.byKey(const ValueKey('period-title')))
             .data!;
-        // The view dropdown beside the period: by month, or by either pay,
-        // each by its name.
-        expect(title(), 'This month · 09.01–09.30');
-        expect(find.byKey(const ValueKey('budget-view')), findsOneWidget);
-        await tester.tap(find.byKey(const ValueKey('budget-view')));
+        // By month, or by either pay, each by its name: in Settings, not
+        // beside the period (owner, 2026-11-16, #474).
+        expect(title(), 'September 2026');
+        expect(find.byKey(const ValueKey('budget-view')), findsNothing);
+        await tester.tap(find.text('Settings').first);
         await tester.pumpAndSettle();
-        expect(find.text('Jeff'), findsOneWidget);
-        expect(find.text('Jenny'), findsOneWidget);
-        await tapAndWait(tester, find.byKey(ValueKey('budget-view-$jenny')));
-        await settle(tester);
+        expect(find.text('By Jeff’s paychecks'), findsOneWidget);
+        expect(find.text('By Jenny’s paychecks'), findsOneWidget);
+        await budgetBy(tester, jenny);
         expect(title(), 'This pay period · 09.11–09.24');
         // A view, not a change: no toast.
         expect(find.byKey(const ValueKey('toast')), findsNothing);
@@ -7578,7 +7589,7 @@ void main() {
         await settle(tester);
         await chord(tester, LogicalKeyboardKey.keyZ);
         await settle(tester);
-        expect(title(), 'This month · 09.01–09.30');
+        expect(title(), 'September 2026');
         await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
         await settle(tester);
         expect(title(), 'This pay period · 09.11–09.24');
@@ -7986,7 +7997,7 @@ void main() {
       final before = notAssigned();
       expect(before, startsWith('₮'));
       expect(find.text('Not assigned'), findsOneWidget);
-      expect(find.text('This month · 09.01–09.30'), findsOneWidget);
+      expect(find.text('September 2026'), findsOneWidget);
 
       // Type Groceries' amount, Tab to the next category, type, Enter.
       await tester.tap(find.byKey(ValueKey('assigned-$groceries')));
@@ -8051,7 +8062,7 @@ void main() {
       // October: what Groceries didn't spend carries in.
       await tester.tap(find.byKey(const ValueKey('period-next')));
       await tester.pumpAndSettle();
-      expect(find.text('October · 10.01–10.31'), findsOneWidget);
+      expect(find.text('October 2026'), findsOneWidget);
       expect(find.byKey(ValueKey('from-before-$groceries')), findsOneWidget);
       expect(
         tester.widget<Money>(find.byKey(ValueKey('left-$groceries'))).minor,
@@ -8059,14 +8070,14 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('period-today')));
       await tester.pumpAndSettle();
-      expect(find.text('This month · 09.01–09.30'), findsOneWidget);
+      expect(find.text('September 2026'), findsOneWidget);
 
       // Started partway through September, with spending in categories
       // nothing was assigned to: the offer to start in October.
       expect(find.byKey(const ValueKey('start-offer')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('start-later')));
       await settle(tester);
-      expect(find.text('October · 10.01–10.31'), findsOneWidget);
+      expect(find.text('October 2026'), findsOneWidget);
       data = (await tester.runAsync(db.loadLedger))!;
       expect(data.budgetAmounts.single.date, DateTime(2026, 10));
       expect(data.prefs[BudgetKeys.began], '2026-10-01');
@@ -10302,7 +10313,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Category: Groceries'), findsOneWidget);
       // The budget's period: this month, which the chip names.
-      expect(find.text('This month · 09.01–09.30'), findsOneWidget);
+      expect(find.text('September 2026'), findsOneWidget);
       expect(find.text('2 rows · ₮276,650.50 spent'), findsOneWidget);
       expect(find.text('Sakura Coffee'), findsNothing); // Dining out
       await expectLater(
@@ -10343,7 +10354,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('period-chip')), findsOneWidget);
       expect(find.byKey(const ValueKey('filter-chip')), findsNothing);
-      expect(find.text('This month · 09.01–09.30'), findsOneWidget);
+      expect(find.text('September 2026'), findsOneWidget);
       expect(find.text('Sakura Coffee'), findsOneWidget);
       await tidy(tester, db);
     });

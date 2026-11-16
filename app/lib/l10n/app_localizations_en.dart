@@ -4467,6 +4467,32 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planByMonth => 'By month';
+
+  @override
+  String get planByPaycheck => 'By paycheck';
+
+  @override
+  String planByPaychecksOf(String name) {
+    return 'By $name’s paychecks';
+  }
+
+  @override
+  String get settingsBudgetTitle => 'Budget';
+
+  @override
+  String get setupBudgetByQ => 'Do you budget by month or by paycheck?';
+
+  @override
+  String get budgetByHint =>
+      'By paycheck, the Budget page shows one paycheck at a time, and each month’s money is shared out over the paychecks it pays for.';
+
+  @override
+  String planMonthYear(String month, String year) {
+    return '$month $year';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return '$amount a month';
   }

@@ -19,11 +19,15 @@ class _SetupPage extends StatefulWidget {
     required this.onEveryday,
     required this.onStep,
     required this.onPay,
+    required this.onBudgetBy,
     required this.payHistory,
     required this.onDone,
   });
   final LedgerData data;
   final DateTime today;
+
+  /// Budget by month (null) or by a pay's paychecks (#474).
+  final ValueChanged<PaySchedule?> onBudgetBy;
 
   /// The one day every balance is as of was changed.
   final ValueChanged<DateTime> onDate;
@@ -409,6 +413,19 @@ class _SetupPageState extends State<_SetupPage> {
               t.setupAddOtherPay,
               () => setState(() => _payAdding = true),
             ),
+          ],
+          // Asked once there's pay: month or paycheck, month by default
+          // (owner, 2026-11-16, #474).
+          if (pays.isNotEmpty) ...[
+            const SizedBox(height: 28),
+            Text(t.setupBudgetByQ, style: onest(15, weight: 600)),
+            const SizedBox(height: 4),
+            Text(
+              t.budgetByHint,
+              style: onest(13, color: Mid.ink2, height: 1.4),
+            ),
+            const SizedBox(height: 10),
+            _BudgetByChoice(data: data, onPick: widget.onBudgetBy),
           ],
         ],
       ],

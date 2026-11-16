@@ -12,14 +12,18 @@ not for reading unless the owner asks.
 
 ## Next step
 
-The Budget page's Spending and Income are folder tabs, and Add regular income sits
-under the incomes (#435, #436, 0.90.0), on the computer; the phone has no such tabs.
-Bills on the Budget page are one line each, and skipping a bill is a switch in its Edit
-(#365, 0.91.0). The Budget page (#460, #461, 0.92.0): Add category on the tabs' row, a bar after
-each category as long as its money, and one sum counted from income, not the bank; the
-sidebar says "Runs out on 12.01" under an account. The owner is trying it. Money
-exchanged between currencies isn't counted in the sum yet (#461). The Mongolian
-of everything since #90's last pass is a draft until Tanan checks it (#90).
+The Budget page (0.92.1–0.94.0): a category's "a month" line leaves out what Assigned
+already says (#467). Budgeting by month or by paycheck is chosen in setup's pay step and
+in Settings' Budget card, not beside the period, and a month's title is "November 2026"
+(#474). By paycheck, a month's Assigned is kept where each paycheck it pays for is; a
+paycheck asks only its days' share of months still running, a finished period offers no
+Assign, and spending past a paycheck's part that its month still covers isn't red and
+counts with Assigned on the top card (#468). The owner's months from November on were
+split once at launch, after a copy (`before-paycheck-split-…`) was kept in Backups. The
+owner is trying it. Next on the Budget page: sections by type (#469), the top card's
+words when the cause is overspending (#470), "from before" naming when (#471); a
+first-time setup walkthrough is #475. The Mongolian of everything since #90's last pass
+is a draft until Tanan checks it (#90).
 
 ## In the stores
 
