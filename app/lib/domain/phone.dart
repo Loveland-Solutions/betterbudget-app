@@ -443,12 +443,12 @@ class PhoneTaken {
 /// How much of what [category] had this period is used, 0 to 1, with
 /// [left] what it has now ([leftNow]): the computer's rule
 /// (`EnvelopeLine.usedShare`). Null when there is no ring: a bill, or
-/// nothing had and nothing spent.
+/// nothing had this period, spent from or not.
 double? usedShareNow(PhoneCategory category, int left) {
   final had = category.hadMinor;
   if (had == null) return null;
-  if (left < 0) return 1;
   if (had <= 0) return null;
+  if (left < 0) return 1;
   final used = had - left;
   return used <= 0 ? 0 : (used >= had ? 1 : used / had);
 }

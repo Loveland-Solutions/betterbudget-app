@@ -6582,3 +6582,96 @@ differently." Asked, they picked **sections by type**.
   type for a category the computer made.
 - Considered and left: Bills before Funds (the budget reviewer's idea, as bills have a date
   and a consequence). The order follows the type cards'.
+
+## Budget: no pane round the sum, bars all one length, three colors (owner, 2026-11-16, #464, #465)
+
+The owner (2026-11-14), after using the page #460 and #461 made:
+
+- Of the top card: "The top pane looks like it's missing a label or something. Also, the
+  button on the right creates a space that looks weird. It should be on the same row as
+  the others."
+- Of the bars: "The colored bars of the budgets don't make sense. One is yellow, but it's
+  like a blue-green. Why are the red overspent bars short or long? They should all be the
+  same length, right?" And: "there should really only be three colors: Red, Amber, Green.
+  Green is newly assigned, Red is over, yellow is in progress".
+
+The design committee's reports were drawn as three ways each, live, with month arrows that
+work (<https://claude.ai/artifact/Q1PwuqSn65besXNxqQfsXK>). The owner chose **C** for the
+card and **1** for the bars ("Let's to C and bars 1").
+
+**The sum's boxes sit on the page, with no pane round them** (C):
+
+- A frame round framed boxes read as a titled group with its title left off (the layout
+  reviewer). Without it the boxes sit under "Budget ‹ November 2026 ›", which names them.
+  No heading and no new words.
+- **Clear November's Assigned is on the boxes' row, at its right end**, one for each
+  currency's sum. This ends the row of its own it had from "move 'Clear November's
+  Assigned' to the right" (2026-11-14); it is still apart from the figures.
+- Assign what's planned stays under the boxes, its warning inside it. The lines about a
+  budget not begun, or begun inside the period, are plain text under them.
+- The first-period offer ("Start the budget on 10.01 instead"), a question, is a pane of
+  its own under the boxes: it was a strip inside the card.
+- **The result's box has an edge in its own color**, a point and a half wide, and a
+  little more room; the terms' boxes have none (owner, once the pane was gone: "I need it
+  to look slightly different since it's the equals card").
+- **Below zero from spending, the result is named "Over budget"** (owner, of "Overspent,
+  not covered": "I don't understand the title of the card. Can we pick something
+  better?"; picked over **Short** and **To make up**). It is the name whether the
+  spending is overspent categories, money out with no category, or both, and with both
+  the parts stay under the figure. This replaces "Overspent, not covered" and "Not
+  categorized, not covered" of #470; "Assigned too much", "Still short from October" and
+  "Short" for a mix with those stand. The popup after another computer's changes says
+  "The budget is ₮300,000 over now", adding "from money spent with no category" when
+  that alone made it. Known (budget review): with only uncategorized spending, filing the
+  rows clears it and nothing needs cutting; the Not categorized box beside it says so.
+- *Rejected:* **A**, the result first and larger, the sum after it (the layout reviewer's
+  recommendation); **B**, the first box named "November's income" (the UX writer's). The
+  flow reviewer's idea, a button on the result for the one step that fixes it ("Take
+  ₮300,000 back from a category…"), wasn't drawn: it is a new action, not a presentation.
+
+**Every bar is the same length, in three colors** (1, the owner's own idea; this replaces
+"A bar after each name, as long as the money", their pick C of 2026-11-14):
+
+- **Each bar shows its own money.** It is 180 points long, shorter only when the window
+  leaves no room. The colored part is how much of what the category had this period is
+  left, from the left.
+- **Green**, whole: nothing spent from it yet. **Gold**, and shorter as it's spent: in
+  progress. At exactly zero the bar is the bare track. **Coral**, whole: more is spent
+  than it had. No shade between the three, no hatching, and no length for how far over:
+  the Left figure says that. The colors are the app's own green, gold and coral.
+- **A category that had nothing this period has no bar**, spent from or not (owner, on
+  seeing a whole coral bar on each: "If nothing is assigned for that category, the bars
+  have no job and should not be there"). Its coral Left says it is over. One with money
+  from before and nothing assigned this period keeps its bar: it has money to picture.
+  `EnvelopeLine.usedShare` is null for it, and the phone's `usedShareNow`. A category
+  holding only a refund, which had a bar since #460's budget review, has none either, on
+  the computer as on the phone (code review: one rule).
+- **A slim pill, not a slab.** The first build drew flat 14-point blocks with square
+  ends on a gray track (owner: "The bars look terrible. Is that the best you could come
+  up with??"). The bar is 8 points thick with round ends; its track is a faint tint of
+  its own color, so an emptied bar still says which of the three it is; on a dark page
+  the colored part has a soft glow of its color; it glides when the money changes
+  (`UsedBar` in `theme.dart`, drawn in `used_bar.png`).
+- Spent ahead by a paycheck (#468) isn't over: the bare track, not coral.
+- How big a category is, which the bar's length used to say, is the Assigned column's to
+  say. Known and accepted: ₮400 over is as red as ₮120,000 over.
+- **A bar does nothing when clicked** (the flow reviewer suggested it open Move money, as
+  Left does; owner: "no, the bars are just there. They don't need to do anything magical
+  when you click on them").
+- Its tooltip, one whole message each, with "spent", the column's word, where it said
+  "used": "Nothing spent of ₮150,000 yet"; "₮300,000 of ₮900,000 spent"; "Overspent by
+  ₮30,000: ₮230,000 spent of ₮200,000". No word on the row for the state (UX writer): the
+  three columns already say it. No tooltip where it would contradict the row (the two
+  reviews): in the period the budget began in, when Spent shows more than counts against
+  the category, and when a paycheck is spent ahead, where the line under Left says the
+  month covers it. With a refund in an untouched category, the figure is what it has now,
+  as Left says. The length glides when the money changes, the color changes at once, and
+  neither moves when the computer is set to reduce motion.
+- **The phone's ring is the same** (owner: "yes, the phone app should be the same"): the
+  three colors, and its colored part is what's left, so it is whole and green untouched,
+  gold and shorter as it's spent, bare at zero, whole and coral when over, drawn as the
+  bar is (tinted track, round ends), and none where nothing was had. It filled as money
+  was used before; with that, an untouched category could never have shown green.
+  This ends "let's go from green progressively to red" (2026-10-26) everywhere.
+- *Rejected:* **2**, the bar as long as the money, in the three colors; **3**, no bar, the
+  Left figure in a box of the state's color.

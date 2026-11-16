@@ -1096,8 +1096,9 @@ class _CategoryRow extends StatelessWidget {
                 final room = box.maxWidth - 12 - name.width;
                 name.dispose();
                 // The ring before the name: how much of what it had this
-                // period is used, as on the computer (#241; ADR 0005
-                // "The phone's ring").
+                // period is left, in the computer's three colors (#241,
+                // #465; ADR 0005 "The phone's ring"). Spent ahead isn't
+                // over (#468).
                 final share = usedShareNow(category, left);
                 return Row(
                   children: [
@@ -1106,7 +1107,8 @@ class _CategoryRow extends StatelessWidget {
                         padding: const EdgeInsets.only(right: 10),
                         child: UsedRing(
                           key: ValueKey('used-${category.id}'),
-                          share: share,
+                          left: 1 - share,
+                          over: category.overAt(left),
                           size: 16,
                         ),
                       ),

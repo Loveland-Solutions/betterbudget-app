@@ -595,6 +595,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
             t.ledgerCombinedOverSpent(a),
           (ShortBy(causes: 1, loose: > 0), final a) =>
             t.ledgerCombinedOverLoose(a),
+          // Both kinds of spending and nothing else: Over budget on the
+          // page, so over here too (code review).
+          (ShortBy(carried: 0, assigned: 0), final a) =>
+            t.ledgerCombinedOverSpent(a),
           (_, final a) => t.ledgerCombinedOverMixed(a),
         },
     ];

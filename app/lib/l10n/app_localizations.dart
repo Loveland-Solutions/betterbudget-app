@@ -6497,23 +6497,23 @@ abstract class Words {
   /// **'paid {date}'**
   String planPaidOn(String date);
 
-  /// Budget page: tooltip on the bar after a category's name: how much of what it had this period (carried in plus assigned) is used
+  /// Budget page: tooltip on the whole green bar after a category's name: it has money this period (carried in plus assigned) and nothing is spent from it yet
   ///
   /// In en, this message translates to:
-  /// **'{used} of {had} used'**
+  /// **'Nothing spent of {had} yet'**
+  String planUsedFresh(String had);
+
+  /// Budget page: tooltip on the whole coral bar after a category's name: more is spent from it this period than it had (carried in plus assigned). over is how much more.
+  ///
+  /// In en, this message translates to:
+  /// **'Overspent by {over}: {used} spent of {had}'**
+  String planUsedPast(String over, String used, String had);
+
+  /// Budget page: tooltip on the gold bar after a category's name: how much of what it had this period (carried in plus assigned) is spent
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {had} spent'**
   String planUsedOf(String used, String had);
-
-  /// Budget page: tooltip on the hatched coral bar after a category's name when money was spent from it this period but nothing was assigned to it (and nothing carried in)
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} overspent, with nothing assigned'**
-  String planUsedNone(String amount);
-
-  /// Budget page: tooltip on the hatched coral bar after a category's name when it is over and what it had this period is nothing or less (an overspend carried in outweighs what was assigned)
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} overspent'**
-  String planUsedOver(String amount);
 
   /// Budget page: the row under the spending categories that adds up this period's Assigned and Spent
   ///
@@ -6653,17 +6653,11 @@ abstract class Words {
   /// **'Assigned too much'**
   String get planKeyOver;
 
-  /// Budget page, the top card's result, coral, in place of Not assigned when the only cause is overspent categories, past what was left to assign (#470). The figure is the part of Overspent that has no money behind it, never a minus. Short.
+  /// Budget page, the top card's result, coral, in place of Not assigned when the cause is spending, overspent categories or money out with no category or both, past what was left to assign (#470). The words people say for it (owner, 2026-11-16, of "Overspent, not covered": "I don't understand the title of the card"). The figure is the part of that spending with no money behind it, never a minus. Short.
   ///
   /// In en, this message translates to:
-  /// **'Overspent, not covered'**
+  /// **'Over budget'**
   String get planKeyOverSpent;
-
-  /// Budget page, the top card's result, coral, in place of Not assigned when the only cause is money out with no category, past what was left to assign (#470): the box beside it is Not categorized. Short.
-  ///
-  /// In en, this message translates to:
-  /// **'Not categorized, not covered'**
-  String get planKeyOverLoose;
 
   /// Budget page, the top card's result, coral, in place of Not assigned, by month, when the only cause is what the month before left short, more than this month's income so far (#470). {month} is a month's name, as in Short from {month}. Short.
   ///
@@ -8229,16 +8223,16 @@ abstract class Words {
   /// **'{amount} is assigned too much now'**
   String ledgerCombinedOverAssigned(String amount);
 
-  /// Like ledgerCombinedOverAssigned, when the only cause is overspent categories, past what was left to assign (#470). {amount} is the figure the Budget page shows as Overspent, not covered.
+  /// Like ledgerCombinedOverAssigned, when the only cause is overspent categories, past what was left to assign (#470). {amount} is the figure the Budget page shows as Over budget.
   ///
   /// In en, this message translates to:
-  /// **'{amount} of overspending isn’t covered now'**
+  /// **'The budget is {amount} over now'**
   String ledgerCombinedOverSpent(String amount);
 
-  /// Like ledgerCombinedOverAssigned, when the cause is money out with no category, past what was left to assign (#470). {amount} is the figure the Budget page shows as Not categorized, not covered.
+  /// Like ledgerCombinedOverAssigned, when the cause is money out with no category, past what was left to assign (#470). {amount} is the figure the Budget page shows as Over budget.
   ///
   /// In en, this message translates to:
-  /// **'{amount} spent with no category isn’t covered now'**
+  /// **'The budget is {amount} over now, from money spent with no category'**
   String ledgerCombinedOverLoose(String amount);
 
   /// Like ledgerCombinedOverAssigned, when two or more things made it short, or only what the period before left short (#470). {amount} is the figure the Budget page shows as Short.

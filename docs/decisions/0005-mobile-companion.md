@@ -1283,6 +1283,13 @@ in the folder's files changes. A category made on the phone and not yet in the
 ledger has no ring (nothing had yet); the categories under Bills have none, as on
 the computer.
 
+Since 2026-11-16 (#465; ADR 0004 "Budget: no pane round the sum, bars all one length,
+three colors") the ring is in three colors with no shade between, and its colored part
+is what's left: whole and green with nothing spent, gold and shorter as it's spent,
+bare at zero, whole and coral when over (owner: "the phone app should be the same").
+Spent ahead by a paycheck isn't over (`PhoneCategory.overAt`). A category that had
+nothing this period has no ring, spent from or not.
+
 ## The phone fills a remembered payee (2026-10-26)
 
 Asked in the Payees comb (#165) whether the phone should fill the category of a
