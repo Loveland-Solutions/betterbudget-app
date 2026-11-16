@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-16** · version 0.95.2 · schema v26 · 1122 tests pass
+**Last updated: 2026-11-16** · version 0.96.0 · schema v26 · 1124 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -12,7 +12,7 @@ not for reading unless the owner asks.
 
 ## Next step
 
-The Budget page (0.92.1–0.95.2). Budgeting by month or by paycheck is chosen in setup's
+The Budget page (0.92.1–0.96.0). Budgeting by month or by paycheck is chosen in setup's
 pay step and in Settings' Budget card, and a month's title is "November 2026" (#474). By
 paycheck, a month's Assigned is kept where each paycheck it pays for is; a paycheck asks
 only its days' share of months still running, a finished period offers no Assign, and
@@ -25,7 +25,10 @@ when that is spending (#470, #464). Every category's bar is the same length, a s
 in three colors showing what's left of its own money, and a category that had nothing has
 none; the phone's ring follows, from its next Play build (#465). No line sits under a
 category's Left: "from before" is gone, and a paycheck spent ahead says so in Left's
-tooltip, so those rows are one height (#471). The owner is trying it all. Next: a first-time setup
+tooltip, so those rows are one height (#471). Each section's name is in a margin on the left and
+stays in place while its rows scroll, with Assigned, Spent and Left fixed over the list
+(#482). The owner is trying it all. Next: the plan's line, the person's note and a
+warning on a row that doesn't grow (#483, sketches with the owner); a first-time setup
 walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 

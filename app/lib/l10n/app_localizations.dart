@@ -2495,23 +2495,11 @@ abstract class Words {
   /// **'Funds'**
   String get planFunds;
 
-  /// Budget page, Spending tab: quiet line under the Funds heading saying what the Left column means there (#469)
+  /// Budget page, Spending tab: the first line of the tooltip on a bill's Left while it holds money, above the Move money tip (#482). It replaces the line that sat under the Bills heading.
   ///
   /// In en, this message translates to:
-  /// **'Left is what’s in each fund now.'**
-  String get planFundsLeft;
-
-  /// Budget page, Spending tab: quiet line under the Bills heading saying what the Left column means there (#469)
-  ///
-  /// In en, this message translates to:
-  /// **'Left is what’s put aside for each bill’s next payment.'**
-  String get planBillsLeft;
-
-  /// Budget page, Spending tab: quiet line under the Goals heading saying what the Left column means there (#469)
-  ///
-  /// In en, this message translates to:
-  /// **'Left is what’s in each goal now.'**
-  String get planGoalsLeft;
+  /// **'Put aside for this bill’s next payment.'**
+  String get planBillLeftTip;
 
   /// Savings page, step 1: guidance
   ///

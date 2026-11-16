@@ -6696,3 +6696,42 @@ row to be the same height. Kill the text. Each row should be same height."
   the category, and a warning line (its Paid from account put away; rows in another
   currency). At the window's smallest width there is no room beside the bar for them, so
   where they go is a question for the owner, not settled here.
+
+## Budget: section names in the margin (owner, 2026-11-16, #482)
+
+The owner, on the Spending tab's sections (#469), whose headings were a bold word half a
+point bigger than a row's name: "Have your design people look at this. Bill and
+Day-to-Day should look more like headers. Instead they look almost the same size." The
+first-time reader had taken "Bills" for "a line someone forgot to fill in". The design
+committee drew three, live (https://claude.ai/artifact/Bo9VJgqJc2ZuUrboKfCRWT, private to
+the owner), and the owner picked **C**.
+
+- **C, built: each section's name is in a margin on the left** (148 points, 15-point
+  bold), beside its first row, and the rows start at the margin's right edge. A thin
+  line across the panel, with room above it, parts one section from the next
+  (`MarginSection` in `margin_section.dart`).
+- **The name stays at the top of the list while its rows scroll**, and leaves with its
+  section's last row, so the next name pushes it away and two are never stuck at once
+  (flow reviewer: deep in Bills, nothing said which section the rows were in). Every
+  row stays built, so an open Edit keeps what was typed in it. A name does nothing when
+  clicked: no collapsing (five more targets, and a chevron promises a toggle) and no
+  totals on it (a section can hold two currencies; the Total row adds up).
+- **Assigned, Spent and Left stay over the list.** They were the list's first line and
+  scrolled off with the first row.
+- **No line under Funds, Bills or Goals saying what Left is there** ("Left is what's put
+  aside for each bill's next payment."): a subtitle, of the kind the owner sent back the
+  same day (#471), and for funds and goals it restated the column. This replaces the
+  second bullet of "The Spending tab in sections by type". The bill's sentence is kept
+  where it is asked: the first line of the tooltip on a bill's Left while it holds
+  money, "Put aside for this bill's next payment."
+- **Stripes restart at each section and group**, first row plain. They counted down the
+  whole list, so the row under a heading was banded in some sections and not in others.
+- **The person's own groups** ("Food") are small gray capitals (11.5-point), so section,
+  group and row each look different.
+- **The bar** is as long as before in a wide window and about 100 points in the smallest
+  (`_barNameMin` 170): the margin takes its room from the name's column first. Edit
+  opens as wide as the rows, 148 points narrower than before.
+- With one section there are no names (as before) and no margin.
+- *Rejected:* **A**, the heading bigger (18-point) with most of a row of space above it,
+  the committee's recommendation; **B**, a band across the panel holding the section's
+  name and the three column titles.

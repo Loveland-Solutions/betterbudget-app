@@ -146,6 +146,9 @@ class _BudgetPageState extends State<_BudgetPage> {
   /// Each row's ⋯, by category: an Edit that closes gives focus back to
   /// its row's, not to the top of the window (#163).
   final _dots = <int, FocusNode>{};
+
+  /// The Spending list's, which the section names in its margin follow.
+  final _listScroll = ScrollController();
   FocusNode _dotsOf(int id) =>
       _dots.putIfAbsent(id, () => FocusNode(debugLabel: 'category-menu'));
 
@@ -154,6 +157,7 @@ class _BudgetPageState extends State<_BudgetPage> {
     for (final f in _dots.values) {
       f.dispose();
     }
+    _listScroll.dispose();
     super.dispose();
   }
 
@@ -793,46 +797,36 @@ class _BudgetPageState extends State<_BudgetPage> {
       );
     }
 
-    // A heading down the list: a group the person made, or Saved.
-    Widget heading(String text, String key) => Padding(
-      padding: const EdgeInsets.fromLTRB(12, 18, 12, 6),
+    // A group the person made, inside Day-to-day: small gray capitals, so
+    // section, group and row each look different (#482). Right under a
+    // section's top it sits closer.
+    Widget heading(String text, String key, {required bool first}) => Padding(
+      padding: EdgeInsets.fromLTRB(12, first ? 4 : 14, 12, 4),
       child: Text(
-        text,
+        text.toUpperCase(),
         key: ValueKey(key),
-        style: onest(12.5, weight: 600, color: Mid.ink3),
+        style: onest(11.5, weight: 600, color: Mid.ink3, letterSpacing: 0.5),
       ),
     );
 
-    // A type's section (#469): its name, and once what its Left is, so no
-    // row has to say it. Day-to-day's Left is plain enough without.
-    // Saved, the safety net's (null), is a section too.
-    Widget sectionHeading(CategoryType? type) {
-      final means = switch (type) {
-        CategoryType.fund => t.planFundsLeft,
-        CategoryType.bill => t.planBillsLeft,
-        CategoryType.goal => t.planGoalsLeft,
-        _ => null,
-      };
-      return Padding(
-        key: ValueKey(
-          type == null ? 'budget-saved' : 'budget-section-${type.name}',
-        ),
-        padding: const EdgeInsets.fromLTRB(12, 22, 12, 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              type == null ? t.planSaved : typeName(type),
-              style: onest(14, weight: 700, color: Mid.ink),
-            ),
-            if (means != null) ...[
-              const SizedBox(height: 2),
-              Text(means, style: onest(12.5, color: Mid.ink3)),
-            ],
-          ],
-        ),
-      );
-    }
+    // A type's section (#469), named in the margin beside its first row
+    // (owner's pick C of three, 2026-11-16, #482: "Bill and Day-to-Day
+    // should look more like headers. Instead they look almost the same
+    // size"). Saved, the safety net's (null), is a section too. No line
+    // under it saying what Left is there: a subtitle, which the owner
+    // sent back the same day (#471).
+    Widget sectionName(CategoryType? type) => Container(
+      key: ValueKey(
+        type == null ? 'budget-saved' : 'budget-section-${type.name}',
+      ),
+      constraints: const BoxConstraints(minHeight: 40),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
+      child: Text(
+        type == null ? t.planSaved : typeName(type),
+        style: onest(15, weight: 700, color: Mid.ink),
+      ),
+    );
 
     // Under the everyday categories and the bills: this period's Assigned
     // and Spent added up, a row per currency, only with two or more rows
@@ -857,6 +851,70 @@ class _BudgetPageState extends State<_BudgetPage> {
               onShowRows: () => widget.onShowPeriodRows(period),
             ),
       ];
+    }
+
+    // The Spending tab's list. With sections, each is a [MarginSection]:
+    // its name stays at the top of the list while its rows scroll, and a
+    // line across parts it from the one before. With one section there
+    // are no names and the rows run across the panel. Stripes restart at
+    // every section and group, first row plain, so the row under a
+    // heading looks the same in each.
+    List<Widget> spendingRows() {
+      final starts = {...sectionAt.keys, if (firstSaved >= 0) firstSaved};
+      final out = <Widget>[];
+      var body = <Widget>[];
+      CategoryType? type;
+      var named = false;
+      var n = 0;
+      void close() {
+        if (body.isEmpty) return;
+        if (!named) {
+          out.addAll(body);
+        } else {
+          if (out.isNotEmpty) {
+            out.add(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 20, 0, 12),
+                child: Container(height: 1, color: Mid.rule),
+              ),
+            );
+          }
+          out.add(
+            MarginSection(
+              key: ValueKey('section-${type?.name ?? 'saved'}'),
+              margin: _sectionMargin,
+              scroll: _listScroll,
+              name: sectionName(type),
+              body: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: body,
+              ),
+            ),
+          );
+        }
+        body = [];
+      }
+
+      for (final (i, c) in spending.indexed) {
+        if (starts.contains(i)) {
+          // The Total row ends the last section before Saved.
+          if (i == firstSaved) body.addAll(totals());
+          close();
+          type = i == firstSaved ? null : sectionAt[i];
+          named = true;
+          n = 0;
+        }
+        if (groupAt[i] case final g?) {
+          body.add(heading(g, 'budget-group-$g', first: body.isEmpty));
+          n = 0;
+        }
+        body.add(row(c, striped: n.isOdd));
+        n++;
+      }
+      if (firstSaved < 0) body.addAll(totals());
+      close();
+      return out;
     }
 
     // Started partway through a period, with spending in categories
@@ -1411,164 +1469,190 @@ class _BudgetPageState extends State<_BudgetPage> {
                               ),
                               border: Border.all(color: Mid.rule),
                             ),
-                            child: ListView(
-                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
+                            // The columns' titles stay over the list
+                            // (#482): they scrolled off with the first
+                            // row.
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                heads(),
-                                if (_tab == _BudgetTab.income)
-                                  _IncomeTab(
-                                    data: data,
-                                    cameIn: income == null
-                                        ? const []
-                                        : _cameIn(
-                                            budget.cameIn[income.id],
-                                            budget.currency,
-                                          ),
-                                    fromPay: fromPay,
-                                    expectedPay: expectedPay,
-                                    onShowRows: income == null
-                                        ? null
-                                        : () =>
-                                              widget.onShowRows(income, period),
-                                    waiting: [
-                                      for (final (c, v) in _cameIn(
-                                        budget.cameInUncategorized,
-                                        budget.currency,
-                                      ))
-                                        if (v > 0) (c, v),
-                                    ],
-                                    onShowWaiting: switch (data.accounts.values
-                                        .where(
-                                          (a) =>
-                                              !a.deleted && isUncategorized(a),
-                                        )
-                                        .firstOrNull) {
-                                      final w? => () => widget.onShowRows(
-                                        w,
-                                        period,
-                                      ),
-                                      null => null,
-                                    },
-                                    onPay: widget.onPay,
-                                    onAskAgain: widget.onAskAgain,
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    8,
+                                    12,
+                                    0,
                                   ),
-                                Offstage(
-                                  offstage: _tab == _BudgetTab.income,
-                                  // Hidden, but kept so what was typed in it stays:
-                                  // Tab mustn't walk through it (#163).
-                                  child: ExcludeFocus(
-                                    excluding: _tab == _BudgetTab.income,
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        for (final (i, c)
-                                            in spending.indexed) ...[
-                                          if (sectionAt[i] case final type?)
-                                            sectionHeading(type),
-                                          if (groupAt[i] case final g?)
-                                            heading(g, 'budget-group-$g'),
-                                          if (i == firstSaved) ...[
-                                            ...totals(),
-                                            sectionHeading(null),
-                                          ],
-                                          row(c, striped: i.isOdd),
-                                        ],
-                                        if (firstSaved < 0) ...totals(),
-                                        const SizedBox(height: 14),
-                                        if (archived.isNotEmpty) ...[
-                                          Hoverable(
-                                            key: const ValueKey(
-                                              'show-archived-categories',
-                                            ),
-                                            onTap: () => setState(
-                                              () => _showArchived =
-                                                  !_showArchived,
-                                            ),
-                                            builder: (hover) => Padding(
-                                              padding:
-                                                  const EdgeInsets.fromLTRB(
-                                                    12,
-                                                    6,
-                                                    12,
-                                                    6,
-                                                  ),
-                                              child: Text(
-                                                _showArchived
-                                                    ? t.planHideArchived(
-                                                        archived.length,
-                                                      )
-                                                    : t.planShowArchived(
-                                                        archived.length,
-                                                      ),
-                                                style: onest(
-                                                  12.5,
-                                                  color: hover
-                                                      ? Mid.ink2
-                                                      : Mid.ink3,
+                                  child: heads(),
+                                ),
+                                Expanded(
+                                  child: ListView(
+                                    controller: _listScroll,
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      0,
+                                      12,
+                                      14,
+                                    ),
+                                    children: [
+                                      if (_tab == _BudgetTab.income)
+                                        _IncomeTab(
+                                          data: data,
+                                          cameIn: income == null
+                                              ? const []
+                                              : _cameIn(
+                                                  budget.cameIn[income.id],
+                                                  budget.currency,
                                                 ),
-                                              ),
+                                          fromPay: fromPay,
+                                          expectedPay: expectedPay,
+                                          onShowRows: income == null
+                                              ? null
+                                              : () => widget.onShowRows(
+                                                  income,
+                                                  period,
+                                                ),
+                                          waiting: [
+                                            for (final (c, v) in _cameIn(
+                                              budget.cameInUncategorized,
+                                              budget.currency,
+                                            ))
+                                              if (v > 0) (c, v),
+                                          ],
+                                          onShowWaiting: switch (data
+                                              .accounts
+                                              .values
+                                              .where(
+                                                (a) =>
+                                                    !a.deleted &&
+                                                    isUncategorized(a),
+                                              )
+                                              .firstOrNull) {
+                                            final w? => () => widget.onShowRows(
+                                              w,
+                                              period,
                                             ),
-                                          ),
-                                          if (_showArchived)
-                                            for (final c in archived)
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 4,
-                                                    ),
-                                                child: Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: Text(
-                                                        c.name,
-                                                        style: onest(
-                                                          13.5,
-                                                          color: Mid.ink2,
+                                            null => null,
+                                          },
+                                          onPay: widget.onPay,
+                                          onAskAgain: widget.onAskAgain,
+                                        ),
+                                      Offstage(
+                                        offstage: _tab == _BudgetTab.income,
+                                        // Hidden, but kept so what was typed in it stays:
+                                        // Tab mustn't walk through it (#163).
+                                        child: ExcludeFocus(
+                                          excluding: _tab == _BudgetTab.income,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              ...spendingRows(),
+                                              const SizedBox(height: 14),
+                                              if (archived.isNotEmpty) ...[
+                                                Hoverable(
+                                                  key: const ValueKey(
+                                                    'show-archived-categories',
+                                                  ),
+                                                  onTap: () => setState(
+                                                    () => _showArchived =
+                                                        !_showArchived,
+                                                  ),
+                                                  builder: (hover) => Padding(
+                                                    padding:
+                                                        const EdgeInsets.fromLTRB(
+                                                          12,
+                                                          6,
+                                                          12,
+                                                          6,
                                                         ),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      _usageText(
-                                                        t,
-                                                        data.categoryUsage[c
-                                                            .id],
-                                                      ),
+                                                    child: Text(
+                                                      _showArchived
+                                                          ? t.planHideArchived(
+                                                              archived.length,
+                                                            )
+                                                          : t.planShowArchived(
+                                                              archived.length,
+                                                            ),
                                                       style: onest(
                                                         12.5,
-                                                        color: Mid.ink3,
+                                                        color: hover
+                                                            ? Mid.ink2
+                                                            : Mid.ink3,
                                                       ),
                                                     ),
-                                                    // Money can still sit in an archived one.
-                                                    if (budget.lines[c.id]?.left
-                                                        case final left?
-                                                        when left != 0) ...[
-                                                      const SizedBox(width: 16),
-                                                      Money(
-                                                        left,
-                                                        size: 13,
-                                                        currency: c.currency,
-                                                        color: left < 0
-                                                            ? Mid.coral
-                                                            : Mid.ink2,
-                                                      ),
-                                                    ],
-                                                    const SizedBox(width: 16),
-                                                    BarButton(
-                                                      key: ValueKey(
-                                                        'unarchive-category-${c.id}',
-                                                      ),
-                                                      label: t.planShowInMenus,
-                                                      onTap: () =>
-                                                          widget.onUnarchive(c),
-                                                    ),
-                                                  ],
+                                                  ),
                                                 ),
-                                              ),
-                                        ],
-                                      ],
-                                    ),
+                                                if (_showArchived)
+                                                  for (final c in archived)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 12,
+                                                            vertical: 4,
+                                                          ),
+                                                      child: Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child: Text(
+                                                              c.name,
+                                                              style: onest(
+                                                                13.5,
+                                                                color: Mid.ink2,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          Text(
+                                                            _usageText(
+                                                              t,
+                                                              data.categoryUsage[c
+                                                                  .id],
+                                                            ),
+                                                            style: onest(
+                                                              12.5,
+                                                              color: Mid.ink3,
+                                                            ),
+                                                          ),
+                                                          // Money can still sit in an archived one.
+                                                          if (budget
+                                                                  .lines[c.id]
+                                                                  ?.left
+                                                              case final left?
+                                                              when left !=
+                                                                  0) ...[
+                                                            const SizedBox(
+                                                              width: 16,
+                                                            ),
+                                                            Money(
+                                                              left,
+                                                              size: 13,
+                                                              currency:
+                                                                  c.currency,
+                                                              color: left < 0
+                                                                  ? Mid.coral
+                                                                  : Mid.ink2,
+                                                            ),
+                                                          ],
+                                                          const SizedBox(
+                                                            width: 16,
+                                                          ),
+                                                          BarButton(
+                                                            key: ValueKey(
+                                                              'unarchive-category-${c.id}',
+                                                            ),
+                                                            label: t
+                                                                .planShowInMenus,
+                                                            onTap: () => widget
+                                                                .onUnarchive(c),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -1718,8 +1802,11 @@ class _ColumnLines extends CustomPainter {
 /// room before Assigned, between [_barNameMin] and [_barNameMax], so every
 /// bar starts at the same place down the list.
 const double _barMax = 180;
+
+/// The margin a section's name sits in, left of its rows (#482).
+const double _sectionMargin = 148;
 const double _barNameShare = 0.42;
-const double _barNameMin = 220;
+const double _barNameMin = 170;
 const double _barNameMax = 300;
 
 /// Under the spending categories: this period's Assigned and Spent added
@@ -2837,7 +2924,15 @@ class _CategoryRowState extends State<_CategoryRow> {
                             currency: widget.currency,
                             choices: widget.moveChoices,
                             onMove: widget.onMove,
-                            ahead: widget.ahead,
+                            // Said first when Left is pointed at: spent
+                            // ahead by a paycheck; or, on a bill holding
+                            // money, what that money is for (it was a
+                            // line under the Bills heading, #482).
+                            says:
+                                widget.ahead ??
+                                (widget.bill && line.left > 0
+                                    ? t.planBillLeftTip
+                                    : null),
                             child: Money(
                               line.left,
                               key: ValueKey('left-${c.id}'),
@@ -2906,12 +3001,13 @@ class _MoveLeft extends StatefulWidget {
     required this.choices,
     required this.onMove,
     required this.child,
-    this.ahead,
+    this.says,
   });
 
-  /// Spent ahead by a paycheck (#468): the sentence that says its month
-  /// covers it, first in the tooltip.
-  final String? ahead;
+  /// A sentence about this Left, first in its tooltip: spent ahead by a
+  /// paycheck, which its month covers (#468); a bill's money, and what it
+  /// is put aside for (#482).
+  final String? says;
 
   /// The pointer is on its row: outlined, with "Move money" beside it, so
   /// it's found without hunting (owner, 2026-10-23: "it's a hidden
@@ -2981,10 +3077,10 @@ class _MoveLeftState extends State<_MoveLeft> {
     final t = context.t;
     final onMove = widget.onMove;
     if (onMove == null || !widget.offered) {
-      return switch (widget.ahead) {
-        final ahead? => Tooltip(
-          key: ValueKey('spent-ahead-${widget.category.id}'),
-          message: ahead,
+      return switch (widget.says) {
+        final says? => Tooltip(
+          key: ValueKey('left-says-${widget.category.id}'),
+          message: says,
           waitDuration: const Duration(milliseconds: 400),
           child: widget.child,
         ),
@@ -3024,12 +3120,12 @@ class _MoveLeftState extends State<_MoveLeft> {
             ),
           ),
           child: Tooltip(
-            key: widget.ahead == null
+            key: widget.says == null
                 ? null
-                : ValueKey('spent-ahead-${widget.category.id}'),
+                : ValueKey('left-says-${widget.category.id}'),
             // Two whole sentences, each on its own line.
-            message: switch (widget.ahead) {
-              final ahead? => '$ahead\n$moveTip',
+            message: switch (widget.says) {
+              final says? => '$says\n$moveTip',
               null => moveTip,
             },
             waitDuration: const Duration(milliseconds: 600),
