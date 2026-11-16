@@ -1818,6 +1818,19 @@ class WordsEn extends Words {
   String get planSaved => 'Saved';
 
   @override
+  String get planFunds => 'Funds';
+
+  @override
+  String get planFundsLeft => 'Left is what’s in each fund now.';
+
+  @override
+  String get planBillsLeft =>
+      'Left is what’s put aside for each bill’s next payment.';
+
+  @override
+  String get planGoalsLeft => 'Left is what’s in each goal now.';
+
+  @override
   String get planKeepReachable =>
       'Keep it where you can reach it. If you use it, fill it back up before anything else.';
 

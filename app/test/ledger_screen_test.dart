@@ -5957,7 +5957,7 @@ void main() {
     // says the day it was paid (#274, #241).
     await tester.tap(find.text('Budget'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('budget-bills')), findsOneWidget);
+    expect(find.byKey(const ValueKey('budget-section-bill')), findsOneWidget);
     expect(find.byKey(ValueKey('used-${plan.category}')), findsNothing);
     expect(find.text('paid 09.16'), findsOneWidget);
     await tidy(tester, db);
@@ -8113,6 +8113,77 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('the Spending tab in sections by type, bills soonest due '
+        'first (#469)', (tester) async {
+      final db = await pumpLedger(tester, size: const Size(1440, 2400));
+      late int fund, rent, internet, laptop;
+      await tester.runAsync(() async {
+        fund = await db.createCategory('Car repairs');
+        await db.setCategoryPlan(
+          fund,
+          CategoryPlan(
+            categoryId: fund,
+            kind: PlanKind.each,
+            amount: 5000000,
+            start: DateTime(2026, 9),
+            spentEach: false,
+          ),
+        );
+        CategoryPlan bill(int id, DateTime due) => CategoryPlan(
+          categoryId: id,
+          kind: PlanKind.byDate,
+          amount: 10000000,
+          start: DateTime(2026, 9),
+          due: due,
+          everyMonths: 1,
+        );
+        // Rent typed first, but Internet is due sooner.
+        rent = await db.createCategory('Rent');
+        await db.setCategoryPlan(rent, bill(rent, DateTime(2026, 9, 28)));
+        internet = await db.createCategory('Internet');
+        await db.setCategoryPlan(
+          internet,
+          bill(internet, DateTime(2026, 9, 22)),
+        );
+        laptop = await db.createCategory('Laptop');
+        await db.setCategoryPlan(
+          laptop,
+          CategoryPlan(
+            categoryId: laptop,
+            kind: PlanKind.byDate,
+            amount: 30000000,
+            start: DateTime(2026, 9),
+            due: DateTime(2026, 12, 31),
+          ),
+        );
+        await db.setPreference(ReadyKeys.goal(laptop), 'yes');
+      });
+      await settle(tester);
+      await openBudget(tester);
+      double top(Key k) => tester.getTopLeft(find.byKey(k)).dy;
+      final order = [
+        const ValueKey('budget-section-dayToDay'),
+        const ValueKey('budget-section-fund'),
+        ValueKey('category-row-$fund'),
+        const ValueKey('budget-section-bill'),
+        ValueKey('category-row-$internet'),
+        ValueKey('category-row-$rent'),
+        const ValueKey('budget-section-goal'),
+        ValueKey('category-row-$laptop'),
+        const ValueKey('budget-saved'),
+      ];
+      for (var i = 1; i < order.length; i++) {
+        expect(top(order[i - 1]), lessThan(top(order[i])), reason: '$i');
+      }
+      // Each says once what its Left is; Day-to-day needs no line.
+      expect(find.text('Left is what’s in each fund now.'), findsOneWidget);
+      expect(find.text('Left is what’s in each goal now.'), findsOneWidget);
+      // A fund has no Group to pick: groups are Day-to-day's.
+      await editCategory(tester, 'Car repairs');
+      expect(find.byKey(const ValueKey('category-group')), findsNothing);
+      await tidy(tester, db);
+    });
+
     testWidgets('plans: the four kinds, Assign, the top button, ⌘Z', (
       tester,
     ) async {
@@ -8342,7 +8413,20 @@ void main() {
       // Nor the safety net under Saved: it fills rather than empties.
       expect(find.byKey(ValueKey('used-${id('Safety net')}')), findsNothing);
       double top(Key k) => tester.getTopLeft(find.byKey(k)).dy;
-      const bills = ValueKey('budget-bills');
+      // In sections by type (#469): Day-to-day, then Bills, which says
+      // once what its Left is; Clothing (due 12.31) before Tuition
+      // (2027.01.15), soonest first. No funds or goals: no heading.
+      const bills = ValueKey('budget-section-bill');
+      expect(
+        top(const ValueKey('budget-section-dayToDay')),
+        lessThan(top(ValueKey('category-row-$groceries'))),
+      );
+      expect(
+        find.text('Left is what’s put aside for each bill’s next payment.'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('budget-section-fund')), findsNothing);
+      expect(find.byKey(const ValueKey('budget-section-goal')), findsNothing);
       expect(top(ValueKey('category-row-$groceries')), lessThan(top(bills)));
       expect(top(bills), lessThan(top(ValueKey('category-row-$clothing'))));
       expect(

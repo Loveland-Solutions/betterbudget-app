@@ -3,7 +3,7 @@ import 'dart:math';
 import 'ledger.dart';
 import 'money.dart';
 import 'pay.dart';
-import 'readiness.dart' show ReadyKeys, isGoal, mainCurrency;
+import 'readiness.dart' show ReadyKeys, isGoal, isSafetyNet, mainCurrency;
 
 /// The budget's envelopes (ADR 0004 rule 26). Each spending category keeps
 /// its own balance from period to period, below zero too: every amount
@@ -62,6 +62,29 @@ abstract final class BudgetKeys {
 /// built up, shown on Savings as a goal, [BudgetKeys.fund]). A phone sends
 /// the one picked for a category it made, for what a plan can't say.
 enum CategoryType { dayToDay, fund, bill, goal }
+
+/// The type category [id] is now, from its answers, as Edit opens on it
+/// (#429) and the Budget page sections it (#469): a due date is a bill, or
+/// a goal when it's shown on Savings as one (never the Safety net);
+/// otherwise money spent within its period is day-to-day and money built
+/// up is a fund. One with no plan is a fund when it was picked as one
+/// ([BudgetKeys.fund]) or is the Safety net, which Edit opens as built up.
+CategoryType typeOf(LedgerData data, int id) {
+  final p = data.plans[id];
+  final account = data.accounts[id];
+  final safetyNet = account != null && isSafetyNet(account);
+  if (p == null) {
+    return safetyNet || data.prefs[BudgetKeys.fund(id)] == 'yes'
+        ? CategoryType.fund
+        : CategoryType.dayToDay;
+  }
+  if (p.kind == PlanKind.byDate) {
+    return data.prefs[ReadyKeys.goal(id)] == 'yes' && !safetyNet
+        ? CategoryType.goal
+        : CategoryType.bill;
+  }
+  return p.spentEach ? CategoryType.dayToDay : CategoryType.fund;
+}
 
 /// The category imported rows wait in, by the names the import gives it.
 /// It holds no money: its rows count straight in the money not assigned
