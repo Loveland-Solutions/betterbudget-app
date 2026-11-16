@@ -2216,9 +2216,33 @@ void main() {
     // A budget that runs by pay periods says when this one ends.
     expect(find.text('Left until 10.14'), findsOneWidget);
     expect(find.text('Due 10.20'), findsOneWidget);
-    // The ring before Groceries: ₮752,000 of ₮900,000 used; a bill has
-    // none (#241).
+    // The ring before Groceries: ₮148,000 of ₮900,000 left, in gold since
+    // some is spent (#465); a bill has none (#241).
     expect(find.byKey(const ValueKey('used-g')), findsOneWidget);
+    final ring = tester.widget<UsedRing>(find.byKey(const ValueKey('used-g')));
+    expect(ring.left, closeTo(14800000 / 90000000, 1e-9));
+    expect(ring.over, isFalse);
+    expect(usedColor(left: ring.left, over: ring.over), Mid.gold);
+    expect(usedColor(left: 1, over: false), Mid.green);
+    expect(usedColor(left: 0, over: false), Mid.gold);
+    expect(usedColor(left: 0, over: true), Mid.coral);
+    // Nothing had this period: no ring, spent from or not (#465).
+    const bare = PhoneCategory(
+      id: 'b',
+      name: 'Bank fees',
+      leftMinor: -40000,
+      hadMinor: 0,
+    );
+    expect(usedShareNow(bare, -40000), isNull);
+    // Over what it had: all of it used, and the ring whole and coral.
+    const over = PhoneCategory(
+      id: 'd',
+      name: 'Dining out',
+      leftMinor: -3000000,
+      hadMinor: 20000000,
+    );
+    expect(usedShareNow(over, -3000000), 1);
+    expect(over.overAt(-3000000), isTrue);
     expect(find.byKey(const ValueKey('used-r')), findsNothing);
     final groceries = tester.getTopLeft(find.text('Groceries')).dy;
     final add = tester.getTopLeft(find.text('+ New category')).dy;

@@ -756,7 +756,10 @@ String? ownPayName(Words t, LedgerData data, CategoryPlan plan) {
 /// What a plan says under its category's name: the plan, then whether a
 /// dated one has what it should ("on track", or "₮200,000 short" in
 /// full ink), or that this period's bill was paid ("paid 10.15").
-typedef PlanNote = ({String text, String? state, bool behind});
+///
+/// [amount] is what the plan comes to in one word (a bill's own amount), for
+/// the Bills rows, which show that and nothing else (#365).
+typedef PlanNote = ({String text, String? state, bool behind, String amount});
 
 PlanNote planNote(
   Words t,
@@ -766,6 +769,8 @@ PlanNote planNote(
   Currency currency, {
   String? payName,
   PaySchedule? own,
+  bool besideAssigned = false,
+  bool onRow = false,
 }) {
   final p = line.plan!;
   // The period on screen, and a set amount's own (its month or its pay,
@@ -809,6 +814,13 @@ PlanNote planNote(
         : t.planOnceMonthLine(money(p.each), month, usual);
   }
 
+  // On the Budget row, beside Assigned (#467): a period's part that says
+  // what Assigned already says is left out, and one that differs is named
+  // as the plan, so it's plain which figure counts. Edit says it all.
+  // Only when the view is the plan's own period: by another, Assigned is
+  // that period's, never the plan's month or pay.
+  final plain = besideAssigned && cap == null && !p.once && ownPay == byPay;
+  final sameAsAssigned = plain && line.assigned == p.each;
   final parts = switch (p.plan.kind) {
     PlanKind.each => [
       // Holding its cap, the line says so in place of the amount.
@@ -816,8 +828,10 @@ PlanNote planNote(
         t.planSetAsideAmount(money(cap))
       else if (p.once)
         onceLine()
-      else
-        each(p.each),
+      else if (!plain)
+        each(p.each)
+      else if (!sameAsAssigned)
+        t.planPlannedLine(each(p.each)),
       // Seen by another period than its own: its share of this one, by
       // days, said as about. More than one period's worth (the one before
       // was never filled, and the rest of it is in view) is said as what
@@ -842,7 +856,25 @@ PlanNote planNote(
             if (rest > 0) t.planPlusNext(money(rest)),
           ];
         }()
-      else if (p.approx && p.planned > 0 && !(cap != null && p.done))
+      // On the row, a share Assigned already holds isn't said again
+      // (#467, #468).
+      else if (onRow && p.planned > 0 && line.assigned == p.planned)
+        ...<String>[]
+      // A monthly plan seen by a pay: each month's part named by its
+      // month, never one sum more than a month's amount (#468).
+      else if (!ownPay && byPay && !(cap != null && p.done)) ...[
+        // On the row, only the months whose part isn't in yet: one
+        // Assigned already holds isn't said again (budget app review).
+        for (final (i, x) in p.shares.indexed)
+          if (x.amount > 0 &&
+              !(onRow && i < p.held.length && p.held[i] >= x.amount))
+            p.approx
+                ? t.planAboutMonthShare(
+                    money(x.amount),
+                    monthName(t, x.date.month),
+                  )
+                : t.planMonthShare(money(x.amount), monthName(t, x.date.month)),
+      ] else if (p.approx && p.planned > 0 && !(cap != null && p.done))
         byPay
             ? t.planAboutThisPay(money(p.planned))
             : t.planAboutThisMonth(money(p.planned)),
@@ -868,7 +900,11 @@ PlanNote planNote(
         t.planBy(money(p.plan.amount), date(due)),
       // Its last period says all it has to find, a bill before this one's
       // pay included.
-      if (wants) each(p.lastPeriod ? p.planned : p.each),
+      if (wants &&
+          !(besideAssigned &&
+              ownPay == byPay &&
+              line.assigned == (p.lastPeriod ? p.planned : p.each)))
+        each(p.lastPeriod ? p.planned : p.each),
     ],
   };
   final String? state;
@@ -895,5 +931,10 @@ PlanNote planNote(
   } else {
     state = null;
   }
-  return (text: parts.join(' · '), state: state, behind: line.short > 0);
+  return (
+    text: parts.join(' · '),
+    state: state,
+    behind: line.short > 0,
+    amount: money(p.plan.amount),
+  );
 }

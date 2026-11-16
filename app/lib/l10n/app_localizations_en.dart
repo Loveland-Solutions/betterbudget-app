@@ -1216,6 +1216,14 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planRunsOutToday => 'Runs out today';
+
+  @override
+  String planRunsOutTodayBy(String amount) {
+    return 'Runs out today · $amount short';
+  }
+
+  @override
   String planRunsOutZero(String date) {
     return 'Runs out on $date';
   }
@@ -1808,6 +1816,12 @@ class WordsEn extends Words {
 
   @override
   String get planSaved => 'Saved';
+
+  @override
+  String get planFunds => 'Funds';
+
+  @override
+  String get planBillLeftTip => 'Put aside for this bill’s next payment.';
 
   @override
   String get planKeepReachable =>
@@ -3957,11 +3971,6 @@ class WordsEn extends Words {
   String get planLeft => 'Left';
 
   @override
-  String planFromBefore(String amount) {
-    return '$amount from before';
-  }
-
-  @override
   String get planPayPeriod => 'Pay period';
 
   @override
@@ -4409,6 +4418,82 @@ class WordsEn extends Words {
   }
 
   @override
+  String planPlannedLine(String plan) {
+    return 'Planned $plan';
+  }
+
+  @override
+  String planMonthShare(String amount, String month) {
+    return '$amount of $month’s this pay period';
+  }
+
+  @override
+  String planAboutMonthShare(String amount, String month) {
+    return 'about $amount of $month’s this pay period';
+  }
+
+  @override
+  String planFillOverBy(String amount, String over) {
+    return 'Only $amount is not assigned, so this makes $over assigned too much';
+  }
+
+  @override
+  String planFillOverNone(String over) {
+    return 'Everything is assigned, so this makes $over assigned too much';
+  }
+
+  @override
+  String planFillOverMore(String over) {
+    return 'Nothing is left to assign, so this assigns $over too much';
+  }
+
+  @override
+  String planSplitOnce(String month) {
+    return 'Your Assigned from $month on is now kept by paycheck, so each paycheck shows its own part. Month totals didn’t change. A copy of your ledger from before is in Backups.';
+  }
+
+  @override
+  String planSpentAhead(String amount, String month) {
+    return '$amount past this pay period’s part, which $month’s money still covers';
+  }
+
+  @override
+  String phoneSavedAhead(String category, String over, String month) {
+    return '$category · $over past this pay period’s part, which $month’s money still covers';
+  }
+
+  @override
+  String phoneAheadNow(String over, String month) {
+    return '$over past this pay period’s part, which $month’s money still covers';
+  }
+
+  @override
+  String get planByMonth => 'By month';
+
+  @override
+  String get planByPaycheck => 'By paycheck';
+
+  @override
+  String planByPaychecksOf(String name) {
+    return 'By $name’s paychecks';
+  }
+
+  @override
+  String get settingsBudgetTitle => 'Budget';
+
+  @override
+  String get setupBudgetByQ => 'Do you budget by month or by paycheck?';
+
+  @override
+  String get budgetByHint =>
+      'By paycheck, the Budget page shows one paycheck at a time, and each month’s money is shared out over the paychecks it pays for.';
+
+  @override
+  String planMonthYear(String month, String year) {
+    return '$month $year';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return '$amount a month';
   }
@@ -4487,18 +4572,18 @@ class WordsEn extends Words {
   }
 
   @override
+  String planUsedFresh(String had) {
+    return 'Nothing spent of $had yet';
+  }
+
+  @override
+  String planUsedPast(String over, String used, String had) {
+    return 'Overspent by $over: $used spent of $had';
+  }
+
+  @override
   String planUsedOf(String used, String had) {
-    return '$used of $had used';
-  }
-
-  @override
-  String planUsedNone(String amount) {
-    return '$amount overspent, with nothing assigned';
-  }
-
-  @override
-  String planUsedOver(String amount) {
-    return '$amount overspent';
+    return '$used of $had spent';
   }
 
   @override
@@ -4518,6 +4603,29 @@ class WordsEn extends Words {
   }
 
   @override
+  String planAssignMore(String amount) {
+    return 'Assign $amount more';
+  }
+
+  @override
+  String planAssignLinkTip(String amount) {
+    return 'Assigns $amount from not assigned.';
+  }
+
+  @override
+  String planAssignMoreLinkTip(String amount, String total) {
+    return 'Assigns $amount more from not assigned, which makes Assigned $total.';
+  }
+
+  @override
+  String get planPaidFromGoneShort => 'Its account is archived';
+
+  @override
+  String planOtherRowsShort(String amount) {
+    return '$amount not counted';
+  }
+
+  @override
   String get planEditTip => 'Click to change the plan';
 
   @override
@@ -4533,7 +4641,7 @@ class WordsEn extends Words {
 
   @override
   String planFillOver(String amount) {
-    return 'That’s $amount more than you have';
+    return 'Only $amount is not assigned';
   }
 
   @override
@@ -4546,13 +4654,26 @@ class WordsEn extends Words {
   String get planKeyCashBank => 'Cash & bank';
 
   @override
-  String get planKeyAssigned => 'In categories';
+  String get planKeyOverspent => 'Overspent';
+
+  @override
+  String planSumFromMonth(String month) {
+    return 'From $month';
+  }
+
+  @override
+  String get planSumFromPay => 'From the pay period before';
+
+  @override
+  String planSumShortFromMonth(String month) {
+    return 'Short from $month';
+  }
+
+  @override
+  String get planSumShortFromPay => 'Short from the pay period before';
 
   @override
   String get planKeyNotAssigned => 'Not assigned';
-
-  @override
-  String get planKeyOverspent => 'Overspent';
 
   @override
   String get planKeyNotBegun =>
@@ -4570,7 +4691,7 @@ class WordsEn extends Words {
 
   @override
   String planKeyBeganInside(String date) {
-    return 'Spending before $date, when the budget began, isn\'t counted against its categories.';
+    return 'Income and spending before $date, when the budget began, aren’t counted.';
   }
 
   @override
@@ -4581,10 +4702,46 @@ class WordsEn extends Words {
       'No other category in this currency has money to move, and none is unassigned.';
 
   @override
-  String get planKeyAsOfToday => 'As of today';
+  String get planKeyOver => 'Assigned too much';
 
   @override
-  String get planKeyOver => 'Assigned too much';
+  String get planKeyOverSpent => 'Over budget';
+
+  @override
+  String planKeyOverCarriedMonth(String month) {
+    return 'Still short from $month';
+  }
+
+  @override
+  String get planKeyOverCarriedPay => 'Still short from the pay period before';
+
+  @override
+  String get planKeyOverMixed => 'Short';
+
+  @override
+  String planKeyOverAssignedPart(String amount) {
+    return '$amount assigned too much';
+  }
+
+  @override
+  String planKeyOverSpentPart(String amount) {
+    return '$amount overspent';
+  }
+
+  @override
+  String planKeyOverLoosePart(String amount) {
+    return '$amount not categorized';
+  }
+
+  @override
+  String planKeyOverCarriedMonthPart(String amount, String month) {
+    return '$amount short from $month';
+  }
+
+  @override
+  String planKeyOverCarriedPayPart(String amount) {
+    return '$amount short from the pay period before';
+  }
 
   @override
   String planFilled(int count, String amount) {
@@ -4655,7 +4812,7 @@ class WordsEn extends Words {
     String category,
     String rest,
   ) {
-    return '$held of what’s in $account is for $category. $rest there is in no category yet and can be assigned.';
+    return '$held of what’s in $account is for $category. $rest there is in no category.';
   }
 
   @override
@@ -4672,21 +4829,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String planBackingOne(String held, String account, String have) {
-    return '$held left here, but $account holds $have';
-  }
-
-  @override
-  String planBackingShared(
-    String held,
-    int count,
-    String account,
-    String have,
-  ) {
-    return '$held left in $count categories kept in $account, which holds $have';
-  }
-
-  @override
   String get planEdit => 'Edit';
 
   @override
@@ -4694,7 +4836,7 @@ class WordsEn extends Words {
 
   @override
   String planFundOverAssigned(String amount) {
-    return 'Your budget has assigned $amount more than you have.';
+    return 'Your budget has assigned $amount too much.';
   }
 
   @override
@@ -5702,7 +5844,22 @@ class WordsEn extends Words {
 
   @override
   String ledgerCombinedOverAssigned(String amount) {
-    return '$amount more is assigned than you have';
+    return '$amount is assigned too much now';
+  }
+
+  @override
+  String ledgerCombinedOverSpent(String amount) {
+    return 'The budget is $amount over now';
+  }
+
+  @override
+  String ledgerCombinedOverLoose(String amount) {
+    return 'The budget is $amount over now, from money spent with no category';
+  }
+
+  @override
+  String ledgerCombinedOverMixed(String amount) {
+    return 'The budget is $amount short now';
   }
 
   @override
@@ -6433,9 +6590,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planSkipBill => 'Skip this bill';
-
-  @override
   String planNoBillOn(String date) {
     return 'No bill on $date';
   }
@@ -6456,7 +6610,26 @@ class WordsEn extends Words {
   }
 
   @override
-  String get planBringBackBill => 'Bring it back';
+  String get planBillLate => 'Late';
+
+  @override
+  String get planBillSkipped => 'Skipped';
+
+  @override
+  String get planBillsHere => 'Bills in this period';
+
+  @override
+  String get planPaymentsHere => 'Payments in this period';
+
+  @override
+  String planBillComes(String date) {
+    return 'Bill on $date';
+  }
+
+  @override
+  String planPaymentComes(String date) {
+    return 'Payment on $date';
+  }
 
   @override
   String ledgerBillsPaidCount(int count) {
@@ -7226,41 +7399,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String planFitOverMonth(String month, String amount) {
-    return '$month’s plans take $amount more than its income';
-  }
-
-  @override
-  String planFitOverPay(String amount) {
-    return 'This pay period’s plans take $amount more than its income';
-  }
-
-  @override
-  String planFitSpareMonth(String month, String amount) {
-    return '$month’s plans fit in its income, with $amount to spare';
-  }
-
-  @override
-  String planFitSparePay(String amount) {
-    return 'This pay period’s plans fit in its income, with $amount to spare';
-  }
-
-  @override
-  String planFitEvenMonth(String month) {
-    return '$month’s plans take exactly its income';
-  }
-
-  @override
-  String get planFitEvenPay =>
-      'This pay period’s plans take exactly its income';
-
-  @override
-  String get planFitSpent => 'Spent so far';
-
-  @override
-  String get planFitToSpend => 'Still to spend';
-
-  @override
   String get planFitAside => 'Saved';
 
   @override
@@ -7270,20 +7408,6 @@ class WordsEn extends Words {
   String planFitToCome(String amount) {
     return '$amount still to come';
   }
-
-  @override
-  String planFitOverPayThen(String amount) {
-    return 'That pay period’s plans take $amount more than its income';
-  }
-
-  @override
-  String planFitSparePayThen(String amount) {
-    return 'That pay period’s plans fit in its income, with $amount to spare';
-  }
-
-  @override
-  String get planFitEvenPayThen =>
-      'That pay period’s plans take exactly its income';
 
   @override
   String phoneCategoryTakenMeanwhile(String name) {

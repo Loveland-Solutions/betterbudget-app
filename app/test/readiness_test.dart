@@ -1,6 +1,8 @@
 import 'package:betterbudget/data/database.dart';
+import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
+import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/readiness.dart';
 import 'package:betterbudget/domain/sync.dart';
 import 'package:drift/native.dart';
@@ -243,10 +245,65 @@ void main() {
 
   test('money not assigned is offered, with what the net has this month', () {
     final r = Readiness.of(ledger(inSavings: 6000000), today);
-    // Checking and Savings hold what was opened less the food; the
-    // categories hold the net less the food overspent, so the rest is free.
-    expect(r.notAssigned, greaterThan(0));
+    // Nothing came in, so nothing is waiting to be assigned, whatever
+    // Checking and Savings hold (#461): Not assigned is income less what
+    // was given out or spent, and here that is short.
+    expect(r.notAssigned, 0);
+    expect(r.overAssigned, greaterThan(0));
     expect(r.fundAssigned, 6000000);
+  });
+
+  test('Savings reads Not assigned for the Budget page\'s own period, a pay '
+      'period when one is set (#461)', () {
+    // Paid ₮1,500,000 on the 10th and the 25th, and the Budget page goes by
+    // those paydays. On 11.14 the page is on 11.10–11.24: the 10th's pay
+    // has come and ₮1 was given out in October. Savings offers that same
+    // ₮1,499,999, not the calendar month's, which would count the 25th's
+    // pay as well.
+    const income = 9;
+    const pay = PaySchedule(
+      id: 1,
+      categoryId: income,
+      accountId: checking,
+      amount: 150000000,
+      rule: PayRule.twiceMonthly,
+      day1: 10,
+      day2: 25,
+      weekend: PayWeekend.keep,
+      definesPeriod: true,
+    );
+    final day = DateTime(2026, 11, 14);
+    final d = LedgerData(
+      paySchedules: const [pay],
+      accounts: [
+        acct(checking, 'Checking', AccountType.asset),
+        acct(net, 'Safety net', AccountType.expense, AccountRole.emergencyFund),
+        acct(food, 'Food', AccountType.expense),
+        acct(income, 'Income', AccountType.income),
+        acct(opening, 'Opening balances', AccountType.equity),
+      ],
+      txns: [
+        move(DateTime(2026, 8, 1), opening, checking, 100000000),
+        move(DateTime(2026, 11, 10), income, checking, 150000000),
+      ],
+      budgetAmounts: [
+        BudgetAmount(
+          categoryId: food,
+          date: DateTime(2026, 10, 10),
+          amount: 100,
+        ),
+      ],
+    );
+    final now = budgetPeriod(day, d.periodSchedule);
+    expect(
+      (now.start, now.end),
+      (DateTime(2026, 11, 10), DateTime(2026, 11, 24)),
+    );
+    expect(
+      Budget.of(d, start: now.start, end: now.end, today: day).notAssigned,
+      149999900,
+    );
+    expect(Readiness.of(d, day).notAssigned, 149999900);
   });
 
   test('under four weeks of rows, a month is not known yet', () {

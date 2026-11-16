@@ -193,3 +193,36 @@ class _SourceNameState extends State<_SourceName> {
     );
   }
 }
+
+/// Settings' Budget card: by month or by a pay's paychecks, the one place
+/// after setup it's switched (owner, 2026-11-16, #474).
+class _BudgetSettings extends StatelessWidget {
+  const _BudgetSettings({required this.data, required this.onPick});
+  final LedgerData data;
+  final ValueChanged<PaySchedule?> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Container(
+      key: const ValueKey('settings-budget'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+      decoration: BoxDecoration(
+        color: Mid.panel,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Mid.rule),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t.settingsBudgetTitle, style: onest(16, weight: 600)),
+          const SizedBox(height: 6),
+          Text(t.budgetByHint, style: onest(13, color: Mid.ink2, height: 1.4)),
+          const SizedBox(height: 12),
+          _BudgetByChoice(data: data, onPick: onPick),
+        ],
+      ),
+    );
+  }
+}

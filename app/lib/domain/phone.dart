@@ -60,7 +60,21 @@ class PhoneCategory {
     this.usualMinor,
     this.payInto,
     this.type,
+    this.coverMinor = 0,
+    this.coverMonth,
   });
+
+  /// By a paycheck, what of its month's money lies outside this one, for
+  /// a monthly category (#468, owner 2026-11-16: "Say it's ahead, not
+  /// red"): spending past this paycheck's part that this still covers
+  /// isn't overspent. 0 otherwise.
+  final int coverMinor;
+
+  /// That month (1–12), named in what's said; null with no cover.
+  final int? coverMonth;
+
+  /// Whether [left] is really short: past what its month still covers.
+  bool overAt(int left) => left + coverMinor < 0;
 
   /// Made here: the type its New category page picked (#429), for what its
   /// plan can't say: a Goal, or a Fund with no amount yet. Null from a
@@ -429,12 +443,12 @@ class PhoneTaken {
 /// How much of what [category] had this period is used, 0 to 1, with
 /// [left] what it has now ([leftNow]): the computer's rule
 /// (`EnvelopeLine.usedShare`). Null when there is no ring: a bill, or
-/// nothing had and nothing spent.
+/// nothing had this period, spent from or not.
 double? usedShareNow(PhoneCategory category, int left) {
   final had = category.hadMinor;
   if (had == null) return null;
-  if (left < 0) return 1;
   if (had <= 0) return null;
+  if (left < 0) return 1;
   final used = had - left;
   return used <= 0 ? 0 : (used >= had ? 1 : used / had);
 }
@@ -596,6 +610,24 @@ PhoneSnapshot snapshotOf(
   // What it had this period, for the ring; a bill has none, nor the
   // safety net, which fills rather than empties, as on the computer
   // (EnvelopeLine.usedShare; ADR 0004 "Which rows").
+  // By a paycheck, a monthly category's month still covering it (#468).
+  final month = by == null ? null : budgetPeriod(period.end, null);
+  final monthBudget = month == null
+      ? null
+      : Budget.of(data, start: month.start, end: month.end, today: today);
+  int coverOf(int id) {
+    final plan = data.plans[id];
+    if (monthBudget == null) return 0;
+    if (plan != null &&
+        (plan.kind != PlanKind.each || plan.payScheduleId != null)) {
+      return 0;
+    }
+    final m = monthBudget.lines[id];
+    if (m == null || m.left < 0) return 0;
+    final rest = m.left - budget.lines[id]!.left;
+    return rest > 0 ? rest : 0;
+  }
+
   int? hadOf(int id) {
     final line = budget.lines[id]!;
     if (line.plan?.plan.kind == PlanKind.byDate) return null;
@@ -625,6 +657,8 @@ PhoneSnapshot snapshotOf(
             recentPayees: payees[c.id] ?? const [],
             due: dueOf(c.id),
             hadMinor: hadOf(c.id),
+            coverMinor: coverOf(c.id),
+            coverMonth: coverOf(c.id) > 0 ? month!.start.month : null,
             group:
                 budget.lines[c.id]!.plan?.plan.kind == PlanKind.byDate ||
                     isSafetyNet(c)

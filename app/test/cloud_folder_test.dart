@@ -788,15 +788,16 @@ void main() {
       await comeBackToTheFront();
       expect(find.text('E-Mart and 1 change from The laptop'), findsOneWidget);
       // Both rows are in; the popup says one looks the same, and that the
-      // two together assign more than there is. The other computer's
-      // changes aren't this person's to undo.
+      // budget, already given out past what there is, is overspent now
+      // too: more than one cause, so Short, as the Budget page says (#470). The
+      // other computer's changes aren't this person's to undo.
       final said = tester
           .widget<Text>(find.byKey(const ValueKey('toast-detail')))
           .data!
           .split('\n');
       expect(said.first, '1 looks the same as one already here');
-      expect(said.last, endsWith(' more is assigned than you have'));
-      expect(said.last, startsWith('₮'));
+      expect(said.last, startsWith('The budget is ₮'));
+      expect(said.last, endsWith(' short now'));
       expect(find.text('Undo'), findsNothing);
       expect(find.text('Show'), findsOneWidget);
       expect(

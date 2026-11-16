@@ -49,6 +49,7 @@ import 'register.dart';
 import 'appearance.dart';
 import 'schemes.dart';
 import 'language.dart';
+import 'margin_section.dart';
 import 'brand.dart';
 import 'copy_details.dart';
 import 'data_words.dart';
@@ -481,7 +482,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// here, and the two together are written to the folder. This computer's
   /// ledger as it was is saved first, in Backups. The popup says what came,
   /// and what the person would want to look at: a row that looks the same
-  /// as one already here, more assigned than there is, and what both
+  /// as one already here, more assigned than came in, and what both
   /// changed two ways that was settled over this computer's version (ADR
   /// 0004, "Two computers, step 4"), a whole sentence for one and a count
   /// for more, with Show; that popup stays until it is closed.
@@ -493,18 +494,30 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _selected = null;
       _adding = false;
     });
-    // How much more is assigned than there is, by currency.
-    Map<Currency, int> over(LedgerData? data) {
+    // How far below zero each currency's result is, and what made it
+    // (#461: than came in; #470).
+    Map<Currency, ShortBy> over(LedgerData? data) {
       if (data == null) return const {};
       final p = budgetPeriod(today, data.periodSchedule);
+      final budget = Budget.of(data, start: p.start, end: p.end, today: today);
+      // Spending a paycheck's month still covers counts with Assigned, as
+      // on the Budget page.
+      final ahead = <Currency, int>{};
+      for (final MapEntry(key: id, value: a) in spentAhead(
+        data,
+        budget,
+        periodEnd: p.end,
+        today: today,
+      ).entries) {
+        final c = data.accounts[id]?.currency;
+        if (c != null) ahead[c] = (ahead[c] ?? 0) + a;
+      }
       return {
-        for (final pool in Budget.of(
-          data,
-          start: p.start,
-          end: p.end,
-          today: today,
-        ).pools)
-          if (pool.notAssigned < 0) pool.currency: -pool.notAssigned,
+        for (final pool in budget.pools)
+          if (pool.notAssigned < 0)
+            pool.currency: pool.shortBy(
+              ahead: (ahead[pool.currency] ?? 0).clamp(0, pool.overspent),
+            ),
       };
     }
 
@@ -537,7 +550,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // What the two had made alike, settled, and nothing else: nothing to
     // say.
     if (done.quiet) return;
-    Map<Currency, int> overNow = const {};
+    Map<Currency, ShortBy> overNow = const {};
     try {
       overNow = over(await db.loadLedger());
     } catch (e) {
@@ -565,16 +578,30 @@ class _LedgerScreenState extends State<LedgerScreen> {
       null when done.others == 0 => t.ledgerCombined(n),
       null => t.ledgerCombinedMore(n),
     };
-    // More assigned than there is, where it wasn't or was less before.
+    // Below zero, where it wasn't or was less before, said by what made
+    // it, as the Budget page names it (#470).
     final short = overNow.entries
-        .where((e) => e.value > (overBefore[e.key] ?? 0))
+        .where((e) => e.value.total > (overBefore[e.key]?.total ?? 0))
         .firstOrNull;
     final extra = [
       if (done.alike.isNotEmpty) t.ledgerCombinedAlike(done.alike.length),
       if (short != null)
-        t.ledgerCombinedOverAssigned(
-          formatShort(short.value, currency: short.key),
-        ),
+        switch ((
+          short.value,
+          formatShort(short.value.total, currency: short.key),
+        )) {
+          (ShortBy(causes: 1, assigned: > 0), final a) =>
+            t.ledgerCombinedOverAssigned(a),
+          (ShortBy(causes: 1, spent: > 0), final a) =>
+            t.ledgerCombinedOverSpent(a),
+          (ShortBy(causes: 1, loose: > 0), final a) =>
+            t.ledgerCombinedOverLoose(a),
+          // Both kinds of spending and nothing else: Over budget on the
+          // page, so over here too (code review).
+          (ShortBy(carried: 0, assigned: 0), final a) =>
+            t.ledgerCombinedOverSpent(a),
+          (_, final a) => t.ledgerCombinedOverMixed(a),
+        },
     ];
     // No Undo (owner, 2026-10-10: "Only undo what the user in front of the
     // computer did or decided. Nothing else"). ⌘Z undoes what is done here
@@ -924,7 +951,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
               .then((_) => _firstLookInFolder())
               .then((_) => _nameThisComputer())
               .then((_) => db.ensurePaydays(today))
-              .then((_) => db.ensurePlanBills(today)),
+              .then((_) => db.ensurePlanBills(today))
+              // Never in the way of opening: what fails is left as it was.
+              .then((_) => _splitOldMonths().catchError((Object _) {})),
         ).asyncExpand((_) => db.watchLedger()).map((data) {
           _ensureSafetyNet(data);
           // The first look isn't a change; [CloudFolder.load] copies at launch.
@@ -2491,12 +2520,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
     return (date: f.firstShort!, low: f.firstShortBalance);
   }
 
-  /// Accounts whose balance goes to zero or below within a year of
-  /// paychecks, with the header's own warning for each: a dot beside the
-  /// account in the sidebar says so from anywhere in the app (owner's
-  /// request, 2026-10-05). One already below zero shows its balance in
-  /// coral there instead.
-  Map<int, String> _runsOut(LedgerData data) {
+  /// How far ahead the sidebar's warning looks (owner, 2026-11-14: "my MNT
+  /// is forecast to dip below zero within 60 days").
+  static const _warnSpan = ForecastSpan.days60;
+
+  /// As [_shortAhead], for the sidebar: the first day within [_warnSpan]
+  /// that an account's balance goes to zero or below, every account
+  /// looked at the same distance ahead.
+  ({DateTime date, int low})? _shortSoon(LedgerData data, AccountInfo a) {
+    if (a.isOwed) return null;
+    final f = _forecastFor(data, a, span: _warnSpan);
+    if (!f.isShort || f.shortNow) return null;
+    return (date: f.firstShort!, low: f.firstShortBalance);
+  }
+
+  /// Accounts whose balance goes to zero or below within 60 days: the
+  /// sidebar says so under the account's balance, in words, from anywhere
+  /// in the app (owner's request, 2026-10-05; a dot with its words in a
+  /// tooltip until 2026-11-14, when the owner asked for it again and
+  /// picked the words, A of three). [line] is what it says, [more] its
+  /// tooltip, with how much short. One already below zero shows its
+  /// balance in coral there instead.
+  Map<int, ({String line, String more})> _runsOut(LedgerData data) {
     // Worked out once per ledger snapshot (and language), not on every
     // hover or keystroke: it's a year's projection per account.
     final t = context.t;
@@ -2507,19 +2552,31 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _runsOutWords = t;
     return _runsOutCache = {
       for (final a in data.openAccounts)
-        if (_shortAhead(data, a) case final s?)
-          a.id: s.low == 0
-              ? t.planRunsOutZero(sayDate(t, s.date))
-              : t.planRunsOutBy(
-                  sayDate(t, s.date),
-                  roundedIn(context, s.low.abs()),
+        if (_shortSoon(data, a) case final s?)
+          // With late bills counted as due today, the day can be today:
+          // "Runs out today", not today's date.
+          a.id: s.date == today
+              ? (
+                  line: t.planRunsOutToday,
+                  more: s.low == 0
+                      ? t.planRunsOutToday
+                      : t.planRunsOutTodayBy(roundedIn(context, s.low.abs())),
+                )
+              : (
+                  line: t.planRunsOutZero(sayDate(t, s.date)),
+                  more: s.low == 0
+                      ? t.planRunsOutZero(sayDate(t, s.date))
+                      : t.planRunsOutBy(
+                          sayDate(t, s.date),
+                          roundedIn(context, s.low.abs()),
+                        ),
                 ),
     };
   }
 
   LedgerData? _runsOutFor;
   Words? _runsOutWords;
-  Map<int, String> _runsOutCache = const {};
+  Map<int, ({String line, String more})> _runsOutCache = const {};
 
   ({DateTime date, int amount})? _paydayAfter(
     LedgerData data,
@@ -4056,13 +4113,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// ⌘Z still puts the last one back.
   Future<void> _budgetBy(PaySchedule? schedule) async {
     final t = context.t;
+    // Put back with the view on ⌘Z (code review).
+    final splitWas = _data?.prefs[BudgetKeys.splitBy];
     // The view it already is: nothing to write or undo.
     if (schedule?.id == _data?.periodSchedule?.id) return;
     late List<int> before;
-    if (!await _accountWrite(
-      () async => before = await db.setPeriodSchedule(schedule?.id),
-      what: 'budget period',
-    )) {
+    if (!await _accountWrite(() async {
+      before = await db.setPeriodSchedule(schedule?.id);
+      // Kept: a month's Assigned is split by the pay last viewed by.
+      if (schedule != null) {
+        await db.setPreference(BudgetKeys.splitBy, '${schedule.id}');
+      }
+    }, what: 'budget period')) {
       return;
     }
     _did(
@@ -4072,9 +4134,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
       toast: false,
       undo: () async {
         await db.setPeriodSchedule(before.firstOrNull);
+        await db.setPreference(BudgetKeys.splitBy, splitWas);
       },
       redo: () async {
         await db.setPeriodSchedule(schedule?.id);
+        if (schedule != null) {
+          await db.setPreference(BudgetKeys.splitBy, '${schedule.id}');
+        }
       },
     );
   }
@@ -4165,11 +4231,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 if (period != null) ...[
                   _FilterChip(
                     key: const ValueKey('period-chip'),
-                    label: t.ledgerPeriodChip(
-                      _spanName(t, period, today),
-                      shortDate(period.start),
-                      shortDate(period.end),
-                    ),
+                    // A month as the Budget page names it: "November
+                    // 2026" (owner, 2026-11-16).
+                    label: period.label == payPeriodLabel
+                        ? t.ledgerPeriodChip(
+                            _spanName(t, period, today),
+                            shortDate(period.start),
+                            shortDate(period.end),
+                          )
+                        : t.planMonthYear(
+                            monthName(t, period.start.month),
+                            '${period.start.year}',
+                          ),
                     onClear: () => setState(() => _periodFilter = null),
                   ),
                   const SizedBox(width: 8),
@@ -5083,6 +5156,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final onePeriod =
         own?.id == data.periodSchedule?.id ||
         !budgetPeriod(period.start, own).end.isBefore(period.end);
+    // A month's Assigned, typed on the month's page, is kept where each
+    // paycheck it pays for is (owner, 2026-11-15, #468), so the paycheck
+    // holding the 1st isn't handed the whole month: Day-to-day and Funds
+    // by days, a bill or goal by what each paycheck asks toward it.
+    final split = splitScheduleOf(data);
+    if (onePeriod &&
+        own == null &&
+        split != null &&
+        data.periodSchedule == null &&
+        period.label != payPeriodLabel) {
+      return _byPaychecks(data, c, period, split, amount);
+    }
     if (onePeriod) return [(date: period.start, amount: amount)];
     final kept = [
       for (final b in data.budgetAmounts)
@@ -5101,6 +5186,158 @@ class _LedgerScreenState extends State<LedgerScreen> {
         delta: amount - have,
       ),
     ];
+  }
+
+  /// Once, at the first launch with #468 (owner, 2026-11-15: "Split
+  /// November and later now"): every category's Assigned for this month
+  /// and later, still all on its month's 1st, is kept by paycheck as a new
+  /// one would be. Totals don't change, only the days they're kept on;
+  /// earlier months, finished, stay. A copy of the ledger is kept first,
+  /// and a popup says so. Not undoable: the app did it, not the person
+  /// (owner-corrections); the copy is in Backups.
+  Future<void> _splitOldMonths() async {
+    final data = await db.loadLedger();
+    if (data.prefs[BudgetKeys.splitOnce] != null) return;
+    final split = splitScheduleOf(data);
+    final from = budgetPeriod(today, null).start;
+    // Each category's amounts by month, this month on.
+    final byMonth = <DateTime, Map<int, List<BudgetAmount>>>{};
+    if (split != null) {
+      for (final b in data.budgetAmounts) {
+        final d = dateOnly(b.date);
+        if (d.isBefore(from)) continue;
+        final m = DateTime(d.year, d.month);
+        (byMonth[m] ??= {}).putIfAbsent(b.categoryId, () => []).add(b);
+      }
+    }
+    final writes = <DateTime, Map<int, List<({DateTime date, int amount})>>>{};
+    for (final MapEntry(key: m, value: cats) in byMonth.entries) {
+      final month = budgetPeriod(m, null);
+      for (final MapEntry(key: id, value: rows) in cats.entries) {
+        final c = data.accounts[id];
+        if (c == null) continue;
+        if (!rows.every((b) => dateOnly(b.date) == m)) continue;
+        final total = rows.fold(0, (s, b) => s + b.amount);
+        if (total == 0) continue;
+        final plan = data.plans[id];
+        // A set amount per a pay is already kept by its own paychecks.
+        if (plan?.kind == PlanKind.each && plan?.payScheduleId != null) {
+          continue;
+        }
+        final split2 = _byPaychecks(data, c, month, split!, total);
+        if (split2.length < 2) continue;
+        (writes[m] ??= {})[id] = split2;
+      }
+    }
+    if (writes.isEmpty) {
+      await db.setPreference(BudgetKeys.splitOnce, dateKey(today));
+      return;
+    }
+    // No copy, no change: it's tried again at the next launch.
+    try {
+      await _backups.keepBeforeSplit(widget.clock());
+    } catch (_) {
+      return;
+    }
+    for (final MapEntry(key: m, value: byId) in writes.entries) {
+      final month = budgetPeriod(m, null);
+      await db.setBudgetAmounts(byId, month.start, month.end);
+    }
+    await db.setPreference(BudgetKeys.splitOnce, dateKey(today));
+    final first = (writes.keys.toList()..sort()).first;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showToast(context.t.planSplitOnce(monthName(context.t, first.month)));
+    });
+  }
+
+  /// A month's Assigned typed on the month's page, kept by [split]'s
+  /// paychecks (#468). The first time, or over rows all on the 1st (from
+  /// before), the whole by days; after that the rows there stay and only
+  /// the difference goes, by days, to the paychecks still running (code
+  /// review: a retyped month wiped what was set per paycheck). A bill or
+  /// goal fills its paychecks in order, each what it asks.
+  List<({DateTime date, int amount})> _byPaychecks(
+    LedgerData data,
+    AccountInfo c,
+    BudgetSpan period,
+    PaySchedule split,
+    int amount,
+  ) {
+    final start = dateOnly(period.start), end = dateOnly(period.end);
+    final kept = <DateTime, int>{};
+    for (final b in data.budgetAmounts) {
+      if (b.categoryId != c.id) continue;
+      final d = dateOnly(b.date);
+      if (d.isBefore(start) || d.isAfter(end)) continue;
+      kept[d] = (kept[d] ?? 0) + b.amount;
+    }
+    if (data.plans[c.id]?.kind == PlanKind.byDate) {
+      final base = data.withoutAmounts({c.id}, start, end).viewedBy(split);
+      final rows = <({DateTime date, int amount})>[];
+      var given = 0;
+      final paychecks = <BudgetSpan>[];
+      for (
+        var q = budgetPeriod(start, split);
+        !q.start.isAfter(end) && paychecks.length < 40;
+        q = nextBudgetPeriod(q, split)
+      ) {
+        paychecks.add(q);
+      }
+      for (final (i, q) in paychecks.indexed) {
+        final from = q.start.isBefore(start) ? start : dateOnly(q.start);
+        final rest = amount - given;
+        final int part;
+        if (i == paychecks.length - 1 || rest <= 0) {
+          part = rest;
+        } else {
+          final ask =
+              Budget.of(
+                base.withAmounts([
+                  for (final r in rows)
+                    BudgetAmount(
+                      categoryId: c.id,
+                      date: r.date,
+                      amount: r.amount,
+                    ),
+                ]),
+                start: q.start,
+                end: q.end,
+                today: today,
+              ).lines[c.id]?.toAssign ??
+              0;
+          part = ask < rest ? ask : rest;
+        }
+        given += part;
+        if (part != 0) rows.add((date: from, amount: part));
+        if (given == amount) break;
+      }
+      return rows;
+    }
+    final have = kept.values.fold(0, (sum, v) => sum + v);
+    final fromBefore = kept.keys.every((d) => d == start);
+    if (have == 0 || fromBefore) {
+      return Budget.byPaychecks(
+        span: period,
+        pay: split,
+        amount: amount,
+        currency: c.currency,
+      );
+    }
+    final running = !today.isBefore(start) && !today.isAfter(end);
+    for (final r in Budget.byPaychecks(
+      span: period,
+      pay: split,
+      amount: amount - have,
+      currency: c.currency,
+      notBefore: running || today.isAfter(end) ? today : null,
+    )) {
+      kept[r.date] = (kept[r.date] ?? 0) + r.amount;
+    }
+    return [
+      for (final e in kept.entries)
+        if (e.value != 0) (date: e.key, amount: e.value),
+    ]..sort((a, b) => a.date.compareTo(b.date));
   }
 
   /// What a write into the period starting [start] does to the day the
@@ -7074,6 +7311,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                 data: data,
                                 today: today,
                                 onDate: _setupSetDate,
+                                onBudgetBy: _budgetBy,
                                 onAdd: _setupAddAccount,
                                 onRemove: _setupRemoveAccount,
                                 onEveryday: (v) => _setPref(
@@ -7176,6 +7414,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                       now: widget.clock,
                                     ),
                                   },
+                                  budget: data.paySchedules.isEmpty
+                                      ? null
+                                      : _BudgetSettings(
+                                          data: data,
+                                          onPick: _budgetBy,
+                                        ),
                                   register: _RegisterSettings(
                                     showSource:
                                         data.prefs[showSourceKey] != '0',
@@ -7205,7 +7449,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   onShowPeriodRows: (period) =>
                                       _openAll(period: period),
                                   onSetAmount: _setBudgetAmount,
-                                  onBudgetBy: _budgetBy,
                                   onStartLater: _startBudgetLater,
                                   onAssignPlanned: _assignPlanned,
                                   onClearAssigned: _clearAssigned,
@@ -7262,16 +7505,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                             ),
                                     setPrefs: _setPrefs,
                                     assign: (category, total, label) {
-                                      final day = dateOnly(widget.clock());
-                                      _setBudgetAmount(label: label, category, (
-                                        start: DateTime(day.year, day.month),
-                                        end: DateTime(
-                                          day.year,
-                                          day.month + 1,
-                                          0,
+                                      // In the period the Budget page is
+                                      // on today, where Savings read Not
+                                      // assigned from (#461).
+                                      _setBudgetAmount(
+                                        label: label,
+                                        category,
+                                        budgetPeriod(
+                                          dateOnly(widget.clock()),
+                                          data.periodSchedule,
                                         ),
-                                        label: '',
-                                      ), total);
+                                        total,
+                                      );
                                     },
                                     editCategory: _editCategory,
                                     addGoal: _addGoal,
@@ -7641,8 +7886,9 @@ class _Sidebar extends StatelessWidget {
   final bool allActive;
   final VoidCallback onAll;
 
-  /// Accounts whose forecast goes below zero, each with the warning.
-  final Map<int, String> runsOut;
+  /// Accounts whose forecast goes below zero within 60 days, each with
+  /// the warning's line and its tooltip.
+  final Map<int, ({String line, String more})> runsOut;
 
   /// For the right-click menu on each account.
   final _AccountActions Function(AccountInfo) actionsFor;
@@ -8072,6 +8318,7 @@ class _SettingsPage extends StatelessWidget {
     this.appearance,
     this.language,
     this.register,
+    this.budget,
     this.problems,
   });
   final ValueListenable<BackupHealth> health;
@@ -8081,6 +8328,9 @@ class _SettingsPage extends StatelessWidget {
 
   /// The register's own choices (the Source column, and naming phones).
   final Widget? register;
+
+  /// Budget by month or by paycheck, while there's pay (#474).
+  final Widget? budget;
 
   /// When "Back up to…" last worked, said beside it.
   final ValueListenable<CopiedElsewhere?> backedUp;
@@ -8362,6 +8612,7 @@ class _SettingsPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   language!,
                 ],
+                if (budget != null) ...[const SizedBox(height: 16), budget!],
                 if (register != null) ...[
                   const SizedBox(height: 16),
                   register!,
@@ -9307,9 +9558,9 @@ class _AccountTile extends StatefulWidget {
   final VoidCallback onTap;
   final _AccountActions actions;
 
-  /// Its forecast goes below zero: the header's warning, for a coral dot
-  /// beside the name.
-  final String? runsOut;
+  /// Its forecast goes below zero within 60 days: what the line under its
+  /// balance says, and that line's tooltip.
+  final ({String line, String more})? runsOut;
 
   @override
   State<_AccountTile> createState() => _AccountTileState();
@@ -9367,22 +9618,6 @@ class _AccountTileState extends State<_AccountTile> {
                     ),
                   ),
                 ),
-                if (widget.runsOut case final why?) ...[
-                  const SizedBox(width: 7),
-                  Tooltip(
-                    message: why,
-                    waitDuration: const Duration(milliseconds: 400),
-                    child: Container(
-                      key: ValueKey('runs-out-${widget.account.id}'),
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Mid.sideCoral,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
             const SizedBox(height: 2),
@@ -9400,6 +9635,22 @@ class _AccountTileState extends State<_AccountTile> {
                 tabular: true,
               ),
             ),
+            // In words, where it can't be missed (owner, 2026-11-14, pick A
+            // of three): "Runs out on 12.01". How much short is its tooltip.
+            if (widget.runsOut case final why?) ...[
+              const SizedBox(height: 2),
+              Tooltip(
+                message: why.more,
+                waitDuration: const Duration(milliseconds: 400),
+                child: Text(
+                  why.line,
+                  key: ValueKey('runs-out-${widget.account.id}'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(12.5, color: Mid.sideCoral, tabular: true),
+                ),
+              ),
+            ],
           ],
         ),
       ),

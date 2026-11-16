@@ -373,6 +373,7 @@ class Backups {
       'restored-',
       'before-new-ledger-',
       fromFolderPrefix,
+      splitPrefix,
     ]) {
       final pattern = RegExp('^$kind\\d{8}-\\d{6}\\.(?:sqlite|betterbudget)\$');
       for (final old in (await _files(pattern)).skip(_restoreKeep)) {
@@ -624,6 +625,20 @@ class Backups {
     if (dir == null) throw StateError('No database file to save beside');
     await dir.create(recursive: true);
     return file.copy(_unused(dir, fromFolderPrefix, now).path);
+  }
+
+  static const splitPrefix = 'before-paycheck-split-';
+
+  /// Saves what's here as `before-paycheck-split-….betterbudget` before the
+  /// one-time split of months already assigned by paycheck (owner,
+  /// 2026-11-15, #468), for Restore from… later.
+  Future<File> keepBeforeSplit(DateTime now) async {
+    final dir = await folder();
+    if (dir == null) throw StateError('No database file to save');
+    await dir.create(recursive: true);
+    final file = _unused(dir, splitPrefix, now);
+    await db.copyTo(file.path);
+    return file;
   }
 
   /// Saves what's here as `before-new-ledger-….betterbudget` before a new ledger

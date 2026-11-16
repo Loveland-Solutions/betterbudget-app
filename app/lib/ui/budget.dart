@@ -42,7 +42,6 @@ class _BudgetPage extends StatefulWidget {
     required this.onShowAllRows,
     required this.onShowPeriodRows,
     required this.onSetAmount,
-    required this.onBudgetBy,
     required this.onKeysBack,
     required this.onStartLater,
     required this.onKeepStart,
@@ -70,10 +69,12 @@ class _BudgetPage extends StatefulWidget {
 
   /// Skip this bill, on a category's line: the bill's date and what the
   /// category has left (#357).
-  final void Function(AccountInfo category, DateTime due, int left) onSkipBill;
+  final Future<void> Function(AccountInfo category, DateTime due, int left)
+  onSkipBill;
 
   /// Bring it back, on a line that says there's no bill on a date.
-  final void Function(AccountInfo category, DateTime date) onBringBackBill;
+  final Future<void> Function(AccountInfo category, DateTime date)
+  onBringBackBill;
 
   /// Income tab: a pay's Edit, or Add pay (null).
   final ValueChanged<PaySchedule?> onPay;
@@ -125,9 +126,6 @@ class _BudgetPage extends StatefulWidget {
   /// A Put in amount was typed for the period starting on the date.
   final void Function(AccountInfo, BudgetSpan, int) onSetAmount;
 
-  /// The view dropdown: by month (null), or by a pay's periods.
-  final ValueChanged<PaySchedule?> onBudgetBy;
-
   @override
   State<_BudgetPage> createState() => _BudgetPageState();
 }
@@ -148,6 +146,9 @@ class _BudgetPageState extends State<_BudgetPage> {
   /// Each row's ⋯, by category: an Edit that closes gives focus back to
   /// its row's, not to the top of the window (#163).
   final _dots = <int, FocusNode>{};
+
+  /// The Spending list's, which the section names in its margin follow.
+  final _listScroll = ScrollController();
   FocusNode _dotsOf(int id) =>
       _dots.putIfAbsent(id, () => FocusNode(debugLabel: 'category-menu'));
 
@@ -156,6 +157,7 @@ class _BudgetPageState extends State<_BudgetPage> {
     for (final f in _dots.values) {
       f.dispose();
     }
+    _listScroll.dispose();
     super.dispose();
   }
 
@@ -269,15 +271,28 @@ class _BudgetPageState extends State<_BudgetPage> {
     final listed = data.categories
         .where((c) => !c.isIncome && !isUncategorized(c))
         .toList();
-    // Everyday categories first; those saving for a bill under their own
-    // heading, Bills, as on the phone (owner, 2026-10-07; #274); the
-    // safety net last, under Saved.
-    bool isBill(AccountInfo c) =>
-        budget.lines[c.id]?.plan?.plan.kind == PlanKind.byDate;
-    // The everyday ones in no group first, then each group the person
+    // In sections by type (owner, 2026-11-15, #469): Day-to-day, Funds,
+    // Bills, Goals, each saying once what its Left is; the safety net
+    // last, under Saved (#274).
+    CategoryType typeIn(AccountInfo c) => typeOf(data, c.id);
+    bool isBill(AccountInfo c) {
+      final type = typeIn(c);
+      return type == CategoryType.bill || type == CategoryType.goal;
+    }
+
+    String typeName(CategoryType type) => switch (type) {
+      CategoryType.dayToDay => t.planTypeDay,
+      CategoryType.fund => t.planFunds,
+      CategoryType.bill => t.phoneBills,
+      CategoryType.goal => t.goalsTitle,
+    };
+
+    // Day-to-day: the ones in no group first, then each group the person
     // made under its name (#100), A to Z; inside each, by name.
     final everyday = listed
-        .where((c) => !saved.contains(c.id) && !isBill(c))
+        .where(
+          (c) => !saved.contains(c.id) && typeIn(c) == CategoryType.dayToDay,
+        )
         .toList();
     // "Food" and "food" (two computers) are one heading, as first spelt.
     String? groupOf(AccountInfo c) => c.budgetGroup?.toLowerCase();
@@ -286,10 +301,54 @@ class _BudgetPageState extends State<_BudgetPage> {
         g.toLowerCase(): g,
     };
     final groupKeys = groups.keys.toList()..sort();
+    // Bills and goals (#466): one behind first, then by the day this
+    // period saves for, soonest first; paid, reached or ended last, as
+    // there's nothing more to do for them (budget review). Then by name.
+    List<AccountInfo> byDue(CategoryType type) {
+      final xs = listed
+          .where((c) => !saved.contains(c.id) && typeIn(c) == type)
+          .toList();
+      int rank(AccountInfo c) {
+        final line = budget.lines[c.id];
+        final p = line?.plan;
+        if (line == null || p == null) return 2;
+        if (line.short > 0) return 0;
+        if (line.paidOn != null || p.done || p.ended) return 2;
+        return 1;
+      }
+
+      DateTime? dueOf(AccountInfo c) => budget.lines[c.id]?.plan?.due;
+      return xs..sort((a, b) {
+        final r = rank(a).compareTo(rank(b));
+        if (r != 0) return r;
+        final (da, db) = (dueOf(a), dueOf(b));
+        if (da != null && db != null && da != db) return da.compareTo(db);
+        if ((da == null) != (db == null)) return da == null ? 1 : -1;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+    }
+
+    final sections = [
+      (
+        CategoryType.dayToDay,
+        [
+          ...everyday.where((c) => c.budgetGroup == null),
+          for (final g in groupKeys) ...everyday.where((c) => groupOf(c) == g),
+        ],
+      ),
+      (
+        CategoryType.fund,
+        listed
+            .where(
+              (c) => !saved.contains(c.id) && typeIn(c) == CategoryType.fund,
+            )
+            .toList(),
+      ),
+      (CategoryType.bill, byDue(CategoryType.bill)),
+      (CategoryType.goal, byDue(CategoryType.goal)),
+    ];
     final spending = [
-      ...everyday.where((c) => c.budgetGroup == null),
-      for (final g in groupKeys) ...everyday.where((c) => groupOf(c) == g),
-      ...listed.where((c) => !saved.contains(c.id) && isBill(c)),
+      for (final (_, xs) in sections) ...xs,
       ...listed.where((c) => saved.contains(c.id)),
     ];
     // Where each group's heading goes.
@@ -298,16 +357,19 @@ class _BudgetPageState extends State<_BudgetPage> {
         spending.indexWhere((c) => everyday.contains(c) && groupOf(c) == g):
             groups[g]!,
     };
-    final firstBill = spending.indexWhere(
-      (c) => !saved.contains(c.id) && isBill(c),
-    );
     final firstSaved = spending.indexWhere((c) => saved.contains(c.id));
+    // Where each section's heading goes: only with two sections or more
+    // (Saved one of them), as one alone would be a label that says
+    // nothing (budget review).
+    final filled = sections.where((s) => s.$2.isNotEmpty).toList();
+    final headed = filled.length + (firstSaved < 0 ? 0 : 1) > 1;
+    final sectionAt = {
+      if (headed)
+        for (final (type, xs) in filled) spending.indexOf(xs.first): type,
+    };
     final income = data.income;
     final archived = data.archivedCategories;
     final began = budget.began;
-    // "From before" means something once the budget had begun before this
-    // period.
-    final carries = began != null && began.isBefore(period.start);
 
     String money(int v, [Currency? c]) =>
         formatMoney(v, currency: c ?? budget.currency);
@@ -336,58 +398,67 @@ class _BudgetPageState extends State<_BudgetPage> {
       edit(i >= 0 && i < spending.length ? spending[i].id : null);
     }
 
-    // The panel's top row: the two tabs, and over the categories their
-    // column heads. A blue dot on Income says pay wants attention (not set
-    // up, or an estimate to update).
-    Widget tabs() => CustomPaint(
-      foregroundPainter: _tab == _BudgetTab.spending
-          ? _ColumnLines(Mid.ink3)
-          : null,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 0, 12, 6),
-        child: Row(
-          children: [
-            _PageTab(
-              key: const ValueKey('budget-tab-spending'),
-              label: t.planSpending,
-              active: _tab == _BudgetTab.spending,
-              onTap: () => setState(() => _tab = _BudgetTab.spending),
-            ),
-            _PageTab(
-              key: const ValueKey('budget-tab-income'),
-              label: t.planIncomeTab,
-              active: _tab == _BudgetTab.income,
-              dot: _payNote(t, data).nudge,
-              // The Spending list stays mounted under Income, so an Edit
-              // open there keeps what was typed (code review, 2026-10-05).
-              onTap: () => setState(() => _tab = _BudgetTab.income),
-            ),
-            const Spacer(),
-            if (_tab == _BudgetTab.spending) ...[
-              // Each word is centred in its column as the dotted lines draw
-              // it (owner, 2026-10-07): between two lines, and for Left
-              // between its line and where the amounts end.
-              for (final (h, from, width) in [
-                (t.planAssigned, _ColumnLines._gap, _amountWidth),
-                (t.planSpent, _ColumnLines._gap, _amountWidth),
-                (t.planLeft, _ColumnLines._gap / 2, _leftWidth),
-              ])
-                SizedBox(
-                  width: width,
-                  child: Padding(
-                    padding: EdgeInsets.only(left: from * 2),
-                    child: Text(
-                      h,
-                      textAlign: TextAlign.center,
-                      style: onest(12.5, color: Mid.ink3),
+    // The two tabs sit on the panel's top edge (`tabStrip`). Inside it, over
+    // the categories, their column heads; the Income tab has none.
+    Widget heads() => _tab == _BudgetTab.income
+        ? const SizedBox.shrink()
+        : CustomPaint(
+            foregroundPainter: _ColumnLines(Mid.ink3),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 0, 12, 6),
+              child: Row(
+                children: [
+                  const Spacer(),
+                  // Each word is centred in its column as the dotted lines
+                  // draw it (owner, 2026-10-07): between two lines, and for
+                  // Left between its line and where the amounts end.
+                  for (final (h, from, width) in [
+                    (t.planAssigned, _ColumnLines._gap, _amountWidth),
+                    (t.planSpent, _ColumnLines._gap, _amountWidth),
+                    (t.planLeft, _ColumnLines._gap / 2, _leftWidth),
+                  ])
+                    SizedBox(
+                      width: width,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: from * 2),
+                        child: Text(
+                          h,
+                          textAlign: TextAlign.center,
+                          style: onest(12.5, color: Mid.ink3),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              const SizedBox(width: 40),
-            ],
-          ],
+                  const SizedBox(width: 40),
+                ],
+              ),
+            ),
+          );
+
+    // The tabs, folder-style (owner, 2026-11-14, #435): the one you're on is
+    // the panel's own color and joins it; the other sits lowered behind its
+    // edge. A blue dot on Income says pay wants attention (not set up, or an
+    // estimate to update).
+    Widget tabStrip() => Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PageTab(
+          key: const ValueKey('budget-tab-spending'),
+          label: t.planSpending,
+          hue: Mid.blue,
+          active: _tab == _BudgetTab.spending,
+          onTap: () => setState(() => _tab = _BudgetTab.spending),
         ),
-      ),
+        _PageTab(
+          key: const ValueKey('budget-tab-income'),
+          label: t.planIncomeTab,
+          hue: Mid.green,
+          active: _tab == _BudgetTab.income,
+          dot: _payNote(t, data).nudge,
+          // The Spending list stays mounted under Income, so an Edit
+          // open there keeps what was typed (code review, 2026-10-05).
+          onTap: () => setState(() => _tab = _BudgetTab.income),
+        ),
+      ],
     );
 
     // This period's pay, by currency: what the schedules expect in it,
@@ -399,19 +470,6 @@ class _BudgetPageState extends State<_BudgetPage> {
       today: widget.today,
     );
     final expectedPay = pay.expected, fromPay = pay.came;
-    // The period against its income, not the balance (#234).
-    final fits = IncomeFit.of(
-      data,
-      budget,
-      // Archived categories too: what they spent this period still went.
-      [...spending, ...archived],
-      saved: saved,
-      start: period.start,
-      end: period.end,
-      today: widget.today,
-      pay: pay,
-    );
-
     void open(int? id, {bool atPlan = false}) {
       final was = _open;
       setState(() {
@@ -438,10 +496,46 @@ class _BudgetPageState extends State<_BudgetPage> {
         ? Duration.zero
         : const Duration(milliseconds: 180);
 
+    // The bar after a name (#460; owner's pick 1, 2026-11-16, #465): every
+    // one the same length, the colored part how much of what the category
+    // had this period is left, whole and coral when it spent past it. The
+    // rows the ring had (#241): not a bill, not under Saved, not one with
+    // nothing had and nothing spent.
+    // Spent ahead (owner, 2026-11-16, #468): not red, and counted with
+    // Assigned on the top card ([spentAhead]).
+    final aheadBy = spentAhead(
+      data,
+      budget,
+      periodEnd: period.end,
+      today: widget.today,
+    );
+    int? aheadOf(AccountInfo c) => aheadBy[c.id];
+
+    ({double left, bool over})? barOf(AccountInfo c) {
+      final line = budget.lines[c.id];
+      if (line == null || saved.contains(c.id)) return null;
+      // Nothing had this period: no bar, whether it was spent from or
+      // holds only a refund (owner, 2026-11-16: "If nothing is assigned for
+      // that category, the bars have no job and should not be there").
+      if (line.usedShare == null) return null;
+      // Never less than Left when a refund put it past what it had (budget
+      // review), so the bar agrees with the figure beside it.
+      final had = line.had > line.left ? line.had : line.left;
+      return (
+        left: line.left <= 0 ? 0 : line.left / had,
+        // Spent ahead is no shortfall: not red.
+        over: line.left < 0 && aheadOf(c) == null,
+      );
+    }
+
+    // A finished period only shows what happened (owner, 2026-11-15,
+    // #468): no Assign on a row, no Assign what's planned. Typing an
+    // amount still works.
+    final finished = period.end.isBefore(dateOnly(widget.today));
     Widget row(AccountInfo c, {required bool striped}) {
       final line = budget.lines[c.id];
       final planLine = line?.plan;
-      final toAssign = line?.toAssign ?? 0;
+      final toAssign = finished ? 0 : line?.toAssign ?? 0;
       final currency = c.currency;
       final usage = data.categoryUsage[c.id];
       // What a move can trade with: Not assigned in its currency, then the
@@ -472,9 +566,13 @@ class _BudgetPageState extends State<_BudgetPage> {
               budget.lines[b.id]!.left.compareTo(budget.lines[a.id]!.left),
         );
       }
+      // In the list's own sections (#469).
       final groups = [
-        (null, others.where((x) => !saved.contains(x.id) && !isBill(x))),
-        (t.phoneBills, others.where((x) => !saved.contains(x.id) && isBill(x))),
+        for (final type in CategoryType.values)
+          (
+            typeName(type),
+            others.where((x) => !saved.contains(x.id) && typeIn(x) == type),
+          ),
         (t.planSaved, others.where((x) => saved.contains(x.id))),
       ];
       final choices = <_MoveChoice>[
@@ -488,63 +586,93 @@ class _BudgetPageState extends State<_BudgetPage> {
               heading: i == 0 ? heading : null,
             ),
       ];
-      // The ring: how used up it is (#241); not under Saved, which fills
-      // rather than empties (how far along is the Savings page's, #103).
+      // How used up it is (#241), which colors its bar; not under Saved,
+      // which fills rather than empties (how far along is the Savings
+      // page's, #103).
       final share = saved.contains(c.id) ? null : line?.usedShare;
+      final bar = barOf(c);
+      // A bill's row is one line (#365): its amount, one word when
+      // something is up, and Assign while this period's part isn't in.
+      // Short comes first, then skipped, paid, late, its account put away.
+      final paidAccount = data.accounts[data.paidFrom[c.id]];
+      final paidGone =
+          paidAccount != null && (paidAccount.archived || paidAccount.deleted);
+      final said = line == null || planLine == null
+          ? null
+          : planNote(
+              t,
+              line,
+              period,
+              widget.today,
+              currency,
+              payName: ownPayName(t, data, planLine.plan),
+              own: data.payScheduleById(planLine.plan.payScheduleId),
+              // Only seen by its own period (a set amount's month or
+              // pay; a dated plan divides over the view's): by another,
+              // Assigned is that period's.
+              besideAssigned:
+                  planLine.plan.kind != PlanKind.each ||
+                  planLine.plan.payScheduleId == data.periodSchedule?.id,
+              onRow: true,
+            );
+      // Nothing left to say once Assigned says it (#467): no line.
+      final note =
+          said != null &&
+              said.text.isEmpty &&
+              said.state == null &&
+              toAssign == 0
+          ? null
+          : said;
+      final billOne = isBill(c) && note != null;
+      final String? billState = !billOne
+          ? null
+          : line!.short > 0
+          ? note.state
+          : planLine!.noBills.isNotEmpty
+          ? t.planBillSkipped
+          : line.paidOn != null
+          ? note.state
+          : planLine.late
+          ? t.planBillLate
+          : null;
+      // The bills of this period that can be skipped or brought back,
+      // each a switch in Edit (#365): the one due here, and the skipped.
+      final due = planLine?.due;
+      final skippable =
+          planLine != null &&
+          due != null &&
+          planLine.plan.kind == PlanKind.byDate &&
+          planLine.plan.repeats &&
+          planLine.dueHere &&
+          !planLine.ended &&
+          !planLine.waiting &&
+          line?.paidOn == null &&
+          (!period.end.isBefore(widget.today) ||
+              data.txns.any(
+                (x) => x.scheduled && x.planCategoryId == c.id && x.date == due,
+              ));
+      final switches = <({DateTime date, bool skipped})>[
+        if (skippable) (date: due, skipped: false),
+        for (final d in planLine?.noBills ?? const <DateTime>[])
+          (date: d, skipped: true),
+      ]..sort((a, b) => a.date.compareTo(b.date));
       final row = _CategoryRow(
         key: ValueKey('category-${c.id}'),
         category: c,
         menuFocus: _dotsOf(c.id),
         striped: striped,
-        planNote: line == null || planLine == null
-            ? null
-            : planNote(
-                t,
-                line,
-                period,
-                widget.today,
-                currency,
-                payName: ownPayName(t, data, planLine.plan),
-                own: data.payScheduleById(planLine.plan.payScheduleId),
-              ),
+        planNote: note,
         assignPlanned: toAssign == 0 ? null : planMoney(toAssign, currency),
         onAssignPlanned: () => widget.onSetAmount(c, period, planLine!.planned),
         // A bill that comes again, due in this period and not paid yet,
         // in a period not over, or one still waiting in the ledger from a
         // month that's over (#363): a bill further ahead is skipped from
         // its own period's page.
-        onSkipBill: switch ((planLine, planLine?.due)) {
-          (final p?, final due?)
-              when p.plan.kind == PlanKind.byDate &&
-                  p.plan.repeats &&
-                  p.dueHere &&
-                  !p.ended &&
-                  !p.waiting &&
-                  line?.paidOn == null &&
-                  (!period.end.isBefore(widget.today) ||
-                      data.txns.any(
-                        (x) =>
-                            x.scheduled &&
-                            x.planCategoryId == c.id &&
-                            x.date == due,
-                      )) =>
-            () => widget.onSkipBill(c, due, line?.left ?? 0),
-          _ => null,
-        },
-        noBills: [
-          for (final d in planLine?.noBills ?? const <DateTime>[])
-            (
-              words:
-                  (Budget.loanOfCategory(data, c.id) == null
-                  ? t.planNoBillOn
-                  : t.planNoPaymentOn)(
-                    d.year == widget.today.year
-                        ? sayDate(t, d)
-                        : sayFullDate(t, d),
-                  ),
-              onBringBack: () => widget.onBringBackBill(c, d),
-            ),
-        ],
+        billState: billState,
+        assignTotal: planLine == null
+            ? null
+            : planMoney(planLine.planned, currency),
+        billBehind: (line?.short ?? 0) > 0,
         open: _open == c.id,
         onOpen: () => open(c.id),
         onClose: () => open(null),
@@ -557,30 +685,52 @@ class _BudgetPageState extends State<_BudgetPage> {
                 data,
                 c,
                 line,
-                today: isCurrent,
+                paidGone: paidGone,
                 onAccounts: () => open(c.id),
                 onRows: () => widget.onShowRows(c, period),
                 onAllRows: () => widget.onShowAllRows(c),
               ),
         onShowRows: () => widget.onShowRows(c, period),
         line: line,
-        usedShare: share,
-        // The ring's words: "₮612,300 of ₮900,000 used"; on a full red
-        // ring with nothing had, what's over (budget review).
-        usedWords: line == null || share == null
+        bar: bar,
+        // The bar's words: "₮612,300 of ₮900,000 spent"; nothing spent
+        // yet; over, by how much. None where they would contradict the
+        // row (the two reviews): in the period the budget began in, when
+        // Spent shows more than counted against it; and spent ahead by a
+        // paycheck, where the line under Left says the month covers it.
+        usedWords:
+            line == null ||
+                share == null ||
+                bar == null ||
+                line.spent != line.counted ||
+                (line.left < 0 && !bar.over)
             ? null
-            : line.had > 0
-            ? t.planUsedOf(
+            : line.used == 0
+            // With a refund in it, what it has now, as Left says.
+            ? t.planUsedFresh(
+                planMoney(
+                  line.left > line.had ? line.left : line.had,
+                  currency,
+                ),
+              )
+            : bar.over
+            ? t.planUsedPast(
+                planMoney(-line.left, currency),
                 planMoney(line.used, currency),
                 planMoney(line.had, currency),
               )
-            : line.assigned > 0
-            ? t.planUsedOver(planMoney(-line.left, currency))
-            : t.planUsedNone(planMoney(-line.left, currency)),
+            : t.planUsedOf(
+                planMoney(line.used, currency),
+                planMoney(line.had, currency),
+              ),
         bill: isBill(c),
-        fromBefore: carries && line != null && line.fromBefore != 0
-            ? t.planFromBefore(money(line.fromBefore, currency))
-            : null,
+        ahead: switch (aheadOf(c)) {
+          final a? => t.planSpentAhead(
+            money(a, currency),
+            monthName(t, budgetPeriod(period.end, null).start.month),
+          ),
+          null => null,
+        },
         currency: currency,
         moveChoices: choices,
         onMove: (from, to, amount) => widget.onMove(period, from, to, amount),
@@ -616,6 +766,16 @@ class _BudgetPageState extends State<_BudgetPage> {
                 currencies: currencies,
                 usage: usage == null ? null : _usageText(t, usage),
                 atPlan: _openAtPlan,
+                bills: switches,
+                loan: Budget.loanOfCategory(data, c.id) != null,
+                onBills: (skip, back) async {
+                  for (final d in skip) {
+                    await widget.onSkipBill(c, d, line?.left ?? 0);
+                  }
+                  for (final d in back) {
+                    await widget.onBringBackBill(c, d);
+                  }
+                },
                 onShowAllRows: () => widget.onShowAllRows(c),
                 onArchive: () {
                   open(null);
@@ -632,13 +792,34 @@ class _BudgetPageState extends State<_BudgetPage> {
       );
     }
 
-    // A heading down the list: Bills, Saved.
-    Widget heading(String text, String key) => Padding(
-      padding: const EdgeInsets.fromLTRB(12, 18, 12, 6),
+    // A group the person made, inside Day-to-day: small gray capitals, so
+    // section, group and row each look different (#482). Right under a
+    // section's top it sits closer.
+    Widget heading(String text, String key, {required bool first}) => Padding(
+      padding: EdgeInsets.fromLTRB(12, first ? 4 : 14, 12, 4),
       child: Text(
-        text,
+        text.toUpperCase(),
         key: ValueKey(key),
-        style: onest(12.5, weight: 600, color: Mid.ink3),
+        style: onest(11.5, weight: 600, color: Mid.ink3, letterSpacing: 0.5),
+      ),
+    );
+
+    // A type's section (#469), named in the margin beside its first row
+    // (owner's pick C of three, 2026-11-16, #482: "Bill and Day-to-Day
+    // should look more like headers. Instead they look almost the same
+    // size"). Saved, the safety net's (null), is a section too. No line
+    // under it saying what Left is there: a subtitle, which the owner
+    // sent back the same day (#471).
+    Widget sectionName(CategoryType? type) => Container(
+      key: ValueKey(
+        type == null ? 'budget-saved' : 'budget-section-${type.name}',
+      ),
+      constraints: const BoxConstraints(minHeight: 40),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
+      child: Text(
+        type == null ? t.planSaved : typeName(type),
+        style: onest(15, weight: 700, color: Mid.ink),
       ),
     );
 
@@ -667,6 +848,70 @@ class _BudgetPageState extends State<_BudgetPage> {
       ];
     }
 
+    // The Spending tab's list. With sections, each is a [MarginSection]:
+    // its name stays at the top of the list while its rows scroll, and a
+    // line across parts it from the one before. With one section there
+    // are no names and the rows run across the panel. Stripes restart at
+    // every section and group, first row plain, so the row under a
+    // heading looks the same in each.
+    List<Widget> spendingRows() {
+      final starts = {...sectionAt.keys, if (firstSaved >= 0) firstSaved};
+      final out = <Widget>[];
+      var body = <Widget>[];
+      CategoryType? type;
+      var named = false;
+      var n = 0;
+      void close() {
+        if (body.isEmpty) return;
+        if (!named) {
+          out.addAll(body);
+        } else {
+          if (out.isNotEmpty) {
+            out.add(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 20, 0, 12),
+                child: Container(height: 1, color: Mid.rule),
+              ),
+            );
+          }
+          out.add(
+            MarginSection(
+              key: ValueKey('section-${type?.name ?? 'saved'}'),
+              margin: _sectionMargin,
+              scroll: _listScroll,
+              name: sectionName(type),
+              body: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: body,
+              ),
+            ),
+          );
+        }
+        body = [];
+      }
+
+      for (final (i, c) in spending.indexed) {
+        if (starts.contains(i)) {
+          // The Total row ends the last section before Saved.
+          if (i == firstSaved) body.addAll(totals());
+          close();
+          type = i == firstSaved ? null : sectionAt[i];
+          named = true;
+          n = 0;
+        }
+        if (groupAt[i] case final g?) {
+          body.add(heading(g, 'budget-group-$g', first: body.isEmpty));
+          n = 0;
+        }
+        body.add(row(c, striped: n.isOdd));
+        n++;
+      }
+      if (firstSaved < 0) body.addAll(totals());
+      close();
+      return out;
+    }
+
     // Started partway through a period, with spending in categories
     // nothing was assigned to: offer the next period instead (owner's
     // call). Answered once, it goes.
@@ -678,112 +923,43 @@ class _BudgetPageState extends State<_BudgetPage> {
         widget.today.isAfter(period.start) &&
         budget.unassignedSpent.count > 0;
 
-    // The key (ADR 0004 "The top pane", the owner's pick B, 2026-10-05):
-    // what you have, less what's assigned, is what's free, one column per
-    // currency, each note on the row it's about, so colour means state,
-    // not position. The first-period offer is a strip in the same card.
+    // The top card (owner, 2026-11-14, #461): one sum for each currency,
+    // every figure in its own box. Income, and what the periods before
+    // left or left short, less what was Assigned, Saved and Overspent, is
+    // Not assigned, or Assigned too much. No bank figure has a part in it
+    // ("a budget shouldn't care how much they have in the bank"): what
+    // will happen to an account is the Ledger's to say. It took the place
+    // of two cards that measured against two things, the bank and the
+    // income. No pane round it (owner's pick C of three, 2026-11-16, #464,
+    // of the pane: "looks like it's missing a label or something"): a
+    // frame round framed boxes read as a titled group with its title left
+    // off, so the boxes sit on the page under "Budget ‹ November 2026 ›",
+    // which names them. The first-period offer, a question, is a pane of
+    // its own under them.
     Widget keyCard() {
       final pools = budget.pools;
       String tagOf(Currency c) => c == budget.currency ? '' : '-${c.code}';
-      // One pool's figures: have, assigned, free; and its states.
-      final held = {for (final p in pools) p.currency: p.money - p.notAssigned};
-      bool over(BudgetPool p) => p.notAssigned < 0;
-      Widget figure(
-        String key,
-        int v,
-        Currency c, {
-        bool big = false,
-        bool coral = false,
-        bool green = false,
-      }) => Shrink(
-        end: true,
-        Text(
-          money(v, c),
-          key: ValueKey(key),
-          maxLines: 1,
-          style: big
-              ? onest(
-                  20,
-                  weight: 700,
-                  color: coral
-                      ? Mid.coral
-                      : green
-                      ? Mid.green
-                      : Mid.ink,
-                  tabular: true,
-                )
-              : onest(
-                  14,
-                  weight: 500,
-                  color: coral
-                      ? Mid.coral
-                      : green
-                      ? Mid.green
-                      : Mid.ink,
-                  tabular: true,
-                ),
-        ),
+      final byPay = period.label == payPeriodLabel;
+      final month = monthName(t, period.start.month);
+      // The period before, by its name: "From October".
+      final beforeMonth = monthName(
+        t,
+        previousBudgetPeriod(period, by).start.month,
       );
-      var figureWidth = 200.0;
-      Widget label(String text, {bool big = false, bool coral = false}) => Text(
-        text,
-        style: big
-            ? onest(14, weight: 500, color: coral ? Mid.coral : Mid.ink)
-            : onest(13, color: coral ? Mid.coral : Mid.ink3),
-      );
-
-      Widget row(
-        Widget lab,
-        List<Widget> figures,
-        List<Widget> notes, {
-        bool big = false,
-      }) {
-        final beside = Wrap(
-          spacing: 12,
-          runSpacing: 6,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: notes,
-        );
-        // Three currencies or more leave no room beside the figures.
-        final under = figures.length > 2;
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(width: 150, child: lab),
-                  // Wide enough for a tugrik sum with cents at the big size;
-                  // narrower with many currencies, so four fit at 1360 × 760
-                  // (#163). The figures shrink rather than cut.
-                  for (final f in figures) ...[
-                    SizedBox(width: figureWidth, child: f),
-                    const SizedBox(width: 28),
-                  ],
-                  if (!under) Expanded(child: beside),
-                ],
-              ),
-              if (under && notes.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 150, top: 4),
-                  child: beside,
-                ),
-            ],
-          ),
-        );
-      }
-
       // Notes on "Assigned": one click for everything planned, and what
       // that would overdraw, said before it's done.
       final assignedNotes = <Widget>[];
+      // Clear, which starts the period over: at the right end of its
+      // currency's sum, on the boxes' own row (owner, 2026-11-14, #464:
+      // "the button on the right creates a space that looks weird. It
+      // should be on the same row as the others").
+      final clearOf = <Currency, Widget>{};
       for (final p in pools) {
         final c = p.currency, tag = tagOf(c);
         final planned = {
           for (final x in spending)
             if (budget.lines[x.id] case final l?
-                when x.currency == c && l.toAssign > 0)
+                when !finished && x.currency == c && l.toAssign > 0)
               x: l.plan!.planned,
         };
         if (planned.isEmpty) continue;
@@ -791,32 +967,43 @@ class _BudgetPageState extends State<_BudgetPage> {
           0,
           (sum, x) => sum + budget.lines[x.id]!.toAssign,
         );
-        final plannedOver =
-            plannedTotal - (p.notAssigned > 0 ? p.notAssigned : 0);
+        // What assigning it all takes from Not assigned: the part that
+        // covers a category's overspending takes nothing, since that
+        // already came off.
+        final takes = planned.keys.fold(0, (sum, x) {
+          final l = budget.lines[x.id]!;
+          final covers = l.left < 0 ? -l.left : 0;
+          return sum + (l.toAssign > covers ? l.toAssign - covers : 0);
+        });
+        final plannedOver = takes - (p.notAssigned > 0 ? p.notAssigned : 0);
         assignedNotes.add(
-          BarButton(
+          _AssignPlannedButton(
             key: ValueKey('assign-planned$tag'),
             label: t.planFill(planned.length, planMoney(plannedTotal, c)),
+            // More planned than there is to give out: said inside the
+            // button it is about, with the figure the card shows as Not
+            // assigned, so both amounts can be checked before the click.
+            // It says what the click does to it, and still runs (#468).
+            warning: plannedOver <= 0
+                ? null
+                : p.notAssigned > 0
+                ? t.planFillOverBy(
+                    money(p.notAssigned, c),
+                    money(plannedOver, c),
+                  )
+                : p.notAssigned == 0
+                ? t.planFillOverNone(money(plannedOver, c))
+                : t.planFillOverMore(money(plannedOver, c)),
+            warningKey: ValueKey('assign-planned-over$tag'),
             onTap: () {
               setState(() => _editing = null);
               widget.onAssignPlanned(period, planned);
             },
           ),
         );
-        if (plannedOver > 0) {
-          assignedNotes.add(
-            Text(
-              t.planFillOver(planMoney(plannedOver, c)),
-              key: ValueKey('assign-planned-over$tag'),
-              style: onest(13, color: Mid.coral, tabular: true),
-            ),
-          );
-        }
       }
       // Start the period over (#100): offered while anything in it is
       // assigned. Not the Safety net's, which is kept apart.
-      final byPay = period.label == payPeriodLabel;
-      final month = monthName(t, period.start.month);
       for (final p in pools) {
         final c = p.currency, tag = tagOf(c);
         // What was put in: a category Move money took from this period
@@ -834,200 +1021,331 @@ class _BudgetPageState extends State<_BudgetPage> {
           0,
           (sum, x) => sum + budget.lines[x.id]!.assigned,
         );
-        assignedNotes.add(
-          BarButton(
-            key: ValueKey('clear-assigned$tag'),
-            // The amount is in the window; with two currencies the code
-            // tells the buttons apart, at the end.
-            label: switch ((byPay, pools.length > 1)) {
-              (false, false) => t.planClearMonth(month),
-              (false, true) => t.planClearMonthIn(month, c.code),
-              (true, false) => t.planClearPay,
-              (true, true) => t.planClearPayIn(c.code),
-            },
-            onTap: () async {
-              setState(() => _editing = null);
-              final go = await showDialog<bool>(
-                context: context,
-                builder: (_) => _ClearAssignedWindow(
-                  sums: _clearSums(
-                    t,
-                    data,
-                    period,
-                    clears,
-                    c,
-                    saved,
-                    today: widget.today,
-                  ),
-                  month: byPay ? null : month,
-                  currency: c,
+        clearOf[c] = BarButton(
+          key: ValueKey('clear-assigned$tag'),
+          // The amount is in the window; with two currencies the code
+          // tells the buttons apart, at the end.
+          label: switch ((byPay, pools.length > 1)) {
+            (false, false) => t.planClearMonth(month),
+            (false, true) => t.planClearMonthIn(month, c.code),
+            (true, false) => t.planClearPay,
+            (true, true) => t.planClearPayIn(c.code),
+          },
+          onTap: () async {
+            setState(() => _editing = null);
+            final go = await showDialog<bool>(
+              context: context,
+              builder: (_) => _ClearAssignedWindow(
+                sums: _clearSums(
+                  t,
+                  data,
+                  period,
+                  clears,
+                  c,
+                  saved,
+                  today: widget.today,
                 ),
-              );
-              if (go != true) return;
-              final amount = formatShort(total, currency: c);
-              widget.onClearAssigned(
-                period,
-                clears,
-                byPay
-                    ? t.planClearedPay(amount)
-                    : t.planClearedMonth(month, amount),
-              );
-            },
-          ),
-        );
-      }
-      return Container(
-        key: const ValueKey('budget-key'),
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-        decoration: BoxDecoration(
-          color: Mid.panel,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Mid.rule),
-        ),
-        child: LayoutBuilder(
-          builder: (context, box) {
-            // The label's 150, then the currencies' columns and their
-            // gaps, leaving a little for the notes.
-            final room = (box.maxWidth - 150 - 40) / pools.length - 28;
-            figureWidth = room < 200 ? (room < 120 ? 120 : room) : 200;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Names only what the ledger actually holds, the way two
-                // currencies are told apart only when both are there.
-                row(
-                  label(cashBankLabel(t, data)),
-                  [
-                    for (final p in pools)
-                      // Cash and bank only, so it can't go below zero and has no
-                      // coral state: what's owed is the Savings page's business.
-                      figure(
-                        'you-have${tagOf(p.currency)}',
-                        p.money,
-                        p.currency,
-                      ),
-                  ],
-                  [
-                    // Another period's rows under today's money: said (#163).
-                    if (!isCurrent)
-                      Text(
-                        t.planKeyAsOfToday,
-                        key: const ValueKey('budget-key-today'),
-                        style: onest(12.5, color: Mid.ink3),
-                      ),
-                  ],
-                ),
-                row(label(t.planKeyAssigned), [
-                  for (final p in pools)
-                    figure(
-                      'assigned-sum${tagOf(p.currency)}',
-                      held[p.currency]!,
-                      p.currency,
-                    ),
-                ], assignedNotes),
-                // What overspent categories went over: already out of Cash &
-                // bank, so said here and not taken off again (owner,
-                // 2026-10-24).
-                if (pools.any((p) => p.overspent > 0))
-                  row(label(t.planKeyOverspent, coral: true), [
-                    for (final p in pools)
-                      p.overspent > 0
-                          ? figure(
-                              'overspent${tagOf(p.currency)}',
-                              p.overspent,
-                              p.currency,
-                              coral: true,
-                            )
-                          : const SizedBox(),
-                  ], const []),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Container(height: 1, color: Mid.rule),
-                ),
-                row(
-                  label(t.planKeyNotAssigned, big: true),
-                  [
-                    for (final p in pools)
-                      // Never below zero: with more assigned than there is,
-                      // nothing is left unassigned, and the row under this one
-                      // says how much too much (owner, 2026-10-06).
-                      figure(
-                        'not-assigned${tagOf(p.currency)}',
-                        over(p) ? 0 : p.notAssigned,
-                        p.currency,
-                        big: true,
-                        // Money still to give out is green (#327).
-                        green: !over(p) && p.notAssigned > 0,
-                      ),
-                  ],
-                  const [],
-                  big: true,
-                ),
-                // The one real warning, a row of its own, there only when a
-                // currency is over; the others' columns stay empty.
-                if (pools.any(over))
-                  row(
-                    label(t.planKeyOver, big: true, coral: true),
-                    [
-                      for (final p in pools)
-                        over(p)
-                            ? figure(
-                                'assigned-over${tagOf(p.currency)}',
-                                -p.notAssigned,
-                                p.currency,
-                                big: true,
-                                coral: true,
-                              )
-                            : const SizedBox(),
-                    ],
-                    const [],
-                    big: true,
-                  ),
-                // Nothing assigned yet: why a row's Left is ₮0 beside what was
-                // spent (owner, 2026-10-24). Gone with the first amount.
-                if (budget.began == null)
-                  Padding(
-                    key: const ValueKey('budget-not-begun'),
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      t.planKeyNotBegun,
-                      style: onest(13, color: Mid.ink2),
-                    ),
-                  )
-                // The budget began inside the period on screen: Spent shows
-                // all of it, Left only what came after (#163).
-                else if (budget.began case final b?
-                    when b.isAfter(period.start) && !b.isAfter(period.end))
-                  Padding(
-                    key: const ValueKey('budget-began-inside'),
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      t.planKeyBeganInside(sayDate(t, b)),
-                      style: onest(13, color: Mid.ink2),
-                    ),
-                  ),
-                if (offerStart)
-                  _StartOffer(
-                    text: t.planStartOffer(
-                      money(budget.unassignedSpent.amount),
-                      budget.unassignedSpent.count,
-                    ),
-                    later: t.planStartLater(
-                      sayDate(t, nextBudgetPeriod(period, by).start),
-                    ),
-                    onLater: () {
-                      final next = nextBudgetPeriod(period, by);
-                      widget.onStartLater(period, next);
-                      setState(() {
-                        _editing = null;
-                        _period = next;
-                      });
-                    },
-                    onKeep: widget.onKeepStart,
-                  ),
-              ],
+                month: byPay ? null : month,
+                currency: c,
+              ),
+            );
+            if (go != true) return;
+            final amount = formatShort(total, currency: c);
+            widget.onClearAssigned(
+              period,
+              clears,
+              byPay
+                  ? t.planClearedPay(amount)
+                  : t.planClearedMonth(month, amount),
             );
           },
+        );
+      }
+      // One currency's sum. A figure at zero is left out, but for Income
+      // and the result.
+      Widget sum(BudgetPool p) {
+        final c = p.currency, tag = tagOf(c);
+        String short(int v) => formatShort(v, currency: c);
+        // Put aside in the period: what sits under Saved in the list, in
+        // its own box, so Assigned is the Total row's (budget review).
+        var aside = 0;
+        for (final x in spending) {
+          if (x.currency == c && saved.contains(x.id)) {
+            aside += budget.lines[x.id]?.assigned ?? 0;
+          }
+        }
+        if (aside < 0) aside = 0;
+        // Spent ahead isn't overspent (owner, 2026-11-16: "It is not
+        // overspent if it stays within the limits of the assignment"): it
+        // is money this paycheck took early from its month's next part, so
+        // it counts with Assigned, and the result is the same.
+        var ahead = 0;
+        for (final x in spending) {
+          if (x.currency == c) ahead += aheadOf(x) ?? 0;
+        }
+        if (ahead > p.overspent) ahead = p.overspent;
+        final given = p.assigned - aside + ahead;
+        final overspent = p.overspent - ahead;
+        final over = p.notAssigned < 0;
+        // Below zero, the result is named by what made it (#470): giving
+        // out more than there is, spending past it, or both.
+        final cause = p.shortBy(ahead: ahead);
+        // One cause, named by its box; more than one, Short, with each
+        // part under it by its box's name.
+        // Spending alone, overspent or not categorized or both, is Over
+        // budget (owner's pick, 2026-11-16).
+        final overLabel = switch (cause) {
+          ShortBy(carried: 0, assigned: 0) => t.planKeyOverSpent,
+          _ when cause.causes > 1 => t.planKeyOverMixed,
+          ShortBy(carried: > 0) when byPay => t.planKeyOverCarriedPay,
+          ShortBy(carried: > 0) => t.planKeyOverCarriedMonth(beforeMonth),
+          _ => t.planKeyOver,
+        };
+        final overParts = cause.causes < 2
+            ? null
+            : [
+                if (cause.carried > 0)
+                  byPay
+                      ? t.planKeyOverCarriedPayPart(short(cause.carried))
+                      : t.planKeyOverCarriedMonthPart(
+                          short(cause.carried),
+                          beforeMonth,
+                        ),
+                if (cause.assigned > 0)
+                  t.planKeyOverAssignedPart(short(cause.assigned)),
+                if (cause.spent > 0) t.planKeyOverSpentPart(short(cause.spent)),
+                if (cause.loose > 0) t.planKeyOverLoosePart(short(cause.loose)),
+              ].join(' · ');
+        Widget after(String sign, Widget child) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(sign, style: onest(18, color: Mid.ink3)),
+            const SizedBox(width: 12),
+            child,
+          ],
+        );
+        return Wrap(
+          key: ValueKey('budget-sum$tag'),
+          spacing: 12,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            _SumBox(
+              label: t.planFitIncome,
+              figure: short(p.income + p.toCome),
+              note: p.toCome > 0 ? t.planFitToCome(short(p.toCome)) : null,
+              // Green once some has come in, as on the Income tab.
+              hue: p.income > 0 ? Mid.green : null,
+            ),
+            // What the periods before left to give out; or left short,
+            // which has to be made up (owner, 2026-11-14).
+            if (p.fromBefore > 0)
+              after(
+                '+',
+                _SumBox(
+                  key: ValueKey('sum-from$tag'),
+                  label: byPay
+                      ? t.planSumFromPay
+                      : t.planSumFromMonth(beforeMonth),
+                  figure: short(p.fromBefore),
+                  hue: Mid.green,
+                ),
+              ),
+            if (p.fromBefore < 0)
+              after(
+                '−',
+                _SumBox(
+                  key: ValueKey('sum-from$tag'),
+                  label: byPay
+                      ? t.planSumShortFromPay
+                      : t.planSumShortFromMonth(beforeMonth),
+                  figure: short(-p.fromBefore),
+                  hue: Mid.coral,
+                ),
+              ),
+            // Given out and not gone yet: gold, as Still to spend was
+            // (owner, 2026-11-14: "Green is income, red is expense",
+            // "Let's make still to spend yellow").
+            if (given != 0)
+              after(
+                '−',
+                _SumBox(
+                  key: ValueKey('sum-assigned$tag'),
+                  label: t.planAssigned,
+                  figure: short(given),
+                  hue: Mid.gold,
+                ),
+              ),
+            if (aside > 0)
+              after(
+                '−',
+                _SumBox(
+                  key: ValueKey('sum-saved$tag'),
+                  label: t.planFitAside,
+                  figure: short(aside),
+                ),
+              ),
+            if (overspent > 0)
+              after(
+                '−',
+                _SumBox(
+                  key: ValueKey('sum-overspent$tag'),
+                  label: t.planKeyOverspent,
+                  figure: short(overspent),
+                  hue: Mid.coral,
+                ),
+              ),
+            // Money out with no category yet: a term of its own, so
+            // Overspent is the list's coral amounts and nothing else.
+            if (p.loose > 0)
+              after(
+                '−',
+                _SumBox(
+                  key: ValueKey('sum-loose$tag'),
+                  label: t.rowsTabUncategorized,
+                  figure: short(p.loose),
+                  hue: Mid.coral,
+                ),
+              ),
+            // Not assigned; or, with more given out than came in, Assigned
+            // too much in its place, never a minus (owner, 2026-10-06) and
+            // never a ₮0 beside it (2026-11-14).
+            after(
+              '=',
+              _SumBox(
+                label: over ? overLabel : t.planKeyNotAssigned,
+                figure: short(p.notAssigned.abs()),
+                // More than one cause: the parts, which the boxes beside
+                // it can't split.
+                below: overParts,
+                belowKey: ValueKey('over-parts$tag'),
+                figureKey: ValueKey(
+                  over ? 'assigned-over$tag' : 'not-assigned$tag',
+                ),
+                hue: over
+                    ? Mid.coral
+                    : p.notAssigned > 0
+                    ? Mid.green
+                    : null,
+                big: true,
+              ),
+            ),
+          ],
+        );
+      }
+
+      // A currency with nothing in its sum is left out, but for the
+      // budget's own.
+      final shown = [
+        for (final p in pools)
+          if (p.currency == budget.currency ||
+              p.income != 0 ||
+              p.toCome != 0 ||
+              p.fromBefore != 0 ||
+              p.assigned != 0 ||
+              p.overspent != 0 ||
+              p.loose != 0)
+            p,
+      ];
+      final clearNotes = [
+        for (final MapEntry(:key, :value) in clearOf.entries)
+          if (!shown.any((p) => p.currency == key)) value,
+      ];
+      return Padding(
+        key: const ValueKey('budget-key'),
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (i, p) in shown.indexed) ...[
+              if (i > 0) const SizedBox(height: 12),
+              // The sum, and its Clear at the row's right end: apart from
+              // the figures (owner, 2026-11-14: "It looks out of place
+              // there"), and on their row (#464).
+              if (clearOf[p.currency] case final clear?)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(child: sum(p)),
+                    const SizedBox(width: 12),
+                    clear,
+                  ],
+                )
+              else
+                sum(p),
+            ],
+            // Under the sum: Assign what's planned, with its warning inside
+            // it. A Clear whose currency has no sum on the card ends it.
+            if (assignedNotes.isNotEmpty || clearNotes.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 4,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: assignedNotes,
+                      ),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        for (final (i, note) in clearNotes.indexed) ...[
+                          if (i > 0) const SizedBox(height: 6),
+                          note,
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            // Nothing assigned yet: why a row's Left is ₮0 beside what was
+            // spent (owner, 2026-10-24). Gone with the first amount.
+            if (budget.began == null)
+              Padding(
+                key: const ValueKey('budget-not-begun'),
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  t.planKeyNotBegun,
+                  style: onest(13, color: Mid.ink2),
+                ),
+              )
+            // The budget began inside the period on screen: Spent shows
+            // all of it, Left only what came after (#163).
+            else if (budget.began case final b?
+                when b.isAfter(period.start) && !b.isAfter(period.end))
+              Padding(
+                key: const ValueKey('budget-began-inside'),
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  t.planKeyBeganInside(sayDate(t, b)),
+                  style: onest(13, color: Mid.ink2),
+                ),
+              ),
+            if (offerStart)
+              _StartOffer(
+                text: t.planStartOffer(
+                  money(budget.unassignedSpent.amount),
+                  budget.unassignedSpent.count,
+                ),
+                later: t.planStartLater(
+                  sayDate(t, nextBudgetPeriod(period, by).start),
+                ),
+                onLater: () {
+                  final next = nextBudgetPeriod(period, by);
+                  widget.onStartLater(period, next);
+                  setState(() {
+                    _editing = null;
+                    _period = next;
+                  });
+                },
+                onKeep: widget.onKeepStart,
+              ),
+          ],
         ),
       );
     }
@@ -1058,17 +1376,23 @@ class _BudgetPageState extends State<_BudgetPage> {
                     _period = previousBudgetPeriod(period, by);
                   }),
                 ),
-                // The title is the view's dropdown once there's pay
-                // (ADR 0004 "The top pane"): Month, or a pay by name.
-                _ViewChoice(
-                  data: data,
-                  by: by,
-                  title: t.planPeriodTitle(
-                    _spanName(t, period, widget.today),
-                    shortDate(period.start),
-                    shortDate(period.end),
-                  ),
-                  onPick: widget.onBudgetBy,
+                // Month or paycheck is chosen at setup and in Settings,
+                // not switched here (owner, 2026-11-16, #474).
+                Text(
+                  // A month by its name and year (owner, 2026-11-16: "Just
+                  // write November 2026"); a pay period needs its dates.
+                  period.label == payPeriodLabel
+                      ? t.planPeriodTitle(
+                          _spanName(t, period, widget.today),
+                          shortDate(period.start),
+                          shortDate(period.end),
+                        )
+                      : t.planMonthYear(
+                          monthName(t, period.start.month),
+                          '${period.start.year}',
+                        ),
+                  key: const ValueKey('period-title'),
+                  style: onest(14.5, weight: 500, color: Mid.ink2),
                 ),
                 _PeriodArrow(
                   key: const ValueKey('period-next'),
@@ -1097,25 +1421,6 @@ class _BudgetPageState extends State<_BudgetPage> {
                     ),
                   ),
                 ],
-                const Spacer(),
-                // One button for the tab that's on: a category, or a pay.
-                if (_tab == _BudgetTab.income)
-                  _PrimaryButton(
-                    key: const ValueKey('income-add-pay'),
-                    label: data.paySchedules.isEmpty
-                        ? t.setupAddYourPay
-                        : t.setupAddOtherPay,
-                    icon: Icons.add_rounded,
-                    tooltip: t.setupAddPayTip,
-                    onTap: () => widget.onPay(null),
-                  )
-                else
-                  _PrimaryButton(
-                    key: const ValueKey('add-category'),
-                    label: t.planAddCategory,
-                    icon: Icons.add_rounded,
-                    onTap: _newCategory,
-                  ),
               ],
             ),
           ),
@@ -1138,182 +1443,240 @@ class _BudgetPageState extends State<_BudgetPage> {
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          keyCard(),
-                          const SizedBox(height: 12),
-                          // Not while a category's Edit is open: it
-                          // needs the room, and the card comes back with
-                          // what was saved.
-                          if (fits.isNotEmpty && _open == null) ...[
-                            _IncomeFitCard(
-                              fits: fits,
-                              month: period.label == payPeriodLabel
-                                  ? null
-                                  : monthName(t, period.start.month),
-                              current: isCurrent,
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                        ],
+                        children: [keyCard(), const SizedBox(height: 12)],
                       ),
                     ),
                   ),
                   Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Mid.panel,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Mid.rule),
-                      ),
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
-                        children: [
-                          tabs(),
-                          if (_tab == _BudgetTab.income)
-                            _IncomeTab(
-                              data: data,
-                              cameIn: income == null
-                                  ? const []
-                                  : _cameIn(
-                                      budget.cameIn[income.id],
-                                      budget.currency,
-                                    ),
-                              fromPay: fromPay,
-                              expectedPay: expectedPay,
-                              onShowRows: income == null
-                                  ? null
-                                  : () => widget.onShowRows(income, period),
-                              waiting: [
-                                for (final (c, v) in _cameIn(
-                                  budget.cameInUncategorized,
-                                  budget.currency,
-                                ))
-                                  if (v > 0) (c, v),
-                              ],
-                              onShowWaiting: switch (data.accounts.values
-                                  .where(
-                                    (a) => !a.deleted && isUncategorized(a),
-                                  )
-                                  .firstOrNull) {
-                                final w? => () => widget.onShowRows(w, period),
-                                null => null,
-                              },
-                              onPay: widget.onPay,
-                              onAskAgain: widget.onAskAgain,
+                    child: Stack(
+                      children: [
+                        // The panel starts 1 point up under the tabs' feet, so
+                        // the chosen tab covers its top edge and joins it.
+                        Positioned.fill(
+                          top: _tabFeet,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Mid.panel,
+                              borderRadius: const BorderRadius.only(
+                                topRight: Radius.circular(16),
+                                bottomLeft: Radius.circular(16),
+                                bottomRight: Radius.circular(16),
+                              ),
+                              border: Border.all(color: Mid.rule),
                             ),
-                          Offstage(
-                            offstage: _tab == _BudgetTab.income,
-                            // Hidden, but kept so what was typed in it stays:
-                            // Tab mustn't walk through it (#163).
-                            child: ExcludeFocus(
-                              excluding: _tab == _BudgetTab.income,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  for (final (i, c) in spending.indexed) ...[
-                                    if (groupAt[i] case final g?)
-                                      heading(g, 'budget-group-$g'),
-                                    if (i == firstBill)
-                                      heading(t.phoneBills, 'budget-bills'),
-                                    if (i == firstSaved) ...[
-                                      ...totals(),
-                                      heading(t.planSaved, 'budget-saved'),
-                                    ],
-                                    row(c, striped: i.isOdd),
-                                  ],
-                                  if (firstSaved < 0) ...totals(),
-                                  const SizedBox(height: 14),
-                                  if (archived.isNotEmpty) ...[
-                                    Hoverable(
-                                      key: const ValueKey(
-                                        'show-archived-categories',
-                                      ),
-                                      onTap: () => setState(
-                                        () => _showArchived = !_showArchived,
-                                      ),
-                                      builder: (hover) => Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          12,
-                                          6,
-                                          12,
-                                          6,
-                                        ),
-                                        child: Text(
-                                          _showArchived
-                                              ? t.planHideArchived(
-                                                  archived.length,
-                                                )
-                                              : t.planShowArchived(
-                                                  archived.length,
-                                                ),
-                                          style: onest(
-                                            12.5,
-                                            color: hover ? Mid.ink2 : Mid.ink3,
-                                          ),
-                                        ),
-                                      ),
+                            // The columns' titles stay over the list
+                            // (#482): they scrolled off with the first
+                            // row.
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    8,
+                                    12,
+                                    0,
+                                  ),
+                                  child: heads(),
+                                ),
+                                Expanded(
+                                  child: ListView(
+                                    controller: _listScroll,
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      0,
+                                      12,
+                                      14,
                                     ),
-                                    if (_showArchived)
-                                      for (final c in archived)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 4,
-                                          ),
-                                          child: Row(
+                                    children: [
+                                      if (_tab == _BudgetTab.income)
+                                        _IncomeTab(
+                                          data: data,
+                                          cameIn: income == null
+                                              ? const []
+                                              : _cameIn(
+                                                  budget.cameIn[income.id],
+                                                  budget.currency,
+                                                ),
+                                          fromPay: fromPay,
+                                          expectedPay: expectedPay,
+                                          onShowRows: income == null
+                                              ? null
+                                              : () => widget.onShowRows(
+                                                  income,
+                                                  period,
+                                                ),
+                                          waiting: [
+                                            for (final (c, v) in _cameIn(
+                                              budget.cameInUncategorized,
+                                              budget.currency,
+                                            ))
+                                              if (v > 0) (c, v),
+                                          ],
+                                          onShowWaiting: switch (data
+                                              .accounts
+                                              .values
+                                              .where(
+                                                (a) =>
+                                                    !a.deleted &&
+                                                    isUncategorized(a),
+                                              )
+                                              .firstOrNull) {
+                                            final w? => () => widget.onShowRows(
+                                              w,
+                                              period,
+                                            ),
+                                            null => null,
+                                          },
+                                          onPay: widget.onPay,
+                                          onAskAgain: widget.onAskAgain,
+                                        ),
+                                      Offstage(
+                                        offstage: _tab == _BudgetTab.income,
+                                        // Hidden, but kept so what was typed in it stays:
+                                        // Tab mustn't walk through it (#163).
+                                        child: ExcludeFocus(
+                                          excluding: _tab == _BudgetTab.income,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
                                             children: [
-                                              Expanded(
-                                                child: Text(
-                                                  c.name,
-                                                  style: onest(
-                                                    13.5,
-                                                    color: Mid.ink2,
+                                              ...spendingRows(),
+                                              const SizedBox(height: 14),
+                                              if (archived.isNotEmpty) ...[
+                                                Hoverable(
+                                                  key: const ValueKey(
+                                                    'show-archived-categories',
+                                                  ),
+                                                  onTap: () => setState(
+                                                    () => _showArchived =
+                                                        !_showArchived,
+                                                  ),
+                                                  builder: (hover) => Padding(
+                                                    padding:
+                                                        const EdgeInsets.fromLTRB(
+                                                          12,
+                                                          6,
+                                                          12,
+                                                          6,
+                                                        ),
+                                                    child: Text(
+                                                      _showArchived
+                                                          ? t.planHideArchived(
+                                                              archived.length,
+                                                            )
+                                                          : t.planShowArchived(
+                                                              archived.length,
+                                                            ),
+                                                      style: onest(
+                                                        12.5,
+                                                        color: hover
+                                                            ? Mid.ink2
+                                                            : Mid.ink3,
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                              Text(
-                                                _usageText(
-                                                  t,
-                                                  data.categoryUsage[c.id],
-                                                ),
-                                                style: onest(
-                                                  12.5,
-                                                  color: Mid.ink3,
-                                                ),
-                                              ),
-                                              // Money can still sit in an archived one.
-                                              if (budget.lines[c.id]?.left
-                                                  case final left?
-                                                  when left != 0) ...[
-                                                const SizedBox(width: 16),
-                                                Money(
-                                                  left,
-                                                  size: 13,
-                                                  currency: c.currency,
-                                                  color: left < 0
-                                                      ? Mid.coral
-                                                      : Mid.ink2,
-                                                ),
+                                                if (_showArchived)
+                                                  for (final c in archived)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 12,
+                                                            vertical: 4,
+                                                          ),
+                                                      child: Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child: Text(
+                                                              c.name,
+                                                              style: onest(
+                                                                13.5,
+                                                                color: Mid.ink2,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          Text(
+                                                            _usageText(
+                                                              t,
+                                                              data.categoryUsage[c
+                                                                  .id],
+                                                            ),
+                                                            style: onest(
+                                                              12.5,
+                                                              color: Mid.ink3,
+                                                            ),
+                                                          ),
+                                                          // Money can still sit in an archived one.
+                                                          if (budget
+                                                                  .lines[c.id]
+                                                                  ?.left
+                                                              case final left?
+                                                              when left !=
+                                                                  0) ...[
+                                                            const SizedBox(
+                                                              width: 16,
+                                                            ),
+                                                            Money(
+                                                              left,
+                                                              size: 13,
+                                                              currency:
+                                                                  c.currency,
+                                                              color: left < 0
+                                                                  ? Mid.coral
+                                                                  : Mid.ink2,
+                                                            ),
+                                                          ],
+                                                          const SizedBox(
+                                                            width: 16,
+                                                          ),
+                                                          BarButton(
+                                                            key: ValueKey(
+                                                              'unarchive-category-${c.id}',
+                                                            ),
+                                                            label: t
+                                                                .planShowInMenus,
+                                                            onTap: () => widget
+                                                                .onUnarchive(c),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
                                               ],
-                                              const SizedBox(width: 16),
-                                              BarButton(
-                                                key: ValueKey(
-                                                  'unarchive-category-${c.id}',
-                                                ),
-                                                label: t.planShowInMenus,
-                                                onTap: () =>
-                                                    widget.onUnarchive(c),
-                                              ),
                                             ],
                                           ),
                                         ),
-                                  ],
-                                ],
-                              ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        Positioned(left: 0, top: 0, child: tabStrip()),
+                        // Add category sits on the tabs' row, at the list it
+                        // adds to (owner, 2026-11-14). It belongs to Spending:
+                        // Income's button is under the incomes (#436).
+                        if (_tab == _BudgetTab.spending)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            // The row lets the button be as wide as its
+                            // words; alone it would fill the tabs' row.
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _PrimaryButton(
+                                  key: const ValueKey('add-category'),
+                                  label: t.planAddCategory,
+                                  icon: Icons.add_rounded,
+                                  onTap: _newCategory,
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -1327,6 +1690,69 @@ class _BudgetPageState extends State<_BudgetPage> {
 }
 
 const double _amountWidth = 136;
+
+/// Assign what's planned, on the key card. When the plans come to more
+/// than is not assigned, the warning is the button's own second line, in
+/// coral, inside its outline (owner, 2026-11-14, of the line that stood
+/// beside it: "How would the user know what that text is referring to?").
+/// Without a warning it is a [BarButton].
+class _AssignPlannedButton extends StatelessWidget {
+  const _AssignPlannedButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.warning,
+    this.warningKey,
+  });
+  final String label;
+  final VoidCallback onTap;
+  final String? warning;
+  final Key? warningKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final warning = this.warning;
+    if (warning == null) return BarButton(label: label, onTap: onTap);
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Hoverable(
+        onTap: onTap,
+        builder: (hover) => Container(
+          padding: const EdgeInsets.fromLTRB(10, 5, 10, 6),
+          decoration: BoxDecoration(
+            color: hover ? Mid.raised : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Mid.ink2.withValues(alpha: hover ? 0.6 : 0.3),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: onest(13, color: hover ? Mid.ink : Mid.ink2),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                warning,
+                key: warningKey,
+                style: onest(12.5, color: Mid.coral, tabular: true),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Where the tabs end and the panel's top edge is: the chosen tab is one
+/// point taller and covers that edge.
+const double _tabFeet = 41;
 
 /// What the categories keep under the cards at the top of the Budget page:
 /// the tabs and a few rows (#234).
@@ -1366,11 +1792,17 @@ class _ColumnLines extends CustomPainter {
   bool shouldRepaint(_ColumnLines old) => old.color != color;
 }
 
-/// The ring before a category's name, and the gap after it; a row without
-/// a ring leaves the same space, so names line up down the list.
-const double _ringSize = 14;
-const double _ringGap = 8;
-const double _ringIndent = _ringSize + _ringGap;
+/// The bar after a category's name ([UsedBar], #460, #465): how long it
+/// is, the same for every category. Names keep [_barNameShare] of the
+/// room before Assigned, between [_barNameMin] and [_barNameMax], so every
+/// bar starts at the same place down the list.
+const double _barMax = 180;
+
+/// The margin a section's name sits in, left of its rows (#482).
+const double _sectionMargin = 148;
+const double _barNameShare = 0.42;
+const double _barNameMin = 170;
+const double _barNameMax = 300;
 
 /// Under the spending categories: this period's Assigned and Spent added
 /// up, one row per currency among them (#273). Left's total is the key
@@ -1406,12 +1838,9 @@ class _TotalsRow extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: _ringIndent),
-                child: Text(
-                  t.planTotal,
-                  style: onest(13, weight: 600, color: Mid.ink2),
-                ),
+              child: Text(
+                t.planTotal,
+                style: onest(13, weight: 600, color: Mid.ink2),
               ),
             ),
             SizedBox(
@@ -1462,44 +1891,108 @@ class _TotalsRow extends StatelessWidget {
 
 enum _BudgetTab { spending, income }
 
-/// A tab in the panel's top row, drawn like the register's.
+/// A folder tab's outline: top corners rounded, sides and top stroked, the
+/// bottom left open so the panel shows through, and for the chosen tab a
+/// 3-point bar of its hue along the top. (A `Border` can't round corners
+/// with sides of different colors.)
+class _TabShape extends ShapeBorder {
+  const _TabShape({required this.rule, this.bar});
+  final Color rule;
+  final Color? bar;
+
+  static const _radius = Radius.circular(10);
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) => Path()
+    ..addRRect(
+      RRect.fromRectAndCorners(rect, topLeft: _radius, topRight: _radius),
+    );
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      getOuterPath(rect, textDirection: textDirection);
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
+    final edge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = rule;
+    // Stroked half a point in, so the line lies inside the tab.
+    final r = rect.deflate(0.5);
+    canvas.drawPath(
+      Path()
+        ..moveTo(r.left, r.bottom)
+        ..lineTo(r.left, r.top + _radius.x)
+        ..arcToPoint(Offset(r.left + _radius.x, r.top), radius: _radius)
+        ..lineTo(r.right - _radius.x, r.top)
+        ..arcToPoint(Offset(r.right, r.top + _radius.x), radius: _radius)
+        ..lineTo(r.right, r.bottom),
+      edge,
+    );
+    if (bar case final c?) {
+      canvas.save();
+      canvas.clipPath(getOuterPath(rect));
+      canvas.drawRect(
+        Rect.fromLTWH(rect.left, rect.top, rect.width, 3),
+        Paint()..color = c,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  ShapeBorder scale(double t) => this;
+}
+
+/// A folder tab on the panel's top edge (owner's pick B, 2026-11-14, #435).
+/// The one you're on is the panel's own color, 42 tall, with a 3-point bar
+/// of its [hue] across the top, and covers the panel's edge so the two are
+/// one piece. The other is lowered, 36 tall, on the raised gray, with the
+/// panel's edge running under it. Spending's hue is the blue of what you
+/// click and Income's the green of money in.
 class _PageTab extends StatelessWidget {
   const _PageTab({
     super.key,
     required this.label,
     required this.active,
     required this.onTap,
+    required this.hue,
     this.dot = false,
   });
   final String label;
   final bool active;
   final VoidCallback onTap;
+  final Color hue;
 
   /// Something on the tab wants attention: a small blue dot after it.
   final bool dot;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(right: 8),
+    padding: EdgeInsets.only(right: 4, top: active ? 0 : _tabFeet - 36),
     child: Hoverable(
       onTap: onTap,
       builder: (hover) => Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          // The tab you're on is tinted like the row you've chosen.
-          color: active
-              ? Mid.blueWash
-              : (hover ? Mid.hover : Colors.transparent),
-          borderRadius: BorderRadius.circular(8),
+        height: active ? _tabFeet + 1 : 36,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: ShapeDecoration(
+          color: active ? Mid.panel : (hover ? Mid.hover : Mid.raised),
+          shape: _TabShape(rule: Mid.rule, bar: active ? hue : null),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               label,
-              // Color only: a heavier word would nudge the tabs beside it.
-              style: onest(13, color: active ? Mid.blue : Mid.ink3),
+              style: onest(
+                14,
+                color: active ? Mid.ink : Mid.ink2,
+                weight: active ? 600 : 400,
+              ),
             ),
             if (dot) ...[
               const SizedBox(width: 6),
@@ -1771,245 +2264,102 @@ class _IncomeTab extends StatelessWidget {
                     style: onest(13.5, color: Mid.note),
                   ),
           ),
+        // With the incomes it adds to, not up in the page's top row (#436).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+          child: Row(
+            children: [
+              _PrimaryButton(
+                key: const ValueKey('income-add-pay'),
+                label: pays.isEmpty ? t.setupAddYourPay : t.setupAddOtherPay,
+                icon: Icons.add_rounded,
+                tooltip: t.setupAddPayTip,
+                onTap: () => onPay(null),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 }
 
-/// The period's plans against its income (#234, the owner's pick B,
-/// 2026-10-27): a heading that says it, a bar with a mark where the income
-/// ends, and what each part of the bar is. Past the mark is coral: a
-/// shortfall. One block per currency, which are never added together.
-class _IncomeFitCard extends StatelessWidget {
-  const _IncomeFitCard({
-    required this.fits,
-    required this.month,
-    required this.current,
+/// One figure of the Budget page's sum, in a box tinted with its own
+/// color (owner, 2026-11-14, of the result's: "Love the box on the end.
+/// Let's put a box around each of them"): its name, then the figure. One
+/// with no color of its own is in a faint tint of the ink. [big] is the
+/// result, a size larger. [note] goes beside the name ("₮2,100,000 still
+/// to come").
+class _SumBox extends StatelessWidget {
+  const _SumBox({
+    super.key,
+    required this.label,
+    required this.figure,
+    this.hue,
+    this.note,
+    this.below,
+    this.big = false,
+    this.figureKey,
+    this.belowKey,
   });
-  final List<IncomeFit> fits;
+  final String label, figure;
+  final Color? hue;
+  final String? note;
 
-  /// The month's name; null by pay period.
-  final String? month;
-
-  /// Whether the period is today's: "This pay period", or "That".
-  final bool current;
+  /// A small line under the figure.
+  final String? below;
+  final bool big;
+  final Key? figureKey, belowKey;
 
   @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    return Container(
-      key: const ValueKey('income-fit'),
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
-      decoration: BoxDecoration(
-        color: Mid.panel,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Mid.rule),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (i, f) in fits.indexed) ...[
-            if (i > 0) const SizedBox(height: 14),
-            _fit(t, f),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _fit(Words t, IncomeFit f) {
-    final c = f.currency, m = month;
-    final tag = f.currency == fits.first.currency ? '' : '-${c.code}';
-    String short(int v) => formatShort(v, currency: c);
-    final over = f.over;
-    final amount = short(over.abs());
-    final heading = switch ((over.sign, m, current)) {
-      (1, final m?, _) => t.planFitOverMonth(m, amount),
-      (1, null, true) => t.planFitOverPay(amount),
-      (1, null, false) => t.planFitOverPayThen(amount),
-      (-1, final m?, _) => t.planFitSpareMonth(m, amount),
-      (-1, null, true) => t.planFitSparePay(amount),
-      (-1, null, false) => t.planFitSparePayThen(amount),
-      (_, final m?, _) => t.planFitEvenMonth(m),
-      (_, null, true) => t.planFitEvenPay,
-      (_, null, false) => t.planFitEvenPayThen,
-    };
-    // The amount in the heading is the one to read: coral when over, and
-    // only when the income is known; with no pay set up, more may come.
-    final at = heading.indexOf(amount);
-    final coral = over > 0 && f.sure;
-    final style = onest(14.5, weight: 600, tabular: true);
-    // Still to spend and Income are green, figure and bar (owner,
-    // 2026-10-28, #327); Saved, which had that green, is a paler one.
-    final parts = [
-      (f.spent, Mid.blue, t.planFitSpent, null),
-      (
-        f.toSpend,
-        Mid.green,
-        t.planFitToSpend,
-        // Past the income, the coral amount above speaks; this one is ink.
-        coral ? null : Mid.green,
-      ),
-      (f.putAside, Mid.green.withValues(alpha: 0.45), t.planFitAside, null),
-    ];
-    Widget key(
-      Widget mark,
-      String label,
-      String figure, {
-      String? note,
-      Color? color,
-    }) => Row(
+  Widget build(BuildContext context) => Container(
+    padding: big
+        ? const EdgeInsets.fromLTRB(16, 8, 16, 8)
+        : const EdgeInsets.fromLTRB(14, 7, 14, 7),
+    decoration: BoxDecoration(
+      color: (hue ?? Mid.ink).withValues(alpha: hue == null ? 0.06 : 0.12),
+      borderRadius: BorderRadius.circular(10),
+      // The result is told from the terms by an edge in its own color
+      // (owner, 2026-11-16: "I need it to look slightly different since
+      // it's the equals card").
+      border: big
+          ? Border.all(
+              color: (hue ?? Mid.ink2).withValues(alpha: 0.7),
+              width: 1.5,
+            )
+          : null,
+    ),
+    child: Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        mark,
-        const SizedBox(width: 6),
-        Text(label, style: onest(12.5, color: Mid.ink3)),
-        const SizedBox(width: 6),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: onest(12.5, color: hue ?? Mid.ink2)),
+            if (note case final note?) ...[
+              const SizedBox(width: 8),
+              Text(note, style: onest(12.5, color: Mid.ink3, tabular: true)),
+            ],
+          ],
+        ),
+        const SizedBox(height: 3),
         Text(
           figure,
-          style: onest(13, weight: 500, color: color, tabular: true),
+          key: figureKey,
+          style: onest(big ? 21 : 18, weight: 600, color: hue, tabular: true),
         ),
-        if (note != null) ...[
-          const SizedBox(width: 6),
-          Text(note, style: onest(12.5, color: Mid.ink3, tabular: true)),
+        if (below case final below?) ...[
+          const SizedBox(height: 2),
+          Text(
+            below,
+            key: belowKey,
+            style: onest(12.5, color: Mid.ink3, tabular: true),
+          ),
         ],
       ],
-    );
-    Widget swatch(Color color) => Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(2),
-      ),
-    );
-    return Column(
-      key: ValueKey('income-fit$tag'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text.rich(
-          key: ValueKey('income-fit-heading$tag'),
-          at < 0 || !coral
-              ? TextSpan(text: heading)
-              : TextSpan(
-                  children: [
-                    TextSpan(text: heading.substring(0, at)),
-                    TextSpan(
-                      text: amount,
-                      style: TextStyle(color: Mid.coral),
-                    ),
-                    TextSpan(text: heading.substring(at + amount.length)),
-                  ],
-                ),
-          style: style,
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 22,
-          child: CustomPaint(
-            painter: _FitBar(
-              parts: [for (final (v, color, _, _) in parts) (v, color)],
-              income: f.income,
-              coral: f.sure ? Mid.coral : Mid.ink3,
-              mark: Mid.ink,
-              empty: Mid.rule,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 22,
-          runSpacing: 4,
-          children: [
-            for (final (v, color, label, ink) in parts)
-              if (v > 0) key(swatch(color), label, short(v), color: ink),
-            key(
-              Container(width: 2, height: 12, color: Mid.ink),
-              t.planFitIncome,
-              short(f.income),
-              note: f.toCome > 0 ? t.planFitToCome(short(f.toCome)) : null,
-              // As on the Income tab: green once some has come in.
-              color: f.cameIn > 0 ? Mid.green : null,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// The bar under the heading: its parts end to end, the whole as long as
-/// the income or what the period takes, whichever is more; past the
-/// income's mark, coral.
-class _FitBar extends CustomPainter {
-  _FitBar({
-    required this.parts,
-    required this.income,
-    required this.coral,
-    required this.mark,
-    required this.empty,
-  });
-  final List<(int, Color)> parts;
-  final int income;
-  final Color coral, mark, empty;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final takes = parts.fold(0, (sum, p) => sum + p.$1);
-    final whole = takes > income ? takes : income;
-    final h = size.height - 6, top = 3.0;
-    final round = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, top, size.width, h),
-      const Radius.circular(5),
-    );
-    canvas.save();
-    canvas.clipRRect(round);
-    canvas.drawRect(round.outerRect, Paint()..color = empty);
-    if (whole > 0) {
-      double x(int v) => size.width * v / whole;
-      var from = 0;
-      for (final (v, color) in parts) {
-        if (v <= 0) continue;
-        // A hair of the track between parts, so two of the same
-        // lightness are still two.
-        canvas.drawRect(
-          Rect.fromLTRB(
-            x(from) + (from > 0 ? 1 : 0),
-            top,
-            x(from + v),
-            top + h,
-          ),
-          Paint()..color = color,
-        );
-        from += v;
-      }
-      if (takes > income) {
-        canvas.drawRect(
-          Rect.fromLTRB(x(income), top, x(takes), top + h),
-          Paint()..color = coral,
-        );
-      }
-    }
-    canvas.restore();
-    if (whole > 0 && income > 0) {
-      final at = (size.width * income / whole).clamp(1.0, size.width - 1);
-      canvas.drawRect(
-        Rect.fromLTWH(at - 1, 0, 2, size.height),
-        Paint()..color = mark,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_FitBar old) =>
-      old.income != income ||
-      old.coral != coral ||
-      old.mark != mark ||
-      old.empty != empty ||
-      old.parts.length != parts.length ||
-      [for (var i = 0; i < parts.length; i++) old.parts[i] != parts[i]]
-          .any((d) => d);
+    ),
+  );
 }
 
 /// "This month" or "This pay period" for the one today is in; otherwise
@@ -2022,95 +2372,6 @@ String _spanName(Words t, BudgetSpan p, DateTime today) {
   if (p.label == payPeriodLabel) return t.planPayPeriod;
   final m = monthName(t, p.start.month);
   return p.start.year == today.year ? m : '$m ${p.start.year}';
-}
-
-/// The period title ("This month · 10.01–10.31"), which is the view's
-/// dropdown once there's pay: Month, or a pay by name (ADR 0004 "The top
-/// pane"; one control, like the forecast's title). Picking one asks the
-/// screen to view by it; the choice is kept in the ledger (one pay at most
-/// has it). Without pay, the title alone.
-class _ViewChoice extends StatefulWidget {
-  const _ViewChoice({
-    required this.data,
-    required this.by,
-    required this.title,
-    required this.onPick,
-  });
-  final LedgerData data;
-  final PaySchedule? by;
-  final String title;
-  final ValueChanged<PaySchedule?> onPick;
-
-  @override
-  State<_ViewChoice> createState() => _ViewChoiceState();
-}
-
-class _ViewChoiceState extends State<_ViewChoice> {
-  final _menu = MenuController();
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final by = widget.by;
-    final title = Text(
-      widget.title,
-      key: const ValueKey('period-title'),
-      style: onest(14.5, weight: 500, color: Mid.ink2),
-    );
-    if (widget.data.paySchedules.isEmpty) return title;
-    Widget item(String key, String label, bool on, VoidCallback onTap) =>
-        MenuItemButton(
-          key: ValueKey(key),
-          onPressed: onTap,
-          style: ButtonStyle(
-            minimumSize: const WidgetStatePropertyAll(Size(180, 34)),
-            overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-          ),
-          child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
-        );
-    return MenuAnchor(
-      controller: _menu,
-      style: _menuStyle,
-      onOpen: () => setState(() {}),
-      onClose: () {
-        if (mounted) setState(() {});
-      },
-      menuChildren: focusFirstOnKeys([
-        item(
-          'budget-view-month',
-          t.planViewMonth,
-          by == null,
-          () => widget.onPick(null),
-        ),
-        for (final p in widget.data.paySchedules)
-          item(
-            'budget-view-${p.id}',
-            payTitle(t, widget.data, p),
-            by?.id == p.id,
-            () => widget.onPick(p),
-          ),
-      ]),
-      child: Tooltip(
-        message: t.planViewTip,
-        waitDuration: const Duration(milliseconds: 600),
-        child: Hoverable(
-          key: const ValueKey('budget-view'),
-          onTap: () => _menu.isOpen ? _menu.close() : _menu.open(),
-          builder: (hover) {
-            final color = hover || _menu.isOpen ? Mid.ink : Mid.ink3;
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                title,
-                const SizedBox(width: 2),
-                Icon(Icons.expand_more_rounded, size: 16, color: color),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
 }
 
 class _PeriodArrow extends StatelessWidget {
@@ -2287,26 +2548,27 @@ class _CategoryRow extends StatefulWidget {
     required this.onPlan,
     required this.onDelete,
     this.line,
-    this.fromBefore,
+    this.ahead,
     this.planNote,
     this.assignPlanned,
     this.onAssignPlanned,
-    this.onSkipBill,
-    this.noBills = const [],
+    this.assignTotal,
+    this.billState,
+    this.billBehind = false,
     this.flags = const [],
     this.moveChoices = const [],
     this.onMove,
-    this.usedShare,
+    this.bar,
     this.usedWords,
     this.bill = false,
   });
   final AccountInfo category;
 
-  /// How much of what it had this period is used, 0 to 1, drawn as the
-  /// ring before its name (#241); null, no ring (a bill, or nothing to
-  /// picture). [usedWords] is the ring's tooltip, "₮612,300 of ₮900,000
-  /// used", when there is something to say.
-  final double? usedShare;
+  /// The bar after its name (#460, #465): how much of what it had this
+  /// period is left, 0 to 1, and whether it spent past it. Null, no bar (a
+  /// bill, or nothing to picture). [usedWords] is the bar's tooltip,
+  /// "₮612,300 of ₮900,000 spent".
+  final ({double left, bool over})? bar;
   final String? usedWords;
 
   /// Saving for a bill, listed under Bills: its Left is quieter, since
@@ -2339,11 +2601,15 @@ class _CategoryRow extends StatefulWidget {
   final String? assignPlanned;
   final VoidCallback? onAssignPlanned;
 
-  /// Skip this bill, while there's a bill on the line to skip.
-  final VoidCallback? onSkipBill;
+  /// What Assigned will be once [assignPlanned] is clicked, for the
+  /// link's tooltip.
+  final String? assignTotal;
 
-  /// The bills of this period there won't be.
-  final List<_NoBill> noBills;
+  /// A bill's one spot (#365): "Late", "Skipped", "paid 10.13", "₮200,000
+  /// short"; null says nothing. [billBehind] (short) is in full ink. Its
+  /// account put away is a warning, as on any row (#483).
+  final String? billState;
+  final bool billBehind;
 
   /// The plan's note was clicked: Edit, at the plan.
   final VoidCallback onPlan;
@@ -2358,8 +2624,12 @@ class _CategoryRow extends StatefulWidget {
   /// Assigned, Spent and Left for the period on screen.
   final EnvelopeLine? line;
 
-  /// "₮500,000 from before", when the category carried money in.
-  final String? fromBefore;
+  /// "₮100,000 past this pay period's part, which November's money still
+  /// covers": said when Left, which is then not red (#468), is pointed
+  /// at. No line under Left, here or for what the period before left
+  /// (owner, 2026-11-16: "I want each row to be the same height. Kill the
+  /// text").
+  final String? ahead;
   final Currency currency;
 
   /// Its Put in is being typed.
@@ -2397,6 +2667,68 @@ class _CategoryRowState extends State<_CategoryRow> {
   Widget build(BuildContext context) {
     final t = context.t;
     final c = widget.category;
+    final oneLine = widget.bill && widget.planNote != null;
+    final note = widget.planNote;
+    final planText = (note?.text ?? '').isEmpty ? null : note!.text;
+    // What the row says after its name, in the order it reads; `rank` is
+    // which is kept when there's room for one: a warning, then Late, then
+    // the Assign link, then any other word (the committee, 2026-11-16).
+    final some = (widget.line?.assigned ?? 0) > 0;
+    final state = oneLine ? widget.billState : note?.state;
+    final said = <_Said>[
+      // A bill's amount: the first to give way.
+      if (oneLine)
+        (
+          key: ValueKey('plan-note-${c.id}'),
+          text: note!.amount,
+          style: onest(12.5, color: Mid.ink2, tabular: true),
+          tip: '${note.text}\n${t.planEditTip}',
+          onTap: widget.onPlan,
+          rank: 4,
+        ),
+      for (final (i, f) in widget.flags.indexed)
+        (
+          key: ValueKey('line-flag-${c.id}-$i'),
+          text: f.short,
+          style: onest(12, weight: 600, color: Mid.ink, tabular: true),
+          tip: f.text,
+          onTap: f.onTap,
+          rank: 0,
+        ),
+      if (state != null)
+        (
+          key: ValueKey('plan-state-${c.id}'),
+          text: state,
+          style: onest(
+            12,
+            color: (oneLine ? widget.billBehind : note!.behind)
+                ? Mid.ink
+                : Mid.ink2,
+            tabular: true,
+          ),
+          tip: planText,
+          onTap: null,
+          rank: state == t.planBillLate ? 1 : 3,
+        ),
+      if (widget.assignPlanned case final amount?)
+        (
+          key: ValueKey('plan-assign-${c.id}'),
+          // "more" once some is in, so it can't read as replacing it.
+          text: some ? t.planAssignMore(amount) : t.planAssignThis(amount),
+          style: onest(12, weight: 500, color: Mid.blue, tabular: true),
+          // The plan it's toward, then where the money comes from and
+          // what Assigned will be: two whole sentences, a line each.
+          tip: [
+            ?planText,
+            if (some && widget.assignTotal != null)
+              t.planAssignMoreLinkTip(amount, widget.assignTotal!)
+            else
+              t.planAssignLinkTip(amount),
+          ].join('\n'),
+          onTap: widget.onAssignPlanned,
+          rank: 2,
+        ),
+    ];
     return MenuAnchor(
       controller: _menu,
       style: _menuStyle,
@@ -2427,12 +2759,8 @@ class _CategoryRowState extends State<_CategoryRow> {
               constraints: const BoxConstraints(minHeight: 40),
               padding: EdgeInsets.symmetric(
                 horizontal: 12,
-                vertical:
-                    widget.fromBefore == null &&
-                        widget.planNote == null &&
-                        widget.flags.isEmpty
-                    ? 0
-                    : 5,
+                // Every row is one height (owner, 2026-11-16, #471, #483).
+                vertical: 0,
               ),
               decoration: BoxDecoration(
                 color: Color.alphaBlend(
@@ -2443,91 +2771,16 @@ class _CategoryRowState extends State<_CategoryRow> {
               ),
               child: Row(
                 children: [
+                  // Its name, then the one spot that says what the row
+                  // needs (#483): never a second line.
                   Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            // The ring: how much of what it had this
-                            // period is used (#241). A row without one
-                            // keeps the space, so names line up.
-                            Padding(
-                              padding: const EdgeInsets.only(right: _ringGap),
-                              child: switch (widget.usedShare) {
-                                null => const SizedBox(
-                                  width: _ringSize,
-                                  height: _ringSize,
-                                ),
-                                final share => UsedRing(
-                                  key: ValueKey('used-${c.id}'),
-                                  share: share,
-                                  size: _ringSize,
-                                  words: widget.usedWords,
-                                ),
-                              },
-                            ),
-                            Expanded(child: Text(c.name, style: onest(13.5))),
-                          ],
-                        ),
-                        if (widget.planNote case final note?)
-                          Padding(
-                            padding: const EdgeInsets.only(left: _ringIndent),
-                            child: _PlanNoteLine(
-                              id: c.id,
-                              note: note,
-                              assign: widget.assignPlanned,
-                              onAssign: widget.onAssignPlanned,
-                              onPlan: widget.onPlan,
-                              onSkipBill: widget.onSkipBill,
-                              rowHover: _hover,
-                              noBills: widget.noBills,
-                            ),
-                          ),
-                        // What they wrote about it (#100): one line, the
-                        // whole of it when pointed at.
-                        if (c.note case final note?)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              top: 1,
-                              left: _ringIndent,
-                            ),
-                            child: Tooltip(
-                              message: note,
-                              waitDuration: const Duration(milliseconds: 600),
-                              child: Text(
-                                note,
-                                key: ValueKey('category-note-${c.id}'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: onest(12, color: Mid.ink3),
-                              ),
-                            ),
-                          ),
-                        for (final (i, f) in widget.flags.indexed)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              top: 1,
-                              left: _ringIndent,
-                            ),
-                            child: Hoverable(
-                              key: ValueKey('line-flag-${c.id}-$i'),
-                              onTap: f.onTap,
-                              // Wrapped, not cut: its amounts are the point.
-                              builder: (hover) => Text(
-                                f.text,
-                                style: onest(12, color: f.color, tabular: true)
-                                    .copyWith(
-                                      decoration: hover
-                                          ? TextDecoration.underline
-                                          : null,
-                                      decorationColor: f.color,
-                                    ),
-                              ),
-                            ),
-                          ),
-                      ],
+                    child: _NameAndSpot(
+                      category: c,
+                      bill: oneLine,
+                      planText: widget.planNote?.text,
+                      bar: oneLine ? null : widget.bar,
+                      usedWords: widget.usedWords,
+                      said: said,
                     ),
                   ),
                   if (widget.line case final line?) ...[
@@ -2586,6 +2839,15 @@ class _CategoryRowState extends State<_CategoryRow> {
                             currency: widget.currency,
                             choices: widget.moveChoices,
                             onMove: widget.onMove,
+                            // Said first when Left is pointed at: spent
+                            // ahead by a paycheck; or, on a bill holding
+                            // money, what that money is for (it was a
+                            // line under the Bills heading, #482).
+                            says:
+                                widget.ahead ??
+                                (widget.bill && line.left > 0
+                                    ? t.planBillLeftTip
+                                    : null),
                             child: Money(
                               line.left,
                               key: ValueKey('left-${c.id}'),
@@ -2594,26 +2856,15 @@ class _CategoryRowState extends State<_CategoryRow> {
                               weight: widget.bill ? 400 : 600,
                               currency: widget.currency,
                               // Green has money, coral is short (#326).
-                              color: line.left < 0
+                              color: line.left < 0 && widget.ahead == null
                                   ? Mid.coral
+                                  : line.left < 0
+                                  ? Mid.ink
                                   : line.left == 0
                                   ? Mid.ink3
                                   : Mid.green,
                             ),
                           ),
-                          if (widget.fromBefore case final before?)
-                            Text(
-                              before,
-                              key: ValueKey('from-before-${c.id}'),
-                              // Wrapped, it stays against the right edge
-                              // instead of running into Spent.
-                              textAlign: TextAlign.end,
-                              style: onest(
-                                11.5,
-                                color: Mid.ink3,
-                                tabular: true,
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -2651,6 +2902,198 @@ class _CategoryRowState extends State<_CategoryRow> {
 /// what it has left, and the heading it starts (Bills, Saved), if any.
 typedef _MoveChoice = ({AccountInfo? category, int left, String? heading});
 
+/// A category's name and, after it, the one spot that says what its row
+/// needs, on one line (owner, 2026-11-16, of the lines that sat under a
+/// name: "let's find another way of putting them on the row without
+/// impacting the height"; pick 1 of three, #483).
+///
+/// After the name: the bar, then what [said] holds. When there isn't room
+/// for all of it, the lowest `rank` stays and the bar is the first to go,
+/// so at the window's smallest the spot holds a warning if there is one,
+/// otherwise the Assign link, otherwise the bar. The bar is its full
+/// length or not there. A long name is cut, never wrapped, and the note
+/// the person wrote is a mark after it; each says the whole of itself
+/// when pointed at.
+class _NameAndSpot extends StatelessWidget {
+  const _NameAndSpot({
+    required this.category,
+    required this.bill,
+    required this.planText,
+    required this.bar,
+    required this.usedWords,
+    required this.said,
+  });
+
+  final AccountInfo category;
+
+  /// A bill's row: the name as wide as it is, no bar.
+  final bool bill;
+
+  /// The plan's whole sentence.
+  final String? planText;
+  final ({double left, bool over})? bar;
+  final String? usedWords;
+  final List<_Said> said;
+
+  static const _noteMark = 20.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = category;
+    final scaler = MediaQuery.textScalerOf(context);
+    // Measured as a Text draws it: over the page's own text style, whose
+    // spacing a bare style would leave out, and the name came out cut.
+    final base = DefaultTextStyle.of(context).style;
+    double wide(String text, TextStyle style) => (TextPainter(
+      text: TextSpan(text: text, style: base.merge(style)),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout()).width.ceilToDouble();
+    final nameStyle = onest(13.5);
+
+    Widget say(_Said s) {
+      Text text(bool hover) => Text(
+        s.text,
+        key: s.onTap == null ? s.key : null,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+        style: s.style.copyWith(
+          decoration: hover ? TextDecoration.underline : null,
+          decorationColor: s.style.color,
+        ),
+      );
+      final Widget child = s.onTap == null
+          ? text(false)
+          : Hoverable(key: s.key, onTap: s.onTap, builder: text);
+      final tip = s.tip;
+      return tip == null || tip.isEmpty
+          ? child
+          : Tooltip(
+              message: tip,
+              waitDuration: const Duration(milliseconds: 400),
+              child: child,
+            );
+    }
+
+    return LayoutBuilder(
+      builder: (context, box) {
+        final width = box.maxWidth;
+        final note = c.note;
+        final nameWide =
+            wide(c.name, nameStyle) + (note == null ? 0 : _noteMark);
+        // The name's column: the same down the list, so every bar and
+        // every word after a name starts at one place; a bill's is as
+        // wide as its name.
+        final double cell = bill
+            ? (nameWide + 1).clamp(0.0, width / 2)
+            : (width * _barNameShare)
+                  .clamp(_barNameMin, _barNameMax)
+                  .clamp(0.0, width);
+        final cut = nameWide > cell + 0.5;
+        final room = (width - cell - 12 - 20).clamp(0.0, width);
+        // What fits, the most needed first.
+        final byRank = [for (final (i, s) in said.indexed) (i, s)]
+          ..sort(
+            (a, b) => a.$2.rank != b.$2.rank
+                ? a.$2.rank.compareTo(b.$2.rank)
+                : a.$1.compareTo(b.$1),
+          );
+        final kept = <int>{};
+        var used = 0.0;
+        for (final (i, s) in byRank) {
+          final need = wide(s.text, s.style) + 1 + (kept.isEmpty ? 0 : 10);
+          if (used + need <= room) {
+            kept.add(i);
+            used += need;
+          }
+        }
+        // Not even one fits: the most needed shows anyway, cut, with its
+        // sentence when pointed at.
+        final squeezed = kept.isEmpty && byRank.isNotEmpty;
+        if (squeezed) kept.add(byRank.first.$1);
+        final barWide = room < _barMax ? room : _barMax;
+        final showBar =
+            bar != null &&
+            barWide >= 40 &&
+            used + (kept.isEmpty ? 0 : 12) + barWide <= room;
+        // Pointed at, the name says what was cut, and the plan when
+        // nothing on the row carries it.
+        final carried = said.indexed.any(
+          (x) =>
+              kept.contains(x.$1) &&
+              (x.$2.tip ?? '').contains(planText ?? '\u0000'),
+        );
+        final nameTip = [
+          if (cut) c.name,
+          if (planText != null && !carried) planText!,
+        ].join('\n');
+        final name = Text(
+          c.name,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.ellipsis,
+          style: nameStyle,
+        );
+        return Row(
+          children: [
+            SizedBox(
+              width: cell,
+              child: Row(
+                children: [
+                  Flexible(
+                    child: nameTip.isEmpty
+                        ? name
+                        : Tooltip(
+                            message: nameTip,
+                            waitDuration: const Duration(milliseconds: 600),
+                            child: name,
+                          ),
+                  ),
+                  // What they wrote about it (#100): a mark, and the
+                  // whole of it when pointed at.
+                  if (note != null) ...[
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: note,
+                      waitDuration: const Duration(milliseconds: 300),
+                      child: Icon(
+                        Icons.sticky_note_2_outlined,
+                        key: ValueKey('category-note-${c.id}'),
+                        size: 14,
+                        color: Mid.ink3,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (showBar)
+              SizedBox(
+                width: barWide,
+                child: UsedBar(
+                  key: ValueKey('used-${c.id}'),
+                  left: bar!.left,
+                  over: bar!.over,
+                  words: usedWords,
+                ),
+              ),
+            for (final (n, i) in (kept.toList()..sort()).indexed) ...[
+              if (n > 0 || showBar) SizedBox(width: n == 0 ? 12 : 10),
+              // Each has the room it was measured for; only one that
+              // doesn't fit gives way.
+              squeezed ? Flexible(child: say(said[i])) : say(said[i]),
+            ],
+            const SizedBox(width: 20),
+          ],
+        );
+      },
+    );
+  }
+}
+
 /// A category's Left, which opens the move box under it (#99; ADR 0004
 /// "Move money between categories", the owner's pick A of three). With
 /// money in it, the box moves it out; at zero or below, it moves money in,
@@ -2665,7 +3108,13 @@ class _MoveLeft extends StatefulWidget {
     required this.choices,
     required this.onMove,
     required this.child,
+    this.says,
   });
+
+  /// A sentence about this Left, first in its tooltip: spent ahead by a
+  /// paycheck, which its month covers (#468); a bill's money, and what it
+  /// is put aside for (#482).
+  final String? says;
 
   /// The pointer is on its row: outlined, with "Move money" beside it, so
   /// it's found without hunting (owner, 2026-10-23: "it's a hidden
@@ -2734,7 +3183,18 @@ class _MoveLeftState extends State<_MoveLeft> {
   Widget build(BuildContext context) {
     final t = context.t;
     final onMove = widget.onMove;
-    if (onMove == null || !widget.offered) return widget.child;
+    if (onMove == null || !widget.offered) {
+      return switch (widget.says) {
+        final says? => Tooltip(
+          key: ValueKey('left-says-${widget.category.id}'),
+          message: says,
+          waitDuration: const Duration(milliseconds: 400),
+          child: widget.child,
+        ),
+        null => widget.child,
+      };
+    }
+    final moveTip = widget.inward ? t.planMoveInTip : t.planMoveOutTip;
     return TapRegion(
       groupId: _link,
       onTapOutside: (_) => _close(),
@@ -2767,7 +3227,14 @@ class _MoveLeftState extends State<_MoveLeft> {
             ),
           ),
           child: Tooltip(
-            message: widget.inward ? t.planMoveInTip : t.planMoveOutTip,
+            key: widget.says == null
+                ? null
+                : ValueKey('left-says-${widget.category.id}'),
+            // Two whole sentences, each on its own line.
+            message: switch (widget.says) {
+              final says? => '$says\n$moveTip',
+              null => moveTip,
+            },
             waitDuration: const Duration(milliseconds: 600),
             child: Hoverable(
               key: ValueKey('move-left-${widget.category.id}'),
@@ -2914,9 +3381,17 @@ class _MoveBoxState extends State<_MoveBox> {
     if (amount == null || (_inward && picked == null)) return null;
     final from = _inward ? picked!.category : widget.here;
     final has = _inward ? picked!.left : widget.left;
+    if (from == null) {
+      // From Not assigned into a category that is overspent: what covers
+      // the overspending takes nothing, since that already came off
+      // (code review).
+      final covers = widget.left < 0 ? -widget.left : 0;
+      final takes = amount > covers ? amount - covers : 0;
+      if (takes <= has) return null;
+      return t.planMoveWarnNotAssigned(_money(has), _money(takes - has));
+    }
     if (amount <= has) return null;
     final short = _money(amount - has);
-    if (from == null) return t.planMoveWarnNotAssigned(_money(has), short);
     return has >= 0
         ? t.planMoveWarn(from.name, _money(has), short)
         : t.planMoveWarnOver(from.name, _money(-has), short);
@@ -4044,15 +4519,17 @@ class _StartOffer extends StatelessWidget {
   final VoidCallback onLater;
   final VoidCallback onKeep;
 
-  // A strip under the key's rows, inside the same card: the one thing
-  // here that's a question, gone once answered.
+  // A pane of its own under the sum's boxes, which have none (#464): the
+  // one thing here that's a question, gone once answered.
   @override
   Widget build(BuildContext context) => Container(
     key: const ValueKey('start-offer'),
-    margin: const EdgeInsets.only(top: 10),
-    padding: const EdgeInsets.only(top: 12),
+    margin: const EdgeInsets.only(top: 12),
+    padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
     decoration: BoxDecoration(
-      border: Border(top: BorderSide(color: Mid.rule)),
+      color: Mid.panel,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: Mid.rule),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4078,123 +4555,6 @@ class _StartOffer extends StatelessWidget {
       ],
     ),
   );
-}
-
-/// A bill that won't come: "No bill on 11.15", and what brings it back.
-typedef _NoBill = ({String words, VoidCallback onBringBack});
-
-/// The plan under a category's name. Clicking it opens Edit at the plan; "Assign
-/// ₮200,000" at its end assigns what the plan wants this period. A bill's
-/// line says **Skip this bill** on the row the pointer is on, as a row says
-/// Move money beside its Left, and a bill there won't be has a line of its own.
-class _PlanNoteLine extends StatelessWidget {
-  const _PlanNoteLine({
-    required this.id,
-    required this.note,
-    required this.assign,
-    required this.onAssign,
-    required this.onPlan,
-    this.onSkipBill,
-    this.rowHover = false,
-    this.noBills = const [],
-  });
-  final int id;
-  final PlanNote note;
-  final String? assign;
-  final VoidCallback? onAssign;
-  final VoidCallback? onPlan;
-  final VoidCallback? onSkipBill;
-  final bool rowHover;
-  final List<_NoBill> noBills;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final words = onest(12, color: Mid.ink2, tabular: true);
-    TextStyle blue(bool hover) =>
-        onest(12, color: Mid.blue, tabular: true).copyWith(
-          decoration: hover ? TextDecoration.underline : null,
-          decorationColor: Mid.blue,
-        );
-    return Padding(
-      padding: const EdgeInsets.only(top: 1),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Tooltip(
-                  message: t.planEditTip,
-                  waitDuration: const Duration(milliseconds: 600),
-                  child: Hoverable(
-                    key: ValueKey('plan-note-$id'),
-                    onTap: onPlan,
-                    // A sentence with an amount wraps rather than being cut
-                    // (ADR 0004 "No overflow stripe"); Left took some width.
-                    builder: (hover) => Text(
-                      note.text,
-                      style: onest(
-                        12,
-                        color: hover ? Mid.ink : Mid.ink2,
-                        tabular: true,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (note.state case final state?)
-                Text(
-                  ' · $state',
-                  key: ValueKey('plan-state-$id'),
-                  style: onest(
-                    12,
-                    color: note.behind ? Mid.ink : Mid.ink2,
-                    tabular: true,
-                  ),
-                ),
-              if (assign case final amount?) ...[
-                const SizedBox(width: 10),
-                Hoverable(
-                  key: ValueKey('plan-assign-$id'),
-                  onTap: onAssign,
-                  builder: (hover) =>
-                      Text(t.planAssignThis(amount), style: blue(hover)),
-                ),
-              ],
-              if (onSkipBill case final skip?)
-                Hoverable(
-                  key: ValueKey('plan-skip-$id'),
-                  onTap: skip,
-                  // In the tree off the row too, so Tab finds it.
-                  builder: (hover) => hover || rowHover
-                      ? Padding(
-                          padding: const EdgeInsets.only(left: 10),
-                          child: Text(t.planSkipBill, style: blue(hover)),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-            ],
-          ),
-          for (final (i, b) in noBills.indexed)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(child: Text('${b.words} · ', style: words)),
-                Hoverable(
-                  key: ValueKey('plan-back-$id-$i'),
-                  onTap: b.onBringBack,
-                  builder: (hover) =>
-                      Text(t.planBringBackBill, style: blue(hover)),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
 }
 
 /// A category's currency, picked from a list (owner, 2026-10-02: every
@@ -4382,8 +4742,21 @@ class _CurrencyMenuState extends State<_CurrencyMenu> {
   }
 }
 
-/// One more thing a line says under its name, and what a click on it does.
-typedef _LineFlag = ({String text, Color color, VoidCallback? onTap});
+/// A warning on a line: a few words for the row ([short]), the whole
+/// sentence for when it's pointed at ([text]), and what a click does.
+typedef _LineFlag = ({String text, String short, VoidCallback? onTap});
+
+/// One thing a row says after its name (#483): a few words, with the
+/// whole sentence in [tip] for when it's pointed at. [rank] is which is
+/// kept when there isn't room for all, lowest first.
+typedef _Said = ({
+  Key key,
+  String text,
+  TextStyle style,
+  String? tip,
+  VoidCallback? onTap,
+  int rank,
+});
 
 /// What came in under Income: each currency that has any, [main] alone
 /// when nothing came.
@@ -4415,16 +4788,15 @@ String cashBankLabel(Words t, LedgerData data) {
   return t.planKeyCashBank;
 }
 
-/// What a spending line says about its money (rule 28): the accounts it's
-/// kept in, when those hold less than is left in it ([today]: only in the
-/// period today is in, since balances are today's), a payment from an
-/// account it isn't kept in, and rows in the other currency.
+/// What a spending line says about its money (rule 28): its Paid from
+/// account put away, and rows in the other currency. What its account
+/// holds is no longer said here (#461): that is the Ledger's.
 List<_LineFlag> _lineFlags(
   Words t,
   LedgerData data,
   AccountInfo c,
   EnvelopeLine line, {
-  required bool today,
+  required bool paidGone,
   required VoidCallback onAccounts,
   required VoidCallback onRows,
   required VoidCallback onAllRows,
@@ -4432,23 +4804,13 @@ List<_LineFlag> _lineFlags(
   String money(int v, [Currency? currency]) =>
       formatShort(v, currency: currency ?? c.currency);
   final paid = data.accounts[data.paidFrom[c.id]];
-  final kept = paid?.name ?? '';
   return [
     // Its account put away: nothing of it is in a forecast until another
     // is picked (warn, don't block).
-    if (paid != null && (paid.archived || paid.deleted))
-      (text: t.planPaidFromGone(paid.name), color: Mid.ink2, onTap: onAccounts),
-    if (line.backing case final b? when today)
+    if (paidGone && paid != null && (paid.archived || paid.deleted))
       (
-        text: b.categories > 1
-            ? t.planBackingShared(
-                money(b.setAside),
-                b.categories,
-                kept,
-                money(b.have),
-              )
-            : t.planBackingOne(money(b.setAside), kept, money(b.have)),
-        color: Mid.coral,
+        text: t.planPaidFromGone(paid.name),
+        short: t.planPaidFromGoneShort,
         onTap: onAccounts,
       ),
     if (line.otherCurrency case final other? when line.otherRows > 0)
@@ -4459,7 +4821,7 @@ List<_LineFlag> _lineFlags(
           c.currency.shown,
           other.shown,
         ),
-        color: Mid.note,
+        short: t.planOtherRowsShort(money(line.otherAmount, other)),
         onTap: onAllRows,
       ),
   ];
@@ -4485,6 +4847,9 @@ class _CategoryEditor extends StatefulWidget {
     required this.onCancel,
     required this.onArchive,
     required this.onShowAllRows,
+    this.bills = const [],
+    this.loan = false,
+    this.onBills,
     this.onAdd,
     this.offerAnother = false,
     this.nameNote,
@@ -4522,6 +4887,14 @@ class _CategoryEditor extends StatefulWidget {
 
   /// Opened from the plan's note: the cursor starts in the plan's amount.
   final bool atPlan;
+
+  /// This period's bills, each a switch (#365): on while it's expected.
+  /// Save skips those switched off and brings back those switched on, by
+  /// [onBills] (the dates to skip, the dates to bring back).
+  final List<({DateTime date, bool skipped})> bills;
+  final bool loan;
+  final Future<void> Function(List<DateTime> skip, List<DateTime> back)?
+  onBills;
   final ValueChanged<_CategoryEdit> onSave;
   final VoidCallback onCancel;
   final VoidCallback onArchive;
@@ -4550,6 +4923,11 @@ class _CategoryEditor extends StatefulWidget {
 class _CategoryEditorState extends State<_CategoryEditor> {
   late final _d = widget.keep ?? _EditDraft(widget.category, widget.today);
   TextEditingController get _name => _d.name;
+
+  /// A bill's switch is on while it's expected: a skipped bill's begins
+  /// off, and a flip turns it over (#365).
+  bool _expected(({DateTime date, bool skipped}) b) =>
+      b.skipped == _d.flips.contains(b.date);
 
   /// The plan's answers, and what they add up to: the phone's New
   /// category page asks the same.
@@ -4749,10 +5127,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           widget.data.payScheduleById(payId),
         ).start;
 
-  /// The groups the Budget page has, each once whatever its case.
+  /// The groups the Budget page has, each once whatever its case: those
+  /// of day-to-day categories, the only ones it shows (#469).
   List<String> get _groups {
+    final data = widget.data;
     final byCase = <String, String>{
-      for (final g in [for (final c in widget.data.categories) ?c.budgetGroup])
+      for (final g in [
+        for (final c in data.categories)
+          if (typeOf(data, c.id) == CategoryType.dayToDay) ?c.budgetGroup,
+      ])
         g.toLowerCase(): g,
     };
     final names = byCase.values.toList();
@@ -4928,7 +5311,20 @@ class _CategoryEditorState extends State<_CategoryEditor> {
       note: _d.note.text.trim().isEmpty ? null : _d.note.text.trim(),
     );
     final add = widget.onAdd;
-    if (add == null) return widget.onSave(edit);
+    if (add == null) {
+      // One after the other, so each one's popup reads what the last did.
+      await widget.onBills?.call(
+        [
+          for (final b in widget.bills)
+            if (!b.skipped && _d.flips.contains(b.date)) b.date,
+        ],
+        [
+          for (final b in widget.bills)
+            if (b.skipped && _d.flips.contains(b.date)) b.date,
+        ],
+      );
+      return widget.onSave(edit);
+    }
     final made = await add(edit, another: another);
     // Not made: the answers stay, to be changed and added again.
     if (!made && mounted) _done = false;
@@ -5432,6 +5828,39 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     return _formRow(t.planGroup, control);
   }
 
+  /// This period's bills, a switch each (#365; owner, 2026-11-03: skipping
+  /// is the category's Edit's, saved with Save).
+  Widget _billsRow(Words t) => _formRow(
+    widget.loan ? t.planPaymentsHere : t.planBillsHere,
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final b in widget.bills)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Switch(
+                key: ValueKey('bill-switch-${dateKey(b.date)}'),
+                value: _expected(b),
+                onChanged: (_) => setState(() {
+                  if (!_d.flips.remove(b.date)) _d.flips.add(b.date);
+                }),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                (widget.loan ? t.planPaymentComes : t.planBillComes)(
+                  b.date.year == widget.today.year
+                      ? sayDate(t, b.date)
+                      : sayFullDate(t, b.date),
+                ),
+                style: onest(13.5),
+              ),
+            ],
+          ),
+      ],
+    ),
+  );
+
   /// What the person wants to remember about it, under its name (#100).
   Widget _noteRow(Words t) => _formRow(
     t.planNote,
@@ -5895,13 +6324,17 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                             // Kept for Edit: the window asks only what
                             // makes the category its type (#429).
                             if (_asksInMonth && !widget.isNew) _inMonthRow(t),
-                            // A bill sits under Bills and the Safety net
-                            // under Saved, whatever group they'd have.
-                            if (!_p.hasDate &&
+                            // Groups are inside Day-to-day (#469): a fund,
+                            // bill or goal sits under its type, and the
+                            // Safety net under Saved, whatever group
+                            // they'd have.
+                            if (_type == CategoryType.dayToDay &&
                                 !isSafetyNet(widget.category) &&
                                 !widget.isNew)
                               _groupRow(t),
                             if (!widget.isNew) _noteRow(t),
+                            if (!widget.isNew && widget.bills.isNotEmpty)
+                              _billsRow(t),
                             // The row, as it will read after Save.
                             const SizedBox(height: 6),
                             Text(
@@ -5938,23 +6371,22 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                             ),
                                             child: Row(
                                               children: [
-                                                // Amounts and dates: smaller
-                                                // rather than cut.
+                                                // The plan's whole
+                                                // sentence, wrapped: Edit
+                                                // is where it's said in
+                                                // full (#483).
                                                 Flexible(
-                                                  child: Shrink(
-                                                    Text(
-                                                      preview,
-                                                      key: const ValueKey(
-                                                        'plan-preview',
-                                                      ),
-                                                      maxLines: 1,
-                                                      style: onest(
-                                                        12.5,
-                                                        color: note!.behind
-                                                            ? Mid.ink
-                                                            : Mid.ink2,
-                                                        tabular: true,
-                                                      ),
+                                                  child: Text(
+                                                    preview,
+                                                    key: const ValueKey(
+                                                      'plan-preview',
+                                                    ),
+                                                    style: onest(
+                                                      12.5,
+                                                      color: note!.behind
+                                                          ? Mid.ink
+                                                          : Mid.ink2,
+                                                      tabular: true,
                                                     ),
                                                   ),
                                                 ),
@@ -6125,6 +6557,33 @@ String _moneyChange(Words t, AccountInfo c, int assigned, bool hasPlan) {
       : t.planMoneyChangeAmount(amount);
 }
 
+/// Budget by month, or by one pay's paychecks (#474): chosen at setup and
+/// in Settings, the only places it's switched (owner, 2026-11-16).
+class _BudgetByChoice extends StatelessWidget {
+  const _BudgetByChoice({required this.data, required this.onPick});
+  final LedgerData data;
+  final ValueChanged<PaySchedule?> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final by = data.periodSchedule;
+    final one = data.paySchedules.length == 1;
+    return _Segmented(
+      items: [
+        ('budget-by-month', t.planByMonth, by == null, () => onPick(null)),
+        for (final p in data.paySchedules)
+          (
+            'budget-by-${p.id}',
+            one ? t.planByPaycheck : t.planByPaychecksOf(payTitle(t, data, p)),
+            by?.id == p.id,
+            () => onPick(p),
+          ),
+      ],
+    );
+  }
+}
+
 /// Two or three answers side by side in one outline, the chosen one
 /// washed blue: "No | Yes", "Stays here | Goes back to not assigned".
 class _Segmented extends StatelessWidget {
@@ -6188,6 +6647,11 @@ class _EditDraft {
   final int id;
   final TextEditingController name;
   final PlanAnswers p;
+
+  /// The bills' switches the person turned in Edit (#365), by date: only
+  /// their flips, so a bill that changes under an open Edit isn't undone
+  /// by Save, and the flips stay across a page change.
+  final flips = <DateTime>{};
 
   /// What's written about it, shown under its name (#100).
   final TextEditingController note;

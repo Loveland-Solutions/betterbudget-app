@@ -425,7 +425,10 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pumpAndSettle();
-    expect(find.textContaining('Type what arrives in the account'), findsNothing);
+    expect(
+      find.textContaining('Type what arrives in the account'),
+      findsNothing,
+    );
     await tidy(tester, db);
   });
 
@@ -567,6 +570,15 @@ void main() {
     );
     await press(tester, 'pay-save');
     expect((await ledger(tester, db)).paySchedules.single.amount, 230000000);
+    // With pay, setup asks month or paycheck, month to begin with (#474).
+    expect(find.text('Do you budget by month or by paycheck?'), findsOneWidget);
+    expect((await ledger(tester, db)).periodSchedule, isNull);
+    await tester.ensureVisible(find.byKey(ValueKey('budget-by-$id')));
+    await tester.pumpAndSettle();
+    await press(tester, 'budget-by-$id');
+    expect((await ledger(tester, db)).periodSchedule?.id, id);
+    await press(tester, 'budget-by-month');
+    expect((await ledger(tester, db)).periodSchedule, isNull);
     // A second earner's pay. Esc closes the form, as Cancel does.
     await press(tester, 'setup-add-other-pay');
     expect(find.byKey(const ValueKey('pay-save')), findsOneWidget);
