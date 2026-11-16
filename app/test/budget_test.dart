@@ -3,6 +3,7 @@ import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
+import 'package:betterbudget/domain/phone.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -2232,6 +2233,47 @@ void main() {
         // ₮300,000; 11.27–12.10 its 4 of 14 days.
         expect(l.plan!.planned, 30000000 + 30000000 + 8580000);
         expect(l.toAssign, 30000000 + 8580000);
+      });
+
+      test('spent past a paycheck\'s part while the month still covers it '
+          'is ahead, not over; past the month, over (owner, 2026-11-16)', () {
+        final groceries = plan(
+          food,
+          PlanKind.each,
+          60000000,
+          start: DateTime(2026, 9, 1),
+        );
+        final nov = (
+          start: DateTime(2026, 11, 1),
+          end: DateTime(2026, 11, 30),
+          label: '',
+        );
+        PhoneCategory at(int spent) => snapshotOf(
+          ledger(
+            pay: [pay(view: true)],
+            plans: [groceries],
+            amounts: [
+              for (final r in Budget.byPaychecks(
+                span: nov,
+                pay: pay(),
+                amount: 60000000,
+                currency: Currency.mnt,
+              ))
+                put(food, r.date, r.amount),
+            ],
+            rows: [move(DateTime(2026, 11, 2), checking, food, spent)],
+          ),
+          today: DateTime(2026, 11, 5),
+          madeAt: DateTime(2026, 11, 5),
+        ).categories.firstWhere((c) => c.id == '$food');
+        // 10.30–11.12 holds 12 of November's 30 days, ₮240,000.
+        var c = at(40000000);
+        expect(c.leftMinor, 24000000 - 40000000);
+        expect(c.overAt(c.leftMinor), isFalse);
+        expect(c.coverMonth, 11);
+        c = at(70000000);
+        expect(c.leftMinor, lessThan(0));
+        expect(c.overAt(c.leftMinor), isTrue);
       });
 
       test('a deleted pay splits nothing', () {

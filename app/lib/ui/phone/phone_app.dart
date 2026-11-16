@@ -270,8 +270,13 @@ class _RoomMoney extends StatelessWidget {
     this.currency, {
     required this.room,
     this.spokenFor = false,
+    this.ahead = false,
   });
   final int minor;
+
+  /// Past this paycheck's part, which its month still covers: not red
+  /// (#468).
+  final bool ahead;
   final Currency currency;
 
   /// Money waiting for a bill: drawn lighter than money free to spend.
@@ -312,8 +317,10 @@ class _RoomMoney extends StatelessWidget {
         size,
         weight: spokenFor ? 400 : 600,
         tabular: true,
-        color: minor < 0
+        color: minor < 0 && !ahead
             ? Mid.coral
+            : minor < 0
+            ? Mid.ink
             : minor == 0
             ? Mid.ink3
             : Mid.green,
@@ -1144,6 +1151,7 @@ class _CategoryRow extends StatelessWidget {
                         category.currency,
                         room: room,
                         spokenFor: category.due != null,
+                        ahead: !category.overAt(left),
                       ),
                     ],
                   ],
@@ -1422,10 +1430,16 @@ class _EntryState extends State<_EntryScreen> {
             (
               text: category.madeHere
                   ? t.phoneSavedNothingAssigned(category.name)
+                  : left < 0 && !category.overAt(left)
+                  ? t.phoneSavedAhead(
+                      category.name,
+                      had,
+                      monthName(t, category.coverMonth!),
+                    )
                   : left < 0
                   ? t.phoneSavedOver(category.name, had)
                   : t.phoneSavedLeft(category.name, had),
-              over: left < 0 && !category.madeHere,
+              over: category.overAt(left) && !category.madeHere,
             ),
         ];
       }
@@ -1574,10 +1588,12 @@ class _EntryState extends State<_EntryScreen> {
       said.add((
         text: c.madeHere
             ? t.phoneSavedNothingAssigned(c.name)
+            : left < 0 && !c.overAt(left)
+            ? t.phoneSavedAhead(c.name, had, monthName(t, c.coverMonth!))
             : left < 0
             ? t.phoneSavedOver(c.name, had)
             : t.phoneSavedLeft(c.name, had),
-        over: left < 0 && !c.madeHere,
+        over: c.overAt(left) && !c.madeHere,
       ));
     }
     if (put.asNew) said.add((text: t.phoneSavedAsNew, over: false));
@@ -1858,6 +1874,11 @@ class _EntryState extends State<_EntryScreen> {
     // Made a moment ago on this phone: "overspent" would blame them for it.
     if (category.madeHere) return t.phoneNothingAssigned;
     String say(int minor) => formatMoney(minor.abs(), currency: _currency);
+    // Past this paycheck's part, which its month still covers (#468).
+    if (after < 0 && !category.overAt(after)) {
+      return t.phoneAheadNow(say(after), monthName(t, category.coverMonth!));
+    }
+    if (left < 0 && !category.overAt(left)) return t.phoneLeftNow(say(after));
     if (after == left) {
       return left < 0 ? t.phoneOverNow(say(left)) : t.phoneLeftNow(say(left));
     }
@@ -1901,7 +1922,7 @@ class _EntryState extends State<_EntryScreen> {
       final date = _draft.date;
       final over = to != null
           ? from != null && !from.owes && fromAfter < 0
-          : category != null && !category.madeHere && after < 0;
+          : category != null && !category.madeHere && category.overAt(after);
       // A category that has gone (deleted from the waiting list) isn't
       // something left to clear.
       final editing = _draft.editing;
@@ -2529,6 +2550,7 @@ class _CategoryMenuState extends State<_CategoryMenu> {
               c.currency,
               room: 160,
               spokenFor: c.due != null,
+              ahead: !c.overAt(leftNow(c, store.waiting)),
             ),
       onPressed: () => widget.onPicked(c),
     );

@@ -441,6 +441,32 @@ class _BudgetPageState extends State<_BudgetPage> {
     // it, and past it, hatched coral, what was spent with nothing behind
     // it. The rows the ring had (#241): not a bill, not under Saved, not
     // one with nothing had and nothing spent.
+    // Spent ahead (owner, 2026-11-16, #468: "Say it's ahead, not red"): by
+    // a paycheck, a monthly category spent past its part while its month
+    // still has money took it from the month's next part. Not red; red
+    // only once the month's money is used up.
+    final aheadMonth = by == null ? null : budgetPeriod(period.end, null);
+    final monthBudget = aheadMonth == null
+        ? null
+        : Budget.of(
+            data,
+            start: aheadMonth.start,
+            end: aheadMonth.end,
+            today: widget.today,
+          );
+    int? aheadOf(AccountInfo c) {
+      final line = budget.lines[c.id];
+      if (monthBudget == null || line == null || line.left >= 0) return null;
+      final plan = data.plans[c.id];
+      if (plan != null &&
+          (plan.kind != PlanKind.each || plan.payScheduleId != null)) {
+        return null;
+      }
+      final month = monthBudget.lines[c.id];
+      if (month == null || month.left < 0) return null;
+      return -line.left;
+    }
+
     ({int had, int left, int over, double used})? barOf(AccountInfo c) {
       final line = budget.lines[c.id];
       if (line == null || saved.contains(c.id)) return null;
@@ -457,7 +483,8 @@ class _BudgetPageState extends State<_BudgetPage> {
       return (
         had: had < 0 ? 0 : had,
         left: line.left < 0 ? 0 : line.left,
-        over: line.left < 0 ? -line.left : 0,
+        // Spent ahead is no shortfall: no hatching.
+        over: line.left < 0 && aheadOf(c) == null ? -line.left : 0,
         used: used ?? 0,
       );
     }
@@ -662,6 +689,13 @@ class _BudgetPageState extends State<_BudgetPage> {
         fromBefore: carries && line != null && line.fromBefore != 0
             ? t.planFromBefore(money(line.fromBefore, currency))
             : null,
+        ahead: switch (aheadOf(c)) {
+          final a? => t.planSpentAhead(
+            money(a, currency),
+            monthName(t, aheadMonth!.start.month),
+          ),
+          null => null,
+        },
         currency: currency,
         moveChoices: choices,
         onMove: (from, to, amount) => widget.onMove(period, from, to, amount),
@@ -2516,6 +2550,7 @@ class _CategoryRow extends StatefulWidget {
     required this.onDelete,
     this.line,
     this.fromBefore,
+    this.ahead,
     this.planNote,
     this.assignPlanned,
     this.onAssignPlanned,
@@ -2591,6 +2626,11 @@ class _CategoryRow extends StatefulWidget {
 
   /// "₮500,000 from before", when the category carried money in.
   final String? fromBefore;
+
+  /// "₮100,000 past this pay period's part, which November's money still
+  /// covers" under Left, which
+  /// is then not red (#468).
+  final String? ahead;
   final Currency currency;
 
   /// Its Put in is being typed.
@@ -2895,13 +2935,26 @@ class _CategoryRowState extends State<_CategoryRow> {
                               weight: widget.bill ? 400 : 600,
                               currency: widget.currency,
                               // Green has money, coral is short (#326).
-                              color: line.left < 0
+                              color: line.left < 0 && widget.ahead == null
                                   ? Mid.coral
+                                  : line.left < 0
+                                  ? Mid.ink
                                   : line.left == 0
                                   ? Mid.ink3
                                   : Mid.green,
                             ),
                           ),
+                          if (widget.ahead case final ahead?)
+                            Text(
+                              ahead,
+                              key: ValueKey('spent-ahead-${c.id}'),
+                              textAlign: TextAlign.end,
+                              style: onest(
+                                11.5,
+                                color: Mid.ink3,
+                                tabular: true,
+                              ),
+                            ),
                           if (widget.fromBefore case final before?)
                             Text(
                               before,

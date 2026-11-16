@@ -6508,6 +6508,45 @@
       }
     }
   },
+  "planSpentAhead": "{amount} past this pay period’s part, which {month}’s money still covers",
+  "@planSpentAhead": {
+    "description": "Budget page by pay period, under a monthly category's Left when this paycheck spent past its part and the month still has money (#468); Left is then plain ink, not red. month is a month name (monthNames).",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneSavedAhead": "{category} · {over} past this pay period’s part, which {month}’s money still covers",
+  "@phoneSavedAhead": {
+    "description": "Phone, after Save, budget by pay period: a monthly category spent past this paycheck's part while its month still has money (#468); not coral. month is a month name.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "over": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneAheadNow": "{over} past this pay period’s part, which {month}’s money still covers",
+  "@phoneAheadNow": {
+    "description": "Phone's amount screen, budget by pay period: the same as phoneSavedAhead, without the name (#468).",
+    "placeholders": {
+      "over": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
   "planEachMonth": "{amount} a month",
   "@planEachMonth": {
     "description": "Budget page: note under a category's name, what its plan puts in each month",

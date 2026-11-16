@@ -4452,6 +4452,21 @@ class WordsEn extends Words {
   }
 
   @override
+  String planSpentAhead(String amount, String month) {
+    return '$amount past this pay period’s part, which $month’s money still covers';
+  }
+
+  @override
+  String phoneSavedAhead(String category, String over, String month) {
+    return '$category · $over past this pay period’s part, which $month’s money still covers';
+  }
+
+  @override
+  String phoneAheadNow(String over, String month) {
+    return '$over past this pay period’s part, which $month’s money still covers';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return '$amount a month';
   }

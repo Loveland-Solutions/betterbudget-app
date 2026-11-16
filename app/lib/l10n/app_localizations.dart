@@ -6317,6 +6317,24 @@ abstract class Words {
   /// **'Your Assigned from {month} on is now kept by paycheck, so each paycheck shows its own part. Month totals didn’t change. A copy of your ledger from before is in Backups.'**
   String planSplitOnce(String month);
 
+  /// Budget page by pay period, under a monthly category's Left when this paycheck spent past its part and the month still has money (#468); Left is then plain ink, not red. month is a month name (monthNames).
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} past this pay period’s part, which {month}’s money still covers'**
+  String planSpentAhead(String amount, String month);
+
+  /// Phone, after Save, budget by pay period: a monthly category spent past this paycheck's part while its month still has money (#468); not coral. month is a month name.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} · {over} past this pay period’s part, which {month}’s money still covers'**
+  String phoneSavedAhead(String category, String over, String month);
+
+  /// Phone's amount screen, budget by pay period: the same as phoneSavedAhead, without the name (#468).
+  ///
+  /// In en, this message translates to:
+  /// **'{over} past this pay period’s part, which {month}’s money still covers'**
+  String phoneAheadNow(String over, String month);
+
   /// Budget page: note under a category's name, what its plan puts in each month
   ///
   /// In en, this message translates to:

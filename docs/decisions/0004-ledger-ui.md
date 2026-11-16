@@ -6489,4 +6489,11 @@ into it. Decided:
 - The top button's words when nothing is left to assign are "Everything is assigned, so
   this makes ₮300,000 assigned too much", not the decided "Nothing is not assigned, …"
   (a double negative); told to the owner.
+- Spent ahead (owner, 2026-11-16, picked over "Red, as it is"): by a paycheck, a Day-to-day
+  or Fund category spent past its part while its month still has money for it isn't red.
+  Left is plain ink, with "₮100,000 past this pay period's part, which November's money
+  still covers" under it, and no hatching on its bar; red only once the month's money is
+  used up. The phone says the same after Save and on the amount screen. The top card's
+  Overspent still counts it, as the sum by paycheck is exact (#470 is about that card's
+  words).
 

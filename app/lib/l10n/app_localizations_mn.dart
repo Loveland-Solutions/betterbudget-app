@@ -4296,6 +4296,21 @@ class WordsMn extends Words {
   }
 
   @override
+  String planSpentAhead(String amount, String month) {
+    return 'Энэ орлогын үеийн хэсгээс $amount-ээр илүү, үүнийг $monthын мөнгө нөхнө';
+  }
+
+  @override
+  String phoneSavedAhead(String category, String over, String month) {
+    return '$category · энэ орлогын үеийн хэсгээс $over-ээр илүү, үүнийг $monthын мөнгө нөхнө';
+  }
+
+  @override
+  String phoneAheadNow(String over, String month) {
+    return 'Энэ орлогын үеийн хэсгээс $over-ээр илүү, үүнийг $monthын мөнгө нөхнө';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return 'сард $amount';
   }
