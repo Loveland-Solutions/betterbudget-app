@@ -2489,6 +2489,30 @@ abstract class Words {
   /// **'Saved'**
   String get planSaved;
 
+  /// Budget page, Spending tab: heading over the Fund categories (#469); the plural of planTypeFund
+  ///
+  /// In en, this message translates to:
+  /// **'Funds'**
+  String get planFunds;
+
+  /// Budget page, Spending tab: quiet line under the Funds heading saying what the Left column means there (#469)
+  ///
+  /// In en, this message translates to:
+  /// **'Left is what’s in each fund now.'**
+  String get planFundsLeft;
+
+  /// Budget page, Spending tab: quiet line under the Bills heading saying what the Left column means there (#469)
+  ///
+  /// In en, this message translates to:
+  /// **'Left is what’s put aside for each bill’s next payment.'**
+  String get planBillsLeft;
+
+  /// Budget page, Spending tab: quiet line under the Goals heading saying what the Left column means there (#469)
+  ///
+  /// In en, this message translates to:
+  /// **'Left is what’s in each goal now.'**
+  String get planGoalsLeft;
+
   /// Savings page, step 1: guidance
   ///
   /// In en, this message translates to:

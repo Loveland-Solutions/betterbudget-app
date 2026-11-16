@@ -1,3 +1,4 @@
+import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/goals.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
@@ -628,5 +629,70 @@ void main() {
     // Spent on the wedding: nothing left to say.
     final spent = spend(data, DateTime(2026, 12, 20), 300000);
     expect(goalsOf(spent, monthBudget(spent, late), late), isEmpty);
+  });
+
+  test('a category\'s type comes from its answers (#469)', () {
+    final each = CategoryPlan(
+      categoryId: wedding,
+      kind: PlanKind.each,
+      amount: 100000,
+      start: DateTime(2026, 9),
+    );
+    expect(typeOf(ledger(), wedding), CategoryType.goal);
+    expect(typeOf(ledger(prefs: const {}), wedding), CategoryType.bill);
+    expect(typeOf(ledger(plan: each), wedding), CategoryType.dayToDay);
+    expect(
+      typeOf(
+        ledger(
+          plan: CategoryPlan(
+            categoryId: wedding,
+            kind: PlanKind.each,
+            amount: 100000,
+            start: DateTime(2026, 9),
+            spentEach: false,
+          ),
+        ),
+        wedding,
+      ),
+      CategoryType.fund,
+    );
+    // No plan: day-to-day, unless it was picked as a fund.
+    expect(typeOf(ledger(), opening), CategoryType.dayToDay);
+    expect(
+      typeOf(ledger(prefs: {BudgetKeys.fund(opening): 'yes'}), opening),
+      CategoryType.fund,
+    );
+    // The Safety net: built up with no plan, as Edit opens it; with a date
+    // and the goal mark, still never a goal.
+    LedgerData net({CategoryPlan? plan}) => LedgerData(
+      accounts: [
+        AccountInfo(
+          id: wedding,
+          name: 'Safety net',
+          type: AccountType.expense,
+          role: AccountRole.emergencyFund,
+        ),
+      ],
+      txns: const [],
+      prefs: {ReadyKeys.goal(wedding): 'yes'},
+      plans: [?plan],
+      budgetAmounts: const [],
+    );
+    expect(typeOf(net(), wedding), CategoryType.fund);
+    expect(
+      typeOf(
+        net(
+          plan: CategoryPlan(
+            categoryId: wedding,
+            kind: PlanKind.byDate,
+            amount: 1200000,
+            start: DateTime(2026, 9),
+            due: DateTime(2026, 12, 31),
+          ),
+        ),
+        wedding,
+      ),
+      CategoryType.bill,
+    );
   });
 }

@@ -1737,6 +1737,19 @@ class WordsMn extends Words {
   String get planSaved => 'Хуримтлал';
 
   @override
+  String get planFunds => 'Сангууд';
+
+  @override
+  String get planFundsLeft => 'Үлдсэн гэдэг нь сан бүрт одоо байгаа мөнгө.';
+
+  @override
+  String get planBillsLeft =>
+      'Үлдсэн гэдэг нь төлбөр бүрийн дараагийн төлөлтөд хойш тавьсан мөнгө.';
+
+  @override
+  String get planGoalsLeft => 'Үлдсэн гэдэг нь зорилго бүрт одоо байгаа мөнгө.';
+
+  @override
   String get planKeepReachable =>
       'Хэрэгтэй үедээ авч болох газар хадгалаарай. Ашигласан бол юуны өмнө буцааж нөхөөрэй.';
 

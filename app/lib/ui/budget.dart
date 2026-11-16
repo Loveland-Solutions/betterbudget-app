@@ -267,15 +267,28 @@ class _BudgetPageState extends State<_BudgetPage> {
     final listed = data.categories
         .where((c) => !c.isIncome && !isUncategorized(c))
         .toList();
-    // Everyday categories first; those saving for a bill under their own
-    // heading, Bills, as on the phone (owner, 2026-10-07; #274); the
-    // safety net last, under Saved.
-    bool isBill(AccountInfo c) =>
-        budget.lines[c.id]?.plan?.plan.kind == PlanKind.byDate;
-    // The everyday ones in no group first, then each group the person
+    // In sections by type (owner, 2026-11-15, #469): Day-to-day, Funds,
+    // Bills, Goals, each saying once what its Left is; the safety net
+    // last, under Saved (#274).
+    CategoryType typeIn(AccountInfo c) => typeOf(data, c.id);
+    bool isBill(AccountInfo c) {
+      final type = typeIn(c);
+      return type == CategoryType.bill || type == CategoryType.goal;
+    }
+
+    String typeName(CategoryType type) => switch (type) {
+      CategoryType.dayToDay => t.planTypeDay,
+      CategoryType.fund => t.planFunds,
+      CategoryType.bill => t.phoneBills,
+      CategoryType.goal => t.goalsTitle,
+    };
+
+    // Day-to-day: the ones in no group first, then each group the person
     // made under its name (#100), A to Z; inside each, by name.
     final everyday = listed
-        .where((c) => !saved.contains(c.id) && !isBill(c))
+        .where(
+          (c) => !saved.contains(c.id) && typeIn(c) == CategoryType.dayToDay,
+        )
         .toList();
     // "Food" and "food" (two computers) are one heading, as first spelt.
     String? groupOf(AccountInfo c) => c.budgetGroup?.toLowerCase();
@@ -284,10 +297,54 @@ class _BudgetPageState extends State<_BudgetPage> {
         g.toLowerCase(): g,
     };
     final groupKeys = groups.keys.toList()..sort();
+    // Bills and goals (#466): one behind first, then by the day this
+    // period saves for, soonest first; paid, reached or ended last, as
+    // there's nothing more to do for them (budget review). Then by name.
+    List<AccountInfo> byDue(CategoryType type) {
+      final xs = listed
+          .where((c) => !saved.contains(c.id) && typeIn(c) == type)
+          .toList();
+      int rank(AccountInfo c) {
+        final line = budget.lines[c.id];
+        final p = line?.plan;
+        if (line == null || p == null) return 2;
+        if (line.short > 0) return 0;
+        if (line.paidOn != null || p.done || p.ended) return 2;
+        return 1;
+      }
+
+      DateTime? dueOf(AccountInfo c) => budget.lines[c.id]?.plan?.due;
+      return xs..sort((a, b) {
+        final r = rank(a).compareTo(rank(b));
+        if (r != 0) return r;
+        final (da, db) = (dueOf(a), dueOf(b));
+        if (da != null && db != null && da != db) return da.compareTo(db);
+        if ((da == null) != (db == null)) return da == null ? 1 : -1;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+    }
+
+    final sections = [
+      (
+        CategoryType.dayToDay,
+        [
+          ...everyday.where((c) => c.budgetGroup == null),
+          for (final g in groupKeys) ...everyday.where((c) => groupOf(c) == g),
+        ],
+      ),
+      (
+        CategoryType.fund,
+        listed
+            .where(
+              (c) => !saved.contains(c.id) && typeIn(c) == CategoryType.fund,
+            )
+            .toList(),
+      ),
+      (CategoryType.bill, byDue(CategoryType.bill)),
+      (CategoryType.goal, byDue(CategoryType.goal)),
+    ];
     final spending = [
-      ...everyday.where((c) => c.budgetGroup == null),
-      for (final g in groupKeys) ...everyday.where((c) => groupOf(c) == g),
-      ...listed.where((c) => !saved.contains(c.id) && isBill(c)),
+      for (final (_, xs) in sections) ...xs,
       ...listed.where((c) => saved.contains(c.id)),
     ];
     // Where each group's heading goes.
@@ -296,10 +353,16 @@ class _BudgetPageState extends State<_BudgetPage> {
         spending.indexWhere((c) => everyday.contains(c) && groupOf(c) == g):
             groups[g]!,
     };
-    final firstBill = spending.indexWhere(
-      (c) => !saved.contains(c.id) && isBill(c),
-    );
     final firstSaved = spending.indexWhere((c) => saved.contains(c.id));
+    // Where each section's heading goes: only with two sections or more
+    // (Saved one of them), as one alone would be a label that says
+    // nothing (budget review).
+    final filled = sections.where((s) => s.$2.isNotEmpty).toList();
+    final headed = filled.length + (firstSaved < 0 ? 0 : 1) > 1;
+    final sectionAt = {
+      if (headed)
+        for (final (type, xs) in filled) spending.indexOf(xs.first): type,
+    };
     final income = data.income;
     final archived = data.archivedCategories;
     final began = budget.began;
@@ -517,9 +580,13 @@ class _BudgetPageState extends State<_BudgetPage> {
               budget.lines[b.id]!.left.compareTo(budget.lines[a.id]!.left),
         );
       }
+      // In the list's own sections (#469).
       final groups = [
-        (null, others.where((x) => !saved.contains(x.id) && !isBill(x))),
-        (t.phoneBills, others.where((x) => !saved.contains(x.id) && isBill(x))),
+        for (final type in CategoryType.values)
+          (
+            typeName(type),
+            others.where((x) => !saved.contains(x.id) && typeIn(x) == type),
+          ),
         (t.planSaved, others.where((x) => saved.contains(x.id))),
       ];
       final choices = <_MoveChoice>[
@@ -737,7 +804,7 @@ class _BudgetPageState extends State<_BudgetPage> {
       );
     }
 
-    // A heading down the list: Bills, Saved.
+    // A heading down the list: a group the person made, or Saved.
     Widget heading(String text, String key) => Padding(
       padding: const EdgeInsets.fromLTRB(12, 18, 12, 6),
       child: Text(
@@ -746,6 +813,37 @@ class _BudgetPageState extends State<_BudgetPage> {
         style: onest(12.5, weight: 600, color: Mid.ink3),
       ),
     );
+
+    // A type's section (#469): its name, and once what its Left is, so no
+    // row has to say it. Day-to-day's Left is plain enough without.
+    // Saved, the safety net's (null), is a section too.
+    Widget sectionHeading(CategoryType? type) {
+      final means = switch (type) {
+        CategoryType.fund => t.planFundsLeft,
+        CategoryType.bill => t.planBillsLeft,
+        CategoryType.goal => t.planGoalsLeft,
+        _ => null,
+      };
+      return Padding(
+        key: ValueKey(
+          type == null ? 'budget-saved' : 'budget-section-${type.name}',
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 22, 12, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              type == null ? t.planSaved : typeName(type),
+              style: onest(14, weight: 700, color: Mid.ink),
+            ),
+            if (means != null) ...[
+              const SizedBox(height: 2),
+              Text(means, style: onest(12.5, color: Mid.ink3)),
+            ],
+          ],
+        ),
+      );
+    }
 
     // Under the everyday categories and the bills: this period's Assigned
     // and Spent added up, a row per currency, only with two or more rows
@@ -1360,19 +1458,13 @@ class _BudgetPageState extends State<_BudgetPage> {
                                       children: [
                                         for (final (i, c)
                                             in spending.indexed) ...[
+                                          if (sectionAt[i] case final type?)
+                                            sectionHeading(type),
                                           if (groupAt[i] case final g?)
                                             heading(g, 'budget-group-$g'),
-                                          if (i == firstBill)
-                                            heading(
-                                              t.phoneBills,
-                                              'budget-bills',
-                                            ),
                                           if (i == firstSaved) ...[
                                             ...totals(),
-                                            heading(
-                                              t.planSaved,
-                                              'budget-saved',
-                                            ),
+                                            sectionHeading(null),
                                           ],
                                           row(c, striped: i.isOdd),
                                         ],
@@ -5028,10 +5120,15 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           widget.data.payScheduleById(payId),
         ).start;
 
-  /// The groups the Budget page has, each once whatever its case.
+  /// The groups the Budget page has, each once whatever its case: those
+  /// of day-to-day categories, the only ones it shows (#469).
   List<String> get _groups {
+    final data = widget.data;
     final byCase = <String, String>{
-      for (final g in [for (final c in widget.data.categories) ?c.budgetGroup])
+      for (final g in [
+        for (final c in data.categories)
+          if (typeOf(data, c.id) == CategoryType.dayToDay) ?c.budgetGroup,
+      ])
         g.toLowerCase(): g,
     };
     final names = byCase.values.toList();
@@ -6220,9 +6317,11 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                             // Kept for Edit: the window asks only what
                             // makes the category its type (#429).
                             if (_asksInMonth && !widget.isNew) _inMonthRow(t),
-                            // A bill sits under Bills and the Safety net
-                            // under Saved, whatever group they'd have.
-                            if (!_p.hasDate &&
+                            // Groups are inside Day-to-day (#469): a fund,
+                            // bill or goal sits under its type, and the
+                            // Safety net under Saved, whatever group
+                            // they'd have.
+                            if (_type == CategoryType.dayToDay &&
                                 !isSafetyNet(widget.category) &&
                                 !widget.isNew)
                               _groupRow(t),

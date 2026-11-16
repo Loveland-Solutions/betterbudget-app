@@ -2703,6 +2703,22 @@
   "@planSaved": {
     "description": "Budget page: quiet heading above the safety net’s category, under the spending categories"
   },
+  "planFunds": "Funds",
+  "@planFunds": {
+    "description": "Budget page, Spending tab: heading over the Fund categories (#469); the plural of planTypeFund"
+  },
+  "planFundsLeft": "Left is what’s in each fund now.",
+  "@planFundsLeft": {
+    "description": "Budget page, Spending tab: quiet line under the Funds heading saying what the Left column means there (#469)"
+  },
+  "planBillsLeft": "Left is what’s put aside for each bill’s next payment.",
+  "@planBillsLeft": {
+    "description": "Budget page, Spending tab: quiet line under the Bills heading saying what the Left column means there (#469)"
+  },
+  "planGoalsLeft": "Left is what’s in each goal now.",
+  "@planGoalsLeft": {
+    "description": "Budget page, Spending tab: quiet line under the Goals heading saying what the Left column means there (#469)"
+  },
   "planKeepReachable": "Keep it where you can reach it. If you use it, fill it back up before anything else.",
   "@planKeepReachable": {
     "description": "Savings page, step 1: guidance"

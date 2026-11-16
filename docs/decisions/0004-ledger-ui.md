@@ -6554,3 +6554,31 @@ uncovered is Not categorized before Overspent (filing a row is its fix).
 - Known: covering an overspent category by typing its Assigned while the result is
   short turns "Overspent, not covered" into "Assigned too much" with the same figure.
   Both are true; only moving money or more income makes it smaller.
+
+## The Spending tab in sections by type (2026-11-16, #469)
+
+The owner (2026-11-15), on how a paycheck view should show each category: "That's why we
+need to show the budgets by type. Obviously, the day-to-day budgets are going to show
+differently." Asked, they picked **sections by type**.
+
+- The Spending tab's list is in sections: **Day-to-day**, **Funds**, **Bills**, **Goals**,
+  then **Saved** (the safety net), each heading in the same bold style. A section with no
+  categories has no heading, and with only one section there are no headings at all (a
+  lone "Day-to-day" says nothing). The type is `typeOf` in `domain/budget.dart`, the one
+  Edit's type cards open on; the Safety net with no plan counts as built up.
+- Under Funds, Bills and Goals, one quiet line says what Left is there, so no row has to:
+  "Left is what's in each fund now.", "Left is what's put aside for each bill's next
+  payment.", "Left is what's in each goal now." Day-to-day and Saved have none: Left
+  already reads as it should there (UX writer). "Now" rather than "built up" or "saved so
+  far", as those read wrong after a big repair or once a goal is bought (budget review).
+- The person's own groups ("Food") are subheadings inside Day-to-day only. A fund, bill
+  or goal put in a group goes to its type's section, and Edit offers Group only for a
+  day-to-day category; its group is kept, and shows again if it becomes day-to-day.
+- Bills and Goals: one behind first, then by the day the period saves for, soonest first,
+  then paid, reached or ended ones last (half of #466); ties by name. The others by name.
+- The columns and the Total row are the same as before; Move money's list groups by the
+  same sections.
+- The phone stays as it is: its category list is for entering receipts, and it has no
+  type for a category the computer made.
+- Considered and left: Bills before Funds (the budget reviewer's idea, as bills have a date
+  and a consequence). The order follows the type cards'.
