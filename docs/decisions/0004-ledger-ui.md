@@ -6493,7 +6493,8 @@ into it. Decided:
   or Fund category spent past its part while its month still has money for it isn't red.
   Left is plain ink, with "₮100,000 past this pay period's part, which November's money
   still covers" under it, and no hatching on its bar; red only once the month's money is
-  used up. The phone says the same after Save and on the amount screen. The top card's
-  Overspent still counts it, as the sum by paycheck is exact (#470 is about that card's
-  words).
-
+  used up. The phone says the same after Save and on the amount screen. On the top card
+  it counts with Assigned, not Overspent (owner, 2026-11-16: "the day-to-day budget must
+  get treated differently. It is not overspent if it stays within the limits of the
+  assignment"): money the paycheck took early from its month's next part; the result is
+  the same.

@@ -950,7 +950,17 @@ class _BudgetPageState extends State<_BudgetPage> {
           }
         }
         if (aside < 0) aside = 0;
-        final given = p.assigned - aside;
+        // Spent ahead isn't overspent (owner, 2026-11-16: "It is not
+        // overspent if it stays within the limits of the assignment"): it
+        // is money this paycheck took early from its month's next part, so
+        // it counts with Assigned, and the result is the same.
+        var ahead = 0;
+        for (final x in spending) {
+          if (x.currency == c) ahead += aheadOf(x) ?? 0;
+        }
+        if (ahead > p.overspent) ahead = p.overspent;
+        final given = p.assigned - aside + ahead;
+        final overspent = p.overspent - ahead;
         final over = p.notAssigned < 0;
         Widget after(String sign, Widget child) => Row(
           mainAxisSize: MainAxisSize.min,
@@ -1021,13 +1031,13 @@ class _BudgetPageState extends State<_BudgetPage> {
                   figure: short(aside),
                 ),
               ),
-            if (p.overspent > 0)
+            if (overspent > 0)
               after(
                 '−',
                 _SumBox(
                   key: ValueKey('sum-overspent$tag'),
                   label: t.planKeyOverspent,
-                  figure: short(p.overspent),
+                  figure: short(overspent),
                   hue: Mid.coral,
                 ),
               ),

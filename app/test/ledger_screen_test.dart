@@ -7239,6 +7239,41 @@ void main() {
       );
       expect(find.text('₮900,000 a month'), findsOneWidget);
       expect(find.byKey(ValueKey('plan-assign-$groceries')), findsNothing);
+      // A big shop early in the paycheck, past its ₮420,000 while
+      // September still covers it: not red, said under Left, and on the
+      // card counted with Assigned, not Overspent (owner, 2026-11-16).
+      String? overText() =>
+          find.byKey(const ValueKey('sum-overspent')).evaluate().isEmpty
+          ? null
+          : tester
+                .widgetList<Text>(
+                  find.descendant(
+                    of: find.byKey(const ValueKey('sum-overspent')),
+                    matching: find.byType(Text),
+                  ),
+                )
+                .map((w) => w.data)
+                .join(' ');
+      final overBefore = overText();
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        final checking = data.balanceSheetAccounts.first.id;
+        await db.postTransaction(
+          date: DateTime(2026, 9, 12),
+          payee: 'Nomin',
+          lines: [
+            (accountId: checking, amount: -50000000, cleared: Cleared.cleared),
+            (accountId: groceries, amount: 50000000, cleared: Cleared.cleared),
+          ],
+        );
+      });
+      await settle(tester);
+      expect(find.byKey(ValueKey('spent-ahead-$groceries')), findsOneWidget);
+      expect(
+        tester.widget<Money>(find.byKey(ValueKey('left-$groceries'))).color,
+        isNot(Mid.coral),
+      );
+      expect(overText(), overBefore);
       // A paycheck that runs into October: each month's part by its name.
       // September's last 6 days are held already, so only October's first
       // 8 of 31 are said, which Assign offers (budget app review).
