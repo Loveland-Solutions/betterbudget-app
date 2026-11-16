@@ -5828,11 +5828,29 @@
   "@planLeft": {
     "description": "Budget page: column title over what each spending category holds now, what carried over included"
   },
-  "planFromBefore": "{amount} from before",
-  "@planFromBefore": {
-    "description": "Budget page: small line under a category's Left when it carried money (or minus) in from earlier periods",
+  "planFromMonth": "{amount} from {month}",
+  "@planFromMonth": {
+    "description": "Budget page, by month: small line under a category's Left when it began the month with money (or a minus) the month before left, like '₮500,000 from October' (#471). {month} is the month before's name, as in planSumFromMonth.",
     "placeholders": {
       "amount": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planFromPay": "{amount} from {start}–{end}",
+  "@planFromPay": {
+    "description": "Like planFromMonth, by paycheck: the pay period before by its first and last day, written as the page's title writes them, like '₮500,000 from 11.01–11.15' (#471).",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "end": {
         "type": "String"
       }
     }

@@ -5495,11 +5495,17 @@ abstract class Words {
   /// **'Left'**
   String get planLeft;
 
-  /// Budget page: small line under a category's Left when it carried money (or minus) in from earlier periods
+  /// Budget page, by month: small line under a category's Left when it began the month with money (or a minus) the month before left, like '₮500,000 from October' (#471). {month} is the month before's name, as in planSumFromMonth.
   ///
   /// In en, this message translates to:
-  /// **'{amount} from before'**
-  String planFromBefore(String amount);
+  /// **'{amount} from {month}'**
+  String planFromMonth(String amount, String month);
+
+  /// Like planFromMonth, by paycheck: the pay period before by its first and last day, written as the page's title writes them, like '₮500,000 from 11.01–11.15' (#471).
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} from {start}–{end}'**
+  String planFromPay(String amount, String start, String end);
 
   /// Budget page: the period title when budgeting by pay period and it isn't the current one
   ///

@@ -728,8 +728,22 @@ class _BudgetPageState extends State<_BudgetPage> {
                 planMoney(line.had, currency),
               ),
         bill: isBill(c),
+        // Named by the period it came from (#471: "Before what?"): the
+        // month before, or the pay period before by its dates, as the
+        // page's title writes them.
         fromBefore: carries && line != null && line.fromBefore != 0
-            ? t.planFromBefore(money(line.fromBefore, currency))
+            ? switch (previousBudgetPeriod(period, by)) {
+                final prev when period.label == payPeriodLabel =>
+                  t.planFromPay(
+                    money(line.fromBefore, currency),
+                    shortDate(prev.start),
+                    shortDate(prev.end),
+                  ),
+                final prev => t.planFromMonth(
+                  money(line.fromBefore, currency),
+                  monthName(t, prev.start.month),
+                ),
+              }
             : null,
         ahead: switch (aheadOf(c)) {
           final a? => t.planSpentAhead(
@@ -2546,7 +2560,7 @@ class _CategoryRow extends StatefulWidget {
   /// Assigned, Spent and Left for the period on screen.
   final EnvelopeLine? line;
 
-  /// "₮500,000 from before", when the category carried money in.
+  /// "₮500,000 from October", when the category carried money in.
   final String? fromBefore;
 
   /// "₮100,000 past this pay period's part, which November's money still

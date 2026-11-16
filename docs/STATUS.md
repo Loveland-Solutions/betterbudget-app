@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-16** · version 0.95.1 · schema v26 · 1122 tests pass
+**Last updated: 2026-11-16** · version 0.95.2 · schema v26 · 1122 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -12,7 +12,7 @@ not for reading unless the owner asks.
 
 ## Next step
 
-The Budget page (0.92.1–0.95.1). Budgeting by month or by paycheck is chosen in setup's
+The Budget page (0.92.1–0.95.2). Budgeting by month or by paycheck is chosen in setup's
 pay step and in Settings' Budget card, and a month's title is "November 2026" (#474). By
 paycheck, a month's Assigned is kept where each paycheck it pays for is; a paycheck asks
 only its days' share of months still running, a finished period offers no Assign, and
@@ -23,9 +23,10 @@ months from November on were split once at launch, after a copy
 and the result's box has an edge; below zero it names what made it short, **Over budget**
 when that is spending (#470, #464). Every category's bar is the same length, a slim pill
 in three colors showing what's left of its own money, and a category that had nothing has
-none; the phone's ring follows, from its next Play build (#465). The owner is trying it
-all. Next on the Budget page: "from before" naming when (#471); a first-time setup
-walkthrough is #475. The Mongolian of everything since #90's last pass is a draft until
+none; the phone's ring follows, from its next Play build (#465). The line under a category's
+Left names the period its money came from, "₮500,000 from October" or, by paycheck,
+"from 11.01–11.15" (#471). The owner is trying it all. Next: a first-time setup
+walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 
 ## In the stores

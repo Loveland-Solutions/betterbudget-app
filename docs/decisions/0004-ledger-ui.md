@@ -6675,3 +6675,18 @@ card and **1** for the bars ("Let's to C and bars 1").
   This ends "let's go from green progressively to red" (2026-10-26) everywhere.
 - *Rejected:* **2**, the bar as long as the money, in the three colors; **3**, no bar, the
   Left figure in a box of the state's color.
+
+## The line under a category's Left names the period its money came from (2026-11-16, #471)
+
+The first-time reader, on a row with "−₮50,000 from before" under Left in November:
+"Before what? I never assigned October … 'From October' plus the dates I'd understand."
+
+- By month the line names the month before: "₮500,000 from October", "−₮50,000 from
+  October", as the sum's box already says "From October".
+- By paycheck it names the pay period before by its first and last day, written as the
+  page's title writes them: "₮500,000 from 11.01–11.15".
+- One whole message each (`planFromMonth`, `planFromPay`); "from before" is gone from
+  the page. This replaces "₮X from before" wherever it is written above.
+- It is what the category held when this period began, which the period before left,
+  whenever it was first assigned: a fund built since February reads "from October" in
+  November.

@@ -7302,6 +7302,14 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Assign ₮232,300'), findsOneWidget);
+      // What the paycheck before left is named by that paycheck's dates,
+      // written as the page's title writes them (#471).
+      expect(
+        tester
+            .widget<Text>(find.byKey(ValueKey('from-before-$groceries')))
+            .data,
+        endsWith(' from 09.11–09.24'),
+      );
       // A finished paycheck only shows what happened: no Assign.
       for (var i = 0; i < 3; i++) {
         await tester.tap(find.byKey(const ValueKey('period-prev')));
@@ -8064,7 +8072,13 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('period-next')));
       await tester.pumpAndSettle();
       expect(find.text('October 2026'), findsOneWidget);
-      expect(find.byKey(ValueKey('from-before-$groceries')), findsOneWidget);
+      // Named by the month it came from, not "from before" (#471).
+      expect(
+        tester
+            .widget<Text>(find.byKey(ValueKey('from-before-$groceries')))
+            .data,
+        '₮623,349.50 from September',
+      );
       expect(
         tester.widget<Money>(find.byKey(ValueKey('left-$groceries'))).minor,
         90000000 - 27665050,

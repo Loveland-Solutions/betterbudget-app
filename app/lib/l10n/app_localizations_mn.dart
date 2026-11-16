@@ -3826,8 +3826,13 @@ class WordsMn extends Words {
   String get planLeft => 'Үлдсэн';
 
   @override
-  String planFromBefore(String amount) {
-    return 'өмнөөс $amount';
+  String planFromMonth(String amount, String month) {
+    return '$monthаас $amount';
+  }
+
+  @override
+  String planFromPay(String amount, String start, String end) {
+    return '$start–$end-ны үеэс $amount';
   }
 
   @override
