@@ -22,9 +22,11 @@ counts with Assigned on the top card (#468). The owner's months from November on
 split once at launch, after a copy (`before-paycheck-split-…`) was kept in Backups. The
 owner is trying it. Below zero, the top card's result names what made it short:
 Assigned too much, Overspent, not covered, Not categorized, not covered, Still short
-from October, or Short with its parts (0.94.1, #470). Next on the Budget page: sections
-by type (#469), "from before" naming when (#471); a first-time setup walkthrough is
-#475. The Mongolian of everything since #90's last pass
+from October, or Short with its parts (0.94.1, #470). The Spending tab is in sections by
+type, Day-to-day, Funds, Bills, Goals, then Saved, bills soonest due first; groups stay
+inside Day-to-day (0.95.0, #469). Next on the Budget page: "from before" naming when
+(#471), the top card's label (#464), the bars' colors (#465); a first-time setup
+walkthrough is #475. The Mongolian of everything since #90's last pass
 is a draft until Tanan checks it (#90).
 
 ## In the stores
