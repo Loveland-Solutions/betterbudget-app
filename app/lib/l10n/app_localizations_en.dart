@@ -4603,6 +4603,29 @@ class WordsEn extends Words {
   }
 
   @override
+  String planAssignMore(String amount) {
+    return 'Assign $amount more';
+  }
+
+  @override
+  String planAssignLinkTip(String amount) {
+    return 'Assigns $amount from not assigned.';
+  }
+
+  @override
+  String planAssignMoreLinkTip(String amount, String total) {
+    return 'Assigns $amount more from not assigned, which makes Assigned $total.';
+  }
+
+  @override
+  String get planPaidFromGoneShort => 'Its account is archived';
+
+  @override
+  String planOtherRowsShort(String amount) {
+    return '$amount not counted';
+  }
+
+  @override
   String get planEditTip => 'Click to change the plan';
 
   @override
@@ -6591,9 +6614,6 @@ class WordsEn extends Words {
 
   @override
   String get planBillSkipped => 'Skipped';
-
-  @override
-  String get planBillArchived => 'Paid from archived';
 
   @override
   String get planBillsHere => 'Bills in this period';

@@ -47,8 +47,9 @@ Widget _formRow(
             child: Text(
               aside,
               style: onest(12.5, color: Mid.ink3),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              // Wrapped, not cut (ADR 0004 "No overflow stripe"): beside
+              // an account with a long name, two lines lost the date at
+              // the end of the sentence.
             ),
           ),
         ),

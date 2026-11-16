@@ -64,6 +64,13 @@ class _FakeDialogs extends FileSelectorPlatform {
   }) async => savePath == null ? null : FileSaveLocation(savePath!);
 }
 
+/// A plan's sentence isn't on a Budget row (#483): it is said when the
+/// row's name, its state word or its Assign link is pointed at. Finds the
+/// tooltips with [text] as one of their lines.
+Finder saidOnPoint(String text) => find.byWidgetPredicate(
+  (w) => w is Tooltip && (w.message ?? '').split('\n').contains(text),
+);
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   setUpAll(() async {
@@ -7258,7 +7265,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('₮900,000 a month'), findsOneWidget);
+      expect(saidOnPoint('₮900,000 a month'), findsWidgets);
       expect(find.byKey(ValueKey('plan-assign-$groceries')), findsNothing);
       // A big shop early in the paycheck, past its ₮420,000 while
       // September still covers it: not red, said under Left, and on the
@@ -7310,12 +7317,23 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('period-next')));
       await tester.pumpAndSettle();
       expect(
-        find.text(
+        saidOnPoint(
           '₮900,000 a month · about ₮232,300 of October’s this pay period',
+        ),
+        findsWidgets,
+      );
+      // "more": September's part is already in this paycheck's Assigned.
+      expect(find.text('Assign ₮232,300 more'), findsOneWidget);
+      // The link has the bar's place while the row asks (#483), and says
+      // where the money comes from and what Assigned will be.
+      expect(find.byKey(ValueKey('used-$groceries')), findsNothing);
+      expect(
+        saidOnPoint(
+          'Assigns ₮232,300 more from not assigned, which makes Assigned '
+          '₮412,300.',
         ),
         findsOneWidget,
       );
-      expect(find.text('Assign ₮232,300'), findsOneWidget);
       // A finished paycheck only shows what happened: no Assign.
       for (var i = 0; i < 3; i++) {
         await tester.tap(find.byKey(const ValueKey('period-prev')));
@@ -7546,10 +7564,10 @@ void main() {
         // Seen by Jenny's pay, not its own: Assigned is her period's, so
         // the line is the plan as it was, not set against it (#467).
         expect(
-          find.text(
+          saidOnPoint(
             '₮600,000 each pay period · Jeff · about ₮270,900 this pay period',
           ),
-          findsOneWidget,
+          findsWidgets,
         );
         expect(find.text('Assign ₮270,900'), findsOneWidget);
         // A period later, Jeff's next (09.25–10.22: the 25th is a Sunday,
@@ -7558,10 +7576,10 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('period-next')));
         await tester.pumpAndSettle();
         expect(
-          find.text(
+          saidOnPoint(
             '₮600,000 each pay period · Jeff · about ₮300,000 this pay period',
           ),
-          findsOneWidget,
+          findsWidgets,
         );
         // Jenny's 11.20–12.03 holds the last 5 days of Jeff's 10.23–11.24
         // and 9 of his next 30: each its days' share, ₮90,900 and
@@ -7574,10 +7592,10 @@ void main() {
         }
         expect(title(), 'Pay period · 11.20–12.03');
         expect(
-          find.text(
+          saidOnPoint(
             '₮600,000 each pay period · Jeff · about ₮270,900 this pay period',
           ),
-          findsOneWidget,
+          findsWidgets,
         );
         await tester.tap(find.byKey(const ValueKey('period-today')));
         await tester.pumpAndSettle();
@@ -8288,7 +8306,7 @@ void main() {
       expect(data.plans[groceries]!.amount, 90000000);
       // Nothing assigned yet, so the line is named as the plan, apart
       // from the Assigned beside it (#467).
-      expect(find.text('Planned ₮900,000 a month'), findsOneWidget);
+      expect(saidOnPoint('Planned ₮900,000 a month'), findsWidgets);
 
       // Its own Assign fills just that line, quietly. Then Assigned says
       // what the line said, so the line goes (#467).
@@ -8327,7 +8345,7 @@ void main() {
       await editCategory(tester, 'Gifts');
       await type('plan-amount', '50000');
       await save();
-      expect(find.text('Planned ₮50,000 a month'), findsOneWidget);
+      expect(saidOnPoint('Planned ₮50,000 a month'), findsWidgets);
 
       // Clothing, an amount by a date, once: September to December is
       // four parts.
@@ -8571,8 +8589,8 @@ void main() {
       expect(data.plans[groceries]!.rollover, isFalse);
       // Assigned already says ₮900,000: only what the plan adds (#467).
       expect(
-        find.text('what’s left goes back to not assigned'),
-        findsOneWidget,
+        saidOnPoint('what’s left goes back to not assigned'),
+        findsWidgets,
       );
       // Clothing saves for a date, so it sits under Bills, lower down.
       await tester.ensureVisible(find.byKey(ValueKey('plan-note-$clothing')));
@@ -8890,7 +8908,7 @@ void main() {
       await save();
       await reload();
       expect(data.plans[gifts]!.upTo, 20000000);
-      expect(find.text('₮50,000 a month · up to ₮200,000'), findsOneWidget);
+      expect(saidOnPoint('₮50,000 a month · up to ₮200,000'), findsWidgets);
       await tidy(tester, db);
     });
 
@@ -8964,11 +8982,23 @@ void main() {
       expect(data.accounts[gifts]!.budgetGroup, 'Family');
       expect(data.accounts[gifts]!.note, 'Birthdays and Tsagaan Sar');
       expect(
-        find.text('₮80,000 in September only, then ₮50,000 a month'),
-        findsOneWidget,
+        saidOnPoint('₮80,000 in September only, then ₮50,000 a month'),
+        findsWidgets,
       );
       expect(find.byKey(const ValueKey('budget-group-Family')), findsOneWidget);
+      // The note is a mark after the name, whole when pointed at, and the
+      // row is as tall as one with nothing to say (#483).
       expect(find.byKey(ValueKey('category-note-$gifts')), findsOneWidget);
+      expect(find.text('Birthdays and Tsagaan Sar'), findsNothing);
+      expect(find.byTooltip('Birthdays and Tsagaan Sar'), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(ValueKey('category-$gifts'))).height,
+        tester.getSize(find.byKey(ValueKey('category-$clothing'))).height,
+      );
+      expect(
+        tester.getSize(find.byKey(ValueKey('category-$gifts'))).height,
+        40,
+      );
       // Clothing joins the group from the list: one heading over both.
       await editCategory(tester, 'Clothing');
       await pick('category-group');
@@ -9024,8 +9054,8 @@ void main() {
       await reload();
       expect(data.plans[gifts]!.once, {sep: 0});
       expect(
-        find.text('Skipped in September, then ₮50,000 a month'),
-        findsOneWidget,
+        saidOnPoint('Skipped in September, then ₮50,000 a month'),
+        findsWidgets,
       );
       await chord(tester, LogicalKeyboardKey.keyZ);
       await settle(tester);
