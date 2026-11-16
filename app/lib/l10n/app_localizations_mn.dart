@@ -4428,18 +4428,18 @@ class WordsMn extends Words {
   }
 
   @override
+  String planUsedFresh(String had) {
+    return '$had: одоохондоо зарцуулаагүй';
+  }
+
+  @override
+  String planUsedPast(String over, String used, String had) {
+    return '$over хэтэрсэн: зарцуулсан $used / $had';
+  }
+
+  @override
   String planUsedOf(String used, String had) {
     return 'зарцуулсан: $used / $had';
-  }
-
-  @override
-  String planUsedNone(String amount) {
-    return 'Хуваарилаагүй, $amount хэтэрсэн';
-  }
-
-  @override
-  String planUsedOver(String amount) {
-    return '$amount хэтэрсэн';
   }
 
   @override
@@ -4537,10 +4537,7 @@ class WordsMn extends Words {
   String get planKeyOver => 'Илүү хуваарилсан';
 
   @override
-  String get planKeyOverSpent => 'Хэтэрсэн, нөхөгдөөгүй';
-
-  @override
-  String get planKeyOverLoose => 'Ангилаагүй, нөхөгдөөгүй';
+  String get planKeyOverSpent => 'Төсөв хэтэрсэн';
 
   @override
   String planKeyOverCarriedMonth(String month) {
@@ -5657,12 +5654,12 @@ class WordsMn extends Words {
 
   @override
   String ledgerCombinedOverSpent(String amount) {
-    return 'Одоо хэтэрсэн зарцуулалтаас $amount нөхөгдөөгүй байна';
+    return 'Одоо төсөв хэтэрсэн: $amount';
   }
 
   @override
   String ledgerCombinedOverLoose(String amount) {
-    return 'Одоо ангилаагүй зарцуулалтаас $amount нөхөгдөөгүй байна';
+    return 'Одоо ангилаагүй зарцуулалтаас болж төсөв хэтэрсэн: $amount';
   }
 
   @override

@@ -417,32 +417,151 @@ String shortDate(DateTime d) =>
 /// `2026.09.16` — the YYYY.MM.DD convention used on every transaction.
 String fullDate(DateTime d) => '${d.year}.${shortDate(d)}';
 
-/// The ring before a budget category's name slides from green through
-/// gold to coral as the category is used up (owner, 2026-10-26: "let's go
-/// from green progressively to red"; ADR 0004 "How used up a category
-/// is"): the one place a shade between the money colours is drawn.
-/// [share] is 0 (nothing used) to 1 (used up or over).
-Color usedColor(double share) {
-  final s = share.clamp(0.0, 1.0);
-  final green = HSLColor.fromColor(Mid.green);
-  final gold = HSLColor.fromColor(Mid.gold);
-  final coral = HSLColor.fromColor(Mid.coral);
-  final hsl = s < 0.5
-      ? HSLColor.lerp(green, gold, s * 2)!
-      : HSLColor.lerp(gold, coral, (s - 0.5) * 2)!;
-  return hsl.toColor();
+/// How used up a budget category is, in three colors and no shade between
+/// them (owner, 2026-11-14, #465: "there should really only be three
+/// colors: Red, Amber, Green. Green is newly assigned, Red is over, yellow
+/// is in progress"; ADR 0004 "Budget: no pane round the sum, bars all one
+/// length, three colors"): green with nothing spent from it, gold once
+/// some is, coral when more is spent than it had. [left] is how much of
+/// what it had is still there, 0 to 1. It replaces the slide from green to
+/// coral (2026-10-26).
+Color usedColor({required double left, required bool over}) => over
+    ? Mid.coral
+    : left >= 1
+    ? Mid.green
+    : Mid.gold;
+
+/// The bar after a category's name on the computer's Budget (owner's pick
+/// 1 of three, 2026-11-16, #465; ADR 0004 "Budget: no pane round the sum,
+/// bars all one length, three colors"). Every bar is the same length, and
+/// each shows its own money: the colored part is how much of what the
+/// category had is [left], 0 to 1. Whole and green with nothing spent,
+/// gold and shorter as it's spent, the bare track at zero, whole and coral
+/// when [over] ([usedColor]). It took the place of a bar as long as the
+/// money, with hatched coral past it (#460: "Why are the red overspent
+/// bars short or long? They should all be the same length, right?").
+///
+/// A slim pill, its track a faint tint of its own color, so an emptied
+/// bar still says which of the three it is; the colored part has a round
+/// end and glides when the money changes (owner, of flat 14-point slabs:
+/// "The bars look terrible"). It does nothing when clicked ("the bars are
+/// just there"). [words] is its tooltip.
+class UsedBar extends StatelessWidget {
+  const UsedBar({
+    super.key,
+    required this.left,
+    required this.over,
+    this.words,
+  });
+  final double left;
+  final bool over;
+  final String? words;
+
+  /// How tall the pill is, and the room it is drawn in.
+  static const double thick = 8;
+  static const double height = 16;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = usedColor(left: left, over: over);
+    final bar = SizedBox(
+      height: height,
+      width: double.infinity,
+      // Only the length glides; the color changes at once, so no shade
+      // between the three is ever drawn.
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: over ? 1 : left.clamp(0.0, 1.0)),
+        duration: MediaQuery.maybeDisableAnimationsOf(context) ?? false
+            ? Duration.zero
+            : const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        builder: (context, share, _) => CustomPaint(
+          painter: _UsedBarPainter(
+            share: share,
+            fill: color,
+            glow: !Mid.isLight,
+          ),
+        ),
+      ),
+    );
+    return switch (words) {
+      null => bar,
+      final words => Tooltip(
+        message: words,
+        waitDuration: const Duration(milliseconds: 500),
+        child: bar,
+      ),
+    };
+  }
 }
 
-/// How much of what a category had this period is used (#241; ADR 0004
-/// "How used up a category is", the owner's pick C of three): a ring
-/// filled clockwise from the top, [usedColor] as it fills, full and coral
-/// at zero or below. On the phone's Budget; the computer draws a bar
-/// after the name instead (#460).
-/// [words] is its tooltip ("₮612,300 of ₮900,000 used"), when there are
-/// any.
-class UsedRing extends StatelessWidget {
-  const UsedRing({super.key, required this.share, this.size = 14, this.words});
+class _UsedBarPainter extends CustomPainter {
+  const _UsedBarPainter({
+    required this.share,
+    required this.fill,
+    required this.glow,
+  });
+
+  /// How much of the bar is colored, 0 to 1.
   final double share;
+  final Color fill;
+
+  /// On a dark page the colored part lights the track a little.
+  final bool glow;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0) return;
+    const thick = UsedBar.thick;
+    const radius = Radius.circular(thick / 2);
+    final top = (size.height - thick) / 2;
+    final track = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, top, size.width, thick),
+      radius,
+    );
+    canvas.drawRRect(track, Paint()..color = fill.withValues(alpha: 0.2));
+    final part = share.clamp(0.0, 1.0);
+    if (part <= 0) return;
+    // Never shorter than a dot, so a little money can still be seen.
+    final width = size.width * part < thick ? thick : size.width * part;
+    final shape = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, top, width, thick),
+      radius,
+    );
+    if (glow) {
+      canvas.drawRRect(
+        shape,
+        Paint()
+          ..color = fill.withValues(alpha: 0.45)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
+    }
+    canvas.drawRRect(shape, Paint()..color = fill);
+  }
+
+  @override
+  bool shouldRepaint(_UsedBarPainter old) =>
+      old.share != share || old.fill != fill || old.glow != glow;
+}
+
+/// How much of what a category had this period is left, on the phone's
+/// Budget (#241; the computer draws [usedColor] as a bar after the name,
+/// #460): a ring whose colored part is what's [left], 0 to 1, clockwise
+/// from the top. Whole and green with nothing spent, gold and shorter as
+/// it's spent, bare at zero, whole and coral when [over] (owner,
+/// 2026-11-16, of the computer's three colors: "the phone app should be
+/// the same"). It emptied the other way before, filling as it was used.
+/// [words] is its tooltip, when there are any.
+class UsedRing extends StatelessWidget {
+  const UsedRing({
+    super.key,
+    required this.left,
+    required this.over,
+    this.size = 14,
+    this.words,
+  });
+  final double left;
+  final bool over;
   final double size;
   final String? words;
 
@@ -450,10 +569,12 @@ class UsedRing extends StatelessWidget {
   Widget build(BuildContext context) {
     final ring = CustomPaint(
       size: Size.square(size),
+      // Drawn as the computer's bar is: the track a faint tint of its
+      // own color, the colored part with round ends.
       painter: _UsedRingPainter(
-        share,
-        usedColor(share),
-        Mid.ink3.withValues(alpha: 0.3),
+        over ? 1 : left,
+        usedColor(left: left, over: over),
+        usedColor(left: left, over: over).withValues(alpha: 0.22),
       ),
     );
     return switch (words) {
@@ -469,6 +590,8 @@ class UsedRing extends StatelessWidget {
 
 class _UsedRingPainter extends CustomPainter {
   const _UsedRingPainter(this.share, this.color, this.track);
+
+  /// How much of the ring is colored, 0 to 1.
   final double share;
   final Color color;
   final Color track;
@@ -489,7 +612,9 @@ class _UsedRingPainter extends CustomPainter {
     canvas.drawArc(rect, 0, 2 * math.pi, false, paint);
     final filled = share.clamp(0.0, 1.0);
     if (filled > 0) {
-      paint.color = color;
+      paint
+        ..color = color
+        ..strokeCap = filled < 1 ? StrokeCap.round : StrokeCap.butt;
       canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * filled, false, paint);
     }
   }

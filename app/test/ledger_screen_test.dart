@@ -8343,9 +8343,8 @@ void main() {
       expect(find.text('Cash & bank'), findsNothing);
       expect(find.text('In categories'), findsNothing);
       expect(find.textContaining('16,868,950'), findsNothing);
-      // Under the sum: Assign what's planned, and Clear September's
-      // Assigned apart from it, at the card's right end (owner,
-      // 2026-11-14).
+      // Under the sum: Assign what's planned. Clear September's Assigned
+      // is apart from it, at the right end of the boxes' own row (#464).
       final assignAll = tester.getRect(
         find.byKey(const ValueKey('assign-planned')),
       );
@@ -8355,6 +8354,10 @@ void main() {
       final card = tester.getRect(find.byKey(const ValueKey('budget-key')));
       expect(clearAll.left, greaterThan(assignAll.right + 100));
       expect(card.right - clearAll.right, lessThan(40));
+      final boxes = tester.getRect(find.byKey(const ValueKey('budget-sum')));
+      expect(clearAll.top, greaterThanOrEqualTo(boxes.top));
+      expect(clearAll.bottom, lessThanOrEqualTo(boxes.bottom));
+      expect(assignAll.top, greaterThanOrEqualTo(boxes.bottom));
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/budget_plans.png'),
@@ -8383,10 +8386,10 @@ void main() {
       // no bar (#274).
       expect(find.byKey(ValueKey('used-$groceries')), findsOneWidget);
       expect(find.byType(UsedRing), findsNothing);
-      // A bar is as long as what the category had, on one scale down the
-      // list: Groceries had the most, ₮900,000, so it sets the scale, and
-      // ₮623,349.50 of it is left. Transport spent ₮120,000 with nothing
-      // assigned: no track, only what's over.
+      // Every bar is the same length and shows its own money (#465):
+      // ₮623,349.50 of Groceries' ₮900,000 is left, gold since some is
+      // spent. Transport spent ₮120,000 with nothing assigned: no bar, as
+      // it had nothing to picture.
       dynamic bar(int category) => tester
           .widget<CustomPaint>(
             find.descendant(
@@ -8395,18 +8398,22 @@ void main() {
             ),
           )
           .painter;
-      expect(bar(groceries).had, 90000000);
-      expect(bar(groceries).left, 62334950);
-      expect(bar(groceries).over, 0);
-      expect(bar(groceries).top, 90000000);
-      expect(bar(id('Transport')).had, 0);
-      expect(bar(id('Transport')).over, 12000000);
-      expect(bar(id('Transport')).top, 90000000);
-      // Every bar starts at the same place, whatever the name's length.
+      String words(int category) => tester
+          .widget<Tooltip>(
+            find.descendant(
+              of: find.byKey(ValueKey('used-$category')),
+              matching: find.byType(Tooltip),
+            ),
+          )
+          .message!;
+      expect(bar(groceries).share, closeTo(62334950 / 90000000, 1e-9));
+      expect(bar(groceries).fill, Mid.gold);
+      expect(words(groceries), '₮276,650.50 of ₮900,000 spent');
       expect(
-        tester.getTopLeft(find.byKey(ValueKey('used-$groceries'))).dx,
-        tester.getTopLeft(find.byKey(ValueKey('used-${id('Transport')}'))).dx,
+        tester.getSize(find.byKey(ValueKey('used-$groceries'))).width,
+        180,
       );
+      expect(find.byKey(ValueKey('used-${id('Transport')}')), findsNothing);
       expect(find.byKey(ValueKey('used-${id('Childcare')}')), findsNothing);
       expect(find.byKey(ValueKey('used-$tuition')), findsNothing);
       expect(find.byKey(ValueKey('used-$clothing')), findsNothing);
@@ -9108,17 +9115,18 @@ void main() {
       await tidy(tester, db);
     });
 
-    testWidgets('a bar: the biggest category a little over still draws; the '
-        'sum over its income (#460)', (tester) async {
+    testWidgets('a bar: a little over is whole and coral, untouched is '
+        'whole and green; the sum over its income (#460, #465)', (
+      tester,
+    ) async {
       final db = await pumpLedger(tester, size: const Size(1440, 960));
       final data = (await tester.runAsync(db.loadLedger))!;
       int id(String name) =>
           data.categories.firstWhere((c) => c.name == name).id;
       final groceries = id('Groceries'), gifts = id('Gifts');
       final sep = DateTime(2026, 9, 1), end = DateTime(2026, 9, 30);
-      // Groceries spent ₮276,650.50: with ₮276,000 assigned it is the
-      // longest bar, a track with a sliver of hatched coral after it, far
-      // thinner than the least a part is drawn. It once threw there.
+      // Groceries spent ₮276,650.50: with ₮276,000 assigned it is ₮650.50
+      // over, and the whole bar is coral however little that is.
       await tester.runAsync(
         () => db.setBudgetAmount(groceries, sep, end, 27600000),
       );
@@ -9133,21 +9141,34 @@ void main() {
             ),
           )
           .painter;
-      // Both parts on one row: what it had, and what it spent past that.
-      expect(bar(groceries).had, 27600000);
-      expect(bar(groceries).left, 0);
-      expect(bar(groceries).over, 65050);
-      expect(bar(groceries).top, 27665050);
-      // Gifts is given more than the month's income: it had the most, so
-      // it sets the scale, and all of it is left.
+      String words(int category) => tester
+          .widget<Tooltip>(
+            find.descendant(
+              of: find.byKey(ValueKey('used-$category')),
+              matching: find.byType(Tooltip),
+            ),
+          )
+          .message!;
+      expect(bar(groceries).share, 1);
+      expect(bar(groceries).fill, Mid.coral);
+      expect(
+        words(groceries),
+        'Overspent by ₮650.50: ₮276,650.50 spent of ₮276,000',
+      );
+      // Gifts is given more than the month's income and nothing is spent
+      // from it: whole and green, and no longer than Groceries' bar.
       await tester.runAsync(
         () => db.setBudgetAmount(gifts, sep, end, 500000000),
       );
       await settle(tester);
       expect(tester.takeException(), isNull);
-      expect(bar(gifts).had, 500000000);
-      expect(bar(gifts).left, 500000000);
-      expect(bar(groceries).top, 500000000);
+      expect(bar(gifts).share, 1);
+      expect(bar(gifts).fill, Mid.green);
+      expect(words(gifts), 'Nothing spent of ₮5,000,000 yet');
+      expect(
+        tester.getSize(find.byKey(ValueKey('used-$gifts'))).width,
+        tester.getSize(find.byKey(ValueKey('used-$groceries'))).width,
+      );
       // ₮5,276,000 given out against September's ₮2,500,000, and
       // categories overspent besides: the result takes Not assigned's
       // place in the sum (#461): Short, with its parts under it, each by
@@ -9194,7 +9215,7 @@ void main() {
       final loose = rest < both.loose ? rest : both.loose;
       expect(await short(), ShortBy(spent: rest - loose, loose: loose));
       expect(loose, 0, reason: 'the demo has nothing uncategorized');
-      expect(find.text('Overspent, not covered'), findsOneWidget);
+      expect(find.text('Over budget'), findsOneWidget);
       expect(find.text('Assigned too much'), findsNothing);
       expect(find.byKey(const ValueKey('over-parts')), findsNothing);
       expect(

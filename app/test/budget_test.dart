@@ -321,13 +321,25 @@ void main() {
     expect(o.lines[xmas]!.had, 200000000);
     expect(o.lines[xmas]!.used, 15000000);
     expect(o.lines[xmas]!.usedShare, closeTo(0.075, 0.001));
-    // Over, and spent with nothing assigned: full.
+    // Over: full.
     expect(o.lines[dining]!.usedShare, 1);
-    expect(o.lines[coffee]!.usedShare, 1);
+    // Spent with nothing assigned: nothing to picture (#465).
+    expect(o.lines[coffee]!.usedShare, isNull);
     expect(o.lines[coffee]!.used, 38000);
-    // Nothing had and nothing spent: no ring.
+    // Nothing had and nothing spent: none either.
     expect(o.lines[housing]!.usedShare, isNull);
-    // Everything spent: full, at the slide's red end.
+    // Last month's overspending carried in outweighs what's assigned:
+    // nothing had, so none.
+    final behind = ledger(
+      amounts: [
+        put(dining, DateTime(2026, 9, 1), 1000000),
+        put(dining, oct.start, 2000000),
+      ],
+      rows: [move(DateTime(2026, 9, 9), checking, dining, 5000000)],
+    );
+    expect(of(behind, oct).lines[dining]!.had, lessThan(0));
+    expect(of(behind, oct).lines[dining]!.usedShare, isNull);
+    // Everything spent: all of it used.
     final gone = ledger(
       amounts: [put(food, oct.start, 90000000)],
       rows: [move(DateTime(2026, 10, 3), checking, food, 90000000)],

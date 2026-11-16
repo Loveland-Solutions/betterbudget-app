@@ -157,15 +157,17 @@ class EnvelopeLine {
   /// What of that is used: the spending that counted, never below zero.
   int get used => counted < 0 ? 0 : counted;
 
-  /// How much of what it had is used, 0 to 1, for the ring before its
-  /// name (#241; ADR 0004 "How used up a category is"). 1 at zero or
-  /// below. Null when there's nothing to picture: a category saving for
-  /// a bill (its line says due or paid), or nothing had and nothing
-  /// spent.
+  /// How much of what it had is used, 0 to 1, for the bar after its name
+  /// (#241, #460; ADR 0004 "Budget: no pane round the sum, bars all one
+  /// length, three colors"). 1 when it spent past what it had. Null when
+  /// there's nothing to picture: a category saving for a bill (its line
+  /// says due or paid), or one that had nothing this period, spent from or
+  /// not (owner, 2026-11-16: "If nothing is assigned for that category,
+  /// the bars have no job and should not be there").
   double? get usedShare {
     if (plan?.plan.kind == PlanKind.byDate) return null;
-    if (left < 0) return 1;
     if (had <= 0) return null;
+    if (left < 0) return 1;
     return used >= had ? 1 : used / had;
   }
 

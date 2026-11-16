@@ -4584,18 +4584,18 @@ class WordsEn extends Words {
   }
 
   @override
+  String planUsedFresh(String had) {
+    return 'Nothing spent of $had yet';
+  }
+
+  @override
+  String planUsedPast(String over, String used, String had) {
+    return 'Overspent by $over: $used spent of $had';
+  }
+
+  @override
   String planUsedOf(String used, String had) {
-    return '$used of $had used';
-  }
-
-  @override
-  String planUsedNone(String amount) {
-    return '$amount overspent, with nothing assigned';
-  }
-
-  @override
-  String planUsedOver(String amount) {
-    return '$amount overspent';
+    return '$used of $had spent';
   }
 
   @override
@@ -4694,10 +4694,7 @@ class WordsEn extends Words {
   String get planKeyOver => 'Assigned too much';
 
   @override
-  String get planKeyOverSpent => 'Overspent, not covered';
-
-  @override
-  String get planKeyOverLoose => 'Not categorized, not covered';
+  String get planKeyOverSpent => 'Over budget';
 
   @override
   String planKeyOverCarriedMonth(String month) {
@@ -5841,12 +5838,12 @@ class WordsEn extends Words {
 
   @override
   String ledgerCombinedOverSpent(String amount) {
-    return '$amount of overspending isn’t covered now';
+    return 'The budget is $amount over now';
   }
 
   @override
   String ledgerCombinedOverLoose(String amount) {
-    return '$amount spent with no category isn’t covered now';
+    return 'The budget is $amount over now, from money spent with no category';
   }
 
   @override
