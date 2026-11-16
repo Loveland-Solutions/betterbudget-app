@@ -6281,6 +6281,60 @@ abstract class Words {
   /// **'Planned {plan}'**
   String planPlannedLine(String plan);
 
+  /// Budget page by pay period: under a monthly category's name, the part of a month's plan this pay period asks for, all of that month's rest (#468). month is a month name (monthNames).
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} of {month}’s this pay period'**
+  String planMonthShare(String amount, String month);
+
+  /// Budget page by pay period: under a monthly category's name, this pay period's days' share of a month's plan (#468). month is a month name (monthNames); Mongolian puts it in the genitive.
+  ///
+  /// In en, this message translates to:
+  /// **'about {amount} of {month}’s this pay period'**
+  String planAboutMonthShare(String amount, String month);
+
+  /// Budget page, inside Assign what's planned, coral: the plans are more than Not assigned; says what the click does. amount is Not assigned as the card shows it; over is how far past it the click goes (#468).
+  ///
+  /// In en, this message translates to:
+  /// **'Only {amount} is not assigned, so this makes {over} assigned too much'**
+  String planFillOverBy(String amount, String over);
+
+  /// Budget page, inside Assign what's planned, coral, when Not assigned is zero: what the click does (#468).
+  ///
+  /// In en, this message translates to:
+  /// **'Everything is assigned, so this makes {over} assigned too much'**
+  String planFillOverNone(String over);
+
+  /// Budget page, inside Assign what's planned, coral, when the card already shows Assigned too much (#468).
+  ///
+  /// In en, this message translates to:
+  /// **'This adds {over} to Assigned too much'**
+  String planFillOverMore(String over);
+
+  /// Popup once, at the first launch that keeps a month's Assigned by paycheck (#468): what the app did to amounts already there. month is a month name (monthNames).
+  ///
+  /// In en, this message translates to:
+  /// **'Your Assigned from {month} on is now kept by paycheck, so each paycheck shows its own part. Month totals didn’t change. A copy of your ledger from before is in Backups.'**
+  String planSplitOnce(String month);
+
+  /// Budget page by pay period, under a monthly category's Left when this paycheck spent past its part and the month still has money (#468); Left is then plain ink, not red. month is a month name (monthNames).
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} past this pay period’s part, which {month}’s money still covers'**
+  String planSpentAhead(String amount, String month);
+
+  /// Phone, after Save, budget by pay period: a monthly category spent past this paycheck's part while its month still has money (#468); not coral. month is a month name.
+  ///
+  /// In en, this message translates to:
+  /// **'{category} · {over} past this pay period’s part, which {month}’s money still covers'**
+  String phoneSavedAhead(String category, String over, String month);
+
+  /// Phone's amount screen, budget by pay period: the same as phoneSavedAhead, without the name (#468).
+  ///
+  /// In en, this message translates to:
+  /// **'{over} past this pay period’s part, which {month}’s money still covers'**
+  String phoneAheadNow(String over, String month);
+
   /// Budget page: note under a category's name, what its plan puts in each month
   ///
   /// In en, this message translates to:

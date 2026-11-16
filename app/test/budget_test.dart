@@ -3,6 +3,7 @@ import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
+import 'package:betterbudget/domain/phone.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -2026,14 +2027,16 @@ void main() {
       Budget at(LedgerData d, ({DateTime start, DateTime end}) span) =>
           Budget.of(d, start: span.start, end: span.end, today: today);
       final pp = (start: p.start, end: p.end);
-      // Nothing in yet: the 14 days of October's 23 left from 10.09, said
-      // in its own terms with the share beside it.
+      // Nothing in yet: its own 14 of October's 31 days, as about. The 8
+      // days before it, never filled, aren't asked again (owner,
+      // 2026-11-15, #468: the next paycheck asks only its own share).
       var l = at(ledger(pay: [pay], plans: [groceries]), pp).lines[food]!;
       expect(l.plan!.approx, isTrue);
       expect(l.plan!.each, 60000000);
-      expect(l.plan!.planned, 36530000);
-      expect(l.toAssign, 36530000);
-      // ₮300,000 already in for October: the share is of the rest.
+      expect(l.plan!.planned, 42590000 - 15490000);
+      expect(l.toAssign, 27100000);
+      // ₮300,000 already in for October, more than its first 8 days'
+      // ₮154,900: what's ahead counts toward this share.
       l = at(
         ledger(
           pay: [pay],
@@ -2042,7 +2045,7 @@ void main() {
         ),
         pp,
       ).lines[food]!;
-      expect(l.plan!.planned, 18270000);
+      expect(l.plan!.planned, 27100000 - (30000000 - 15490000));
       // The share put in; the next pay period takes what's left of
       // October (its last 9 days, all of them) and November's first 5 of
       // 30. So the shares add up to the month.
@@ -2082,6 +2085,204 @@ void main() {
       expect(l.plan!.approx, isFalse);
       expect(l.plan!.planned, 60000000);
       expect(l.toAssign, 30000000);
+    });
+
+    test('a paycheck asks its days of each month still running, never a '
+        'month that has ended, nor more than a month (#468)', () {
+      // Paid every 2 weeks from 10.30: 10.30–11.12, then 11.13–11.26.
+      final pay = PaySchedule(
+        id: 1,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100,
+        rule: PayRule.everyWeeks,
+        weeks: 2,
+        anchor: DateTime(2026, 10, 30),
+        weekend: PayWeekend.keep,
+        definesPeriod: true,
+      );
+      final groceries = plan(
+        food,
+        PlanKind.each,
+        60000000,
+        start: DateTime(2026, 9, 1),
+      );
+      final first = budgetPeriod(DateTime(2026, 11, 5), pay);
+      final second = nextBudgetPeriod(first, pay);
+      expect(first.start, DateTime(2026, 10, 30));
+      expect(second.start, DateTime(2026, 11, 13));
+      EnvelopeLine at(BudgetSpan p, List<BudgetAmount> amounts) => Budget.of(
+        ledger(pay: [pay], plans: [groceries], amounts: amounts),
+        start: p.start,
+        end: p.end,
+        today: DateTime(2026, 11, 5),
+      ).lines[food]!;
+      // November filled on its 1st, October never: October has ended, so
+      // its last two days ask nothing (the owner's paycheck asked
+      // October's whole plan again); November's 12 of 30 days are well
+      // covered.
+      final filled = [put(food, DateTime(2026, 11, 1), 60000000)];
+      var l = at(first, filled);
+      expect(l.plan!.shares.first.amount, 0);
+      expect(l.plan!.planned, 24000000);
+      expect(l.toAssign, 0);
+      // The next paycheck: what went in ahead covers its 14 days.
+      l = at(second, filled);
+      expect(l.plan!.planned, 0);
+      expect(l.toAssign, 0);
+      // Nothing assigned in the first: the second asks only its own share,
+      // not the first's too (owner's pick).
+      l = at(second, const []);
+      expect(l.plan!.planned, 52000000 - 24000000);
+      // Never more than a month's amount, whatever is missing.
+      expect(l.plan!.planned, lessThanOrEqualTo(60000000));
+    });
+
+    group('a month kept by paycheck (#468, code review)', () {
+      PaySchedule pay({bool view = false}) => PaySchedule(
+        id: 1,
+        categoryId: salary,
+        accountId: checking,
+        amount: 100,
+        rule: PayRule.everyWeeks,
+        weeks: 2,
+        anchor: DateTime(2026, 10, 30),
+        weekend: PayWeekend.keep,
+        definesPeriod: view,
+      );
+      final dec = (
+        start: DateTime(2026, 12, 1),
+        end: DateTime(2026, 12, 31),
+        label: '',
+      );
+
+      test('stored with the rounding a paycheck asks by: no stray Assign', () {
+        // ₮800,000 doesn't divide by December's days.
+        final groceries = plan(
+          food,
+          PlanKind.each,
+          80000000,
+          start: DateTime(2026, 9, 1),
+        );
+        final rows = Budget.byPaychecks(
+          span: dec,
+          pay: pay(),
+          amount: 80000000,
+          currency: Currency.mnt,
+        );
+        expect(rows.map((r) => r.date), [
+          DateTime(2026, 12, 1),
+          DateTime(2026, 12, 11),
+          DateTime(2026, 12, 25),
+        ]);
+        expect(rows.fold(0, (s, r) => s + r.amount), 80000000);
+        final d = ledger(
+          pay: [pay(view: true)],
+          plans: [groceries],
+          amounts: [
+            for (final r in rows) put(food, r.date, r.amount),
+            // November's, so the first paycheck asks only December's.
+            put(food, DateTime(2026, 11, 1), 80000000),
+          ],
+        );
+        for (final day in [
+          DateTime(2026, 12, 5),
+          DateTime(2026, 12, 15),
+          DateTime(2026, 12, 28),
+        ]) {
+          final q = budgetPeriod(day, pay(view: true));
+          final l = Budget.of(
+            d,
+            start: q.start,
+            end: q.end,
+            today: DateTime(2026, 11, 20),
+          ).lines[food]!;
+          for (final (i, x) in l.plan!.shares.indexed) {
+            if (x.date.month == 12) {
+              expect(l.plan!.held[i], x.amount, reason: '$day');
+            }
+          }
+        }
+      });
+
+      test('a dollar share rounds to \$1, not \$100', () {
+        expect(Budget.byDays(50000, 14, 31, Currency.usd), 22600);
+        expect(Budget.byDays(50000000, 14, 31, Currency.mnt), 22590000);
+      });
+
+      test('an amount per pay seen by the month: an ended pay period asks '
+          'what it was given, so the running one is still asked for', () {
+        final groceries = plan(
+          food,
+          PlanKind.each,
+          30000000,
+          payScheduleId: 1,
+          start: DateTime(2026, 10, 30),
+        );
+        final l = Budget.of(
+          ledger(
+            pay: [pay()],
+            plans: [groceries],
+            amounts: [put(food, DateTime(2026, 11, 1), 30000000)],
+          ),
+          start: DateTime(2026, 11, 1),
+          end: DateTime(2026, 11, 30),
+          today: DateTime(2026, 11, 20),
+        ).lines[food]!;
+        // 10.30–11.12 ended with its ₮300,000; 11.13–11.26 asks its
+        // ₮300,000; 11.27–12.10 its 4 of 14 days.
+        expect(l.plan!.planned, 30000000 + 30000000 + 8580000);
+        expect(l.toAssign, 30000000 + 8580000);
+      });
+
+      test('spent past a paycheck\'s part while the month still covers it '
+          'is ahead, not over; past the month, over (owner, 2026-11-16)', () {
+        final groceries = plan(
+          food,
+          PlanKind.each,
+          60000000,
+          start: DateTime(2026, 9, 1),
+        );
+        final nov = (
+          start: DateTime(2026, 11, 1),
+          end: DateTime(2026, 11, 30),
+          label: '',
+        );
+        PhoneCategory at(int spent) => snapshotOf(
+          ledger(
+            pay: [pay(view: true)],
+            plans: [groceries],
+            amounts: [
+              for (final r in Budget.byPaychecks(
+                span: nov,
+                pay: pay(),
+                amount: 60000000,
+                currency: Currency.mnt,
+              ))
+                put(food, r.date, r.amount),
+            ],
+            rows: [move(DateTime(2026, 11, 2), checking, food, spent)],
+          ),
+          today: DateTime(2026, 11, 5),
+          madeAt: DateTime(2026, 11, 5),
+        ).categories.firstWhere((c) => c.id == '$food');
+        // 10.30–11.12 holds 12 of November's 30 days, ₮240,000.
+        var c = at(40000000);
+        expect(c.leftMinor, 24000000 - 40000000);
+        expect(c.overAt(c.leftMinor), isFalse);
+        expect(c.coverMonth, 11);
+        c = at(70000000);
+        expect(c.leftMinor, lessThan(0));
+        expect(c.overAt(c.leftMinor), isTrue);
+      });
+
+      test('a deleted pay splits nothing', () {
+        expect(
+          splitScheduleOf(ledger(prefs: {BudgetKeys.splitBy: '1'})),
+          isNull,
+        );
+        expect(splitScheduleOf(ledger(pay: [pay()]))?.id, 1);
+      });
     });
 
     test(

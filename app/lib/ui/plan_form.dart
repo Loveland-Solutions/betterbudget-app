@@ -770,6 +770,7 @@ PlanNote planNote(
   String? payName,
   PaySchedule? own,
   bool besideAssigned = false,
+  bool onRow = false,
 }) {
   final p = line.plan!;
   // The period on screen, and a set amount's own (its month or its pay,
@@ -855,7 +856,25 @@ PlanNote planNote(
             if (rest > 0) t.planPlusNext(money(rest)),
           ];
         }()
-      else if (p.approx && p.planned > 0 && !(cap != null && p.done))
+      // On the row, a share Assigned already holds isn't said again
+      // (#467, #468).
+      else if (onRow && p.planned > 0 && line.assigned == p.planned)
+        ...<String>[]
+      // A monthly plan seen by a pay: each month's part named by its
+      // month, never one sum more than a month's amount (#468).
+      else if (!ownPay && byPay && !(cap != null && p.done)) ...[
+        // On the row, only the months whose part isn't in yet: one
+        // Assigned already holds isn't said again (budget app review).
+        for (final (i, x) in p.shares.indexed)
+          if (x.amount > 0 &&
+              !(onRow && i < p.held.length && p.held[i] >= x.amount))
+            p.approx
+                ? t.planAboutMonthShare(
+                    money(x.amount),
+                    monthName(t, x.date.month),
+                  )
+                : t.planMonthShare(money(x.amount), monthName(t, x.date.month)),
+      ] else if (p.approx && p.planned > 0 && !(cap != null && p.done))
         byPay
             ? t.planAboutThisPay(money(p.planned))
             : t.planAboutThisMonth(money(p.planned)),

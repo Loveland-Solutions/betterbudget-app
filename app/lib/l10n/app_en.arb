@@ -6445,6 +6445,108 @@
       }
     }
   },
+  "planMonthShare": "{amount} of {month}’s this pay period",
+  "@planMonthShare": {
+    "description": "Budget page by pay period: under a monthly category's name, the part of a month's plan this pay period asks for, all of that month's rest (#468). month is a month name (monthNames).",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planAboutMonthShare": "about {amount} of {month}’s this pay period",
+  "@planAboutMonthShare": {
+    "description": "Budget page by pay period: under a monthly category's name, this pay period's days' share of a month's plan (#468). month is a month name (monthNames); Mongolian puts it in the genitive.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planFillOverBy": "Only {amount} is not assigned, so this makes {over} assigned too much",
+  "@planFillOverBy": {
+    "description": "Budget page, inside Assign what's planned, coral: the plans are more than Not assigned; says what the click does. amount is Not assigned as the card shows it; over is how far past it the click goes (#468).",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "over": {
+        "type": "String"
+      }
+    }
+  },
+  "planFillOverNone": "Everything is assigned, so this makes {over} assigned too much",
+  "@planFillOverNone": {
+    "description": "Budget page, inside Assign what's planned, coral, when Not assigned is zero: what the click does (#468).",
+    "placeholders": {
+      "over": {
+        "type": "String"
+      }
+    }
+  },
+  "planFillOverMore": "This adds {over} to Assigned too much",
+  "@planFillOverMore": {
+    "description": "Budget page, inside Assign what's planned, coral, when the card already shows Assigned too much (#468).",
+    "placeholders": {
+      "over": {
+        "type": "String"
+      }
+    }
+  },
+  "planSplitOnce": "Your Assigned from {month} on is now kept by paycheck, so each paycheck shows its own part. Month totals didn’t change. A copy of your ledger from before is in Backups.",
+  "@planSplitOnce": {
+    "description": "Popup once, at the first launch that keeps a month's Assigned by paycheck (#468): what the app did to amounts already there. month is a month name (monthNames).",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "planSpentAhead": "{amount} past this pay period’s part, which {month}’s money still covers",
+  "@planSpentAhead": {
+    "description": "Budget page by pay period, under a monthly category's Left when this paycheck spent past its part and the month still has money (#468); Left is then plain ink, not red. month is a month name (monthNames).",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneSavedAhead": "{category} · {over} past this pay period’s part, which {month}’s money still covers",
+  "@phoneSavedAhead": {
+    "description": "Phone, after Save, budget by pay period: a monthly category spent past this paycheck's part while its month still has money (#468); not coral. month is a month name.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "over": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneAheadNow": "{over} past this pay period’s part, which {month}’s money still covers",
+  "@phoneAheadNow": {
+    "description": "Phone's amount screen, budget by pay period: the same as phoneSavedAhead, without the name (#468).",
+    "placeholders": {
+      "over": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
   "planEachMonth": "{amount} a month",
   "@planEachMonth": {
     "description": "Budget page: note under a category's name, what its plan puts in each month",

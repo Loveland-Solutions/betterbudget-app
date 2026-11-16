@@ -28,6 +28,14 @@ abstract final class BudgetKeys {
   /// the other currency can't change what the amounts mean.
   static const currency = 'budget.currency';
 
+  /// The pay the Budget page was last viewed by, which a month's Assigned
+  /// is split by (#468).
+  static const splitBy = 'budget.splitBy';
+
+  /// Set once the months already assigned from this month on were split by
+  /// paycheck, at the first launch with #468 (owner's pick).
+  static const splitOnce = 'budget.splitOnce';
+
   /// '1' once the first-month offer was answered with "Keep".
   static const keptStart = 'budget.keptStart';
 
@@ -70,6 +78,17 @@ bool categoryTakes(AccountInfo category, Currency currency) =>
     category.isIncome ||
     isUncategorized(category) ||
     category.currency == currency;
+
+/// The pay a month's Assigned is split by (owner, 2026-11-15, #468): the
+/// one the Budget page is viewed by, else the one last viewed by
+/// ([BudgetKeys.splitBy]) while it's still a pay, else the first pay.
+/// Null with no pay: a deleted one doesn't split anything (code review).
+PaySchedule? splitScheduleOf(LedgerData data) =>
+    data.periodSchedule ??
+    data.paySchedules
+        .where((p) => '${p.id}' == data.prefs[BudgetKeys.splitBy])
+        .firstOrNull ??
+    data.paySchedules.firstOrNull;
 
 /// One spending category in one period.
 class EnvelopeLine {
@@ -185,6 +204,7 @@ class PlanLine {
     this.ended = false,
     this.approx = false,
     this.shares = const [],
+    this.held = const [],
     this.wentBackOn,
     this.once = false,
     this.onceFrom,
@@ -203,6 +223,10 @@ class PlanLine {
   /// (#357): said on the line, each with Bring it back. Not one paid ahead
   /// with the bill before it: that one did come.
   final List<DateTime> noBills;
+
+  /// Beside [shares], what this span already holds of each, in the same
+  /// order: the row names only the part still to come in (#468).
+  final List<int> held;
 
   /// The bill [due] counts in the period on screen: the one Skip this bill
   /// would skip there.
@@ -839,6 +863,8 @@ class Budget {
                   ? data.prefs[ReadyKeys.goalLate(id)] ?? 'keep'
                   : 'all',
               paid: billsPaid[id] ?? const {},
+              today: today,
+              currency: currency,
             );
       lines[id] = EnvelopeLine(
         assigned: assigned[id] ?? 0,
@@ -1353,9 +1379,72 @@ class Budget {
     );
   }
 
-  /// A set amount's share rounds to a hundred units (₮100, $1): a day's
-  /// share shown to the tugrik would read as exact.
-  static const _shareUnit = _unit * 100;
+  /// A set amount's share rounds to ₮100, or one whole unit of another
+  /// currency ($1): a day's share shown to the tugrik would read as exact
+  /// (code review, #468: dollars rounded to $100).
+  static int _shareUnitOf(Currency c) =>
+      c.scale * (c == Currency.mnt ? 100 : 1);
+
+  /// [whole]'s share for the first [n] of [days] days, rounded up to
+  /// [currency]'s share unit; the whole at or past the last day. A
+  /// paycheck asks the difference of two of these, and a month typed on
+  /// the month's page is stored by the same ones, so the two agree to the
+  /// möngö (#468).
+  static int byDays(int whole, int n, int days, Currency currency) =>
+      n >= days || days == 0
+      ? whole
+      : n <= 0
+      ? 0
+      : _ceilTo(whole * n ~/ days, _shareUnitOf(currency));
+
+  /// [amount] for the month [span], kept where each of [pay]'s paychecks
+  /// in it begins (or the month's first day), by days, with the rounding
+  /// a paycheck's ask uses; the last takes what's left (#468).
+  static List<({DateTime date, int amount})> byPaychecks({
+    required BudgetSpan span,
+    required PaySchedule pay,
+    required int amount,
+    required Currency currency,
+    DateTime? notBefore,
+  }) {
+    final start = dateOnly(span.start), end = dateOnly(span.end);
+    final days = _daysThrough(start, end);
+    final cuts = <({DateTime date, int n})>[];
+    var q = budgetPeriod(start, pay);
+    var walked = 0;
+    while (!q.start.isAfter(end) && walked++ < _mostPeriods) {
+      final from = q.start.isBefore(start) ? start : q.start;
+      final to = q.end.isBefore(end) ? q.end : end;
+      cuts.add((date: from, n: _daysThrough(start, to)));
+      final next = nextBudgetPeriod(q, pay);
+      if (!next.start.isAfter(q.start)) break;
+      q = next;
+    }
+    // Only paychecks still running take it (a change typed late in the
+    // month): the days of those before go to the first of them.
+    DateTime endOf(int i) => i + 1 < cuts.length
+        ? cuts[i + 1].date.subtract(const Duration(days: 1))
+        : end;
+    final open = [
+      for (final (i, c) in cuts.indexed)
+        if (notBefore == null ||
+            i == cuts.length - 1 ||
+            !endOf(i).isBefore(dateOnly(notBefore)))
+          c,
+    ];
+    final rows = <({DateTime date, int amount})>[];
+    var given = 0;
+    var prev = 0;
+    for (final (i, c) in open.indexed) {
+      final last = i == open.length - 1;
+      final upTo = byDays(amount, c.n, days, currency);
+      final part = last ? amount - given : upTo - (i == 0 ? 0 : prev);
+      prev = upTo;
+      given += part;
+      if (part != 0) rows.add((date: c.date, amount: part));
+    }
+    return rows;
+  }
 
   /// How an amount assigned from the span on screen is dated for a
   /// category whose own period isn't the span's (budget review,
@@ -1444,6 +1533,8 @@ class Budget {
     String lateWay = 'all',
     Set<DateTime> paid = const {},
     Set<DateTime> paidEver = const {},
+    DateTime? today,
+    Currency currency = Currency.mnt,
   }) {
     // The day a bill is counted in: the last payday on or before it is
     // due, since that pay is what has to cover it (owner, 2026-10-24).
@@ -1515,36 +1606,55 @@ class Budget {
         );
       }
       // Seen by another period (owner, 2026-10-05: a monthly allowance by
-      // a fortnight's pay, or a fortnightly one by the month): each of
-      // its own periods the span touches still wants its amount less what
-      // was put in before the span began, spread by days over the rest
-      // of that period, and the span takes its days' share. So the
-      // shares add up to the whole over time, and a period already
-      // filled asks for nothing more.
+      // a fortnight's pay, or a fortnightly one by the month): the span
+      // asks each of its own periods it touches for its days' share of
+      // what that period wants, less what was put in that period ahead of
+      // the span beyond the days before it (owner, 2026-11-15, #468: a
+      // paycheck holding a month's last two days asked that month's whole
+      // plan again). A part an earlier span left unfilled isn't asked
+      // again: the days are gone, and what they overspent carries as
+      // "from before". A period that has ended asks nothing. So a span
+      // never asks more than its periods' amounts, and a period already
+      // filled asks nothing more.
       var planned = 0, shared = false;
       final shares = <({DateTime date, int amount})>[];
+      final held = <int>[];
       var own = budgetPeriod(p.start, pay);
       var walked = 0;
       while (!own.start.isAfter(p.end) && walked++ < _mostPeriods) {
         final from = own.start.isBefore(p.start) ? p.start : own.start;
         final to = own.end.isBefore(p.end) ? own.end : p.end;
-        final need = atLeast0(
-          wanted(heldBefore(own.start), own.start) -
-              assignedIn(own.start, from),
-        );
-        final share = _daysThrough(from, to),
-            rest = _daysThrough(from, own.end);
+        final whole = atLeast0(wanted(heldBefore(own.start), own.start));
+        final days = _daysThrough(own.start, own.end);
+        final share = _daysThrough(from, to);
+        final before = _daysThrough(own.start, from) - 1;
+        int byDays(int n) => Budget.byDays(whole, n, days, currency);
+        final ended = today != null && own.end.isBefore(dateOnly(today));
+        final ahead = assignedIn(own.start, from) - byDays(before);
+        final given = assignedIn(from, to.add(const Duration(days: 1)));
         final int part;
-        if (share >= rest || rest == 0 || need == 0) {
-          // All of what's left of that period is in view: the whole.
-          part = need;
+        if (ended) {
+          // An ended period asks what it was given: its rows in the span
+          // neither ask nor count toward what's running (code review).
+          planned += given;
+          shares.add((date: from, amount: 0));
+          held.add(0);
+          final next = nextBudgetPeriod(own, pay);
+          if (!next.start.isAfter(own.start)) break;
+          own = next;
+          continue;
+        } else if (whole == 0) {
+          part = 0;
         } else {
-          final cut = _ceilTo(need * share ~/ rest, _shareUnit);
-          part = cut > need ? need : cut;
-          shared = true;
+          final mine = byDays(before + share) - byDays(before);
+          final left = atLeast0(whole - assignedIn(own.start, from));
+          final asked = atLeast0(mine - atLeast0(ahead));
+          part = asked > left ? left : asked;
+          if (share < days) shared = true;
         }
         planned += part;
         shares.add((date: from, amount: part));
+        held.add(given);
         final next = nextBudgetPeriod(own, pay);
         if (!next.start.isAfter(own.start)) break;
         own = next;
@@ -1566,6 +1676,7 @@ class Budget {
         // exact.
         approx: shared,
         shares: shares,
+        held: held,
       );
     }
     final repeats = plan.repeats;

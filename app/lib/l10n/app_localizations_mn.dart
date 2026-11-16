@@ -4266,6 +4266,51 @@ class WordsMn extends Words {
   }
 
   @override
+  String planMonthShare(String amount, String month) {
+    return 'энэ орлогын үед $monthын $amount';
+  }
+
+  @override
+  String planAboutMonthShare(String amount, String month) {
+    return 'энэ орлогын үед $monthын ойролцоогоор $amount';
+  }
+
+  @override
+  String planFillOverBy(String amount, String over) {
+    return 'Зөвхөн $amount хуваарилаагүй байгаа тул $over-ийг хэт их хуваарилна';
+  }
+
+  @override
+  String planFillOverNone(String over) {
+    return 'Бүгд хуваарилагдсан тул $over-ийг хэт их хуваарилна';
+  }
+
+  @override
+  String planFillOverMore(String over) {
+    return 'Хэт их хуваарилсан дээр $over нэмнэ';
+  }
+
+  @override
+  String planSplitOnce(String month) {
+    return '$monthаас хойшхи хуваарилсан мөнгийг одоо цалин бүрээр хадгалж байгаа тул цалин бүр өөрийн хэсгийг харуулна. Сарын нийт дүн өөрчлөгдөөгүй. Өмнөх дэвтрийн хуулбар Нөөц хуулбарт байна.';
+  }
+
+  @override
+  String planSpentAhead(String amount, String month) {
+    return 'Энэ орлогын үеийн хэсгээс $amount-ээр илүү, үүнийг $monthын мөнгө нөхнө';
+  }
+
+  @override
+  String phoneSavedAhead(String category, String over, String month) {
+    return '$category · энэ орлогын үеийн хэсгээс $over-ээр илүү, үүнийг $monthын мөнгө нөхнө';
+  }
+
+  @override
+  String phoneAheadNow(String over, String month) {
+    return 'Энэ орлогын үеийн хэсгээс $over-ээр илүү, үүнийг $monthын мөнгө нөхнө';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return 'сард $amount';
   }

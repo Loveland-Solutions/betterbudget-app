@@ -924,7 +924,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
               .then((_) => _firstLookInFolder())
               .then((_) => _nameThisComputer())
               .then((_) => db.ensurePaydays(today))
-              .then((_) => db.ensurePlanBills(today)),
+              .then((_) => db.ensurePlanBills(today))
+              // Never in the way of opening: what fails is left as it was.
+              .then((_) => _splitOldMonths().catchError((Object _) {})),
         ).asyncExpand((_) => db.watchLedger()).map((data) {
           _ensureSafetyNet(data);
           // The first look isn't a change; [CloudFolder.load] copies at launch.
@@ -4084,13 +4086,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// ⌘Z still puts the last one back.
   Future<void> _budgetBy(PaySchedule? schedule) async {
     final t = context.t;
+    // Put back with the view on ⌘Z (code review).
+    final splitWas = _data?.prefs[BudgetKeys.splitBy];
     // The view it already is: nothing to write or undo.
     if (schedule?.id == _data?.periodSchedule?.id) return;
     late List<int> before;
-    if (!await _accountWrite(
-      () async => before = await db.setPeriodSchedule(schedule?.id),
-      what: 'budget period',
-    )) {
+    if (!await _accountWrite(() async {
+      before = await db.setPeriodSchedule(schedule?.id);
+      // Kept: a month's Assigned is split by the pay last viewed by.
+      if (schedule != null) {
+        await db.setPreference(BudgetKeys.splitBy, '${schedule.id}');
+      }
+    }, what: 'budget period')) {
       return;
     }
     _did(
@@ -4100,9 +4107,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
       toast: false,
       undo: () async {
         await db.setPeriodSchedule(before.firstOrNull);
+        await db.setPreference(BudgetKeys.splitBy, splitWas);
       },
       redo: () async {
         await db.setPeriodSchedule(schedule?.id);
+        if (schedule != null) {
+          await db.setPreference(BudgetKeys.splitBy, '${schedule.id}');
+        }
       },
     );
   }
@@ -5111,6 +5122,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final onePeriod =
         own?.id == data.periodSchedule?.id ||
         !budgetPeriod(period.start, own).end.isBefore(period.end);
+    // A month's Assigned, typed on the month's page, is kept where each
+    // paycheck it pays for is (owner, 2026-11-15, #468), so the paycheck
+    // holding the 1st isn't handed the whole month: Day-to-day and Funds
+    // by days, a bill or goal by what each paycheck asks toward it.
+    final split = splitScheduleOf(data);
+    if (onePeriod &&
+        own == null &&
+        split != null &&
+        data.periodSchedule == null &&
+        period.label != payPeriodLabel) {
+      return _byPaychecks(data, c, period, split, amount);
+    }
     if (onePeriod) return [(date: period.start, amount: amount)];
     final kept = [
       for (final b in data.budgetAmounts)
@@ -5129,6 +5152,158 @@ class _LedgerScreenState extends State<LedgerScreen> {
         delta: amount - have,
       ),
     ];
+  }
+
+  /// Once, at the first launch with #468 (owner, 2026-11-15: "Split
+  /// November and later now"): every category's Assigned for this month
+  /// and later, still all on its month's 1st, is kept by paycheck as a new
+  /// one would be. Totals don't change, only the days they're kept on;
+  /// earlier months, finished, stay. A copy of the ledger is kept first,
+  /// and a popup says so. Not undoable: the app did it, not the person
+  /// (owner-corrections); the copy is in Backups.
+  Future<void> _splitOldMonths() async {
+    final data = await db.loadLedger();
+    if (data.prefs[BudgetKeys.splitOnce] != null) return;
+    final split = splitScheduleOf(data);
+    final from = budgetPeriod(today, null).start;
+    // Each category's amounts by month, this month on.
+    final byMonth = <DateTime, Map<int, List<BudgetAmount>>>{};
+    if (split != null) {
+      for (final b in data.budgetAmounts) {
+        final d = dateOnly(b.date);
+        if (d.isBefore(from)) continue;
+        final m = DateTime(d.year, d.month);
+        (byMonth[m] ??= {}).putIfAbsent(b.categoryId, () => []).add(b);
+      }
+    }
+    final writes = <DateTime, Map<int, List<({DateTime date, int amount})>>>{};
+    for (final MapEntry(key: m, value: cats) in byMonth.entries) {
+      final month = budgetPeriod(m, null);
+      for (final MapEntry(key: id, value: rows) in cats.entries) {
+        final c = data.accounts[id];
+        if (c == null) continue;
+        if (!rows.every((b) => dateOnly(b.date) == m)) continue;
+        final total = rows.fold(0, (s, b) => s + b.amount);
+        if (total == 0) continue;
+        final plan = data.plans[id];
+        // A set amount per a pay is already kept by its own paychecks.
+        if (plan?.kind == PlanKind.each && plan?.payScheduleId != null) {
+          continue;
+        }
+        final split2 = _byPaychecks(data, c, month, split!, total);
+        if (split2.length < 2) continue;
+        (writes[m] ??= {})[id] = split2;
+      }
+    }
+    if (writes.isEmpty) {
+      await db.setPreference(BudgetKeys.splitOnce, dateKey(today));
+      return;
+    }
+    // No copy, no change: it's tried again at the next launch.
+    try {
+      await _backups.keepBeforeSplit(widget.clock());
+    } catch (_) {
+      return;
+    }
+    for (final MapEntry(key: m, value: byId) in writes.entries) {
+      final month = budgetPeriod(m, null);
+      await db.setBudgetAmounts(byId, month.start, month.end);
+    }
+    await db.setPreference(BudgetKeys.splitOnce, dateKey(today));
+    final first = (writes.keys.toList()..sort()).first;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showToast(context.t.planSplitOnce(monthName(context.t, first.month)));
+    });
+  }
+
+  /// A month's Assigned typed on the month's page, kept by [split]'s
+  /// paychecks (#468). The first time, or over rows all on the 1st (from
+  /// before), the whole by days; after that the rows there stay and only
+  /// the difference goes, by days, to the paychecks still running (code
+  /// review: a retyped month wiped what was set per paycheck). A bill or
+  /// goal fills its paychecks in order, each what it asks.
+  List<({DateTime date, int amount})> _byPaychecks(
+    LedgerData data,
+    AccountInfo c,
+    BudgetSpan period,
+    PaySchedule split,
+    int amount,
+  ) {
+    final start = dateOnly(period.start), end = dateOnly(period.end);
+    final kept = <DateTime, int>{};
+    for (final b in data.budgetAmounts) {
+      if (b.categoryId != c.id) continue;
+      final d = dateOnly(b.date);
+      if (d.isBefore(start) || d.isAfter(end)) continue;
+      kept[d] = (kept[d] ?? 0) + b.amount;
+    }
+    if (data.plans[c.id]?.kind == PlanKind.byDate) {
+      final base = data.withoutAmounts({c.id}, start, end).viewedBy(split);
+      final rows = <({DateTime date, int amount})>[];
+      var given = 0;
+      final paychecks = <BudgetSpan>[];
+      for (
+        var q = budgetPeriod(start, split);
+        !q.start.isAfter(end) && paychecks.length < 40;
+        q = nextBudgetPeriod(q, split)
+      ) {
+        paychecks.add(q);
+      }
+      for (final (i, q) in paychecks.indexed) {
+        final from = q.start.isBefore(start) ? start : dateOnly(q.start);
+        final rest = amount - given;
+        final int part;
+        if (i == paychecks.length - 1 || rest <= 0) {
+          part = rest;
+        } else {
+          final ask =
+              Budget.of(
+                base.withAmounts([
+                  for (final r in rows)
+                    BudgetAmount(
+                      categoryId: c.id,
+                      date: r.date,
+                      amount: r.amount,
+                    ),
+                ]),
+                start: q.start,
+                end: q.end,
+                today: today,
+              ).lines[c.id]?.toAssign ??
+              0;
+          part = ask < rest ? ask : rest;
+        }
+        given += part;
+        if (part != 0) rows.add((date: from, amount: part));
+        if (given == amount) break;
+      }
+      return rows;
+    }
+    final have = kept.values.fold(0, (sum, v) => sum + v);
+    final fromBefore = kept.keys.every((d) => d == start);
+    if (have == 0 || fromBefore) {
+      return Budget.byPaychecks(
+        span: period,
+        pay: split,
+        amount: amount,
+        currency: c.currency,
+      );
+    }
+    final running = !today.isBefore(start) && !today.isAfter(end);
+    for (final r in Budget.byPaychecks(
+      span: period,
+      pay: split,
+      amount: amount - have,
+      currency: c.currency,
+      notBefore: running || today.isAfter(end) ? today : null,
+    )) {
+      kept[r.date] = (kept[r.date] ?? 0) + r.amount;
+    }
+    return [
+      for (final e in kept.entries)
+        if (e.value != 0) (date: e.key, amount: e.value),
+    ]..sort((a, b) => a.date.compareTo(b.date));
   }
 
   /// What a write into the period starting [start] does to the day the

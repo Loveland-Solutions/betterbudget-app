@@ -4422,6 +4422,51 @@ class WordsEn extends Words {
   }
 
   @override
+  String planMonthShare(String amount, String month) {
+    return '$amount of $month’s this pay period';
+  }
+
+  @override
+  String planAboutMonthShare(String amount, String month) {
+    return 'about $amount of $month’s this pay period';
+  }
+
+  @override
+  String planFillOverBy(String amount, String over) {
+    return 'Only $amount is not assigned, so this makes $over assigned too much';
+  }
+
+  @override
+  String planFillOverNone(String over) {
+    return 'Everything is assigned, so this makes $over assigned too much';
+  }
+
+  @override
+  String planFillOverMore(String over) {
+    return 'This adds $over to Assigned too much';
+  }
+
+  @override
+  String planSplitOnce(String month) {
+    return 'Your Assigned from $month on is now kept by paycheck, so each paycheck shows its own part. Month totals didn’t change. A copy of your ledger from before is in Backups.';
+  }
+
+  @override
+  String planSpentAhead(String amount, String month) {
+    return '$amount past this pay period’s part, which $month’s money still covers';
+  }
+
+  @override
+  String phoneSavedAhead(String category, String over, String month) {
+    return '$category · $over past this pay period’s part, which $month’s money still covers';
+  }
+
+  @override
+  String phoneAheadNow(String over, String month) {
+    return '$over past this pay period’s part, which $month’s money still covers';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return '$amount a month';
   }

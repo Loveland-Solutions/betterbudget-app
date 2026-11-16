@@ -155,6 +155,27 @@ class PaySchedule {
   /// period, a month or a pay's, in its plan.
   final bool definesPeriod;
 
+  /// This pay with [definesPeriod] set to [v]: the Budget page as if
+  /// viewed by it, or not (#468).
+  PaySchedule withDefinesPeriod(bool v) => PaySchedule(
+    id: id,
+    categoryId: categoryId,
+    accountId: accountId,
+    amount: amount,
+    rule: rule,
+    amount2: amount2,
+    name: name,
+    payee: payee,
+    varies: varies,
+    day1: day1,
+    day2: day2,
+    weeks: weeks,
+    anchor: anchor,
+    repeat: repeat,
+    weekend: weekend,
+    definesPeriod: v,
+  );
+
   /// Two different amounts, one for each day of the month.
   bool get split =>
       rule == PayRule.twiceMonthly && amount2 != null && amount2 != amount;

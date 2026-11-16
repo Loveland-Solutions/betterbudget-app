@@ -441,6 +441,32 @@ class _BudgetPageState extends State<_BudgetPage> {
     // it, and past it, hatched coral, what was spent with nothing behind
     // it. The rows the ring had (#241): not a bill, not under Saved, not
     // one with nothing had and nothing spent.
+    // Spent ahead (owner, 2026-11-16, #468: "Say it's ahead, not red"): by
+    // a paycheck, a monthly category spent past its part while its month
+    // still has money took it from the month's next part. Not red; red
+    // only once the month's money is used up.
+    final aheadMonth = by == null ? null : budgetPeriod(period.end, null);
+    final monthBudget = aheadMonth == null
+        ? null
+        : Budget.of(
+            data,
+            start: aheadMonth.start,
+            end: aheadMonth.end,
+            today: widget.today,
+          );
+    int? aheadOf(AccountInfo c) {
+      final line = budget.lines[c.id];
+      if (monthBudget == null || line == null || line.left >= 0) return null;
+      final plan = data.plans[c.id];
+      if (plan != null &&
+          (plan.kind != PlanKind.each || plan.payScheduleId != null)) {
+        return null;
+      }
+      final month = monthBudget.lines[c.id];
+      if (month == null || month.left < 0) return null;
+      return -line.left;
+    }
+
     ({int had, int left, int over, double used})? barOf(AccountInfo c) {
       final line = budget.lines[c.id];
       if (line == null || saved.contains(c.id)) return null;
@@ -457,7 +483,8 @@ class _BudgetPageState extends State<_BudgetPage> {
       return (
         had: had < 0 ? 0 : had,
         left: line.left < 0 ? 0 : line.left,
-        over: line.left < 0 ? -line.left : 0,
+        // Spent ahead is no shortfall: no hatching.
+        over: line.left < 0 && aheadOf(c) == null ? -line.left : 0,
         used: used ?? 0,
       );
     }
@@ -472,10 +499,14 @@ class _BudgetPageState extends State<_BudgetPage> {
       }
     }
 
+    // A finished period only shows what happened (owner, 2026-11-15,
+    // #468): no Assign on a row, no Assign what's planned. Typing an
+    // amount still works.
+    final finished = period.end.isBefore(dateOnly(widget.today));
     Widget row(AccountInfo c, {required bool striped}) {
       final line = budget.lines[c.id];
       final planLine = line?.plan;
-      final toAssign = line?.toAssign ?? 0;
+      final toAssign = finished ? 0 : line?.toAssign ?? 0;
       final currency = c.currency;
       final usage = data.categoryUsage[c.id];
       // What a move can trade with: Not assigned in its currency, then the
@@ -549,6 +580,7 @@ class _BudgetPageState extends State<_BudgetPage> {
               besideAssigned:
                   planLine.plan.kind != PlanKind.each ||
                   planLine.plan.payScheduleId == data.periodSchedule?.id,
+              onRow: true,
             );
       // Nothing left to say once Assigned says it (#467): no line.
       final note =
@@ -657,6 +689,13 @@ class _BudgetPageState extends State<_BudgetPage> {
         fromBefore: carries && line != null && line.fromBefore != 0
             ? t.planFromBefore(money(line.fromBefore, currency))
             : null,
+        ahead: switch (aheadOf(c)) {
+          final a? => t.planSpentAhead(
+            money(a, currency),
+            monthName(t, aheadMonth!.start.month),
+          ),
+          null => null,
+        },
         currency: currency,
         moveChoices: choices,
         onMove: (from, to, amount) => widget.onMove(period, from, to, amount),
@@ -793,7 +832,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         final planned = {
           for (final x in spending)
             if (budget.lines[x.id] case final l?
-                when x.currency == c && l.toAssign > 0)
+                when !finished && x.currency == c && l.toAssign > 0)
               x: l.plan!.planned,
         };
         if (planned.isEmpty) continue;
@@ -817,11 +856,17 @@ class _BudgetPageState extends State<_BudgetPage> {
             // More planned than there is to give out: said inside the
             // button it is about, with the figure the card shows as Not
             // assigned, so both amounts can be checked before the click.
-            warning: plannedOver > 0
-                ? t.planFillOver(
-                    money(p.notAssigned > 0 ? p.notAssigned : 0, c),
+            // It says what the click does to it, and still runs (#468).
+            warning: plannedOver <= 0
+                ? null
+                : p.notAssigned > 0
+                ? t.planFillOverBy(
+                    money(p.notAssigned, c),
+                    money(plannedOver, c),
                   )
-                : null,
+                : p.notAssigned == 0
+                ? t.planFillOverNone(money(plannedOver, c))
+                : t.planFillOverMore(money(plannedOver, c)),
             warningKey: ValueKey('assign-planned-over$tag'),
             onTap: () {
               setState(() => _editing = null);
@@ -905,7 +950,17 @@ class _BudgetPageState extends State<_BudgetPage> {
           }
         }
         if (aside < 0) aside = 0;
-        final given = p.assigned - aside;
+        // Spent ahead isn't overspent (owner, 2026-11-16: "It is not
+        // overspent if it stays within the limits of the assignment"): it
+        // is money this paycheck took early from its month's next part, so
+        // it counts with Assigned, and the result is the same.
+        var ahead = 0;
+        for (final x in spending) {
+          if (x.currency == c) ahead += aheadOf(x) ?? 0;
+        }
+        if (ahead > p.overspent) ahead = p.overspent;
+        final given = p.assigned - aside + ahead;
+        final overspent = p.overspent - ahead;
         final over = p.notAssigned < 0;
         Widget after(String sign, Widget child) => Row(
           mainAxisSize: MainAxisSize.min,
@@ -976,13 +1031,13 @@ class _BudgetPageState extends State<_BudgetPage> {
                   figure: short(aside),
                 ),
               ),
-            if (p.overspent > 0)
+            if (overspent > 0)
               after(
                 '−',
                 _SumBox(
                   key: ValueKey('sum-overspent$tag'),
                   label: t.planKeyOverspent,
-                  figure: short(p.overspent),
+                  figure: short(overspent),
                   hue: Mid.coral,
                 ),
               ),
@@ -2505,6 +2560,7 @@ class _CategoryRow extends StatefulWidget {
     required this.onDelete,
     this.line,
     this.fromBefore,
+    this.ahead,
     this.planNote,
     this.assignPlanned,
     this.onAssignPlanned,
@@ -2580,6 +2636,11 @@ class _CategoryRow extends StatefulWidget {
 
   /// "₮500,000 from before", when the category carried money in.
   final String? fromBefore;
+
+  /// "₮100,000 past this pay period's part, which November's money still
+  /// covers" under Left, which
+  /// is then not red (#468).
+  final String? ahead;
   final Currency currency;
 
   /// Its Put in is being typed.
@@ -2884,13 +2945,26 @@ class _CategoryRowState extends State<_CategoryRow> {
                               weight: widget.bill ? 400 : 600,
                               currency: widget.currency,
                               // Green has money, coral is short (#326).
-                              color: line.left < 0
+                              color: line.left < 0 && widget.ahead == null
                                   ? Mid.coral
+                                  : line.left < 0
+                                  ? Mid.ink
                                   : line.left == 0
                                   ? Mid.ink3
                                   : Mid.green,
                             ),
                           ),
+                          if (widget.ahead case final ahead?)
+                            Text(
+                              ahead,
+                              key: ValueKey('spent-ahead-${c.id}'),
+                              textAlign: TextAlign.end,
+                              style: onest(
+                                11.5,
+                                color: Mid.ink3,
+                                tabular: true,
+                              ),
+                            ),
                           if (widget.fromBefore case final before?)
                             Text(
                               before,
