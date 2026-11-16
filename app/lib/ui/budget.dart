@@ -366,9 +366,6 @@ class _BudgetPageState extends State<_BudgetPage> {
     final income = data.income;
     final archived = data.archivedCategories;
     final began = budget.began;
-    // "From before" means something once the budget had begun before this
-    // period.
-    final carries = began != null && began.isBefore(period.start);
 
     String money(int v, [Currency? c]) =>
         formatMoney(v, currency: c ?? budget.currency);
@@ -728,9 +725,6 @@ class _BudgetPageState extends State<_BudgetPage> {
                 planMoney(line.had, currency),
               ),
         bill: isBill(c),
-        fromBefore: carries && line != null && line.fromBefore != 0
-            ? t.planFromBefore(money(line.fromBefore, currency))
-            : null,
         ahead: switch (aheadOf(c)) {
           final a? => t.planSpentAhead(
             money(a, currency),
@@ -2472,7 +2466,6 @@ class _CategoryRow extends StatefulWidget {
     required this.onPlan,
     required this.onDelete,
     this.line,
-    this.fromBefore,
     this.ahead,
     this.planNote,
     this.assignPlanned,
@@ -2546,12 +2539,11 @@ class _CategoryRow extends StatefulWidget {
   /// Assigned, Spent and Left for the period on screen.
   final EnvelopeLine? line;
 
-  /// "₮500,000 from before", when the category carried money in.
-  final String? fromBefore;
-
   /// "₮100,000 past this pay period's part, which November's money still
-  /// covers" under Left, which
-  /// is then not red (#468).
+  /// covers": said when Left, which is then not red (#468), is pointed
+  /// at. No line under Left, here or for what the period before left
+  /// (owner, 2026-11-16: "I want each row to be the same height. Kill the
+  /// text").
   final String? ahead;
   final Currency currency;
 
@@ -2622,8 +2614,7 @@ class _CategoryRowState extends State<_CategoryRow> {
               padding: EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical:
-                    widget.fromBefore == null &&
-                        (widget.planNote == null || widget.bill) &&
+                    (widget.planNote == null || widget.bill) &&
                         widget.flags.isEmpty
                     ? 0
                     : 5,
@@ -2846,6 +2837,7 @@ class _CategoryRowState extends State<_CategoryRow> {
                             currency: widget.currency,
                             choices: widget.moveChoices,
                             onMove: widget.onMove,
+                            ahead: widget.ahead,
                             child: Money(
                               line.left,
                               key: ValueKey('left-${c.id}'),
@@ -2863,30 +2855,6 @@ class _CategoryRowState extends State<_CategoryRow> {
                                   : Mid.green,
                             ),
                           ),
-                          if (widget.ahead case final ahead?)
-                            Text(
-                              ahead,
-                              key: ValueKey('spent-ahead-${c.id}'),
-                              textAlign: TextAlign.end,
-                              style: onest(
-                                11.5,
-                                color: Mid.ink3,
-                                tabular: true,
-                              ),
-                            ),
-                          if (widget.fromBefore case final before?)
-                            Text(
-                              before,
-                              key: ValueKey('from-before-${c.id}'),
-                              // Wrapped, it stays against the right edge
-                              // instead of running into Spent.
-                              textAlign: TextAlign.end,
-                              style: onest(
-                                11.5,
-                                color: Mid.ink3,
-                                tabular: true,
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -2938,7 +2906,12 @@ class _MoveLeft extends StatefulWidget {
     required this.choices,
     required this.onMove,
     required this.child,
+    this.ahead,
   });
+
+  /// Spent ahead by a paycheck (#468): the sentence that says its month
+  /// covers it, first in the tooltip.
+  final String? ahead;
 
   /// The pointer is on its row: outlined, with "Move money" beside it, so
   /// it's found without hunting (owner, 2026-10-23: "it's a hidden
@@ -3007,7 +2980,18 @@ class _MoveLeftState extends State<_MoveLeft> {
   Widget build(BuildContext context) {
     final t = context.t;
     final onMove = widget.onMove;
-    if (onMove == null || !widget.offered) return widget.child;
+    if (onMove == null || !widget.offered) {
+      return switch (widget.ahead) {
+        final ahead? => Tooltip(
+          key: ValueKey('spent-ahead-${widget.category.id}'),
+          message: ahead,
+          waitDuration: const Duration(milliseconds: 400),
+          child: widget.child,
+        ),
+        null => widget.child,
+      };
+    }
+    final moveTip = widget.inward ? t.planMoveInTip : t.planMoveOutTip;
     return TapRegion(
       groupId: _link,
       onTapOutside: (_) => _close(),
@@ -3040,7 +3024,14 @@ class _MoveLeftState extends State<_MoveLeft> {
             ),
           ),
           child: Tooltip(
-            message: widget.inward ? t.planMoveInTip : t.planMoveOutTip,
+            key: widget.ahead == null
+                ? null
+                : ValueKey('spent-ahead-${widget.category.id}'),
+            // Two whole sentences, each on its own line.
+            message: switch (widget.ahead) {
+              final ahead? => '$ahead\n$moveTip',
+              null => moveTip,
+            },
             waitDuration: const Duration(milliseconds: 600),
             child: Hoverable(
               key: ValueKey('move-left-${widget.category.id}'),

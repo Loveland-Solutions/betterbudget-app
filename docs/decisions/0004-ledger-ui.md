@@ -6675,3 +6675,24 @@ card and **1** for the bars ("Let's to C and bars 1").
   This ends "let's go from green progressively to red" (2026-10-26) everywhere.
 - *Rejected:* **2**, the bar as long as the money, in the three colors; **3**, no bar, the
   Left figure in a box of the state's color.
+
+## Budget rows are one height: no line under Left (owner, 2026-11-16, #471)
+
+The first-time reader, on a row with "−₮50,000 from before" under Left in November:
+"Before what?" The line was first reworded to name the month, "−₮50,000 from October".
+The owner, seeing that in the app: "These subtitles are not really helping. I want each
+row to be the same height. Kill the text. Each row should be same height."
+
+- **No line under a category's Left.** What a category carried in from the period
+  before is in its Left and is not said again; `planFromBefore` and its rewording are
+  gone. This replaces "₮X from before" wherever it is written above. The sum's box at
+  the top still says "From October" for the budget as a whole.
+- **Spent ahead by a paycheck** (#468, "Say it's ahead, not red") keeps its plain ink
+  and loses its line for the same reason: the sentence is the first line of the tooltip
+  on Left, above the Move money tip.
+- A row that carried money in is as tall as one that didn't (40 points).
+- Not changed here, and still able to make a row taller: the plan's line under a name
+  ("Planned ₮1,000,000 a month", with its Assign link), the note the person wrote for
+  the category, and a warning line (its Paid from account put away; rows in another
+  currency). At the window's smallest width there is no room beside the bar for them, so
+  where they go is a question for the owner, not settled here.

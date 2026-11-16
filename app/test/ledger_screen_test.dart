@@ -7284,7 +7284,16 @@ void main() {
         );
       });
       await settle(tester);
-      expect(find.byKey(ValueKey('spent-ahead-$groceries')), findsOneWidget);
+      // Said when Left is pointed at, not on a line under it.
+      expect(
+        tester
+            .widget<Tooltip>(find.byKey(ValueKey('spent-ahead-$groceries')))
+            .message,
+        '₮56,650.50 past this pay period’s part, which September’s money '
+        'still covers\n'
+        'Click to move money in from another category',
+      );
+      expect(find.textContaining('past this pay period’s part'), findsNothing);
       expect(
         tester.widget<Money>(find.byKey(ValueKey('left-$groceries'))).color,
         isNot(Mid.coral),
@@ -8064,7 +8073,15 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('period-next')));
       await tester.pumpAndSettle();
       expect(find.text('October 2026'), findsOneWidget);
-      expect(find.byKey(ValueKey('from-before-$groceries')), findsOneWidget);
+      // No line under Left says so, and the row is as tall as one that
+      // carried nothing (owner, 2026-11-16: "I want each row to be the
+      // same height. Kill the text").
+      expect(find.textContaining('from September'), findsNothing);
+      expect(find.textContaining('from before'), findsNothing);
+      expect(
+        tester.getSize(find.byKey(ValueKey('category-row-$groceries'))).height,
+        tester.getSize(find.byKey(ValueKey('category-row-$health'))).height,
+      );
       expect(
         tester.widget<Money>(find.byKey(ValueKey('left-$groceries'))).minor,
         90000000 - 27665050,

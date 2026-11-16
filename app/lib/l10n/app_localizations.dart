@@ -5495,12 +5495,6 @@ abstract class Words {
   /// **'Left'**
   String get planLeft;
 
-  /// Budget page: small line under a category's Left when it carried money (or minus) in from earlier periods
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} from before'**
-  String planFromBefore(String amount);
-
   /// Budget page: the period title when budgeting by pay period and it isn't the current one
   ///
   /// In en, this message translates to:
@@ -6341,7 +6335,7 @@ abstract class Words {
   /// **'Your Assigned from {month} on is now kept by paycheck, so each paycheck shows its own part. Month totals didn’t change. A copy of your ledger from before is in Backups.'**
   String planSplitOnce(String month);
 
-  /// Budget page by pay period, under a monthly category's Left when this paycheck spent past its part and the month still has money (#468); Left is then plain ink, not red. month is a month name (monthNames).
+  /// Budget page by pay period, the tooltip on a monthly category's Left (a line of its own, before the Move money tip) when this paycheck spent past its part and the month still has money (#468); Left is then plain ink, not red. month is a month name (monthNames).
   ///
   /// In en, this message translates to:
   /// **'{amount} past this pay period’s part, which {month}’s money still covers'**
