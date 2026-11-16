@@ -2707,17 +2707,9 @@
   "@planFunds": {
     "description": "Budget page, Spending tab: heading over the Fund categories (#469); the plural of planTypeFund"
   },
-  "planFundsLeft": "Left is what’s in each fund now.",
-  "@planFundsLeft": {
-    "description": "Budget page, Spending tab: quiet line under the Funds heading saying what the Left column means there (#469)"
-  },
-  "planBillsLeft": "Left is what’s put aside for each bill’s next payment.",
-  "@planBillsLeft": {
-    "description": "Budget page, Spending tab: quiet line under the Bills heading saying what the Left column means there (#469)"
-  },
-  "planGoalsLeft": "Left is what’s in each goal now.",
-  "@planGoalsLeft": {
-    "description": "Budget page, Spending tab: quiet line under the Goals heading saying what the Left column means there (#469)"
+  "planBillLeftTip": "Put aside for this bill’s next payment.",
+  "@planBillLeftTip": {
+    "description": "Budget page, Spending tab: the first line of the tooltip on a bill's Left while it holds money, above the Move money tip (#482). It replaces the line that sat under the Bills heading."
   },
   "planKeepReachable": "Keep it where you can reach it. If you use it, fill it back up before anything else.",
   "@planKeepReachable": {

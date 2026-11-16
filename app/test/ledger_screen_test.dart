@@ -990,9 +990,14 @@ void main() {
     await tester.ensureVisible(row);
     await tester.pumpAndSettle();
     expect(heading, findsOneWidget);
+    // Saved is named in the margin, beside its row (#482).
     expect(
       tester.getTopLeft(row).dy,
-      greaterThan(tester.getTopLeft(heading).dy),
+      greaterThanOrEqualTo(tester.getTopLeft(heading).dy),
+    );
+    expect(
+      tester.getTopLeft(row).dx,
+      greaterThan(tester.getTopLeft(heading).dx),
     );
     final groceries = find.byKey(
       ValueKey(
@@ -7287,7 +7292,7 @@ void main() {
       // Said when Left is pointed at, not on a line under it.
       expect(
         tester
-            .widget<Tooltip>(find.byKey(ValueKey('spent-ahead-$groceries')))
+            .widget<Tooltip>(find.byKey(ValueKey('left-says-$groceries')))
             .message,
         '₮56,650.50 past this pay period’s part, which September’s money '
         'still covers\n'
@@ -8189,12 +8194,22 @@ void main() {
         ValueKey('category-row-$laptop'),
         const ValueKey('budget-saved'),
       ];
+      // A section's name is in the margin beside its first row (#482), so
+      // the two start level.
       for (var i = 1; i < order.length; i++) {
-        expect(top(order[i - 1]), lessThan(top(order[i])), reason: '$i');
+        expect(
+          top(order[i - 1]),
+          lessThanOrEqualTo(top(order[i])),
+          reason: '$i',
+        );
       }
-      // Each says once what its Left is; Day-to-day needs no line.
-      expect(find.text('Left is what’s in each fund now.'), findsOneWidget);
-      expect(find.text('Left is what’s in each goal now.'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byKey(order[1])).dx,
+        lessThan(tester.getTopLeft(find.byKey(order[2])).dx),
+      );
+      expect(top(order[2]), lessThan(top(order[3])));
+      // No line under a name says what its Left is (#482).
+      expect(find.textContaining('Left is what'), findsNothing);
       // A fund has no Group to pick: groups are Day-to-day's.
       await editCategory(tester, 'Car repairs');
       expect(find.byKey(const ValueKey('category-group')), findsNothing);
@@ -8443,16 +8458,18 @@ void main() {
       const bills = ValueKey('budget-section-bill');
       expect(
         top(const ValueKey('budget-section-dayToDay')),
-        lessThan(top(ValueKey('category-row-$groceries'))),
+        lessThanOrEqualTo(top(ValueKey('category-row-$groceries'))),
       );
-      expect(
-        find.text('Left is what’s put aside for each bill’s next payment.'),
-        findsOneWidget,
-      );
+      // What a bill's Left is, is said when it's pointed at, not on a line
+      // under the heading (#482).
+      expect(find.textContaining('Left is what'), findsNothing);
       expect(find.byKey(const ValueKey('budget-section-fund')), findsNothing);
       expect(find.byKey(const ValueKey('budget-section-goal')), findsNothing);
       expect(top(ValueKey('category-row-$groceries')), lessThan(top(bills)));
-      expect(top(bills), lessThan(top(ValueKey('category-row-$clothing'))));
+      expect(
+        top(bills),
+        lessThanOrEqualTo(top(ValueKey('category-row-$clothing'))),
+      );
       expect(
         top(ValueKey('category-row-$clothing')),
         lessThan(top(ValueKey('category-row-$tuition'))),
@@ -9710,9 +9727,12 @@ void main() {
         // Edit, taller with its type cards, can leave the row scrolled away.
         await tester.ensureVisible(row);
         await tester.pumpAndSettle();
-        await tester.tap(row);
+        // On its name: with the sections' margin (#482) the row's middle
+        // is its Assigned, where a click types an amount.
+        final at = tester.getTopLeft(row) + const Offset(60, 20);
+        await tester.tapAt(at);
         await tester.pump(const Duration(milliseconds: 60));
-        await tester.tap(row);
+        await tester.tapAt(at);
         await tester.pumpAndSettle();
       }
 
