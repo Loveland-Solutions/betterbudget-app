@@ -4311,6 +4311,27 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planByMonth => 'Сараар';
+
+  @override
+  String get planByPaycheck => 'Цалингаар';
+
+  @override
+  String planByPaychecksOf(String name) {
+    return '$name-ийн цалингаар';
+  }
+
+  @override
+  String get settingsBudgetTitle => 'Төсөв';
+
+  @override
+  String get setupBudgetByQ => 'Та төсвөө сараар уу, цалингаар уу гаргадаг вэ?';
+
+  @override
+  String get budgetByHint =>
+      'Цалингаар бол Төсөв хуудас нэг удаад нэг цалингийн үеийг харуулж, сар бүрийн мөнгийг тухайн сарын цалингуудад хуваана.';
+
+  @override
   String planEachMonth(String amount) {
     return 'сард $amount';
   }

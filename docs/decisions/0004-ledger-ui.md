@@ -6498,3 +6498,21 @@ into it. Decided:
   get treated differently. It is not overspent if it stays within the limits of the
   assignment"): money the paycheck took early from its month's next part; the result is
   the same.
+
+## Month or paycheck is chosen at setup and in Settings (owner, 2026-11-16, #474)
+
+After the paycheck split (#468): "We shouldn't be able to switch back and forth so easily
+between month view and paycheck view. That should only be done at initial setup and in
+the settings screen. That ways, these types of issues will be avoided." This replaces the
+dropdown beside the Budget page's period (owner's call, 2026-10-05).
+
+- The Budget page's period title is plain words; the arrows still walk the periods.
+- Setup's pay step, once a pay is set up: "Do you budget by month or by paycheck?", **By
+  month** picked to begin with (a default, not a required choice), **By paycheck**, or
+  with more than one pay **By Jenny's paychecks** for each.
+- Settings has a **Budget** card with the same choice while there's pay, saying what
+  changes: "By paycheck, the Budget page shows one paycheck at a time, and each month's
+  money is shared out over the paychecks it pays for." ⌘Z puts a change back.
+- A month's Assigned is split by the chosen pay, or by the month view by the pay last
+  chosen (#468).
+
