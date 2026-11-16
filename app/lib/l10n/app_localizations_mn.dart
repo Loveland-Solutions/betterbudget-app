@@ -4287,7 +4287,7 @@ class WordsMn extends Words {
 
   @override
   String planFillOverMore(String over) {
-    return 'Хэт их хуваарилсан дээр $over нэмнэ';
+    return 'Хуваарилах мөнгө үлдээгүй тул энэ нь $over илүү хуваарилна';
   }
 
   @override
@@ -4522,6 +4522,48 @@ class WordsMn extends Words {
 
   @override
   String get planKeyOver => 'Илүү хуваарилсан';
+
+  @override
+  String get planKeyOverSpent => 'Хэтэрсэн, нөхөгдөөгүй';
+
+  @override
+  String get planKeyOverLoose => 'Ангилаагүй, нөхөгдөөгүй';
+
+  @override
+  String planKeyOverCarriedMonth(String month) {
+    return '$monthын дутагдал үлдсэн';
+  }
+
+  @override
+  String get planKeyOverCarriedPay => 'Өмнөх орлогын үеийн дутагдал үлдсэн';
+
+  @override
+  String get planKeyOverMixed => 'Дутагдал';
+
+  @override
+  String planKeyOverAssignedPart(String amount) {
+    return '$amount илүү хуваарилсан';
+  }
+
+  @override
+  String planKeyOverSpentPart(String amount) {
+    return '$amount хэтэрсэн';
+  }
+
+  @override
+  String planKeyOverLoosePart(String amount) {
+    return '$amount ангилаагүй';
+  }
+
+  @override
+  String planKeyOverCarriedMonthPart(String amount, String month) {
+    return '$monthын дутагдал $amount';
+  }
+
+  @override
+  String planKeyOverCarriedPayPart(String amount) {
+    return 'Өмнөх орлогын үеийн дутагдал $amount';
+  }
 
   @override
   String planFilled(int count, String amount) {
@@ -5597,7 +5639,22 @@ class WordsMn extends Words {
 
   @override
   String ledgerCombinedOverAssigned(String amount) {
-    return 'Хэт их хуваарилсан: $amount';
+    return 'Одоо $amount илүү хуваарилсан байна';
+  }
+
+  @override
+  String ledgerCombinedOverSpent(String amount) {
+    return 'Одоо хэтэрсэн зарцуулалтаас $amount нөхөгдөөгүй байна';
+  }
+
+  @override
+  String ledgerCombinedOverLoose(String amount) {
+    return 'Одоо ангилаагүй зарцуулалтаас $amount нөхөгдөөгүй байна';
+  }
+
+  @override
+  String ledgerCombinedOverMixed(String amount) {
+    return 'Одоо төсөв $amount дутуу байна';
   }
 
   @override

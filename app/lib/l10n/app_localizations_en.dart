@@ -4443,7 +4443,7 @@ class WordsEn extends Words {
 
   @override
   String planFillOverMore(String over) {
-    return 'This adds $over to Assigned too much';
+    return 'Nothing is left to assign, so this assigns $over too much';
   }
 
   @override
@@ -4679,6 +4679,48 @@ class WordsEn extends Words {
 
   @override
   String get planKeyOver => 'Assigned too much';
+
+  @override
+  String get planKeyOverSpent => 'Overspent, not covered';
+
+  @override
+  String get planKeyOverLoose => 'Not categorized, not covered';
+
+  @override
+  String planKeyOverCarriedMonth(String month) {
+    return 'Still short from $month';
+  }
+
+  @override
+  String get planKeyOverCarriedPay => 'Still short from the pay period before';
+
+  @override
+  String get planKeyOverMixed => 'Short';
+
+  @override
+  String planKeyOverAssignedPart(String amount) {
+    return '$amount assigned too much';
+  }
+
+  @override
+  String planKeyOverSpentPart(String amount) {
+    return '$amount overspent';
+  }
+
+  @override
+  String planKeyOverLoosePart(String amount) {
+    return '$amount not categorized';
+  }
+
+  @override
+  String planKeyOverCarriedMonthPart(String amount, String month) {
+    return '$amount short from $month';
+  }
+
+  @override
+  String planKeyOverCarriedPayPart(String amount) {
+    return '$amount short from the pay period before';
+  }
 
   @override
   String planFilled(int count, String amount) {
@@ -5781,7 +5823,22 @@ class WordsEn extends Words {
 
   @override
   String ledgerCombinedOverAssigned(String amount) {
-    return '$amount is assigned too much';
+    return '$amount is assigned too much now';
+  }
+
+  @override
+  String ledgerCombinedOverSpent(String amount) {
+    return '$amount of overspending isn’t covered now';
+  }
+
+  @override
+  String ledgerCombinedOverLoose(String amount) {
+    return '$amount spent with no category isn’t covered now';
+  }
+
+  @override
+  String ledgerCombinedOverMixed(String amount) {
+    return 'The budget is $amount short now';
   }
 
   @override

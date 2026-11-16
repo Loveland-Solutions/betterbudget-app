@@ -6518,3 +6518,39 @@ dropdown beside the Budget page's period (owner's call, 2026-10-05).
   2026-11-16: "Just write November 2026"), and so is the register's chip for it; a pay
   period keeps "This pay period · 10.30–11.15", which needs its dates.
 
+
+## The top card's result names what made it short (2026-11-16, #470)
+
+The first-time reader, on Income ₮1,000,000 − Assigned ₮900,000 − Overspent ₮1,200,000
+(stand-ins) = **Assigned too much ₮1,100,000**: "I assigned less than my income. The
+problem is spending, not assigning, so the label reads as blaming the wrong thing." The
+boxes stay as the owner chose them (#461); only the result's words change, through the
+UX writer, then the two reviews.
+
+The shortfall is split by the card's own boxes, in this order. This period's income pays
+off what the period before left short first; what it can't is still short from before.
+Then what was given out (Assigned and Saved; spent ahead, by a paycheck, counts with
+Assigned) past what is left is assigned too much. The rest is spending the money not
+assigned couldn't cover, which covers overspent categories first, so what stays
+uncovered is Not categorized before Overspent (filing a row is its fix).
+
+- One cause, named by its box: **Assigned too much**; **Overspent, not covered** (the
+  part of Overspent with nothing behind it, not "Spent more than you have": often less
+  was spent than came in); **Not categorized, not covered**; **Still short from
+  October** (by paycheck, "from the pay period before"). The box beside it already says
+  the amount's source, so no line under it.
+- More than one: **Short**, with each part under the figure by its box's name: "₮300,000
+  assigned too much · ₮800,000 overspent".
+- Inside Assign what's planned, when the result is already short: "Nothing is left to
+  assign, so this assigns ₮X too much", true whatever made it.
+- The popup after another computer's changes names one cause the same ways, with "now";
+  more than one, or only what was short from before, "The budget is ₮X short now". It
+  counts spent ahead as the page does (`spentAhead`), so they never name different
+  causes.
+- Rejected: **Short** alone with no parts (says no cause, which is what the reader
+  asked for); **Assigned too much and overspent** (the first draft; it couldn't name
+  Not categorized or what was short from before); naming the bank or the month's
+  income (#461 took those off).
+- Known: covering an overspent category by typing its Assigned while the result is
+  short turns "Overspent, not covered" into "Assigned too much" with the same figure.
+  Both are true; only moving money or more income makes it smaller.

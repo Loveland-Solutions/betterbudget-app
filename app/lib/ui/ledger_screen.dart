@@ -493,18 +493,30 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _selected = null;
       _adding = false;
     });
-    // How much too much is assigned, by currency (#461: than came in).
-    Map<Currency, int> over(LedgerData? data) {
+    // How far below zero each currency's result is, and what made it
+    // (#461: than came in; #470).
+    Map<Currency, ShortBy> over(LedgerData? data) {
       if (data == null) return const {};
       final p = budgetPeriod(today, data.periodSchedule);
+      final budget = Budget.of(data, start: p.start, end: p.end, today: today);
+      // Spending a paycheck's month still covers counts with Assigned, as
+      // on the Budget page.
+      final ahead = <Currency, int>{};
+      for (final MapEntry(key: id, value: a) in spentAhead(
+        data,
+        budget,
+        periodEnd: p.end,
+        today: today,
+      ).entries) {
+        final c = data.accounts[id]?.currency;
+        if (c != null) ahead[c] = (ahead[c] ?? 0) + a;
+      }
       return {
-        for (final pool in Budget.of(
-          data,
-          start: p.start,
-          end: p.end,
-          today: today,
-        ).pools)
-          if (pool.notAssigned < 0) pool.currency: -pool.notAssigned,
+        for (final pool in budget.pools)
+          if (pool.notAssigned < 0)
+            pool.currency: pool.shortBy(
+              ahead: (ahead[pool.currency] ?? 0).clamp(0, pool.overspent),
+            ),
       };
     }
 
@@ -537,7 +549,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // What the two had made alike, settled, and nothing else: nothing to
     // say.
     if (done.quiet) return;
-    Map<Currency, int> overNow = const {};
+    Map<Currency, ShortBy> overNow = const {};
     try {
       overNow = over(await db.loadLedger());
     } catch (e) {
@@ -565,16 +577,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
       null when done.others == 0 => t.ledgerCombined(n),
       null => t.ledgerCombinedMore(n),
     };
-    // Assigned too much, where it wasn't or was less before.
+    // Below zero, where it wasn't or was less before, said by what made
+    // it, as the Budget page names it (#470).
     final short = overNow.entries
-        .where((e) => e.value > (overBefore[e.key] ?? 0))
+        .where((e) => e.value.total > (overBefore[e.key]?.total ?? 0))
         .firstOrNull;
     final extra = [
       if (done.alike.isNotEmpty) t.ledgerCombinedAlike(done.alike.length),
       if (short != null)
-        t.ledgerCombinedOverAssigned(
-          formatShort(short.value, currency: short.key),
-        ),
+        switch ((
+          short.value,
+          formatShort(short.value.total, currency: short.key),
+        )) {
+          (ShortBy(causes: 1, assigned: > 0), final a) =>
+            t.ledgerCombinedOverAssigned(a),
+          (ShortBy(causes: 1, spent: > 0), final a) =>
+            t.ledgerCombinedOverSpent(a),
+          (ShortBy(causes: 1, loose: > 0), final a) =>
+            t.ledgerCombinedOverLoose(a),
+          (_, final a) => t.ledgerCombinedOverMixed(a),
+        },
     ];
     // No Undo (owner, 2026-10-10: "Only undo what the user in front of the
     // computer did or decided. Nothing else"). ⌘Z undoes what is done here
