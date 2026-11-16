@@ -4417,6 +4417,11 @@ class WordsEn extends Words {
   }
 
   @override
+  String planPlannedLine(String plan) {
+    return 'Planned $plan';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return '$amount a month';
   }

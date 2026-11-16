@@ -4261,6 +4261,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String planPlannedLine(String plan) {
+    return 'Төлөвлөсөн: $plan';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return 'сард $amount';
   }

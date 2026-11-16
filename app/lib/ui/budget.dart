@@ -533,7 +533,7 @@ class _BudgetPageState extends State<_BudgetPage> {
       final paidAccount = data.accounts[data.paidFrom[c.id]];
       final paidGone =
           paidAccount != null && (paidAccount.archived || paidAccount.deleted);
-      final note = line == null || planLine == null
+      final said = line == null || planLine == null
           ? null
           : planNote(
               t,
@@ -543,7 +543,21 @@ class _BudgetPageState extends State<_BudgetPage> {
               currency,
               payName: ownPayName(t, data, planLine.plan),
               own: data.payScheduleById(planLine.plan.payScheduleId),
+              // Only seen by its own period (a set amount's month or
+              // pay; a dated plan divides over the view's): by another,
+              // Assigned is that period's.
+              besideAssigned:
+                  planLine.plan.kind != PlanKind.each ||
+                  planLine.plan.payScheduleId == data.periodSchedule?.id,
             );
+      // Nothing left to say once Assigned says it (#467): no line.
+      final note =
+          said != null &&
+              said.text.isEmpty &&
+              said.state == null &&
+              toAssign == 0
+          ? null
+          : said;
       final billOne = isBill(c) && note != null;
       final String? billState = !billOne
           ? null
@@ -4420,7 +4434,7 @@ class _PlanNoteLine extends StatelessWidget {
               ),
               if (note.state case final state?)
                 Text(
-                  ' · $state',
+                  note.text.isEmpty ? state : ' · $state',
                   key: ValueKey('plan-state-$id'),
                   style: onest(
                     12,

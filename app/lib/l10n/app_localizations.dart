@@ -6275,6 +6275,12 @@ abstract class Words {
   /// **'{count, plural, =1{Every year} other{Every {count} years}}'**
   String planRepeatYears(int count);
 
+  /// Budget page: note under a category's name when its Assigned differs from its plan; plan is e.g. “₮1,000,000 a month” (#467)
+  ///
+  /// In en, this message translates to:
+  /// **'Planned {plan}'**
+  String planPlannedLine(String plan);
+
   /// Budget page: note under a category's name, what its plan puts in each month
   ///
   /// In en, this message translates to:
