@@ -6371,6 +6371,12 @@ abstract class Words {
   /// **'By paycheck, the Budget page shows one paycheck at a time, and each month’s money is shared out over the paychecks it pays for.'**
   String get budgetByHint;
 
+  /// Budget page by month: the period beside the arrows, e.g. "November 2026" (owner, 2026-11-16). month is a month name (monthNames).
+  ///
+  /// In en, this message translates to:
+  /// **'{month} {year}'**
+  String planMonthYear(String month, String year);
+
   /// Budget page: note under a category's name, what its plan puts in each month
   ///
   /// In en, this message translates to:

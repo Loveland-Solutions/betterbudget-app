@@ -6514,5 +6514,7 @@ dropdown beside the Budget page's period (owner's call, 2026-10-05).
   changes: "By paycheck, the Budget page shows one paycheck at a time, and each month's
   money is shared out over the paychecks it pays for." ⌘Z puts a change back.
 - A month's Assigned is split by the chosen pay, or by the month view by the pay last
-  chosen (#468).
+  chosen (#468).- By month the period beside the arrows is the month and year, "November 2026" (owner,
+  2026-11-16: "Just write November 2026"), and so is the register's chip for it; a pay
+  period keeps "This pay period · 10.30–11.15", which needs its dates.
 

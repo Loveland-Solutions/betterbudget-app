@@ -6576,6 +6576,18 @@
   "@budgetByHint": {
     "description": "Settings and setup, under Budget by: what choosing a paycheck changes (#474)."
   },
+  "planMonthYear": "{month} {year}",
+  "@planMonthYear": {
+    "description": "Budget page by month: the period beside the arrows, e.g. \"November 2026\" (owner, 2026-11-16). month is a month name (monthNames).",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
   "planEachMonth": "{amount} a month",
   "@planEachMonth": {
     "description": "Budget page: note under a category's name, what its plan puts in each month",

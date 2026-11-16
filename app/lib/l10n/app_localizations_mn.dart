@@ -4332,6 +4332,11 @@ class WordsMn extends Words {
       'Цалингаар бол Төсөв хуудас нэг удаад нэг цалингийн үеийг харуулж, сар бүрийн мөнгийг тухайн сарын цалингуудад хуваана.';
 
   @override
+  String planMonthYear(String month, String year) {
+    return '$year оны $month';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return 'сард $amount';
   }

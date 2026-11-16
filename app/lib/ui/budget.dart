@@ -1206,11 +1206,18 @@ class _BudgetPageState extends State<_BudgetPage> {
                 // Month or paycheck is chosen at setup and in Settings,
                 // not switched here (owner, 2026-11-16, #474).
                 Text(
-                  t.planPeriodTitle(
-                    _spanName(t, period, widget.today),
-                    shortDate(period.start),
-                    shortDate(period.end),
-                  ),
+                  // A month by its name and year (owner, 2026-11-16: "Just
+                  // write November 2026"); a pay period needs its dates.
+                  period.label == payPeriodLabel
+                      ? t.planPeriodTitle(
+                          _spanName(t, period, widget.today),
+                          shortDate(period.start),
+                          shortDate(period.end),
+                        )
+                      : t.planMonthYear(
+                          monthName(t, period.start.month),
+                          '${period.start.year}',
+                        ),
                   key: const ValueKey('period-title'),
                   style: onest(14.5, weight: 500, color: Mid.ink2),
                 ),

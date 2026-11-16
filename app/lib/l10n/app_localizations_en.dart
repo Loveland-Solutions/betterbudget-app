@@ -4488,6 +4488,11 @@ class WordsEn extends Words {
       'By paycheck, the Budget page shows one paycheck at a time, and each month’s money is shared out over the paychecks it pays for.';
 
   @override
+  String planMonthYear(String month, String year) {
+    return '$month $year';
+  }
+
+  @override
   String planEachMonth(String amount) {
     return '$amount a month';
   }

@@ -4204,11 +4204,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 if (period != null) ...[
                   _FilterChip(
                     key: const ValueKey('period-chip'),
-                    label: t.ledgerPeriodChip(
-                      _spanName(t, period, today),
-                      shortDate(period.start),
-                      shortDate(period.end),
-                    ),
+                    // A month as the Budget page names it: "November
+                    // 2026" (owner, 2026-11-16).
+                    label: period.label == payPeriodLabel
+                        ? t.ledgerPeriodChip(
+                            _spanName(t, period, today),
+                            shortDate(period.start),
+                            shortDate(period.end),
+                          )
+                        : t.planMonthYear(
+                            monthName(t, period.start.month),
+                            '${period.start.year}',
+                          ),
                     onClear: () => setState(() => _periodFilter = null),
                   ),
                   const SizedBox(width: 8),
