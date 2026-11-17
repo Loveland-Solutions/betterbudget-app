@@ -30,8 +30,9 @@ class _StepBand extends StatelessWidget {
   /// does a click move it.
   final bool offers;
 
-  /// Assign was clicked: the Safety net's new total for today's period,
-  /// what undo calls it, and what to say when that fills the step.
+  /// Assign was clicked: the new total for today's period of the Safety
+  /// net, or on step 2 of the category that pays the debt, what undo calls
+  /// it, and what to say when that fills the step.
   final void Function(
     AccountInfo category,
     int total,
@@ -82,6 +83,11 @@ class _StepBand extends StatelessWidget {
         ? r.fundCategories.single
         : null;
     final offer = offers && fundStep && category != null ? r.offerFor(step) : 0;
+    // Step 2: this month's extra, to the category that pays the debt it
+    // goes to first.
+    final extra = offers && step == ReadyStep.consumerDebt
+        ? r.extraOffer
+        : null;
     return Container(
       key: const ValueKey('step-band'),
       margin: const EdgeInsets.only(top: 12),
@@ -196,6 +202,23 @@ class _StepBand extends StatelessWidget {
                           m(target),
                           r.monthsTarget,
                         ),
+                ),
+              ),
+            ),
+          ],
+          if (extra != null) ...[
+            const SizedBox(width: 16),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: BarButton(
+                key: const ValueKey('step-band-extra'),
+                label: t.planFundAssign(m(extra.offer), extra.category.name),
+                color: Mid.blue,
+                onTap: () => onAssign(
+                  extra.category,
+                  extra.total,
+                  t.planAssignUndo(m(extra.offer), extra.category.name),
+                  null,
                 ),
               ),
             ),

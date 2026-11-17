@@ -569,6 +569,118 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('budget: on step 2 the band offers the month\'s extra to the '
+      'category that pays the debt (#487)', (tester) async {
+    final db = await pumpLedger(tester);
+    final day = DateTime(2026, 9, 16);
+    // A month of ₮1,000,000, so one click on the band fills the net.
+    await tester.tap(find.text('Savings'));
+    await tester.pumpAndSettle();
+    await settle(tester);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('month-edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('month-field')),
+      '1000000',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    await tester.tap(find.text('Budget'));
+    await tester.pumpAndSettle();
+    var data = (await tester.runAsync(db.loadLedger))!;
+    final groceries = data.categories.firstWhere((c) => c.name == 'Groceries');
+    final gifts = data.categories.firstWhere((c) => c.name == 'Gifts');
+    await tester.tap(find.byKey(ValueKey('assigned-${groceries.id}')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('assign-field')),
+      '300000',
+    );
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('start-keep')));
+    await settle(tester);
+    expect(find.text('Assign ₮1,000,000 to Safety net'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('step-band-assign')));
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    // It filled the step: said once, as a fact, and the app notes what the
+    // net covered.
+    expect(
+      find.text('Safety net is full: ₮1,000,000, a month of expenses.'),
+      findsOneWidget,
+    );
+    data = (await tester.runAsync(db.loadLedger))!;
+    expect(data.prefs[ReadyKeys.reached(ReadyStep.oneMonth)], '100000000');
+    var r = Readiness.of(data, day);
+    expect(r.current, ReadyStep.consumerDebt);
+
+    // The band is on step 2 now: what is owed, and nothing to click but
+    // its name while no extra is typed.
+    final band = find.byKey(const ValueKey('step-band'));
+    expect(
+      find.descendant(of: band, matching: find.text('Eliminate debt')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('step-band-assign')), findsNothing);
+    expect(find.byKey(const ValueKey('step-band-extra')), findsNothing);
+
+    // ₮100,000 extra a month; the first debt is paid ₮200,000 a month out
+    // of Gifts' row.
+    final debt = r.debtsInOrder.first;
+    await tester.runAsync(() async {
+      await db.setPreference(ReadyKeys.extra, 'MNT:10000000');
+      await db.setPreference(ReadyKeys.pay(debt.account.id), '20000000');
+      await db.setPreference(
+        '${BudgetKeys.loanPrefix}${debt.account.id}',
+        '${gifts.id}',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    for (var i = 0; i < 3; i++) {
+      await settle(tester);
+    }
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pumpAndSettle();
+    data = (await tester.runAsync(db.loadLedger))!;
+    r = Readiness.of(data, day);
+    final offer = r.extraOffer!;
+    expect(offer.category.id, gifts.id);
+    expect(
+      find.descendant(
+        of: band,
+        matching: find.text(
+          'Assign ${formatShort(offer.offer, currency: Currency.mnt)} to Gifts',
+        ),
+      ),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/budget_step_band_debt.png'),
+    );
+    await tester.tap(find.byKey(const ValueKey('step-band-extra')));
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    data = (await tester.runAsync(db.loadLedger))!;
+    expect(
+      Budget.of(
+        data,
+        start: DateTime(2026, 9),
+        end: DateTime(2026, 9, 30),
+        today: day,
+      ).lines[gifts.id]!.assigned,
+      offer.total,
+    );
+    await tidy(tester, db);
+  });
+
   testWidgets('savings: an open rate field stays with its debt as lines move', (
     tester,
   ) async {

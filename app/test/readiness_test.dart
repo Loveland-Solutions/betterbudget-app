@@ -1199,6 +1199,83 @@ void main() {
     expect(r.offerFor(ReadyStep.oneMonth) % Currency.mnt.scale, 0);
   });
 
+  test('step 2: this month\'s extra is offered to the category that pays '
+      'the debt', () {
+    // The net is full (a month typed at 50,000.00), Visa owes 9,000.00
+    // and its payments come out of Rent's row here, renamed in the mind
+    // to "Visa payment": 1,000.00 a month by plan, 500.00 extra typed.
+    LedgerData at({
+      int assigned = 0,
+      String extra = 'MNT:50000',
+      int owed = 900000,
+      bool linked = true,
+    }) {
+      final data = ledger(
+        owedOnVisa: owed,
+        prefs: {
+          ReadyKeys.month: 'MNT:5000000',
+          ReadyKeys.extra: extra,
+          if (linked) '${BudgetKeys.loanPrefix}$visa': '$rent',
+        },
+      );
+      return LedgerData(
+        accounts: [
+          ...data.accounts.values,
+          acct(9, 'Income', AccountType.income),
+        ],
+        // Pay in hand this month, so there is something to assign.
+        txns: [
+          ...data.txns,
+          move(DateTime(2026, 9, 2), 9, checking, 100000000),
+        ],
+        prefs: data.prefs,
+        budgetAmounts: [
+          ...data.budgetAmounts,
+          if (assigned > 0)
+            BudgetAmount(
+              categoryId: rent,
+              date: DateTime(2026, 9),
+              amount: assigned,
+            ),
+        ],
+        plans: [
+          CategoryPlan(
+            categoryId: rent,
+            kind: PlanKind.each,
+            amount: 100000,
+            start: DateTime(2026, 9),
+          ),
+        ],
+      );
+    }
+
+    var r = Readiness.of(at(), today);
+    expect(r.current, ReadyStep.consumerDebt);
+    expect(r.paidFromCategory[visa]!.category.id, rent);
+    expect(r.paidFromCategory[visa]!.planned, 100000);
+    // Whatever is spare, the offer is never more than the payment and the
+    // extra together, and its total is this period's amount with it.
+    final spare =
+        r.notAssigned - (r.spokenFor > r.toCome ? r.spokenFor : r.toCome);
+    expect(spare, greaterThan(150000));
+    final offer = r.extraOffer!;
+    expect(offer.category.id, rent);
+    expect(offer.debt.account.id, visa);
+    expect(offer.offer, 150000);
+    expect(offer.total, 150000);
+    // The payment is in: what is offered is the extra, on top of it.
+    final extraOnly = Readiness.of(at(assigned: 100000), today).extraOffer!;
+    expect(extraOnly.offer, 50000);
+    expect(extraOnly.total, 150000);
+    // The payment and the extra are in already: nothing more is asked.
+    expect(Readiness.of(at(assigned: 150000), today).extraOffer, isNull);
+    // No extra typed, or no category paying it: nothing to offer.
+    expect(Readiness.of(at(extra: ''), today).extraOffer, isNull);
+    expect(Readiness.of(at(linked: false), today).extraOffer, isNull);
+    // It owes less than the payment and the extra: no more than is owed.
+    expect(Readiness.of(at(owed: 120000), today).extraOffer!.offer, 120000);
+  });
+
   test('a full step stays done while its month grows by under a tenth', () {
     // A month typed at 50,000.00 and a net holding exactly that.
     LedgerData at(String month, {String? reached, int inNet = 5000000}) =>
