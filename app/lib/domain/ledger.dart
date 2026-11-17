@@ -2,6 +2,9 @@
 /// Pure Dart: no database, no Flutter.
 library;
 
+export 'category_emoji.dart';
+
+import 'category_emoji.dart';
 import 'money.dart';
 import 'pay.dart';
 import 'payee_rules.dart';
@@ -47,8 +50,9 @@ const incomeAccountName = 'Income';
 /// user's own may be called any of them.
 const incomeNames = {'Income', 'Орлого'};
 
+/// An emoji before it doesn't make it another name: "💰 Орлого" is Income.
 bool isIncomeName(String name) =>
-    incomeNames.any((n) => n.toLowerCase() == name.trim().toLowerCase());
+    incomeNames.any((n) => n.toLowerCase() == nameKey(name));
 
 /// The payee a reconcile adjustment is stored with (`rowPayee` words it).
 const reconcileAdjustmentPayee = 'Reconcile adjustment';
@@ -896,8 +900,7 @@ typedef AccountDeletePreview = ({
 });
 
 /// Case-insensitive, so "coffee" sits beside "Coffee" and a duplicate shows.
-int _byName(AccountInfo a, AccountInfo b) =>
-    a.name.toLowerCase().compareTo(b.name.toLowerCase());
+int _byName(AccountInfo a, AccountInfo b) => compareNames(a.name, b.name);
 
 /// Money put into a spending category for the budget period starting
 /// [date] (rule 26).

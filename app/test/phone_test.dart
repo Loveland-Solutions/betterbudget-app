@@ -910,6 +910,33 @@ void main() {
     expect(find.text('Vet'), findsOneWidget);
   });
 
+  testWidgets('New category on the phone takes an emoji from its list or '
+      'from the keyboard (#486)', (tester) async {
+    final store = await _pump(tester);
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('budget-new-category')));
+    await tester.pumpAndSettle();
+    final name = find.byKey(const ValueKey('new-category-name'));
+    // Typed at the start from the keyboard, it moves into the square.
+    await tester.enterText(name, '🐶 Vet');
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(name).controller!.text, 'Vet');
+    final square = find.byKey(const ValueKey('new-category-emoji'));
+    expect(
+      find.descendant(of: square, matching: find.text('🐶')),
+      findsOneWidget,
+    );
+    // The list, from the square: another one replaces it.
+    await tester.tap(square);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('emoji-💊')));
+    await tester.pumpAndSettle();
+    await _paidFrom(tester);
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(store.made.single.name, '💊 Vet');
+  });
+
   testWidgets('a bill twice a month on the phone: two days, and when it '
       'starts', (tester) async {
     final store = await _pump(tester);

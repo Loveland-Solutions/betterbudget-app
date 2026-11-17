@@ -1618,6 +1618,43 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('a category typed without its emoji is the one with it (#486)', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final data = await db.loadLedger();
+      final id = data.categories.firstWhere((c) => c.name == 'Groceries').id;
+      await db.renameAccount(id, '🛒 Groceries');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    await openEntry(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'New transaction — payee'),
+      'Nomin',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      'groceries',
+    );
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '5000');
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No account'), findsNothing);
+    final data = (await tester.runAsync(db.loadLedger))!;
+    // Filed under it, not a second Groceries.
+    expect(
+      data.categories.where((c) => sameName(c.name, 'Groceries')),
+      hasLength(1),
+    );
+    expect(find.text('🛒 Groceries'), findsWidgets);
+    await tidy(tester, db);
+  });
+
   testWidgets('uncleared money coming in shows with a plus', (tester) async {
     final db = await pumpLedger(tester);
     await openEntry(tester);
@@ -6933,6 +6970,129 @@ void main() {
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
     }
+
+    testWidgets('an emoji picked before a row\'s name renames it, with undo '
+        'and redo (#486)', (tester) async {
+      final db = await pumpLedger(tester);
+      await openBudget(tester);
+      Future<String> nameOf(int id) async =>
+          (await tester.runAsync(db.loadLedger))!.accounts[id]!.name;
+      final groceries = (await tester.runAsync(db.loadLedger))!.categories
+          .firstWhere((c) => c.name == 'Groceries')
+          .id;
+      final row = find.byKey(ValueKey('category-$groceries'));
+      final spot = find.byKey(ValueKey('emoji-$groceries'));
+      await reveal(tester, row);
+      await tester.pumpAndSettle();
+      // With none, the spot is empty until the pointer is on the row.
+      final button = find.descendant(
+        of: spot,
+        matching: find.byKey(const ValueKey('emoji-button')),
+      );
+      expect(button, findsNothing);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(
+        location: tester.getCenter(find.text('Groceries')),
+      );
+      await tester.pumpAndSettle();
+      expect(button, findsOneWidget);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      // Nothing to take off yet.
+      expect(find.byKey(const ValueKey('emoji-none')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('emoji-🛒')));
+      await settle(tester);
+      expect(await nameOf(groceries), '🛒 Groceries');
+      // The name keeps its words; the emoji is drawn in the spot.
+      expect(
+        find.descendant(of: row, matching: find.text('Groceries')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: spot, matching: find.text('🛒')),
+        findsOneWidget,
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Undo'));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect(await nameOf(groceries), 'Groceries');
+      await redo(tester);
+      expect(await nameOf(groceries), '🛒 Groceries');
+
+      // Every emoji, found by English or Mongolian words: Enter takes the
+      // first.
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byKey(const ValueKey('emoji-list')),
+        matchesGoldenFile('goldens/emoji_list.png'),
+      );
+      await tester.enterText(find.byKey(const ValueKey('emoji-find')), 'стейк');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('emoji-🥩')), findsOneWidget);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(await nameOf(groceries), '🥩 Groceries');
+      // Esc closes it as it was.
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('emoji-list')), findsNothing);
+      expect(await nameOf(groceries), '🥩 Groceries');
+
+      // In Edit it's in the square, and No emoji takes it off.
+      await tester.pump(const Duration(seconds: 7)); // the toast goes
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Groceries'));
+      await tester.pump(const Duration(milliseconds: 60));
+      await tester.tap(find.text('Groceries'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('edit-name')))
+            .controller!
+            .text,
+        'Groceries',
+      );
+      // While Edit is open the row's spot only shows the emoji: Edit's
+      // square picks, so its Save can't undo a pick made on the row.
+      expect(button, findsNothing);
+      expect(
+        find.descendant(of: spot, matching: find.text('🥩')),
+        findsOneWidget,
+      );
+      final square = find.descendant(
+        of: find.byKey(const ValueKey('edit-emoji')),
+        matching: find.byKey(const ValueKey('emoji-button')),
+      );
+      await reveal(tester, square);
+      await tester.pumpAndSettle();
+      await tester.tap(square);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('emoji-none')));
+      await tester.pumpAndSettle();
+      // An emoji typed at the start of the name goes into the square.
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-name')),
+        '🍎 Groceries',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('edit-name')))
+            .controller!
+            .text,
+        'Groceries',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(await nameOf(groceries), '🍎 Groceries');
+      await mouse.removePointer();
+      await tidy(tester, db);
+    });
 
     // Budget by month or by a pay's paychecks: in Settings (#474), then
     // back to Budget.

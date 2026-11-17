@@ -5913,7 +5913,7 @@ class AppDatabase extends _$AppDatabase {
     };
     final byName = {
       for (final a in live)
-        if (a.type == AccountType.expense) a.name.trim().toLowerCase(): a.id,
+        if (a.type == AccountType.expense) nameKey(a.name): a.id,
     };
     final currencyOf = {for (final a in live) a.id: a.currency};
     final archived = {
@@ -5938,7 +5938,7 @@ class AppDatabase extends _$AppDatabase {
       // The ledger's category for one a phone made: the one already called
       // that, whatever its capitals, or a new one.
       Future<int> categoryFor(PhoneCategory c) async {
-        final name = c.name.trim().toLowerCase();
+        final name = nameKey(c.name);
         var id = byName[name];
         if (id == null && isIncomeName(c.name)) {
           // Income's name is the app's own, as it is in the entry row: an

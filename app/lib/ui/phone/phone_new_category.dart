@@ -64,7 +64,27 @@ class _NewCategoryPage extends StatefulWidget {
 const _pageCategoryId = -1;
 
 class _NewCategoryPageState extends State<_NewCategoryPage> {
-  late final _name = TextEditingController(text: widget.name);
+  /// The name's words; its emoji is [_emoji], in the square before them
+  /// (#486).
+  late final _name = TextEditingController(text: splitEmoji(widget.name).rest);
+  late String? _emoji = splitEmoji(widget.name).emoji;
+
+  /// The name as it's saved: the emoji, then the words.
+  String get _fullName => withEmoji(_emoji, _name.text.trim());
+
+  /// An emoji typed at the start of the name, from the phone's keyboard,
+  /// goes into the square: it's the one picked, never a second.
+  void _takeTypedEmoji() {
+    final s = splitEmoji(_name.text);
+    final e = s.emoji;
+    if (e == null) return;
+    _name.value = TextEditingValue(
+      text: s.rest,
+      selection: TextSelection.collapsed(offset: s.rest.length),
+    );
+    setState(() => _emoji = e);
+  }
+
   late PlanAnswers _p = widget.editing == null
       ? _fresh(widget.currency)
       : (_fresh(widget.editing!.currency)
@@ -136,6 +156,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   @override
   void initState() {
     super.initState();
+    _name.addListener(_takeTypedEmoji);
     // A Fund with no amount yet has no plan to say it's built up.
     if (widget.editing case final c?
         when c.plan == null && c.type == CategoryType.fund) {
@@ -217,8 +238,44 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   FocusNode _focus(String key) =>
       _focuses.putIfAbsent(key, () => FocusNode(debugLabel: key));
 
+  /// The square before the name (#486): its emoji, or a + to pick one;
+  /// a tap opens the list from the bottom.
+  Widget _emojiSquare() {
+    final t = context.t;
+    final e = _emoji;
+    return Semantics(
+      button: true,
+      label: e == null ? t.emojiChoose : t.emojiChange,
+      child: Material(
+        color: e == null ? Mid.blueWash : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: e == null ? BorderSide(color: Mid.blueEdge) : BorderSide.none,
+        ),
+        child: InkWell(
+          key: const ValueKey('new-category-emoji'),
+          borderRadius: BorderRadius.circular(10),
+          onTap: () async {
+            final got = await showEmojiSheet(context, picked: _emoji);
+            if (got != null && mounted) setState(() => _emoji = got.emoji);
+          },
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: e == null
+                  ? Icon(Icons.add, size: 24, color: Mid.blue)
+                  : Text(e, style: const TextStyle(fontSize: 26, height: 1.1)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _name.removeListener(_takeTypedEmoji);
     _name.dispose();
     _p.dispose();
     for (final f in _focuses.values) {
@@ -231,9 +288,8 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   /// does then. [blocks]: Add can't go ahead with it.
   ({String text, bool blocks})? _nameNote(Words t, String name) {
     if (name.isEmpty || _takenMeanwhile) return null;
-    final key = name.toLowerCase();
     for (final a in widget.store.snapshot.accounts) {
-      if (a.name.trim().toLowerCase() == key) {
+      if (sameName(a.name, name)) {
         return (text: t.planNameIsAccount(a.name), blocks: true);
       }
     }
@@ -251,7 +307,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
 
   void _add({bool another = false}) {
     final t = context.t;
-    final name = _name.text.trim();
+    final name = _fullName;
     // Its own name is the ledger's now: Save says it was taken in.
     if (widget.editing case final c? when _takenMeanwhile) {
       _save(c, name);
@@ -262,7 +318,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     // A name that's a category already goes in the entry as it is: the
     // plan's answers don't count for it.
     final fromList = widget.forEntry && already != null;
-    if (name.isEmpty ||
+    if (_name.text.trim().isEmpty ||
         (note?.blocks ?? false) ||
         (!fromList && (_p.missing != null || _wantsPaidFrom))) {
       setState(() => _tried = true);
@@ -292,6 +348,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     setState(() {
       _added.add(made.name);
       _name.clear();
+      _emoji = null;
       // Only the currency and Paid from stay: a bill's Yes kept from Rent
       // would make Food a bill unseen.
       _p = _fresh(keep);
@@ -997,7 +1054,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     return ListenableBuilder(
       listenable: Listenable.merge([_name, _p.typing, widget.store]),
       builder: (context, _) {
-        final name = _name.text.trim();
+        final name = _fullName;
         final note = _nameNote(t, name);
         final draft = _draft;
         // The category as the answers so far make it, in the ledger: the
@@ -1035,7 +1092,8 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                 return n.state == null ? n.text : '${n.text} · ${n.state}';
               }();
         final nameNote =
-            note?.text ?? (_tried && name.isEmpty ? t.planEnterName : null);
+            note?.text ??
+            (_tried && _name.text.trim().isEmpty ? t.planEnterName : null);
         // Not once an entry is filed in it: that entry's money is in its
         // account's currency.
         final offerCurrency =
@@ -1092,20 +1150,29 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                               horizontal: 16,
                               vertical: 4,
                             ),
-                            child: TextField(
-                              key: const ValueKey('new-category-name'),
-                              controller: _name,
-                              // Changing a waiting one opens on what it
-                              // says, not under the keyboard.
-                              autofocus: widget.editing == null,
-                              textCapitalization: TextCapitalization.sentences,
-                              style: onest(18, weight: 600),
-                              cursorColor: Mid.blue,
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                hintText: t.planCategoryName,
-                                hintStyle: onest(18, color: Mid.ink3),
-                              ),
+                            child: Row(
+                              children: [
+                                _emojiSquare(),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: TextField(
+                                    key: const ValueKey('new-category-name'),
+                                    controller: _name,
+                                    // Changing a waiting one opens on what it
+                                    // says, not under the keyboard.
+                                    autofocus: widget.editing == null,
+                                    textCapitalization:
+                                        TextCapitalization.sentences,
+                                    style: onest(18, weight: 600),
+                                    cursorColor: Mid.blue,
+                                    decoration: InputDecoration(
+                                      border: InputBorder.none,
+                                      hintText: t.planCategoryName,
+                                      hintStyle: onest(18, color: Mid.ink3),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           if (offerCurrency)

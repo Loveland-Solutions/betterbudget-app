@@ -4835,6 +4835,53 @@ class WordsEn extends Words {
   String get planEditName => 'Name';
 
   @override
+  String get emojiChoose => 'Choose an emoji';
+
+  @override
+  String get emojiChange => 'Change the emoji';
+
+  @override
+  String get emojiGroupBudget => 'For a budget';
+
+  @override
+  String get emojiGroupSmileys => 'Faces and feelings';
+
+  @override
+  String get emojiGroupPeople => 'People';
+
+  @override
+  String get emojiGroupNature => 'Animals and nature';
+
+  @override
+  String get emojiGroupFood => 'Food and drink';
+
+  @override
+  String get emojiGroupTravel => 'Travel and places';
+
+  @override
+  String get emojiGroupActivities => 'Sports and fun';
+
+  @override
+  String get emojiGroupObjects => 'Things';
+
+  @override
+  String get emojiGroupSymbols => 'Signs and symbols';
+
+  @override
+  String get emojiGroupFlags => 'Flags';
+
+  @override
+  String get emojiFind => 'Find an emoji: meat, car, gift…';
+
+  @override
+  String emojiNoneFound(String typed) {
+    return 'No emoji found for “$typed”.';
+  }
+
+  @override
+  String get emojiNone => 'No emoji';
+
+  @override
   String planFundOverAssigned(String amount) {
     return 'Your budget has assigned $amount too much.';
   }

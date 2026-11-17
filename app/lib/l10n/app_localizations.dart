@@ -6820,6 +6820,96 @@ abstract class Words {
   /// **'Name'**
   String get planEditName;
 
+  /// The square before a category's name (Budget page row, Edit, New category): a click opens the emoji list (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an emoji'**
+  String get emojiChoose;
+
+  /// Tooltip on a category's emoji, before its name: a click opens the emoji list to pick another or take it off (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Change the emoji'**
+  String get emojiChange;
+
+  /// The emoji list's first group: 48 emoji for what a household spends on (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'For a budget'**
+  String get emojiGroupBudget;
+
+  /// A group in the emoji list, and its button's tooltip (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Faces and feelings'**
+  String get emojiGroupSmileys;
+
+  /// A group in the emoji list, and its button's tooltip (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'People'**
+  String get emojiGroupPeople;
+
+  /// A group in the emoji list, and its button's tooltip (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Animals and nature'**
+  String get emojiGroupNature;
+
+  /// A group in the emoji list, and its button's tooltip (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Food and drink'**
+  String get emojiGroupFood;
+
+  /// A group in the emoji list, and its button's tooltip (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Travel and places'**
+  String get emojiGroupTravel;
+
+  /// A group in the emoji list, and its button's tooltip: sports, games, holidays (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Sports and fun'**
+  String get emojiGroupActivities;
+
+  /// A group in the emoji list, and its button's tooltip: clothes, phones, money, tools (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Things'**
+  String get emojiGroupObjects;
+
+  /// A group in the emoji list, and its button's tooltip (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Signs and symbols'**
+  String get emojiGroupSymbols;
+
+  /// A group in the emoji list, and its button's tooltip (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Flags'**
+  String get emojiGroupFlags;
+
+  /// The search box at the top of the emoji list; it finds by English and Mongolian words (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'Find an emoji: meat, car, gift…'**
+  String get emojiFind;
+
+  /// In the emoji list, when nothing matches what's typed in its search box (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'No emoji found for “{typed}”.'**
+  String emojiNoneFound(String typed);
+
+  /// At the foot of the emoji list: takes the category's emoji off its name (#486)
+  ///
+  /// In en, this message translates to:
+  /// **'No emoji'**
+  String get emojiNone;
+
   /// Savings, step 1, under the safety net's figures: the Budget page has assigned more than there is in cash and bank, so the safety net's money may not all be there. The step keeps its check (owner, 2026-10-26)
   ///
   /// In en, this message translates to:

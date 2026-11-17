@@ -7186,6 +7186,71 @@
     "description": "Budget page, a category's menu (⋯ or right-click): opens everything about the category under its row; a double-click on the row does the same"
   },
   "planEditName": "Name",
+  "emojiChoose": "Choose an emoji",
+  "@emojiChoose": {
+    "description": "The square before a category's name (Budget page row, Edit, New category): a click opens the emoji list (#486)"
+  },
+  "emojiChange": "Change the emoji",
+  "@emojiChange": {
+    "description": "Tooltip on a category's emoji, before its name: a click opens the emoji list to pick another or take it off (#486)"
+  },
+  "emojiGroupBudget": "For a budget",
+  "@emojiGroupBudget": {
+    "description": "The emoji list's first group: 48 emoji for what a household spends on (#486)"
+  },
+  "emojiGroupSmileys": "Faces and feelings",
+  "@emojiGroupSmileys": {
+    "description": "A group in the emoji list, and its button's tooltip (#486)"
+  },
+  "emojiGroupPeople": "People",
+  "@emojiGroupPeople": {
+    "description": "A group in the emoji list, and its button's tooltip (#486)"
+  },
+  "emojiGroupNature": "Animals and nature",
+  "@emojiGroupNature": {
+    "description": "A group in the emoji list, and its button's tooltip (#486)"
+  },
+  "emojiGroupFood": "Food and drink",
+  "@emojiGroupFood": {
+    "description": "A group in the emoji list, and its button's tooltip (#486)"
+  },
+  "emojiGroupTravel": "Travel and places",
+  "@emojiGroupTravel": {
+    "description": "A group in the emoji list, and its button's tooltip (#486)"
+  },
+  "emojiGroupActivities": "Sports and fun",
+  "@emojiGroupActivities": {
+    "description": "A group in the emoji list, and its button's tooltip: sports, games, holidays (#486)"
+  },
+  "emojiGroupObjects": "Things",
+  "@emojiGroupObjects": {
+    "description": "A group in the emoji list, and its button's tooltip: clothes, phones, money, tools (#486)"
+  },
+  "emojiGroupSymbols": "Signs and symbols",
+  "@emojiGroupSymbols": {
+    "description": "A group in the emoji list, and its button's tooltip (#486)"
+  },
+  "emojiGroupFlags": "Flags",
+  "@emojiGroupFlags": {
+    "description": "A group in the emoji list, and its button's tooltip (#486)"
+  },
+  "emojiFind": "Find an emoji: meat, car, gift…",
+  "@emojiFind": {
+    "description": "The search box at the top of the emoji list; it finds by English and Mongolian words (#486)"
+  },
+  "emojiNoneFound": "No emoji found for “{typed}”.",
+  "@emojiNoneFound": {
+    "description": "In the emoji list, when nothing matches what's typed in its search box (#486)",
+    "placeholders": {
+      "typed": {
+        "type": "String"
+      }
+    }
+  },
+  "emojiNone": "No emoji",
+  "@emojiNone": {
+    "description": "At the foot of the emoji list: takes the category's emoji off its name (#486)"
+  },
   "planFundOverAssigned": "Your budget has assigned {amount} too much.",
   "@planFundOverAssigned": {
     "description": "Savings, step 1, under the safety net's figures: the Budget page has assigned more than there is in cash and bank, so the safety net's money may not all be there. The step keeps its check (owner, 2026-10-26)",

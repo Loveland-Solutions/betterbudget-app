@@ -22,6 +22,7 @@ import '../plan_form.dart';
 import '../schemes.dart';
 import '../amount_input.dart';
 import '../category_types.dart';
+import '../emoji_chooser.dart';
 import '../theme.dart';
 
 part 'phone_new_category.dart';

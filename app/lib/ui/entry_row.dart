@@ -477,10 +477,7 @@ class _EntryRowState extends State<EntryRow> {
     final payee = _payee.text.trim();
     final q = _category.text.trim().toLowerCase();
     if (payee.isEmpty || q.isEmpty) return false;
-    final counter = _counterOptions
-        .where((o) => o.label.toLowerCase() == q)
-        .firstOrNull
-        ?.account;
+    final counter = _counterFor(q)?.account;
     if (counter == null) return _newCategory != null;
     if (!counter.isCategory || isUncategorized(counter)) return false;
     return !(widget.controller.remembered?.call(
@@ -707,14 +704,27 @@ class _EntryRowState extends State<EntryRow> {
     (made == null ? l.categoryFocus : l.amountFocus).requestFocus();
   }
 
+  /// What Category's [text] names: the option called that, or a category
+  /// whose name is that with an emoji in front ("Groceries" is
+  /// "🛒 Groceries", #486). A transfer's "→ …" only as written.
+  ({String label, AccountInfo account})? _counterFor(String text) {
+    final q = text.trim().toLowerCase();
+    return _counterOptions
+            .where((o) => o.label.toLowerCase() == q)
+            .firstOrNull ??
+        (q.startsWith('→')
+            ? null
+            : _counterOptions
+                  .where((o) => o.account.isCategory && sameName(o.label, q))
+                  .firstOrNull);
+  }
+
   /// A name typed in Category that isn't one yet: saving creates it.
   String? get _newCategory {
     if (_split != null || (_initial?.lockCategory ?? false)) return null;
     final t = _category.text.trim();
     if (t.isEmpty || t.startsWith('→')) return null;
-    final known = _counterOptions.any(
-      (o) => o.label.toLowerCase() == t.toLowerCase(),
-    );
+    final known = _counterOptions.any((o) => sameName(o.label, t));
     return known ? null : t;
   }
 
@@ -813,11 +823,7 @@ class _EntryRowState extends State<EntryRow> {
       raw.replaceFirst(RegExp(r'^\+'), ''),
       _hereCurrency,
     );
-    final counter = _counterOptions
-        .where(
-          (o) => o.label.toLowerCase() == _category.text.trim().toLowerCase(),
-        )
-        .firstOrNull;
+    final counter = _counterFor(_category.text);
     final inflow =
         raw.startsWith('+') || counter?.account.type == AccountType.income;
     if (parsed == null ||
@@ -1112,7 +1118,7 @@ class _EntryRowState extends State<EntryRow> {
     final q = name.trim().toLowerCase();
     final found = widget.categories.where(
       (c) =>
-          c.name.toLowerCase() == q &&
+          sameName(c.name, q) &&
           categoryTakes(c, _hereCurrency) &&
           !isUncategorized(c),
     );
@@ -1704,15 +1710,7 @@ class _EntryRowState extends State<EntryRow> {
     final lockCategory = _initial?.lockCategory ?? false;
     final lockAmount = _lockAmount;
     final date = parseRowDate(_date.text, widget.today);
-    final counter = lockCategory
-        ? null
-        : _counterOptions
-              .where(
-                (o) =>
-                    o.label.toLowerCase() ==
-                    _category.text.trim().toLowerCase(),
-              )
-              .firstOrNull;
+    final counter = lockCategory ? null : _counterFor(_category.text);
     final raw = _amount.text.trim();
     final isInflow =
         raw.startsWith('+') ||
