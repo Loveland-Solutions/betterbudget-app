@@ -11313,5 +11313,51 @@
         "type": "String"
       }
     }
+  },
+  "planBandStepOf": "Step {n} of 4",
+  "@planBandStepOf": {
+    "description": "Budget page, the band under the sum that shows which of the four Savings steps the person is on: read out for the four numbered marks (a screen reader's label, not drawn)",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
+  "planBandNoMonth": "It's a month of your expenses, kept apart.",
+  "@planBandNoMonth": {
+    "description": "Budget page, the band under the sum, under the step's name Build a safety net, while a month of expenses isn't known yet so there is no amount to show: what the safety net is"
+  },
+  "planBandFull": "{category} is full: {amount}, a month of expenses.",
+  "@planBandFull": {
+    "description": "A popup after the band's Assign button on the Budget page filled the Safety net category to a month of expenses (Savings step 1). A fact, not praise",
+    "placeholders": {
+      "category": {
+        "type": "String",
+        "example": "Safety net"
+      },
+      "amount": {
+        "type": "String",
+        "example": "₮2,000,000"
+      }
+    }
+  },
+  "planBandFullMonths": "{category} is full: {amount}, {months} months of expenses.",
+  "@planBandFullMonths": {
+    "description": "A popup after the band's Assign button on the Budget page filled the Safety net category to three to six months of expenses (Savings step 3). A fact, not praise",
+    "placeholders": {
+      "category": {
+        "type": "String",
+        "example": "Safety net"
+      },
+      "amount": {
+        "type": "String",
+        "example": "₮12,000,000"
+      },
+      "months": {
+        "type": "int",
+        "example": "6"
+      }
+    }
   }
 }

@@ -66,6 +66,7 @@ part 'payees.dart';
 part 'register_settings.dart';
 part 'rows_dialog.dart';
 part 'savings.dart';
+part 'savings_band.dart';
 part 'savings_goals.dart';
 part 'savings_payoff.dart';
 part 'setup.dart';
@@ -957,6 +958,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               .then((_) => _splitOldMonths().catchError((Object _) {})),
         ).asyncExpand((_) => db.watchLedger()).map((data) {
           _ensureSafetyNet(data);
+          _keepReached(data);
           // The first look isn't a change; [CloudFolder.load] copies at launch.
           if (_ledgerSeen) _cloud.ledgerChanged(widget.clock);
           _ledgerSeen = true;
@@ -5400,12 +5402,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
         )
       : null;
 
-  /// [label] names it for undo when "Assign [amount]" wouldn't say it.
+  /// [label] names it for undo when "Assign [amount]" wouldn't say it;
+  /// [done] is said in the popup when the amount finished something (it
+  /// filled a Savings step).
   Future<void> _setBudgetAmount(
     AccountInfo c,
     BudgetSpan period,
     int amount, {
     String? label,
+    String? done,
   }) async {
     final t = context.t;
     final data = _data!;
@@ -5441,10 +5446,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _did(
       label ??
           t.planAssignUndo(formatMoney(amount, currency: c.currency), c.name),
-      // Quiet, unless it moved the day the budget began: that's said.
-      toast: moved != null,
+      // Quiet, unless it filled a Savings step or moved the day the
+      // budget began: those are said.
+      toast: moved != null || done != null,
+      // Two whole sentences when it did both; else what was assigned,
+      // then where the budget begins now.
       message: moved == null
-          ? null
+          ? done
+          : done != null
+          ? '$done $moved'
           : '${t.planAssignedTo(formatShort(amount, currency: c.currency), c.name)} · $moved',
       undo: () async {
         await db.restoreBudgetAmounts(c.id, start, end, before);
@@ -6502,6 +6512,34 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// The Safety net was looked for this launch.
   bool _safetyNetAsked = false;
 
+  /// The marks a filled fund step leaves ([ReadyKeys.reached]), kept as
+  /// the ledger changes: the app's own note of what it saw, so there's no
+  /// undo for it and nothing is said. What fails is tried at the next
+  /// change.
+  var _reachedBusy = false;
+  void _keepReached(LedgerData data) {
+    if (_reachedBusy || inSetup(data)) return;
+    final Map<String, String> keep;
+    try {
+      keep = Readiness.of(data, dateOnly(widget.clock())).reachedToKeep;
+    } catch (_) {
+      return;
+    }
+    if (keep.isEmpty) return;
+    _reachedBusy = true;
+    () async {
+      try {
+        for (final MapEntry(:key, :value) in keep.entries) {
+          await db.setPreference(key, value);
+        }
+      } catch (_) {
+        // Left as it was.
+      } finally {
+        _reachedBusy = false;
+      }
+    }();
+  }
+
   /// Safety net is built in (ADR 0004 "Four Savings steps"): a ledger past
   /// setup that has none gets it, once. A category the user made for it
   /// under the build before, or one already called that, becomes it.
@@ -7474,6 +7512,27 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   onShowPeriodRows: (period) =>
                                       _openAll(period: period),
                                   onSetAmount: _setBudgetAmount,
+                                  // In the period today is in, where the
+                                  // band read Not assigned and the net.
+                                  onAssignStep: (category, total, undo, full) =>
+                                      _setBudgetAmount(
+                                        category,
+                                        budgetPeriod(
+                                          dateOnly(widget.clock()),
+                                          data.periodSchedule,
+                                        ),
+                                        total,
+                                        label: undo,
+                                        done: full,
+                                      ),
+                                  onShowSavings: () {
+                                    if (!_mayLeave()) return;
+                                    setState(() {
+                                      _endReconcile();
+                                      _section = AppSection.savings;
+                                      _selected = null;
+                                    });
+                                  },
                                   onStartLater: _startBudgetLater,
                                   onAssignPlanned: _assignPlanned,
                                   onClearAssigned: _clearAssigned,

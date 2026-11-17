@@ -7568,4 +7568,22 @@ class WordsEn extends Words {
   String phoneWaitingCategoryAmount(String amount) {
     return 'new category · $amount';
   }
+
+  @override
+  String planBandStepOf(int n) {
+    return 'Step $n of 4';
+  }
+
+  @override
+  String get planBandNoMonth => 'It\'s a month of your expenses, kept apart.';
+
+  @override
+  String planBandFull(String category, String amount) {
+    return '$category is full: $amount, a month of expenses.';
+  }
+
+  @override
+  String planBandFullMonths(String category, String amount, int months) {
+    return '$category is full: $amount, $months months of expenses.';
+  }
 }

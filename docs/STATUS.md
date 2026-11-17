@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-17** · version 0.100.1 · schema v26 · 1131 tests pass
+**Last updated: 2026-11-17** · version 0.101.0 · schema v26 · 1139 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -12,7 +12,7 @@ not for reading unless the owner asks.
 
 ## Next step
 
-The Budget page (0.92.1–0.100.0). Budgeting by month or by paycheck is chosen in setup's
+The Budget page (0.92.1–0.101.0). Budgeting by month or by paycheck is chosen in setup's
 pay step and in Settings' Budget card, and a month's title is "November 2026" (#474). By
 paycheck, a month's Assigned is kept where each paycheck it pays for is; a paycheck asks
 only its days' share of months still running, a finished period offers no Assign, and
@@ -33,7 +33,7 @@ a note is a mark after the name (#483). A category can start with an emoji: a sp
 each row's name (a + while pointed at) opens every emoji with a search in English and
 Mongolian, the budget's 48 first; Edit, New category and the phone's New category have a
 square before the name; the emoji is the first thing in the name, and sorting and finding
-go by the words (#486). The budget counts income against what goes out, never the bank (#461): a card's payment counts only for what it owed when the budget began, money exchanged leaves one currency and comes into the other, Settings' Budget card has **Had before the budget**, and the Income tab reads "₮… received · ₮… still to come", the same figure as the sum at the top. What's left of #461 is #499. The owner is trying it all. Next: a first-time
+go by the words (#486). The budget counts income against what goes out, never the bank (#461): a card's payment counts only for what it owed when the budget began, money exchanged leaves one currency and comes into the other, Settings' Budget card has **Had before the budget**, and the Income tab reads "₮… received · ₮… still to come", the same figure as the sum at the top. What's left of #461 is #499. The owner is combing the Savings page (#487): under the sum, a band shows the Savings step they're on, its progress, and Savings' own Assign for what is really spare (not spoken for by a plan, last month's amount or a debt's payment, and not pay still to come); a full safety net stays done until it is a tenth short. Next on #487: step 2's extra asked for on the debt's Budget row, then the phone's Budget. After that: a first-time
 setup walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 

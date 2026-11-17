@@ -420,7 +420,9 @@ class _StepRow extends StatelessWidget {
         return [
           if (target > 0 && !noFund) ...[
             fact(
-              r.fund >= target
+              // Done, a little short of a month that has grown since, is
+              // said without "to go": it's within a tenth (#487).
+              r.fund >= target || r.isDone(step)
                   ? t.planFundOf(_here(context, r.fund), _here(context, target))
                   : t.planFundOfToGo(
                       _here(context, r.fund),
@@ -433,7 +435,7 @@ class _StepRow extends StatelessWidget {
             const SizedBox(height: 8),
             _Progress(
               value: r.fund / target,
-              done: r.fund >= target,
+              done: r.fund >= target || r.isDone(step),
               muted: !current && state != ReadyState.done,
             ),
             const SizedBox(height: 8),

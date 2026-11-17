@@ -91,6 +91,17 @@ abstract final class ReadyKeys {
   /// (owner, 2026-10-27). Unset keeps asking its usual part until the
   /// person picks (owner: "a way for the user to choose").
   static String goalLate(int categoryId) => 'ready.goalLate.$categoryId';
+
+  /// The most a fund step has aimed for, in minor units, with the Safety
+  /// net covering it. While the net still holds that much, the step stays
+  /// done until its target has grown past the net by more than a tenth
+  /// (owner, 2026-11-17: raising Groceries a little mustn't send the
+  /// Budget page back a step). Written by the app as it sees the step
+  /// covered and never taken away, so whether a step is done follows only
+  /// from what undo puts back (code review); kept by the step's stored
+  /// name.
+  static String reached(ReadyStep s) => '$reachedPrefix${s.name}';
+  static const reachedPrefix = 'ready.reached.';
 }
 
 /// Whether category [id] is a goal ([ReadyKeys.goal]): marked so, with a
@@ -429,10 +440,14 @@ class Readiness {
     required this.keptThere,
     required this.notAssigned,
     required this.overAssigned,
-    required this.billsToAssign,
+    required this.spokenFor,
+    required this.toCome,
+    required this.currency,
+    required this.reached,
     required this.fundAssigned,
     required this.held,
     required this.fund,
+    required this.fundLeft,
     required this.consumerDebts,
     required this.longLoans,
     required this.monthsTarget,
@@ -523,15 +538,21 @@ class Readiness {
     final free = nowBudget.pools
         .where((p) => p.currency == main)
         .fold(0, (s, p) => s + p.notAssigned);
-    // What each spending category holds today; one overspent holds nothing.
+    // What each spending category holds today, in that same period, so
+    // the safety net is the Left its row shows on the Budget page; one
+    // overspent holds nothing.
     final held = {
-      for (final MapEntry(key: id, value: line) in budget.lines.entries)
+      for (final MapEntry(key: id, value: line) in nowBudget.lines.entries)
         id: line.left > 0 ? line.left : 0,
     };
     final fundCategories = [
       for (final id in fundCategoryIds(data, main)) data.accounts[id]!,
     ];
     final fund = fundCategories.fold(0, (s, c) => s + (held[c.id] ?? 0));
+    final fundLeft = fundCategories.fold(
+      0,
+      (s, c) => s + (nowBudget.lines[c.id]?.left ?? 0),
+    );
     // Where it sits: the account its category is paid from (#180), when
     // there's one category and that's one of several cash and bank
     // accounts.
@@ -547,6 +568,58 @@ class Readiness {
         if (a.id == paidFrom) a,
     ];
     final limited = keptIn.isNotEmpty && keptIn.length < banks.length;
+    // What in Not assigned is already spoken for, so the safety net isn't
+    // offered it (#487).
+    var spokenFor = 0;
+    // The same period a month before: what a category with no plan was
+    // given then is what it will want now (as a month of expenses counts
+    // it), so payday's offer isn't rent's money.
+    final before = budgetPeriod(
+      DateTime(now.start.year, now.start.month - 1, now.start.day),
+      data.periodSchedule,
+    );
+    final lastBudget = before.start.isBefore(now.start)
+        ? Budget.of(data, start: before.start, end: before.end, today: today)
+        : null;
+    for (final MapEntry(key: id, value: line) in nowBudget.lines.entries) {
+      if (line.currency != main || fundCategories.any((c) => c.id == id)) {
+        continue;
+      }
+      // An archived category isn't on the page, and Assign what's planned
+      // passes it over.
+      if (data.accounts[id]?.archived ?? true) continue;
+      if (line.plan == null) {
+        final was = lastBudget?.lines[id]?.assigned ?? 0;
+        if (was > line.assigned) {
+          spokenFor += was - (line.assigned > 0 ? line.assigned : 0);
+        }
+        continue;
+      }
+      // As the Budget page's "Assign what's planned" counts it: the part
+      // that covers a category's overspending takes nothing from Not
+      // assigned, since that already came off.
+      final covers = line.left < 0 ? -line.left : 0;
+      if (line.toAssign > covers) spokenFor += line.toAssign - covers;
+    }
+    // A card or loan paid by transfer, with no category its payments come
+    // out of, never comes off Not assigned: its month's payment (typed on
+    // Savings, else what was paid lately) is kept back.
+    final payments = {
+      for (final a in open)
+        if (a.isOwed) a.id: ?_payment(data, a),
+    };
+    final paidLately = {
+      for (final a in open)
+        if (a.isOwed)
+          if (_paidLately(data, a.id, day) case final v when v > 0) a.id: v,
+    };
+    for (final d in consumer) {
+      final c = Budget.loanCategory(data, d.account.id);
+      if (c != null && !(data.accounts[c]?.deleted ?? true)) continue;
+      final pays =
+          payments[d.account.id]?.amount ?? paidLately[d.account.id] ?? 0;
+      spokenFor += pays < d.owed ? pays : d.owed;
+    }
     final there = keptIn.fold(0, (s, a) => s + data.balanceOf(a.id));
     return Readiness._(
       longMarked: open.any((a) => a.isOwed && long.contains(a.role)),
@@ -571,15 +644,8 @@ class Readiness {
           consumer.where((d) => d.account.id == targetId).firstOrNull ??
           _inOrder(consumer, method, rates).firstOrNull,
       method: method,
-      payments: {
-        for (final a in open)
-          if (a.isOwed) a.id: ?_payment(data, a),
-      },
-      paidLately: {
-        for (final a in open)
-          if (a.isOwed)
-            if (_paidLately(data, a.id, day) case final v when v > 0) a.id: v,
-      },
+      payments: payments,
+      paidLately: paidLately,
       chargedLately: charged,
       extra: typedMonth(data.prefs[ReadyKeys.extra], main) ?? 0,
       mostOwed: {
@@ -605,13 +671,17 @@ class Readiness {
       keptThere: limited ? there.clamp(0, fund) : 0,
       notAssigned: free > 0 ? free : 0,
       overAssigned: free < 0 ? -free : 0,
-      billsToAssign: [
-        for (final line in budget.lines.values)
-          if (line.currency == main &&
-              line.plan?.due != null &&
-              line.plan!.planned > line.assigned)
-            line.plan!.planned - line.assigned,
-      ].fold(0, (s, v) => s + v),
+      spokenFor: spokenFor,
+      toCome: nowBudget.pools
+          .where((p) => p.currency == main)
+          .fold(0, (s, p) => s + p.toCome),
+      currency: main,
+      reached: {
+        for (final s in const [ReadyStep.oneMonth, ReadyStep.moreMonths])
+          if (int.tryParse(data.prefs[ReadyKeys.reached(s)] ?? '') case final v?
+              when v > 0)
+            s: v,
+      },
       // The same period's, since Assign writes its total there: the
       // calendar month's would add an earlier paycheck's amount again.
       fundAssigned: fundCategories.length == 1
@@ -619,6 +689,7 @@ class Readiness {
           : 0,
       held: held,
       fund: fund,
+      fundLeft: fundLeft,
       consumerDebts: consumer,
       longLoans: owed((a) => long.contains(a.role)),
       monthsTarget: months.clamp(3, 6),
@@ -660,32 +731,85 @@ class Readiness {
   /// not all be there (owner, 2026-10-26: keep the check, and say so).
   final int overAssigned;
 
-  /// What this month's bills on the Budget page still ask to be assigned:
-  /// the safety net isn't offered their money (budget review, 2026-10-26).
-  final int billsToAssign;
+  /// What in Not assigned is already spoken for in the period the Budget
+  /// page is on today, so the safety net isn't offered it (budget review,
+  /// 2026-10-26, for dated bills; all of this since 2026-11-17, #487):
+  /// what every other category's plan still asks, bills and everyday
+  /// amounts alike; for a category with no plan, what it was given in the
+  /// same period a month before and hasn't been yet; and the month's
+  /// payment on a card or loan that no category pays.
+  final int spokenFor;
+
+  /// Pay the period still expects: it counts in Not assigned before it
+  /// has come, and the safety net must be money that is there.
+  final int toCome;
 
   /// What [step]'s Assign offers the safety net: what's not assigned less
-  /// the bills' share, no more than fills it; 0 while a month isn't known.
+  /// what is spoken for or hasn't come yet, whichever is more (pay to come
+  /// can cover the plans), no more than fills it; 0 while a month isn't
+  /// known.
   int offerFor(ReadyStep step) {
-    final toGo = targetOf(step) - fund;
-    if (targetOf(step) == 0 || toGo <= 0) return 0;
-    final spare = notAssigned - billsToAssign;
-    return spare <= 0 ? 0 : (spare < toGo ? spare : toGo);
+    final toGo = targetOf(step) - fundLeft;
+    // Not to a step that is done, a little short or not: the next fund
+    // step makes the offer, so the page never shows two.
+    if (targetOf(step) == 0 || toGo <= 0 || isDone(step)) return 0;
+    final spare = notAssigned - (spokenFor > toCome ? spokenFor : toCome);
+    if (spare >= toGo) return toGo;
+    // Short of filling it, whole units: "Assign ₮1,904,909.50" reads as a
+    // sum someone has to check.
+    return spare <= 0 ? 0 : spare - spare % currency.scale;
+  }
+
+  /// The currency Savings counts in ([savingsCurrency]).
+  final Currency currency;
+
+  /// What each fund step aimed for when the net first covered it
+  /// ([ReadyKeys.reached]).
+  final Map<ReadyStep, int> reached;
+
+  /// A fund step: the net covers it, or covered it once, still holds that
+  /// much, and is no more than a tenth short of what the step asks now.
+  bool _fundDone(ReadyStep s) {
+    final target = targetOf(s);
+    if (target <= 0 || !hasFund) return false;
+    if (fund >= target) return true;
+    final was = reached[s];
+    return was != null && fund >= was && fund * 10 >= target * 9;
+  }
+
+  /// The [ReadyKeys.reached] notes to write now: a step the net covers
+  /// gets its target, when that is more than the note holds. A note is
+  /// never taken away: one the net no longer holds says nothing, and
+  /// taking it away would be something ⌘Z couldn't put back. Empty when
+  /// nothing is to be written.
+  Map<String, String> get reachedToKeep {
+    final out = <String, String>{};
+    for (final s in const [ReadyStep.oneMonth, ReadyStep.moreMonths]) {
+      final target = targetOf(s), was = reached[s];
+      if (target <= 0 || !hasFund || fund < target) continue;
+      if (was == null || target > was) out[ReadyKeys.reached(s)] = '$target';
+    }
+    return out;
   }
 
   /// Assigned to the safety net's category in the period the Budget page
   /// is on today (a pay period when one is set), where Assign writes.
   final int fundAssigned;
 
-  /// What each spending category holds today, never below zero.
+  /// What each spending category holds today, in the period the Budget
+  /// page is on today, never below zero.
   final Map<int, int> held;
   int heldIn(int categoryId) => held[categoryId] ?? 0;
 
   /// There is a category for it.
   bool get hasFund => fundCategories.isNotEmpty;
 
-  /// What's left in the safety net's category.
+  /// What's left in the safety net's category, never below zero.
   final int fund;
+
+  /// The same with its sign: below zero when the net is overspent, which
+  /// an amount assigned has to cover before any of it is saved.
+  final int fundLeft;
 
   /// Cards and loans owing, smallest first: debt to pay off unless marked a
   /// mortgage, or a card paid in full every month.
@@ -1052,8 +1176,7 @@ class Readiness {
   };
 
   bool isDone(ReadyStep s) => switch (s) {
-    ReadyStep.oneMonth ||
-    ReadyStep.moreMonths => targetOf(s) > 0 && hasFund && fund >= targetOf(s),
+    ReadyStep.oneMonth || ReadyStep.moreMonths => _fundDone(s),
     ReadyStep.consumerDebt => consumerDebts.isEmpty,
     ReadyStep.future => retirement && mortgageDone,
   };

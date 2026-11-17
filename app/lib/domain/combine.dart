@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'forecast.dart' show ForecastSpan;
+import 'readiness.dart' show ReadyKeys;
 import 'ledger.dart'
     show
         alreadyInDays,
@@ -1653,6 +1654,17 @@ class _Combine {
         if ('${there['value']}'.compareTo('${here['value']}') < 0) {
           _update('preferences', there);
         }
+        continue;
+      }
+      // A filled Savings step's note (#487), written by each computer as
+      // it saw the net full: it only says how much the net once covered,
+      // so the larger stands and nobody is asked.
+      if (k.startsWith(ReadyKeys.reachedPrefix) &&
+          here != null &&
+          there != null) {
+        final mine = int.tryParse('${here['value']}') ?? 0;
+        final theirs = int.tryParse('${there['value']}') ?? 0;
+        if (theirs > mine) _update('preferences', there);
         continue;
       }
       _stop('the setting $k changed on both');
