@@ -12,7 +12,7 @@ not for reading unless the owner asks.
 
 ## Next step
 
-The Budget page (0.92.1–0.98.0). Budgeting by month or by paycheck is chosen in setup's
+The Budget page (0.92.1–0.99.0). Budgeting by month or by paycheck is chosen in setup's
 pay step and in Settings' Budget card, and a month's title is "November 2026" (#474). By
 paycheck, a month's Assigned is kept where each paycheck it pays for is; a paycheck asks
 only its days' share of months still running, a finished period offers no Assign, and
@@ -29,7 +29,11 @@ tooltip, so those rows are one height (#471). Each section's name is a line abov
 take the whole width, and stays at the top while they scroll, with Assigned, Spent and
 Left fixed over the list (#482, #489). Every row is one line, 40 points: after the name, one spot holds a warning, else
 the Assign link, else the bar, the plan's sentence is in their tooltips and in Edit, and
-a note is a mark after the name (#483). The owner is trying it all. Next: a first-time
+a note is a mark after the name (#483). A category can start with an emoji: a spot before
+each row's name (a + while pointed at) opens every emoji with a search in English and
+Mongolian, the budget's 48 first; Edit, New category and the phone's New category have a
+square before the name; the emoji is the first thing in the name, and sorting and finding
+go by the words (#486). The owner is trying it all. Next: a first-time
 setup walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 

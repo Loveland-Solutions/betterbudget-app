@@ -4676,6 +4676,53 @@ class WordsMn extends Words {
   String get planEditName => 'Нэр';
 
   @override
+  String get emojiChoose => 'Эможи сонгох';
+
+  @override
+  String get emojiChange => 'Эможиг солих';
+
+  @override
+  String get emojiGroupBudget => 'Төсөвт';
+
+  @override
+  String get emojiGroupSmileys => 'Царай, сэтгэл';
+
+  @override
+  String get emojiGroupPeople => 'Хүмүүс';
+
+  @override
+  String get emojiGroupNature => 'Амьтан, байгаль';
+
+  @override
+  String get emojiGroupFood => 'Хоол, ундаа';
+
+  @override
+  String get emojiGroupTravel => 'Аялал, газар';
+
+  @override
+  String get emojiGroupActivities => 'Спорт, зугаа';
+
+  @override
+  String get emojiGroupObjects => 'Эд зүйлс';
+
+  @override
+  String get emojiGroupSymbols => 'Тэмдэг';
+
+  @override
+  String get emojiGroupFlags => 'Туг';
+
+  @override
+  String get emojiFind => 'Эможи хайх: мах, машин, бэлэг…';
+
+  @override
+  String emojiNoneFound(String typed) {
+    return '“$typed” гэсэн эможи олдсонгүй.';
+  }
+
+  @override
+  String get emojiNone => 'Эможигүй';
+
+  @override
   String planFundOverAssigned(String amount) {
     return 'Төсөвт хэт их хуваарилсан дүн: $amount.';
   }

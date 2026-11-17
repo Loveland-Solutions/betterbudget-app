@@ -6812,3 +6812,41 @@ for it, width can't.** A heading goes above what it heads, never in a side colum
   `RenderHeadedSection`).
 - Assigned, Spent and Left stay fixed over the list.
 
+## A category's emoji, picked on its Budget row (owner, 2026-11-17, #486)
+
+The owner (2026-11-16): "I want to make an optional emoticon chooser for the first part of
+the budget category." Offered three sketches, they chose **C**, and that the phone picks
+one too. Shown a short list of 48, they asked for more (2026-11-17): "I want to be able to
+use every emoji. There should be a search funciton".
+
+- **On the Budget page, before each category's name, a spot for its emoji.** A row with
+  none shows a + there while the pointer is on it; a click opens the list, and the pick
+  renames the category, with undo and redo. A click on an emoji there opens the list to
+  change it. The spot is kept on every row, emoji or not, so names line up.
+- **Edit and the New category window have a square before the name** that opens the same
+  list. An emoji typed at the start of the name (the Mac's or Windows' emoji panel) moves
+  into the square: it's the one picked, never a second.
+- **The list is every emoji, with a box to find one.** The box finds by English or
+  Mongolian words ("мах" and "meat" both find meat), a word that is just what was typed
+  first, and Enter takes the first. First in the list, **For a budget**: 48 for what a
+  household spends on (Tsagaan Sar's buuz, school fees, money sent home among them, from
+  the budget review); then Unicode's groups, each with a button above the list that jumps
+  to it. No emoji, at its foot, shows only while there's one to take off. Esc or a click
+  away closes it as it was. It opens under the spot, or over it, kept inside the window.
+- **The words come from Unicode** (emoji-test.txt and CLDR's English and Mongolian names),
+  built into the app by `tool/gen_emoji.py`; nothing is fetched. Left out: skin tones and
+  other variants of one emoji, and emoji newer than Emoji 13.1, which an older Windows or
+  Android draws as an empty box. The emoji are drawn by the system's own font, so a Mac,
+  Windows and Android draw them a little differently. CLDR's Mongolian names are a draft
+  for Tanan's check like the app's own (#90).
+- **The phone's New category page has the square too**, opening the same list from the
+  bottom of the screen, its box waiting for a tap so the keyboard doesn't cover the list;
+  an emoji typed from the phone's keyboard moves into the square the same way.
+- **The emoji is the first thing in the name**, nothing stored apart, so it shows wherever
+  the name does (the ledger's Category column, the menus, the phone) and the file needs no
+  upgrade. Sorting and finding go by the words: 🛒 Groceries sorts under G, typing "gro"
+  finds it first, and typing "Groceries" picks it rather than making another category.
+- *Rejected:* **A**, the square in Edit and New category only, with no spot on the row
+  (recommended: no width taken from every row); **B**, every emoji with an English-only
+  search, in place of the short list. What was built takes B's every emoji, searched in
+  both languages, with the short list first.

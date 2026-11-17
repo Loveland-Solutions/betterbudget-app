@@ -33,6 +33,7 @@ class _BudgetPage extends StatefulWidget {
     required this.onSave,
     required this.onArchive,
     required this.onDelete,
+    required this.onEmoji,
     required this.onPay,
     required this.onAskAgain,
     required this.onAdd,
@@ -66,6 +67,10 @@ class _BudgetPage extends StatefulWidget {
   final void Function(AccountInfo, _CategoryEdit) onSave;
   final ValueChanged<AccountInfo> onArchive;
   final ValueChanged<AccountInfo> onDelete;
+
+  /// An emoji was picked before a category's name, or taken off (null):
+  /// the category is renamed (#486).
+  final void Function(AccountInfo c, String? emoji) onEmoji;
 
   /// Skip this bill, on a category's line: the bill's date and what the
   /// category has left (#357).
@@ -324,7 +329,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         final (da, db) = (dueOf(a), dueOf(b));
         if (da != null && db != null && da != db) return da.compareTo(db);
         if ((da == null) != (db == null)) return da == null ? 1 : -1;
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        return compareNames(a.name, b.name);
       });
     }
 
@@ -678,6 +683,7 @@ class _BudgetPageState extends State<_BudgetPage> {
         onClose: () => open(null),
         onPlan: () => open(c.id, atPlan: true),
         onDelete: () => widget.onDelete(c),
+        onEmoji: (e) => widget.onEmoji(c, e),
         flags: line == null
             ? const []
             : _lineFlags(
@@ -2547,6 +2553,7 @@ class _CategoryRow extends StatefulWidget {
     required this.onClose,
     required this.onPlan,
     required this.onDelete,
+    required this.onEmoji,
     this.line,
     this.ahead,
     this.planNote,
@@ -2585,6 +2592,9 @@ class _CategoryRow extends StatefulWidget {
   final VoidCallback onOpen;
   final VoidCallback onClose;
   final VoidCallback onDelete;
+
+  /// An emoji picked in the spot before the name, or null to take it off.
+  final ValueChanged<String?> onEmoji;
 
   /// More to say under the name (the accounts it's limited to,
   /// rows that couldn't be counted), each with what a click does.
@@ -2771,6 +2781,17 @@ class _CategoryRowState extends State<_CategoryRow> {
               ),
               child: Row(
                 children: [
+                  // Its emoji, chosen here (#486, sketch C): the spot is
+                  // kept on every row so names line up, and shows a +
+                  // while the pointer is on a row with none.
+                  EmojiButton(
+                    key: ValueKey('emoji-${c.id}'),
+                    emoji: splitEmoji(c.name).emoji,
+                    showEmpty: _hover,
+                    enabled: !widget.open,
+                    onPick: widget.onEmoji,
+                  ),
+                  const SizedBox(width: 8),
                   // Its name, then the one spot that says what the row
                   // needs (#483): never a second line.
                   Expanded(
@@ -2940,6 +2961,8 @@ class _NameAndSpot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = category;
+    // The emoji is drawn in its own spot before this (#486).
+    final words = splitEmoji(c.name).rest;
     final scaler = MediaQuery.textScalerOf(context);
     // Measured as a Text draws it: over the page's own text style, whose
     // spacing a bare style would leave out, and the name came out cut.
@@ -2982,7 +3005,7 @@ class _NameAndSpot extends StatelessWidget {
         final width = box.maxWidth;
         final note = c.note;
         final nameWide =
-            wide(c.name, nameStyle) + (note == null ? 0 : _noteMark);
+            wide(words, nameStyle) + (note == null ? 0 : _noteMark);
         // The name's column: the same down the list, so every bar and
         // every word after a name starts at one place; a bill's is as
         // wide as its name.
@@ -3026,11 +3049,11 @@ class _NameAndSpot extends StatelessWidget {
               (x.$2.tip ?? '').contains(planText ?? '\u0000'),
         );
         final nameTip = [
-          if (cut) c.name,
+          if (cut) words,
           if (planText != null && !carried) planText!,
         ].join('\n');
         final name = Text(
-          c.name,
+          words,
           maxLines: 1,
           softWrap: false,
           overflow: TextOverflow.ellipsis,
@@ -5079,7 +5102,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   AccountInfo get _cat => widget.isNew
       ? AccountInfo(
           id: widget.category.id,
-          name: _name.text.trim(),
+          name: _fullName,
           type: AccountType.expense,
           currency: _currency,
         )
@@ -5158,6 +5181,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   @override
   void initState() {
     super.initState();
+    _name.addListener(_takeTypedEmoji);
     final saved = _savedPlan;
     final onceWas = _p.onceStart;
     _p.onceStart = _onceStartFor(
@@ -5236,6 +5260,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   @override
   void dispose() {
     _reveal?.cancel();
+    _name.removeListener(_takeTypedEmoji);
     if (widget.keep == null) _d.dispose();
     _nameFocus.dispose();
     _amountFocus.dispose();
@@ -5268,10 +5293,32 @@ class _CategoryEditorState extends State<_CategoryEditor> {
     keepOnceStart: _isGoal,
   );
 
+  /// The name as it will be saved: the square's emoji, then the words.
+  String get _fullName => withEmoji(_d.emoji, _name.text.trim());
+
+  /// An emoji typed or pasted at the start of the name (the Mac's or
+  /// Windows' emoji panel) goes into the square, so it's the one picked
+  /// rather than a second (#486).
+  void _takeTypedEmoji() {
+    final s = splitEmoji(_name.text);
+    final e = s.emoji;
+    if (e == null) return;
+    _name.value = TextEditingValue(
+      text: s.rest,
+      selection: TextSelection.collapsed(offset: s.rest.length),
+    );
+    if (mounted) {
+      setState(() => _d.emoji = e);
+    } else {
+      _d.emoji = e;
+    }
+  }
+
   Future<void> _save({bool another = false}) async {
     if (_done) return;
-    final name = _name.text.trim();
-    if (name.isEmpty || (widget.nameNote?.call(name)?.blocks ?? false)) {
+    final name = _fullName;
+    if (_name.text.trim().isEmpty ||
+        (widget.nameNote?.call(name)?.blocks ?? false)) {
       setState(() => _tried = true);
       _nameFocus.requestFocus();
       return;
@@ -6171,7 +6218,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         final typedName = _name.text.trim();
         final taken = typedName.isEmpty
             ? null
-            : widget.nameNote?.call(typedName);
+            : widget.nameNote?.call(_fullName);
         final String? nameNote =
             taken?.text ??
             (widget.isNew && _tried && typedName.isEmpty
@@ -6259,6 +6306,18 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
+                                // The name's emoji (#486): picked here or
+                                // typed at the start of the name.
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 2),
+                                  child: EmojiButton(
+                                    key: const ValueKey('edit-emoji'),
+                                    emoji: _d.emoji,
+                                    size: 34,
+                                    onPick: (e) => setState(() => _d.emoji = e),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Tooltip(
                                     message: t.planEditName,
@@ -6361,7 +6420,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                                         Text(
                                           _name.text.trim().isEmpty
                                               ? c.name
-                                              : _name.text.trim(),
+                                              : _fullName,
                                           style: onest(13.5, weight: 600),
                                         ),
                                         if (preview != null)
@@ -6640,12 +6699,16 @@ class _Segmented extends StatelessWidget {
 class _EditDraft {
   _EditDraft(AccountInfo c, DateTime today)
     : id = c.id,
-      name = TextEditingController(text: c.name),
+      name = TextEditingController(text: splitEmoji(c.name).rest),
+      emoji = splitEmoji(c.name).emoji,
       note = TextEditingController(text: c.note ?? ''),
       group = c.budgetGroup,
       p = PlanAnswers(today: today, currency: c.currency)..askStart = true;
   final int id;
+
+  /// The name's words; its emoji is [emoji], in the square before it.
   final TextEditingController name;
+  String? emoji;
   final PlanAnswers p;
 
   /// The bills' switches the person turned in Edit (#365), by date: only

@@ -42,6 +42,7 @@ import '../import/sheet.dart';
 import 'amount_input.dart';
 import 'balance_header.dart';
 import 'category_types.dart';
+import 'emoji_chooser.dart';
 import 'entry_row.dart';
 import 'reconcile.dart';
 import 'recovery_key_screen.dart';
@@ -5764,10 +5765,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Future<void> _saveCategory(AccountInfo c, _CategoryEdit e) async {
     final t = context.t;
     final data = _data!;
-    final renamed = e.name != c.name;
+    // Edit writes a name with an emoji as "🛒 Groceries"; one stored as
+    // "🛒Groceries" that wasn't touched isn't renamed by a Save (#486).
+    final asEdit = withEmoji(splitEmoji(c.name).emoji, splitEmoji(c.name).rest);
+    final renamed = e.name != c.name && e.name != asEdit;
     // A name another category has is a merge: nothing else applies to one
-    // that's gone.
-    if (renamed && _categoryNamed(data, e.name, except: c.id) != null) {
+    // that's gone. Only the emoji changed isn't another name.
+    if (renamed &&
+        nameKey(e.name) != nameKey(c.name) &&
+        _categoryNamed(data, e.name, except: c.id) != null) {
       return _renameCategory(data, c, e.name);
     }
     final oldPlan = data.plans[c.id];
@@ -5897,10 +5903,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       isIncomeName(name) && data.income?.id != except
       ? data.income
       : data.knownCategories
-            .where(
-              (c) =>
-                  c.id != except && c.name.toLowerCase() == name.toLowerCase(),
-            )
+            .where((c) => c.id != except && sameName(c.name, name))
             .firstOrNull;
 
   /// What the New category window says under a name that's taken, and
@@ -5925,9 +5928,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
         blocks: false,
       );
     }
-    final q = name.toLowerCase();
     final account = data.accounts.values
-        .where((a) => !a.isCategory && a.name.toLowerCase() == q)
+        .where((a) => !a.isCategory && sameName(a.name, name))
         .firstOrNull;
     if (account != null) {
       return (text: t.planNameIsAccount(account.name), blocks: true);
@@ -6088,7 +6090,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String name,
   ) async {
     final t = context.t;
-    final other = _categoryNamed(data, name, except: c.id);
+    if (name == c.name) return;
+    // An emoji picked or taken off keeps the words: never a merge, even
+    // with a dollar category of the same words (#486).
+    final other = nameKey(name) == nameKey(c.name)
+        ? null
+        : _categoryNamed(data, name, except: c.id);
     if (other != null) return _deleteCategory(data, c, into: other);
     final old = c.name;
     if (!await _accountWrite(
@@ -7465,6 +7472,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   onSave: _saveCategory,
                                   onArchive: (c) => _archiveCategory(c, true),
                                   onDelete: (c) => _deleteCategory(data, c),
+                                  onEmoji: (c, e) => _renameCategory(
+                                    data,
+                                    c,
+                                    withEmoji(e, splitEmoji(c.name).rest),
+                                  ),
                                   onPay: (p) => _openPaySetup(existing: p),
                                   onAdd: _addCategory,
                                   nameNote: _categoryNameNote,

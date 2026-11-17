@@ -475,7 +475,7 @@ List<PhoneCategory> categoriesMatching(
   if (want.isEmpty) return categories.toList();
   final begins = <PhoneCategory>[], holds = <PhoneCategory>[];
   for (final c in categories) {
-    final name = c.name.toLowerCase();
+    final name = nameKey(c.name);
     if (name.startsWith(want)) {
       begins.add(c);
     } else if (name.contains(want)) {
@@ -488,9 +488,8 @@ List<PhoneCategory> categoriesMatching(
 /// The category already called [name], whatever its capitals: a second one
 /// by the same name is never made.
 PhoneCategory? categoryNamed(Iterable<PhoneCategory> categories, String name) {
-  final want = name.trim().toLowerCase();
   for (final c in categories) {
-    if (c.name.trim().toLowerCase() == want) return c;
+    if (sameName(c.name, name)) return c;
   }
   return null;
 }
@@ -565,7 +564,7 @@ PhoneSnapshot snapshotOf(
   List<AccountInfo> sorted(Iterable<AccountInfo> accounts) =>
       accounts.toList()..sort((a, b) {
         final order = a.sortOrder.compareTo(b.sortOrder);
-        return order != 0 ? order : a.name.compareTo(b.name);
+        return order != 0 ? order : compareNames(a.name, b.name);
       });
 
   // Newest first, to find what each category's latest rows used.
