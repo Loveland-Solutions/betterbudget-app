@@ -6699,6 +6699,9 @@ row to be the same height. Kill the text. Each row should be same height."
 
 ## Budget: section names in the margin (owner, 2026-11-16, #482)
 
+*Its first bullet, the margin, was replaced the same day by "Budget: section names above
+their rows" (#489); the rest stands.*
+
 The owner, on the Spending tab's sections (#469), whose headings were a bold word half a
 point bigger than a row's name: "Have your design people look at this. Bill and
 Day-to-Day should look more like headers. Instead they look almost the same size." The
@@ -6709,7 +6712,8 @@ the owner), and the owner picked **C**.
 - **C, built: each section's name is in a margin on the left** (148 points, 15-point
   bold), beside its first row, and the rows start at the margin's right edge. A thin
   line across the panel, with room above it, parts one section from the next
-  (`MarginSection` in `margin_section.dart`).
+  (`MarginSection` in `margin_section.dart`, now `HeadedSection` in
+  `headed_section.dart`).
 - **The name stays at the top of the list while its rows scroll**, and leaves with its
   section's last row, so the next name pushes it away and two are never stuck at once
   (flow reviewer: deep in Bills, nothing said which section the rows were in). Every
@@ -6777,3 +6781,25 @@ the owner picked **1**, which the layout, flow and words reviewers had each reco
 - *Rejected:* **2**, the bar always, and Assign only on the row under the pointer, as
   Move money is; **3**, every row two lines, the name over the bar and the words (54
   points each).
+
+## Budget: section names above their rows (owner, 2026-11-16, #489)
+
+The owner, on the margin of "Budget: section names in the margin": "they're wasting a lot
+of space. Wasting some space vertically is okay, but wasting it horizontally is a no-no.
+… I know I agreed on it, but I don't like all that dead space. Let's move those headers
+above." **Horizontal room is what the page is short of; a little height can be given up
+for it, width can't.** A heading goes above what it heads, never in a side column.
+
+- **Each section's name is a line of its own above its rows** (15-point bold, as in the
+  margin), and the rows take the panel's whole width, so names and the bar get the 148
+  points the margin held. The line between sections stays, with a little less room
+  round it (16 above, 8 below).
+- **The name still stays at the top of the list while its rows scroll**, and the next
+  section's name pushes it away, as #482 gave. It's drawn on the panel's own color, so
+  the rows going under it don't show through, and a click on it is the name's, not the
+  row's under it. It does nothing when clicked, as before.
+- A field typed in inside a section, asked to be scrolled into view, is brought down by
+  the name's height too, so it doesn't end up under the name (`showOnScreen` in
+  `RenderHeadedSection`).
+- Assigned, Spent and Left stay fixed over the list.
+

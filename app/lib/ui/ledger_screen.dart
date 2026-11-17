@@ -49,7 +49,7 @@ import 'register.dart';
 import 'appearance.dart';
 import 'schemes.dart';
 import 'language.dart';
-import 'margin_section.dart';
+import 'headed_section.dart';
 import 'brand.dart';
 import 'copy_details.dart';
 import 'data_words.dart';
