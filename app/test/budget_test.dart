@@ -575,10 +575,64 @@ void main() {
       pay: [pay],
       more: [acct(savings, 'Savings', AccountType.asset)],
       amounts: [put(food, oct.start, 100)],
-      rows: [move(DateTime(2026, 10, 18), salary, savings, 150000000)],
+      rows: [
+        TxnData(
+          id: nextId++,
+          date: DateTime(2026, 10, 18),
+          payScheduleId: 1,
+          entries: [
+            EntryData(id: nextId++, accountId: salary, amount: -150000000),
+            EntryData(id: nextId++, accountId: savings, amount: 150000000),
+          ],
+        ),
+        // A gift filed under the same Income into Savings is not the pay
+        // (budget review).
+        move(DateTime(2026, 10, 19), salary, savings, 30000000),
+      ],
     );
     final o = of(d, oct).pools.first;
-    expect((o.income, o.toCome), (150000000, 0));
+    expect((o.income, o.toCome), (180000000, 0));
+    final gift = of(
+      ledger(
+        pay: [pay],
+        more: [acct(savings, 'Savings', AccountType.asset)],
+        amounts: [put(food, oct.start, 100)],
+        rows: [move(DateTime(2026, 10, 19), salary, savings, 30000000)],
+      ),
+      oct,
+    ).pools.first;
+    expect((gift.income, gift.toCome), (30000000, 150000000));
+  });
+
+  test('a card added after the budget began: what it owed still counts', () {
+    // Set up on 10.17 with ₮500,000 owed on a new card; the budget began
+    // 10.01. Paying it off is its payment category's spending.
+    const card = 62;
+    final key = '${BudgetKeys.loanPrefix}$card';
+    final b = of(
+      ledger(
+        more: [acct(card, 'Golomt Visa', AccountType.liability)],
+        amounts: [put(housing, oct.start, 50000000)],
+        rows: [
+          move(DateTime(2026, 10, 17), card, opening, 50000000),
+          move(DateTime(2026, 10, 18), checking, card, 50000000),
+        ],
+        prefs: {key: '$housing'},
+      ),
+      oct,
+    );
+    expect(b.lines[housing]!.spent, 50000000);
+  });
+
+  test('exchanged past what there was is its own cause', () {
+    const pool = BudgetPool(
+      currency: Currency.mnt,
+      income: 200000000,
+      fromBefore: 50000000,
+      exchanged: -350000000,
+      notAssigned: -100000000,
+    );
+    expect(pool.shortBy(), const ShortBy(exchanged: 100000000));
   });
 
   test('pay that came early isn\'t expected again from a period ahead', () {

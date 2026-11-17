@@ -4506,13 +4506,13 @@ class WordsMn extends Words {
   }
 
   @override
-  String get planSumHadBefore => 'Төсөв эхлэхээс өмнө байсан';
+  String get planSumHadBefore => 'Төсөв эхлэхэд байсан мөнгө';
 
   @override
   String get planSumExchanged => 'Валют сольсон';
 
   @override
-  String get settingsHadBefore => 'Төсөв эхлэхээс өмнө байсан';
+  String get settingsHadBefore => 'Төсөв эхлэхэд байсан мөнгө';
 
   @override
   String settingsHadBeforeHintOn(String date) {
@@ -4525,12 +4525,12 @@ class WordsMn extends Words {
 
   @override
   String settingsHadBeforeSet(String amount) {
-    return 'Төсөв эхлэхээс өмнө байсан: $amount';
+    return 'Төсөв эхлэхэд байсан мөнгө: $amount';
   }
 
   @override
   String get settingsHadBeforeCleared =>
-      'Төсөв эхлэхээс өмнө байсан мөнгийг хассан';
+      'Төсөв эхлэхэд байсан мөнгийг тоолохоо больсон';
 
   @override
   String get planSumFromPay => 'Өмнөх орлогын үеийн үлдэгдэл';
@@ -4597,6 +4597,11 @@ class WordsMn extends Words {
   @override
   String planKeyOverSpentPart(String amount) {
     return '$amount хэтэрсэн';
+  }
+
+  @override
+  String planKeyOverExchangedPart(String amount) {
+    return '$amount валют сольсон';
   }
 
   @override

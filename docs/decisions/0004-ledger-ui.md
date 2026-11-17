@@ -6861,7 +6861,8 @@ From the leftovers of "The budget counts income against outflow, not the bank".
   payment category, so income was set against ₮1,000,000 for ₮500,000 that left. Now
   what is bought on a card or loan since the budget began counts in its category when
   bought, and paying the card counts in its payment category only for what the card
-  already owed when the budget began, the first payments paying that off. A card paid in
+  already owed when the budget began, the first payments paying that off; a card's or
+  loan's opening balance counts as owed then, whatever day setup dated it. A card paid in
   full each month needs no payment category; what was given to one stays in it, to move
   back. *Rejected:* counting it when paid, with a card's purchases kept in their
   category's Spent but off Not assigned (Groceries would show spending its money didn't
@@ -6870,6 +6871,8 @@ From the leftovers of "The budget counts income against outflow, not the bank".
 - **Money exchanged is gone from one currency and come into the other** (owner: "transfers
   won't be clean between cards of different currencies"). The sum has an **Exchanged**
   box, + in the currency it came into, − in the one it left, only while there is some.
+  Past what there was, it is named under **Short** as "₮1,000,000 exchanged", not as
+  short from October.
 - **Had before the budget** (the owner's words, asked: "sure"). Money already in hand
   when the budget began isn't income, so assigning it read Assigned too much for ever.
   Settings' Budget card has a box for it per currency, saved with undo; it counts as
@@ -6878,8 +6881,10 @@ From the leftovers of "The budget counts income against outflow, not the bank".
   walkthrough (#475) is where a newcomer will meet it.
 - **Pay filed under its category into another account is pay that came** (the owner asked
   whether it was counted but not added; it was added twice until its payday: in Income,
-  and still expected). Now it is that pay's, or, into another account, the pay of that
-  category in the same currency.
+  and still expected). Now a row with its pay picked counts as that pay come, into any
+  account in its currency. A plain Income row into another account is still not the pay:
+  every pay files under the one Income category, so it can't be told from a gift, and "a
+  gift into another account adds to the month" stands (budget review).
 - **The Not categorized tab starts where the budget began** (owner: "yes"), refining
   2026-10-06's "this budget period's rows": every row still waiting since then changes
   From October, so each is listed.

@@ -1103,13 +1103,14 @@ class _BudgetPageState extends State<_BudgetPage> {
         // Spending alone, overspent or not categorized or both, is Over
         // budget (owner's pick, 2026-11-16).
         final overLabel = switch (cause) {
+          ShortBy(exchanged: > 0) => t.planKeyOverMixed,
           ShortBy(carried: 0, assigned: 0) => t.planKeyOverSpent,
           _ when cause.causes > 1 => t.planKeyOverMixed,
           ShortBy(carried: > 0) when byPay => t.planKeyOverCarriedPay,
           ShortBy(carried: > 0) => t.planKeyOverCarriedMonth(beforeMonth),
           _ => t.planKeyOver,
         };
-        final overParts = cause.causes < 2
+        final overParts = cause.causes < 2 && cause.exchanged == 0
             ? null
             : [
                 if (cause.carried > 0)
@@ -1119,6 +1120,8 @@ class _BudgetPageState extends State<_BudgetPage> {
                           short(cause.carried),
                           beforeMonth,
                         ),
+                if (cause.exchanged > 0)
+                  t.planKeyOverExchangedPart(short(cause.exchanged)),
                 if (cause.assigned > 0)
                   t.planKeyOverAssignedPart(short(cause.assigned)),
                 if (cause.spent > 0) t.planKeyOverSpentPart(short(cause.spent)),

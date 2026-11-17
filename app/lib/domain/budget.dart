@@ -435,15 +435,23 @@ class BudgetPool {
   ShortBy shortBy({int ahead = 0}) {
     if (notAssigned >= 0) return const ShortBy();
     final short = -notAssigned;
-    final there = income + toCome + fromBefore + hadBefore + exchanged;
+    // Money exchanged out is its own cause, after what the periods before
+    // left short (budget review): not "short from October".
+    final out = exchanged < 0 ? -exchanged : 0;
+    final there = income + toCome + fromBefore + hadBefore + exchanged + out;
     final carried = there < 0 ? min(-there, short) : 0;
-    final past = (assigned + ahead - max(there, 0))
+    final exchangedPart = (out - max(there, 0))
         .clamp(0, short - carried)
         .toInt();
-    final rest = short - carried - past;
+    final left = max(there - out, 0);
+    final past = (assigned + ahead - left)
+        .clamp(0, short - carried - exchangedPart)
+        .toInt();
+    final rest = short - carried - exchangedPart - past;
     final loosePart = min(rest, loose);
     return ShortBy(
       carried: carried,
+      exchanged: exchangedPart,
       assigned: past,
       spent: rest - loosePart,
       loose: loosePart,
@@ -458,7 +466,11 @@ class ShortBy {
     this.assigned = 0,
     this.spent = 0,
     this.loose = 0,
+    this.exchanged = 0,
   });
+
+  /// Money exchanged into another currency, past what there was (#461).
+  final int exchanged;
 
   /// Left short by the periods before, more than this period's income.
   final int carried;
@@ -472,26 +484,28 @@ class ShortBy {
   /// Money out with no category, past what wasn't assigned.
   final int loose;
 
-  int get total => carried + assigned + spent + loose;
+  int get total => carried + exchanged + assigned + spent + loose;
 
   /// How many of the four are in it.
   int get causes =>
-      [carried, assigned, spent, loose].where((v) => v > 0).length;
+      [carried, exchanged, assigned, spent, loose].where((v) => v > 0).length;
 
   @override
   bool operator ==(Object other) =>
       other is ShortBy &&
       other.carried == carried &&
+      other.exchanged == exchanged &&
       other.assigned == assigned &&
       other.spent == spent &&
       other.loose == loose;
 
   @override
-  int get hashCode => Object.hash(carried, assigned, spent, loose);
+  int get hashCode => Object.hash(carried, exchanged, assigned, spent, loose);
 
   @override
   String toString() =>
-      'ShortBy(carried: $carried, assigned: $assigned, spent: $spent, '
+      'ShortBy(carried: $carried, exchanged: $exchanged, assigned: $assigned, '
+      'spent: $spent, '
       'loose: $loose)';
 }
 
@@ -729,13 +743,21 @@ class Budget {
       for (final t in data.txns) {
         if (t.scheduled) continue;
         final d = dateOnly(t.date);
+        // An opening balance is owed from before, whatever day it's dated:
+        // setup dates it the day it's typed, often after the budget's
+        // first day (budget review).
+        final opening = t.entries.any(
+          (x) =>
+              data.accounts[x.accountId]?.name == openingBalancesAccountName &&
+              data.accounts[x.accountId]?.type == AccountType.equity,
+        );
         final money = t.entries.any((x) {
           final a = data.accounts[x.accountId];
           return x.amount < 0 && x.currency == c && a != null && counts(a, c);
         });
         for (final x in t.entries) {
           if (x.accountId != loan || x.currency != c) continue;
-          if (d.isBefore(starts)) {
+          if (d.isBefore(starts) || opening) {
             owed -= x.amount;
           } else if (x.amount > 0 && money) {
             paid.add((d: d, id: t.id, amount: x.amount));
@@ -894,7 +916,14 @@ class Budget {
         }
         if (a.type == AccountType.equity && a.name == currencyExchangeName) {
           // Into the exchange is out of this currency, and out of it is in.
-          tally(exchBefore, exchIn, x.currency, d, -x.amount, out: x.amount > 0);
+          tally(
+            exchBefore,
+            exchIn,
+            x.currency,
+            d,
+            -x.amount,
+            out: x.amount > 0,
+          );
           continue;
         }
         if (a.type == AccountType.income) {
@@ -2352,13 +2381,12 @@ PeriodPay periodPay(
 }) {
   final day = dateOnly(today);
   final expected = <Currency, int>{}, toCome = <Currency, int>{};
-  // Each schedule's pay that came in the period: rows tied to it, and
-  // money filed under its category into an account, as typed or imported
-  // pay is (it isn't tied to the payday). Into its own account it is that
-  // pay's; into another, the pay of that category in the same currency,
-  // so pay put into savings isn't still expected and counted twice
-  // (#461). Money in that isn't filed under a pay's category takes
-  // nothing off the pay still due.
+  // Each schedule's pay that came in the period: rows tied to it, into
+  // any of its currency's money (#461: pay picked on a row that went into
+  // savings isn't still expected), and money filed under its category into
+  // its own account, as typed or imported pay is. Plain Income into
+  // another account, a gift, takes nothing off the pay still due: every
+  // pay files under the one Income category (budget review).
   final tied = <int, int>{};
   final moneyAt = {for (final a in data.balanceSheetAccounts) a.id: a};
   Currency? currencyOf(PaySchedule p) => data.accounts[p.accountId]?.currency;
@@ -2385,9 +2413,7 @@ PeriodPay periodPay(
     if (mine.isEmpty) continue;
     for (final e in x.entries) {
       if (e.amount <= 0 || moneyAt[e.accountId] == null) continue;
-      final p =
-          mine.where((p) => p.accountId == e.accountId).firstOrNull ??
-          mine.where((p) => currencyOf(p) == e.currency).firstOrNull;
+      final p = mine.where((p) => p.accountId == e.accountId).firstOrNull;
       if (p != null) tied[p.id] = (tied[p.id] ?? 0) + e.amount;
     }
   }

@@ -236,7 +236,10 @@ class _BudgetSettings extends StatelessWidget {
           Text(t.settingsBudgetTitle, style: onest(16, weight: 600)),
           if (data.paySchedules.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(t.budgetByHint, style: onest(13, color: Mid.ink2, height: 1.4)),
+            Text(
+              t.budgetByHint,
+              style: onest(13, color: Mid.ink2, height: 1.4),
+            ),
             const SizedBox(height: 12),
             _BudgetByChoice(data: data, onPick: onPick),
             const SizedBox(height: 20),
@@ -331,7 +334,10 @@ class _HadBeforeState extends State<_HadBefore> {
         children: [
           SizedBox(
             width: 180,
-            child: Text(t.settingsHadBefore, style: onest(13.5, color: Mid.ink2)),
+            child: Text(
+              t.settingsHadBefore,
+              style: onest(13.5, color: Mid.ink2),
+            ),
           ),
           SizedBox(
             width: 200,

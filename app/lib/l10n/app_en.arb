@@ -6933,7 +6933,7 @@
       }
     }
   },
-  "settingsHadBeforeCleared": "Had before the budget taken out",
+  "settingsHadBeforeCleared": "Had before the budget no longer counted",
   "@settingsHadBeforeCleared": {
     "description": "Toast after the amount had before the budget is emptied in Settings: it no longer counts."
   },
@@ -7037,6 +7037,15 @@
   "planKeyOverSpentPart": "{amount} overspent",
   "@planKeyOverSpentPart": {
     "description": "Budget page, a part of the line under Short (planKeyOverMixed): what overspent categories took past what was left to assign, like '₮800,000 overspent'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "planKeyOverExchangedPart": "{amount} exchanged",
+  "@planKeyOverExchangedPart": {
+    "description": "Budget page, a part of the line under Short (planKeyOverMixed): money changed into another currency past what was left to give out, like '₮1,000,000 exchanged' (#461). Shown even when it is the only cause.",
     "placeholders": {
       "amount": {
         "type": "String"

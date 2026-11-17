@@ -4685,7 +4685,8 @@ class WordsEn extends Words {
   }
 
   @override
-  String get settingsHadBeforeCleared => 'Had before the budget taken out';
+  String get settingsHadBeforeCleared =>
+      'Had before the budget no longer counted';
 
   @override
   String get planSumFromPay => 'From the pay period before';
@@ -4752,6 +4753,11 @@ class WordsEn extends Words {
   @override
   String planKeyOverSpentPart(String amount) {
     return '$amount overspent';
+  }
+
+  @override
+  String planKeyOverExchangedPart(String amount) {
+    return '$amount exchanged';
   }
 
   @override

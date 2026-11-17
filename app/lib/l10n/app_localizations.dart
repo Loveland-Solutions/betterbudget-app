@@ -6638,7 +6638,7 @@ abstract class Words {
   /// Toast after the amount had before the budget is emptied in Settings: it no longer counts.
   ///
   /// In en, this message translates to:
-  /// **'Had before the budget taken out'**
+  /// **'Had before the budget no longer counted'**
   String get settingsHadBeforeCleared;
 
   /// Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. As planSumFromMonth, when the Budget page is by pay period.
@@ -6742,6 +6742,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{amount} overspent'**
   String planKeyOverSpentPart(String amount);
+
+  /// Budget page, a part of the line under Short (planKeyOverMixed): money changed into another currency past what was left to give out, like '₮1,000,000 exchanged' (#461). Shown even when it is the only cause.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} exchanged'**
+  String planKeyOverExchangedPart(String amount);
 
   /// Budget page, a part of the line under Short (planKeyOverMixed): money out with no category, past what was left to assign, like '₮50,000 not categorized'.
   ///
