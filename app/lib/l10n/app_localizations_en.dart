@@ -4662,6 +4662,32 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planSumHadBefore => 'Had before the budget';
+
+  @override
+  String get planSumExchanged => 'Exchanged';
+
+  @override
+  String get settingsHadBefore => 'Had before the budget';
+
+  @override
+  String settingsHadBeforeHintOn(String date) {
+    return 'The budget counts the income that comes in from $date on. Money you already had that day doesn’t count until you type it here.';
+  }
+
+  @override
+  String get settingsHadBeforeHintOff =>
+      'The budget counts the income that comes in from the day you first assign money. Money you already had that day doesn’t count until you type it here.';
+
+  @override
+  String settingsHadBeforeSet(String amount) {
+    return 'Had before the budget: $amount';
+  }
+
+  @override
+  String get settingsHadBeforeCleared => 'Had before the budget taken out';
+
+  @override
   String get planSumFromPay => 'From the pay period before';
 
   @override

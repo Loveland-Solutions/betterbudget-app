@@ -1171,6 +1171,29 @@ class _BudgetPageState extends State<_BudgetPage> {
                   hue: Mid.coral,
                 ),
               ),
+            // What they had when the budget began, in the period it began
+            // in (#461); later it is part of From October.
+            if (p.hadBefore != 0)
+              after(
+                p.hadBefore > 0 ? '+' : '−',
+                _SumBox(
+                  key: ValueKey('sum-had$tag'),
+                  label: t.planSumHadBefore,
+                  figure: short(p.hadBefore.abs()),
+                  hue: p.hadBefore > 0 ? Mid.green : null,
+                ),
+              ),
+            // Changed into this currency, or out of it (#461).
+            if (p.exchanged != 0)
+              after(
+                p.exchanged > 0 ? '+' : '−',
+                _SumBox(
+                  key: ValueKey('sum-exchanged$tag'),
+                  label: t.planSumExchanged,
+                  figure: short(p.exchanged.abs()),
+                  hue: p.exchanged > 0 ? Mid.green : null,
+                ),
+              ),
             // Given out and not gone yet: gold, as Still to spend was
             // (owner, 2026-11-14: "Green is income, red is expense",
             // "Let's make still to spend yellow").
@@ -1250,6 +1273,8 @@ class _BudgetPageState extends State<_BudgetPage> {
               p.income != 0 ||
               p.toCome != 0 ||
               p.fromBefore != 0 ||
+              p.hadBefore != 0 ||
+              p.exchanged != 0 ||
               p.assigned != 0 ||
               p.overspent != 0 ||
               p.loose != 0)

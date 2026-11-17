@@ -6850,3 +6850,42 @@ use every emoji. There should be a search funciton".
   (recommended: no width taken from every row); **B**, every emoji with an English-only
   search, in place of the short list. What was built takes B's every emoji, searched in
   both languages, with the short list first.
+
+## Money counted once; exchanges, Had before the budget, and pay into another account (owner, 2026-11-17, #461)
+
+From the leftovers of "The budget counts income against outflow, not the bank".
+
+- **Money out is counted once, when it's spent** (owner's pick of two). Since the budget
+  counts income against outflow, a credit card with a payment category counted twice:
+  ₮500,000 of groceries on the Visa came off Groceries, and paying the Visa came off its
+  payment category, so income was set against ₮1,000,000 for ₮500,000 that left. Now
+  what is bought on a card or loan since the budget began counts in its category when
+  bought, and paying the card counts in its payment category only for what the card
+  already owed when the budget began, the first payments paying that off. A card paid in
+  full each month needs no payment category; what was given to one stays in it, to move
+  back. *Rejected:* counting it when paid, with a card's purchases kept in their
+  category's Spent but off Not assigned (Groceries would show spending its money didn't
+  pay for). This refines "A credit card or loan's payment is budgeted as a category,
+  like rent" (2026-10-05): that is now for a balance carried in.
+- **Money exchanged is gone from one currency and come into the other** (owner: "transfers
+  won't be clean between cards of different currencies"). The sum has an **Exchanged**
+  box, + in the currency it came into, − in the one it left, only while there is some.
+- **Had before the budget** (the owner's words, asked: "sure"). Money already in hand
+  when the budget began isn't income, so assigning it read Assigned too much for ever.
+  Settings' Budget card has a box for it per currency, saved with undo; it counts as
+  income on the day the budget began, a **Had before the budget** box in that period and
+  part of From October after. Empty, it counts nothing, as before. The first-time
+  walkthrough (#475) is where a newcomer will meet it.
+- **Pay filed under its category into another account is pay that came** (the owner asked
+  whether it was counted but not added; it was added twice until its payday: in Income,
+  and still expected). Now it is that pay's, or, into another account, the pay of that
+  category in the same currency.
+- **The Not categorized tab starts where the budget began** (owner: "yes"), refining
+  2026-10-06's "this budget period's rows": every row still waiting since then changes
+  From October, so each is listed.
+- **Not changed:** unfiled pay lowering Income until filed ("I don't really think that
+  needs to be fixed"); a first screen with no income reading ₮0, for the walkthrough
+  (#475). *Rejected:* naming the box **Taken back** when more went back to Not assigned
+  than was assigned in a period ("I hate the taken back idea").
+- **Removed:** `IncomeFit`, `EnvelopeLine.backing` and `BudgetPool.money`, worked out
+  and tested since #461 with nothing drawing them.

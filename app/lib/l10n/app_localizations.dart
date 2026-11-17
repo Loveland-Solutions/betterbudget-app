@@ -6599,6 +6599,48 @@ abstract class Words {
   /// **'From {month}'**
   String planSumFromMonth(String month);
 
+  /// Budget page, the top card's sum, in the period the budget began in: what the person typed in Settings as the money they had then, counted as income that day (owner, 2026-11-17, #461). After it, it is part of From October.
+  ///
+  /// In en, this message translates to:
+  /// **'Had before the budget'**
+  String get planSumHadBefore;
+
+  /// Budget page, the top card's sum: money changed into this currency from another (after a +) or out of it into another (after a −) in the period (owner, 2026-11-17, #461).
+  ///
+  /// In en, this message translates to:
+  /// **'Exchanged'**
+  String get planSumExchanged;
+
+  /// Settings' Budget card: the label of a box for the money the household already had when the budget began, in cash and the bank (#461). The owner's own words.
+  ///
+  /// In en, this message translates to:
+  /// **'Had before the budget'**
+  String get settingsHadBefore;
+
+  /// Settings' Budget card, under Had before the budget, once the budget has begun. {date} is the day it began, like 10.01.
+  ///
+  /// In en, this message translates to:
+  /// **'The budget counts the income that comes in from {date} on. Money you already had that day doesn’t count until you type it here.'**
+  String settingsHadBeforeHintOn(String date);
+
+  /// Settings' Budget card, under Had before the budget, before any money is assigned.
+  ///
+  /// In en, this message translates to:
+  /// **'The budget counts the income that comes in from the day you first assign money. Money you already had that day doesn’t count until you type it here.'**
+  String get settingsHadBeforeHintOff;
+
+  /// Toast after the amount had before the budget is typed in Settings. {amount} with its currency, like ₮2,000,000.
+  ///
+  /// In en, this message translates to:
+  /// **'Had before the budget: {amount}'**
+  String settingsHadBeforeSet(String amount);
+
+  /// Toast after the amount had before the budget is emptied in Settings: it no longer counts.
+  ///
+  /// In en, this message translates to:
+  /// **'Had before the budget taken out'**
+  String get settingsHadBeforeCleared;
+
   /// Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. As planSumFromMonth, when the Budget page is by pay period.
   ///
   /// In en, this message translates to:

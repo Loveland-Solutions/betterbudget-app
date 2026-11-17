@@ -195,15 +195,32 @@ class _SourceNameState extends State<_SourceName> {
 }
 
 /// Settings' Budget card: by month or by a pay's paychecks, the one place
-/// after setup it's switched (owner, 2026-11-16, #474).
+/// after setup it's switched (owner, 2026-11-16, #474); and what the
+/// household had when the budget began, by currency (#461).
 class _BudgetSettings extends StatelessWidget {
-  const _BudgetSettings({required this.data, required this.onPick});
+  const _BudgetSettings({
+    required this.data,
+    required this.onPick,
+    required this.onHadBefore,
+  });
   final LedgerData data;
   final ValueChanged<PaySchedule?> onPick;
+  final void Function(Currency currency, int? amount) onHadBefore;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final main = Budget.currencyOf(data);
+    // The budget's currency, then any other its cash or bank is in.
+    final currencies = <Currency>[main];
+    for (final a in data.accounts.values) {
+      if (Budget.counts(a, a.currency) &&
+          !a.archived &&
+          !currencies.contains(a.currency)) {
+        currencies.add(a.currency);
+      }
+    }
+    final began = data.prefs[BudgetKeys.began];
     return Container(
       key: const ValueKey('settings-budget'),
       width: double.infinity,
@@ -217,10 +234,125 @@ class _BudgetSettings extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(t.settingsBudgetTitle, style: onest(16, weight: 600)),
-          const SizedBox(height: 6),
-          Text(t.budgetByHint, style: onest(13, color: Mid.ink2, height: 1.4)),
-          const SizedBox(height: 12),
-          _BudgetByChoice(data: data, onPick: onPick),
+          if (data.paySchedules.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(t.budgetByHint, style: onest(13, color: Mid.ink2, height: 1.4)),
+            const SizedBox(height: 12),
+            _BudgetByChoice(data: data, onPick: onPick),
+            const SizedBox(height: 20),
+          ] else
+            const SizedBox(height: 12),
+          for (final c in currencies)
+            _HadBefore(
+              key: ValueKey('had-before-${c.code}'),
+              currency: c,
+              amount: int.tryParse(data.prefs[BudgetKeys.hadBefore(c)] ?? ''),
+              onSave: (v) => onHadBefore(c, v),
+            ),
+          Text(
+            began == null
+                ? t.settingsHadBeforeHintOff
+                : t.settingsHadBeforeHintOn(sayDate(t, parseDateKey(began))),
+            style: onest(13, color: Mid.ink2, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One currency's Had before the budget: saved as it is left or
+/// submitted, emptied to take it out.
+class _HadBefore extends StatefulWidget {
+  const _HadBefore({
+    super.key,
+    required this.currency,
+    required this.amount,
+    required this.onSave,
+  });
+  final Currency currency;
+  final int? amount;
+  final ValueChanged<int?> onSave;
+
+  @override
+  State<_HadBefore> createState() => _HadBeforeState();
+}
+
+class _HadBeforeState extends State<_HadBefore> {
+  late final _controller = TextEditingController(text: _shown(widget.amount));
+  final _focus = FocusNode();
+  var _wrong = false;
+
+  String _shown(int? v) =>
+      v == null || v == 0 ? '' : formatWhole(v, widget.currency);
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus) _save();
+    });
+  }
+
+  void _save() {
+    final text = _controller.text.trim();
+    final v = text.isEmpty ? null : parseAmount(text, widget.currency);
+    if (text.isNotEmpty && (v == null || v < 0)) {
+      if (mounted) setState(() => _wrong = true);
+      return;
+    }
+    final now = v == 0 ? null : v;
+    if (now != (widget.amount == 0 ? null : widget.amount)) widget.onSave(now);
+  }
+
+  @override
+  void didUpdateWidget(_HadBefore old) {
+    super.didUpdateWidget(old);
+    // Changed by undo or on another computer; what is being typed stays.
+    if (!_focus.hasFocus && widget.amount != old.amount) {
+      _controller.text = _shown(widget.amount);
+    }
+  }
+
+  @override
+  void dispose() {
+    _save();
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 180,
+            child: Text(t.settingsHadBefore, style: onest(13.5, color: Mid.ink2)),
+          ),
+          SizedBox(
+            width: 200,
+            child: TextField(
+              key: ValueKey('had-before-field-${widget.currency.code}'),
+              controller: _controller,
+              focusNode: _focus,
+              inputFormatters: [GroupedAmount(widget.currency)],
+              style: onest(13.5, color: Mid.ink, tabular: true),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: '0',
+                suffixText: widget.currency.symbol,
+                errorText: _wrong ? '' : null,
+              ),
+              onChanged: (_) {
+                if (_wrong) setState(() => _wrong = false);
+              },
+              onSubmitted: (_) => _save(),
+            ),
+          ),
         ],
       ),
     );

@@ -6899,6 +6899,44 @@
       }
     }
   },
+  "planSumHadBefore": "Had before the budget",
+  "@planSumHadBefore": {
+    "description": "Budget page, the top card's sum, in the period the budget began in: what the person typed in Settings as the money they had then, counted as income that day (owner, 2026-11-17, #461). After it, it is part of From October."
+  },
+  "planSumExchanged": "Exchanged",
+  "@planSumExchanged": {
+    "description": "Budget page, the top card's sum: money changed into this currency from another (after a +) or out of it into another (after a −) in the period (owner, 2026-11-17, #461)."
+  },
+  "settingsHadBefore": "Had before the budget",
+  "@settingsHadBefore": {
+    "description": "Settings' Budget card: the label of a box for the money the household already had when the budget began, in cash and the bank (#461). The owner's own words."
+  },
+  "settingsHadBeforeHintOn": "The budget counts the income that comes in from {date} on. Money you already had that day doesn’t count until you type it here.",
+  "@settingsHadBeforeHintOn": {
+    "description": "Settings' Budget card, under Had before the budget, once the budget has begun. {date} is the day it began, like 10.01.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsHadBeforeHintOff": "The budget counts the income that comes in from the day you first assign money. Money you already had that day doesn’t count until you type it here.",
+  "@settingsHadBeforeHintOff": {
+    "description": "Settings' Budget card, under Had before the budget, before any money is assigned."
+  },
+  "settingsHadBeforeSet": "Had before the budget: {amount}",
+  "@settingsHadBeforeSet": {
+    "description": "Toast after the amount had before the budget is typed in Settings. {amount} with its currency, like ₮2,000,000.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsHadBeforeCleared": "Had before the budget taken out",
+  "@settingsHadBeforeCleared": {
+    "description": "Toast after the amount had before the budget is emptied in Settings: it no longer counts."
+  },
   "planSumFromPay": "From the pay period before",
   "@planSumFromPay": {
     "description": "Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. As planSumFromMonth, when the Budget page is by pay period."

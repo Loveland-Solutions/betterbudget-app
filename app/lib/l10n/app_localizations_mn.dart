@@ -4506,6 +4506,33 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planSumHadBefore => 'Төсөв эхлэхээс өмнө байсан';
+
+  @override
+  String get planSumExchanged => 'Валют сольсон';
+
+  @override
+  String get settingsHadBefore => 'Төсөв эхлэхээс өмнө байсан';
+
+  @override
+  String settingsHadBeforeHintOn(String date) {
+    return 'Төсөв $date-с хойш орж ирсэн орлогыг тоолно. Тэр өдөр танд аль хэдийн байсан мөнгө энд бичих хүртэл тоологдохгүй.';
+  }
+
+  @override
+  String get settingsHadBeforeHintOff =>
+      'Төсөв анх мөнгө хуваарилсан өдрөөс хойш орж ирсэн орлогыг тоолно. Тэр өдөр танд аль хэдийн байсан мөнгө энд бичих хүртэл тоологдохгүй.';
+
+  @override
+  String settingsHadBeforeSet(String amount) {
+    return 'Төсөв эхлэхээс өмнө байсан: $amount';
+  }
+
+  @override
+  String get settingsHadBeforeCleared =>
+      'Төсөв эхлэхээс өмнө байсан мөнгийг хассан';
+
+  @override
   String get planSumFromPay => 'Өмнөх орлогын үеийн үлдэгдэл';
 
   @override
