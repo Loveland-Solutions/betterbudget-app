@@ -514,8 +514,13 @@ class Readiness {
     // which is a pay period when one is set, not the calendar month
     // (#461: the figure is the period's own now).
     final now = budgetPeriod(day, data.periodSchedule);
-    final free = Budget.of(data, start: now.start, end: now.end, today: today)
-        .pools
+    final nowBudget = Budget.of(
+      data,
+      start: now.start,
+      end: now.end,
+      today: today,
+    );
+    final free = nowBudget.pools
         .where((p) => p.currency == main)
         .fold(0, (s, p) => s + p.notAssigned);
     // What each spending category holds today; one overspent holds nothing.
@@ -607,8 +612,10 @@ class Readiness {
               line.plan!.planned > line.assigned)
             line.plan!.planned - line.assigned,
       ].fold(0, (s, v) => s + v),
+      // The same period's, since Assign writes its total there: the
+      // calendar month's would add an earlier paycheck's amount again.
       fundAssigned: fundCategories.length == 1
-          ? budget.lines[fundCategories.single.id]?.assigned ?? 0
+          ? nowBudget.lines[fundCategories.single.id]?.assigned ?? 0
           : 0,
       held: held,
       fund: fund,
@@ -666,7 +673,8 @@ class Readiness {
     return spare <= 0 ? 0 : (spare < toGo ? spare : toGo);
   }
 
-  /// Assigned to the safety net's category this calendar month.
+  /// Assigned to the safety net's category in the period the Budget page
+  /// is on today (a pay period when one is set), where Assign writes.
   final int fundAssigned;
 
   /// What each spending category holds today, never below zero.
