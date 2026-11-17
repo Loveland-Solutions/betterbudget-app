@@ -6979,7 +6979,20 @@ progress in the Safety net's own row), the owner picked **A** ("A is beautiful")
   full every month" moves the band between steps 2 and 3 as it is bought on and paid;
   the band shows a level, not what went in this paycheck or when it fills at this
   pace.
-- **Still to build:** step 2's extra asked for on the Budget row of the debt being
-  paid extra on, so the band can offer it (the owner, asked: "What do all you super
-  smart people think?"; the reports said yes); the phone's Budget, the progress only.
-
+- **Step 2: the band offers the month's extra** (the owner, asked whether Budget
+  should ask for it: "I don't know. What do all you super smart people think?"; the
+  reports said yes). While Eliminate debt is the step, an extra is typed on Savings,
+  and the debt extra goes to first has a category its payments come out of, the band's
+  button is **Assign ₮300,000 to Khan card payment**: what that category still wants
+  this calendar month (its payment, from its plan or else typed on Savings, and the
+  extra on top, no more than is owed), as far as money is really spare. One click,
+  one undo, into the period today is in. When that debt is paid off the button names
+  the next one's category. No extra typed, no category paying the debt, or no payment
+  known: the step and what is owed, and no button.
+  - **The row's own ask is unchanged.** The sketch's question had "Khan card payment"
+    itself ask ₮250,000 instead of ₮150,000, so Assign what's planned would take the
+    extra too. That changes what a category asks everywhere it is read (the paycheck
+    split, a bill's paid mark, the forecast, the phone, a month of expenses, which
+    would grow by the extra and reopen step 1), so the band asks and the row doesn't.
+    For the owner to see in use.
+- **Still to build:** the phone's Budget, the progress only.

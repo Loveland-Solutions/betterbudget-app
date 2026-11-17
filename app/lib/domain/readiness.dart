@@ -442,6 +442,7 @@ class Readiness {
     required this.overAssigned,
     required this.spokenFor,
     required this.toCome,
+    required this.paidFromCategory,
     required this.currency,
     required this.reached,
     required this.fundAssigned,
@@ -672,6 +673,21 @@ class Readiness {
       notAssigned: free > 0 ? free : 0,
       overAssigned: free < 0 ? -free : 0,
       spokenFor: spokenFor,
+      paidFromCategory: {
+        for (final d in consumer)
+          if (data.accounts[Budget.loanCategory(data, d.account.id)]
+              case final c?
+              when !c.deleted && !c.archived && c.currency == main)
+            d.account.id: (
+              category: c,
+              // What the month asks of it, when it has a plan; and what
+              // it has been given, this calendar month and in the period
+              // the Budget page is on today.
+              planned: budget.lines[c.id]?.plan?.planned,
+              assigned: budget.lines[c.id]?.assigned ?? 0,
+              assignedNow: nowBudget.lines[c.id]?.assigned ?? 0,
+            ),
+      },
       toCome: nowBudget.pools
           .where((p) => p.currency == main)
           .fold(0, (s, p) => s + p.toCome),
@@ -753,11 +769,55 @@ class Readiness {
     // Not to a step that is done, a little short or not: the next fund
     // step makes the offer, so the page never shows two.
     if (targetOf(step) == 0 || toGo <= 0 || isDone(step)) return 0;
-    final spare = notAssigned - (spokenFor > toCome ? spokenFor : toCome);
+    final spare = _spare;
     if (spare >= toGo) return toGo;
     // Short of filling it, whole units: "Assign ₮1,904,909.50" reads as a
     // sum someone has to check.
     return spare <= 0 ? 0 : spare - spare % currency.scale;
+  }
+
+  /// What of Not assigned is really spare: not spoken for, and not pay
+  /// still to come.
+  int get _spare => notAssigned - (spokenFor > toCome ? spokenFor : toCome);
+
+  /// For each debt to pay off whose payments come out of a category: the
+  /// category, what its plan asks this calendar month (null with no
+  /// plan), and what it has been assigned this month and in the period
+  /// the Budget page is on today.
+  final Map<
+    int,
+    ({AccountInfo category, int? planned, int assigned, int assignedNow})
+  >
+  paidFromCategory;
+
+  /// Step 2 on the Budget page (#487): this month's extra, offered to the
+  /// category that pays the debt extra goes to first. What that category
+  /// still wants this calendar month is its payment (its plan's ask, else
+  /// the payment typed on Savings) and the extra on top, no more than is
+  /// owed; of that, what is really spare is offered, in whole units.
+  /// [total] is the category's new amount in the period the Budget page is
+  /// on today. Null with no extra typed, no category paying that debt, no
+  /// payment known, or nothing to offer.
+  ({AccountInfo category, Debt debt, int offer, int total})? get extraOffer {
+    if (extra <= 0) return null;
+    final debt = debtsInOrder.firstOrNull;
+    final from = debt == null ? null : paidFromCategory[debt.account.id];
+    if (debt == null || from == null) return null;
+    final payment = from.planned ?? payments[debt.account.id]?.amount;
+    if (payment == null) return null;
+    var want = payment + extra;
+    if (want > debt.owed) want = debt.owed;
+    final need = want - from.assigned;
+    final spare = _spare;
+    if (need <= 0 || spare <= 0) return null;
+    final offer = spare >= need ? need : spare - spare % currency.scale;
+    if (offer <= 0) return null;
+    return (
+      category: from.category,
+      debt: debt,
+      offer: offer,
+      total: from.assignedNow + offer,
+    );
   }
 
   /// The currency Savings counts in ([savingsCurrency]).

@@ -6994,7 +6994,7 @@ abstract class Words {
   /// **'Not paying extra yet'**
   String get planNotPayingExtraYet;
 
-  /// Savings, steps 1 and 3: a button that assigns money not assigned yet to the Safety net category. An action, not something done
+  /// Savings steps 1 and 3, and the band under the Budget page's sum: a button that assigns money not assigned yet to the Safety net category; on step 2 of the band, this month's extra to the category that pays a card or loan (Khan card payment). An action, not something done
   ///
   /// In en, this message translates to:
   /// **'Assign {amount} to {category}'**
