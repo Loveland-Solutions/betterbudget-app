@@ -2039,11 +2039,17 @@ abstract class Words {
   /// **'Set up regular income: how much, how often, and the account it goes into'**
   String get setupAddPayTip;
 
-  /// Budget page, Income tab, beside the Income line: this period's pay that has come, of what the pay schedules expect in it, per currency (the owner's wording)
+  /// Budget page, Income tab, beside the Income line: this period's pay that has come, and what is still to come, the same figure as the sum at the top's still to come, per currency (refines the owner's received-of-expected wording, #461)
   ///
   /// In en, this message translates to:
-  /// **'{received} received of {expected} expected this period'**
-  String planIncomeExpected(String received, String expected);
+  /// **'{received} received · {toCome} still to come'**
+  String planIncomeToCome(String received, String toCome);
+
+  /// Budget page, Income tab, beside the Income line: this period's pay that has come, when no more is still to come, per currency
+  ///
+  /// In en, this message translates to:
+  /// **'{received} received'**
+  String planIncomeReceived(String received);
 
   /// Budget page, the panel's top row: the second tab, beside Spending; it holds this period's income and the pay that is set up
   ///

@@ -1412,8 +1412,13 @@ class WordsMn extends Words {
       'Тогтмол орлогоо тохируулах: хэд, хэр давтамжтай, аль данс руу орохыг';
 
   @override
-  String planIncomeExpected(String received, String expected) {
-    return 'Энэ үед $received орсон, орох ёстой нь $expected';
+  String planIncomeToCome(String received, String toCome) {
+    return 'Энэ үед $received орсон, цаашид орох: $toCome';
+  }
+
+  @override
+  String planIncomeReceived(String received) {
+    return 'Энэ үед $received орсон';
   }
 
   @override

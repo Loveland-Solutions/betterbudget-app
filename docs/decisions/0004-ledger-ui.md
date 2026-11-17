@@ -1985,7 +1985,15 @@ branch, the last three after the owner's calls the same day.
   period"** (the owner's wording, 2026-10-05), one per currency pay is set
   up in: what the schedules expect in the period (each payday's amount, the
   "or more" floor for pay that varies) against the paydays confirmed in it.
-  It replaced "from pay · other" from the first build.
+  It replaced "from pay · other" from the first build. **Since #461 it
+  says "₮2,500,000 received · ₮2,100,000 still to come"** (just "received"
+  when nothing more is due): "expected" kept a payday that went by without
+  its pay, which the sum at the top no longer counts on, so the line
+  invited a subtraction the page didn't honour. Both budget reviews
+  (2026-11-17) agreed the counting was right and only the line misled;
+  rejected: dropping the line (it is the one place to see whether pay came
+  without opening the Ledger) and counting "received" by account (a salary
+  that plainly arrived would have read ₮0).
 - **The question says what each answer means** (owner, 2026-10-05, on the
   panel's first line: "What happens if there isn't a due date? We can spend
   throughout the month like groceries?"). Beside "Is there a due date?", No

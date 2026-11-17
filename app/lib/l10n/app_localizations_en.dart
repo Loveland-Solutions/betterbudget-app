@@ -1466,8 +1466,13 @@ class WordsEn extends Words {
       'Set up regular income: how much, how often, and the account it goes into';
 
   @override
-  String planIncomeExpected(String received, String expected) {
-    return '$received received of $expected expected this period';
+  String planIncomeToCome(String received, String toCome) {
+    return '$received received · $toCome still to come';
+  }
+
+  @override
+  String planIncomeReceived(String received) {
+    return '$received received';
   }
 
   @override

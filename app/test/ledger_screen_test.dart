@@ -10953,6 +10953,14 @@ void main() {
         ),
         findsOneWidget,
       );
+      // The line adds up the way the sum at the top does: 09.11 went by
+      // with nothing into Cash wallet, so only 09.25 is still to come
+      // (#461).
+      expect(
+        find.text('₮2,500,000 received · ₮2,100,000 still to come'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('₮2,100,000 still to come'), findsNWidgets(2));
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/budget_income_pay.png'),

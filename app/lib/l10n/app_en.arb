@@ -2142,14 +2142,23 @@
   "@setupAddPayTip": {
     "description": "Budget page, Income tab: tooltip on the top-right Add your pay / Add other pay button"
   },
-  "planIncomeExpected": "{received} received of {expected} expected this period",
-  "@planIncomeExpected": {
-    "description": "Budget page, Income tab, beside the Income line: this period's pay that has come, of what the pay schedules expect in it, per currency (the owner's wording)",
+  "planIncomeToCome": "{received} received · {toCome} still to come",
+  "@planIncomeToCome": {
+    "description": "Budget page, Income tab, beside the Income line: this period's pay that has come, and what is still to come, the same figure as the sum at the top's still to come, per currency (refines the owner's received-of-expected wording, #461)",
     "placeholders": {
       "received": {
         "type": "String"
       },
-      "expected": {
+      "toCome": {
+        "type": "String"
+      }
+    }
+  },
+  "planIncomeReceived": "{received} received",
+  "@planIncomeReceived": {
+    "description": "Budget page, Income tab, beside the Income line: this period's pay that has come, when no more is still to come, per currency",
+    "placeholders": {
+      "received": {
         "type": "String"
       }
     }

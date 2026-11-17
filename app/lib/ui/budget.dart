@@ -475,6 +475,7 @@ class _BudgetPageState extends State<_BudgetPage> {
       today: widget.today,
     );
     final expectedPay = pay.expected, fromPay = pay.came;
+    final payToCome = pay.toCome;
     void open(int? id, {bool atPlan = false}) {
       final was = _open;
       setState(() {
@@ -1536,6 +1537,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                                                 ),
                                           fromPay: fromPay,
                                           expectedPay: expectedPay,
+                                          payToCome: payToCome,
                                           onShowRows: income == null
                                               ? null
                                               : () => widget.onShowRows(
@@ -2057,6 +2059,7 @@ class _IncomeTab extends StatelessWidget {
     required this.cameIn,
     required this.fromPay,
     required this.expectedPay,
+    required this.payToCome,
     required this.onShowRows,
     required this.onPay,
     required this.onAskAgain,
@@ -2075,6 +2078,10 @@ class _IncomeTab extends StatelessWidget {
   /// schedules expect.
   final Map<Currency, int> fromPay;
   final Map<Currency, int> expectedPay;
+
+  /// What the sum at the top counts as still to come, so the line adds up
+  /// the same way (#461).
+  final Map<Currency, int> payToCome;
   final VoidCallback? onShowRows;
   final ValueChanged<PaySchedule?> onPay;
   final VoidCallback onAskAgain;
@@ -2093,14 +2100,19 @@ class _IncomeTab extends StatelessWidget {
           : a.name;
     }
 
-    // "₮2,100,000 received of ₮4,200,000 expected this period" (the
-    // owner's words, 2026-10-05), one per currency pay is set up in.
+    // "₮2,500,000 received · ₮2,100,000 still to come", one per currency
+    // pay is set up in. It was "received of expected" (owner, 2026-10-05),
+    // but expected keeps a payday that went by without pay, so the two
+    // didn't add up to the sum at the top (#461, budget reviews).
     final split = [
-      for (final MapEntry(key: c, value: expected) in expectedPay.entries)
-        t.planIncomeExpected(
-          formatShort(fromPay[c] ?? 0, currency: c),
-          formatShort(expected, currency: c),
-        ),
+      for (final c in expectedPay.keys)
+        if ((payToCome[c] ?? 0) > 0)
+          t.planIncomeToCome(
+            formatShort(fromPay[c] ?? 0, currency: c),
+            formatShort(payToCome[c]!, currency: c),
+          )
+        else
+          t.planIncomeReceived(formatShort(fromPay[c] ?? 0, currency: c)),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
