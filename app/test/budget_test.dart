@@ -1557,7 +1557,10 @@ void main() {
         end: p.end,
         today: today,
       ).lines[coffee]!;
-      expect(watch.elapsedMilliseconds, lessThan(200));
+      // Loose enough for a busy machine: GitHub's took 289 and 311 ms where
+      // a Mac takes well under 100 (#505). A walk that redoes every week
+      // for each week is many times past this.
+      expect(watch.elapsedMilliseconds, lessThan(1500));
       // Twenty years of weeks, about ₮5,000 each.
       expect(l.plan!.each, inInclusiveRange(490000, 500000));
     });
