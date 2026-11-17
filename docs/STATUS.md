@@ -41,9 +41,9 @@ Tanan checks it (#90).
 
 | Store | Has | Waiting |
 | --- | --- | --- |
-| Google Play (`mn.lls.betterbudget`) | 0.88.1 (679) on Internal testing; alpha and production sent to Google's review 2026-11-13 | — |
-| Microsoft Store (`9NH3HJNFJN4G`) | 0.88.1, published at the owner's Publish now (2026-11-14) | — |
-| Mac App Store, "The BetterBudget" | 0.72.1 (598), live; free in 174 countries | 0.88.1 (679) in Apple's review, submitted 2026-11-14. The EU's 27 until the owner gives the Digital Services Act trader details (#375), which the EU shows publicly |
+| Google Play (`mn.lls.betterbudget`) | 0.100.0 (731) on Internal testing | 0.100.0 on alpha and production, sent to Google's review 2026-11-17 |
+| Microsoft Store (`9NH3HJNFJN4G`) | 0.88.1, published at the owner's Publish now (2026-11-14) | 0.100.0 in certification since 2026-11-17, then the owner's Publish now |
+| Mac App Store, "The BetterBudget" | 0.88.1 (679), live; free in 174 countries | 0.100.0 (731) in Apple's review, submitted by the API key 2026-11-17. The EU's 27 until the owner gives the Digital Services Act trader details (#375), which the EU shows publicly |
 | iPhone App Store, same record | Nothing yet; TestFlight has 0.73.1 (604) | 0.73.1 in Apple's review, resubmitted 2026-11-12 with a screen recording and answers in its Review Notes, after a Guideline 2.1 "information needed" rejection. A check with Google Drive on a real iPhone is on #114 |
 
 Listings lead with building wealth (ADR 0004); Play's and the Microsoft Store's follow
