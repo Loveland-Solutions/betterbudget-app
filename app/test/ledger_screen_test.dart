@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/database.dart';
@@ -17,6 +18,7 @@ import 'package:betterbudget/import/mapping.dart' show ImportRow, importKeys;
 import 'package:betterbudget/ui/appearance.dart';
 import 'package:betterbudget/ui/brand.dart';
 import 'package:betterbudget/ui/fit_window.dart';
+import 'package:betterbudget/ui/headed_section.dart';
 import 'package:betterbudget/ui/schemes.dart';
 import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
@@ -216,11 +218,11 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('reconcile')));
       await tester.pumpAndSettle();
       // In the smallest window the sidebar's sections are a scroll away.
-      await tester.ensureVisible(find.text('Budget'));
+      await reveal(tester, find.text('Budget'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Savings'));
+      await reveal(tester, find.text('Savings'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Savings'));
       await tester.pumpAndSettle();
@@ -773,7 +775,7 @@ void main() {
 
     // A step's menu works by keys: Enter opens it, Enter picks.
     final menu = find.byKey(const ValueKey('step-future-menu'));
-    await tester.ensureVisible(menu);
+    await reveal(tester, menu);
     await tester.pumpAndSettle();
     Focus.of(
       tester.element(
@@ -810,7 +812,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     Future<void> press(Finder f) async {
-      await tester.ensureVisible(f);
+      await reveal(tester, f);
       await tester.pumpAndSettle();
       await tester.tap(f);
       await tester.pumpAndSettle();
@@ -994,18 +996,15 @@ void main() {
     await tester.pumpAndSettle();
     final heading = find.byKey(const ValueKey('budget-saved'));
     final row = find.byKey(ValueKey('category-${net.id}'));
-    await tester.ensureVisible(row);
+    await reveal(tester, row);
     await tester.pumpAndSettle();
     expect(heading, findsOneWidget);
-    // Saved is named in the margin, beside its row (#482).
+    // Saved is named above its row, the two starting level (#489).
     expect(
       tester.getTopLeft(row).dy,
-      greaterThanOrEqualTo(tester.getTopLeft(heading).dy),
+      greaterThanOrEqualTo(tester.getBottomLeft(heading).dy),
     );
-    expect(
-      tester.getTopLeft(row).dx,
-      greaterThan(tester.getTopLeft(heading).dx),
-    );
+    expect(tester.getTopLeft(row).dx, tester.getTopLeft(heading).dx);
     final groceries = find.byKey(
       ValueKey(
         'category-${data.categories.firstWhere((c) => c.name == 'Groceries').id}',
@@ -1026,18 +1025,18 @@ void main() {
     // Another category's Edit does (owner, 2026-10-26): No leaves it out,
     // and ⌘Z puts it back.
     final gid = data.categories.firstWhere((c) => c.name == 'Groceries').id;
-    await tester.ensureVisible(find.byKey(ValueKey('category-menu-$gid')));
+    await reveal(tester, find.byKey(ValueKey('category-menu-$gid')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(ValueKey('category-menu-$gid')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('category-edit')));
     await tester.pumpAndSettle();
     expect(find.text('In a month of expenses?'), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const ValueKey('plan-in-month-no')));
+    await reveal(tester, find.byKey(const ValueKey('plan-in-month-no')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('plan-in-month-no')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+    await reveal(tester, find.byKey(const ValueKey('edit-save')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('edit-save')));
     await settle(tester);
@@ -1777,7 +1776,7 @@ void main() {
     expect(find.text('Unitel'), findsNothing);
 
     final salary = find.text('Altan Gadas LLC', skipOffstage: false);
-    await tester.ensureVisible(salary);
+    await reveal(tester, salary);
     await tester.pumpAndSettle();
     await tester.tap(salary);
     await tester.pumpAndSettle();
@@ -1948,7 +1947,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     final atm = find.text('ATM', skipOffstage: false);
-    await tester.ensureVisible(atm);
+    await reveal(tester, atm);
     await tester.pumpAndSettle();
     await tester.tap(atm);
     await tester.pumpAndSettle();
@@ -2104,7 +2103,7 @@ void main() {
     });
     await settle(tester);
     final nomin = find.text('Номин', skipOffstage: false);
-    await tester.ensureVisible(nomin);
+    await reveal(tester, nomin);
     await tester.pumpAndSettle();
     await tester.tap(nomin);
     await tester.pumpAndSettle();
@@ -2924,7 +2923,7 @@ void main() {
         });
 
     final salary = find.text('Altan Gadas LLC', skipOffstage: false);
-    await tester.ensureVisible(salary);
+    await reveal(tester, salary);
     await tester.pumpAndSettle();
     await tester.tap(salary);
     await tester.pumpAndSettle();
@@ -3026,7 +3025,7 @@ void main() {
         .ancestor(of: f, matching: find.byType(MenuItemButton))
         .evaluate()
         .isNotEmpty) {
-      await tester.ensureVisible(f);
+      await reveal(tester, f);
       await tester.pumpAndSettle();
     }
     await tester.tap(f);
@@ -3581,7 +3580,7 @@ void main() {
           of: find.byType(MenuItemButton),
           matching: find.text(name),
         );
-        await tester.ensureVisible(item);
+        await reveal(tester, item);
         await tester.pumpAndSettle();
         await tapAndWait(tester, item);
       }
@@ -3788,7 +3787,7 @@ void main() {
         of: find.byType(MenuItemButton),
         matching: find.text('Income'),
       );
-      await tester.ensureVisible(income);
+      await reveal(tester, income);
       await tester.pumpAndSettle();
       await tapAndWait(tester, income);
       expect(find.text('Filed under Income'), findsOneWidget);
@@ -4564,7 +4563,7 @@ void main() {
 
     // Reconciled rows can't move.
     final salary = find.text('Altan Gadas LLC', skipOffstage: false);
-    await tester.ensureVisible(salary);
+    await reveal(tester, salary);
     await tester.pumpAndSettle();
     await tester.tap(salary);
     await tester.pumpAndSettle();
@@ -4869,7 +4868,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('settings')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const ValueKey('new-ledger')));
+    await reveal(tester, find.byKey(const ValueKey('new-ledger')));
     await tester.pumpAndSettle();
 
     // Cancel changes nothing.
@@ -5016,7 +5015,7 @@ void main() {
           )
           .last,
     );
-    await tester.ensureVisible(skytel);
+    await reveal(tester, skytel);
     await tester.pumpAndSettle();
     // The 09.10 reconcile passed over it: that, not its age, is the doubt.
     expect(
@@ -5511,7 +5510,7 @@ void main() {
     // Not this bill on the half puts the whole bill back, and undo the rest.
     await tapAndWait(tester, find.text('All').first);
     await tapAndWait(tester, find.text('Univision').first);
-    await tester.ensureVisible(find.byKey(const ValueKey('not-this-bill')));
+    await reveal(tester, find.byKey(const ValueKey('not-this-bill')));
     await tester.pumpAndSettle();
     await tapAndWrite(tester, find.byKey(const ValueKey('not-this-bill')));
     expect(await coming(), [
@@ -5690,11 +5689,11 @@ void main() {
       of: find.byKey(ValueKey('category-editor-$id')),
       matching: find.byType(Switch),
     );
-    await tester.ensureVisible(flip);
+    await reveal(tester, flip);
     await tester.pumpAndSettle();
     await tester.tap(flip);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+    await reveal(tester, find.byKey(const ValueKey('edit-save')));
     await tapAndWrite(tester, find.byKey(const ValueKey('edit-save')));
   }
 
@@ -5823,7 +5822,7 @@ void main() {
       of: find.byKey(ValueKey('category-editor-$id')),
       matching: find.byType(Switch),
     );
-    await tester.ensureVisible(flip);
+    await reveal(tester, flip);
     await tester.pumpAndSettle();
     expect(tester.widget<Switch>(flip).value, isTrue);
     await tester.tap(flip);
@@ -6943,7 +6942,7 @@ void main() {
       final choice = find.byKey(
         ValueKey(pay == null ? 'budget-by-month' : 'budget-by-$pay'),
       );
-      await tester.ensureVisible(choice);
+      await reveal(tester, choice);
       await tester.pumpAndSettle();
       await tapAndWait(tester, choice);
       await settle(tester);
@@ -6967,7 +6966,7 @@ void main() {
       // Under the income card (#234) a lower row can sit below the list's
       // edge.
       if (find.text(name).hitTestable().evaluate().isEmpty) {
-        await tester.ensureVisible(find.text(name));
+        await reveal(tester, find.text(name));
         await tester.pumpAndSettle();
       }
       await tester.tap(find.text(name), buttons: kSecondaryButton);
@@ -7443,7 +7442,7 @@ void main() {
       await settle(tester);
       await openBudget(tester);
       final assign = find.byKey(ValueKey('plan-assign-${bill.category}'));
-      await tester.ensureVisible(assign);
+      await reveal(tester, assign);
       await tester.pumpAndSettle();
       await tester.runAsync(() async {
         await tester.tap(assign);
@@ -8212,8 +8211,8 @@ void main() {
         ValueKey('category-row-$laptop'),
         const ValueKey('budget-saved'),
       ];
-      // A section's name is in the margin beside its first row (#482), so
-      // the two start level.
+      // A section's name is above its first row (#489), and they start at
+      // the same place across.
       for (var i = 1; i < order.length; i++) {
         expect(
           top(order[i - 1]),
@@ -8223,8 +8222,9 @@ void main() {
       }
       expect(
         tester.getTopLeft(find.byKey(order[1])).dx,
-        lessThan(tester.getTopLeft(find.byKey(order[2])).dx),
+        tester.getTopLeft(find.byKey(order[2])).dx,
       );
+      expect(top(order[1]), lessThan(top(order[2])));
       expect(top(order[2]), lessThan(top(order[3])));
       // No line under a name says what its Left is (#482).
       expect(find.textContaining('Left is what'), findsNothing);
@@ -8249,6 +8249,7 @@ void main() {
       String preview() =>
           tester.widget<Text>(find.byKey(const ValueKey('plan-preview'))).data!;
       Future<void> type(String key, String text) async {
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.enterText(
           find.descendant(
             of: find.byKey(ValueKey(key)),
@@ -8265,6 +8266,7 @@ void main() {
       // A click that writes to the database: in real time, so each write
       // in a chain gets its turn.
       Future<void> click(String key) async {
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.runAsync(() async {
           await tester.tap(find.byKey(ValueKey(key)));
           await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -8276,6 +8278,7 @@ void main() {
 
       // A choice that makes Edit taller: it scrolls until Save is in view.
       Future<void> pick(String key) async {
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.tap(find.byKey(ValueKey(key)));
         await tester.pump(const Duration(milliseconds: 300));
         await tester.pumpAndSettle();
@@ -8469,6 +8472,8 @@ void main() {
       expect(find.byKey(ValueKey('used-$clothing')), findsNothing);
       // Nor the safety net under Saved: it fills rather than empties.
       expect(find.byKey(ValueKey('used-${id('Safety net')}')), findsNothing);
+      // The list at its top, where no section's name is stuck over rows.
+      await shown(tester, find.byKey(ValueKey('category-row-$groceries')));
       double top(Key k) => tester.getTopLeft(find.byKey(k)).dy;
       // In sections by type (#469): Day-to-day, then Bills, which says
       // once what its Left is; Clothing (due 12.31) before Tuition
@@ -8557,7 +8562,7 @@ void main() {
       // (#404, code review).
       await editCategory(tester, 'Groceries');
       expect(data.plans[groceries]!.spentEach, isTrue);
-      await tester.ensureVisible(find.byKey(const ValueKey('plan-type-fund')));
+      await reveal(tester, find.byKey(const ValueKey('plan-type-fund')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('plan-type-fund')));
       await tester.pumpAndSettle();
@@ -8568,9 +8573,7 @@ void main() {
       // And back again, which is the way the Safety net has to come after
       // the v25 upgrade decided for it.
       await editCategory(tester, 'Groceries');
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('plan-type-dayToDay')),
-      );
+      await reveal(tester, find.byKey(const ValueKey('plan-type-dayToDay')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('plan-type-dayToDay')));
       await tester.pumpAndSettle();
@@ -8580,7 +8583,7 @@ void main() {
 
       // Groceries no longer carries over; Esc on another leaves it alone.
       await editCategory(tester, 'Groceries');
-      await tester.ensureVisible(find.byKey(const ValueKey('plan-carry-off')));
+      await reveal(tester, find.byKey(const ValueKey('plan-carry-off')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('plan-carry-off')));
       await tester.pumpAndSettle();
@@ -8593,7 +8596,7 @@ void main() {
         findsWidgets,
       );
       // Clothing saves for a date, so it sits under Bills, lower down.
-      await tester.ensureVisible(find.byKey(ValueKey('plan-note-$clothing')));
+      await reveal(tester, find.byKey(ValueKey('plan-note-$clothing')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('plan-note-$clothing')));
       await tester.pumpAndSettle();
@@ -8618,6 +8621,7 @@ void main() {
       Future<void> reload() async =>
           data = (await tester.runAsync(db.loadLedger))!;
       Future<void> type(String key, String text) async {
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.enterText(
           find.descendant(
             of: find.byKey(ValueKey(key)),
@@ -8631,7 +8635,7 @@ void main() {
       }
 
       Future<void> pick(String key) async {
-        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.tap(find.byKey(ValueKey(key)));
         await tester.pump(const Duration(milliseconds: 300));
         await tester.pumpAndSettle();
@@ -8659,13 +8663,13 @@ void main() {
       await pick('plan-ends-count');
       await type('plan-end-count', '3');
       // The whole panel in the picture, from its heading.
-      await tester.ensureVisible(find.byKey(const ValueKey('edit-name')));
+      await reveal(tester, find.byKey(const ValueKey('edit-name')));
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(LedgerScreen),
         matchesGoldenFile('goldens/budget_plan_custom.png'),
       );
-      await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+      await reveal(tester, find.byKey(const ValueKey('edit-save')));
       await tester.pumpAndSettle();
       await tester.runAsync(() async {
         await tester.tap(find.byKey(const ValueKey('edit-save')));
@@ -8718,7 +8722,7 @@ void main() {
           .firstWhere((a) => a.name == 'TDB Checking')
           .id;
       Future<void> pick(String key) async {
-        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(ValueKey(key)));
         await tester.pump(const Duration(milliseconds: 300));
@@ -8726,6 +8730,7 @@ void main() {
       }
 
       Future<void> type(String key, String text) async {
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.enterText(
           find.descendant(
             of: find.byKey(ValueKey(key)),
@@ -8739,7 +8744,7 @@ void main() {
       }
 
       Future<void> save() async {
-        await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+        await reveal(tester, find.byKey(const ValueKey('edit-save')));
         await tester.pumpAndSettle();
         await tester.runAsync(() async {
           await tester.tap(find.byKey(const ValueKey('edit-save')));
@@ -8817,6 +8822,7 @@ void main() {
       Future<void> reload() async =>
           data = (await tester.runAsync(db.loadLedger))!;
       Future<void> type(String key, String text) async {
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.enterText(
           find.descendant(
             of: find.byKey(ValueKey(key)),
@@ -8830,9 +8836,10 @@ void main() {
       }
 
       Future<void> pick(String key) async {
+        await shown(tester, find.byKey(ValueKey(key)));
         // The panel can reach past the window's edge (the goal question
         // makes it taller).
-        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await reveal(tester, find.byKey(ValueKey(key)));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(ValueKey(key)));
         await tester.pump(const Duration(milliseconds: 300));
@@ -8841,7 +8848,7 @@ void main() {
 
       Future<void> save() async {
         // The panel can have grown past the window's edge (Custom…).
-        await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+        await reveal(tester, find.byKey(const ValueKey('edit-save')));
         await tester.pumpAndSettle();
         await tester.runAsync(() async {
           await tester.tap(find.byKey(const ValueKey('edit-save')));
@@ -8861,7 +8868,7 @@ void main() {
       await type('plan-date', '2027.01.15');
       // Opened low in the list, the panel's lower rows can sit under the
       // window's edge until it scrolls.
-      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await reveal(tester, find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
       // One control for the account (#180): TDB Checking, its Paid
       // from, is where the bill is scheduled.
@@ -8924,7 +8931,7 @@ void main() {
       Future<void> reload() async =>
           data = (await tester.runAsync(db.loadLedger))!;
       Future<void> type(String key, String text) async {
-        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.pumpAndSettle();
         await tester.enterText(
           find.descendant(
@@ -8939,7 +8946,7 @@ void main() {
       }
 
       Future<void> pick(String key) async {
-        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(ValueKey(key)));
         await tester.pump(const Duration(milliseconds: 300));
@@ -8947,7 +8954,7 @@ void main() {
       }
 
       Future<void> save() async {
-        await tester.ensureVisible(find.byKey(const ValueKey('edit-save')));
+        await reveal(tester, find.byKey(const ValueKey('edit-save')));
         await tester.pumpAndSettle();
         await tester.runAsync(() async {
           await tester.tap(find.byKey(const ValueKey('edit-save')));
@@ -8969,7 +8976,7 @@ void main() {
       await pick('category-group-new');
       await type('category-new-group', 'Family');
       await type('category-note', 'Birthdays and Tsagaan Sar');
-      await tester.ensureVisible(find.byKey(const ValueKey('edit-name')));
+      await reveal(tester, find.byKey(const ValueKey('edit-name')));
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(LedgerScreen),
@@ -9327,6 +9334,7 @@ void main() {
         int account(String name) =>
             data.openAccounts.firstWhere((a) => a.name == name).id;
         Future<void> click(String key) async {
+          await shown(tester, find.byKey(ValueKey(key)));
           await tester.runAsync(() async {
             await tester.tap(find.byKey(ValueKey(key)));
             await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -9437,9 +9445,7 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('All accounts'), findsNothing);
-        await tester.ensureVisible(
-          find.byKey(const ValueKey('money-accounts')),
-        );
+        await reveal(tester, find.byKey(const ValueKey('money-accounts')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('money-accounts')));
         await tester.pumpAndSettle();
@@ -9465,9 +9471,7 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('edit-cancel')));
         await tester.pumpAndSettle();
         await editCategory(tester, 'Groceries');
-        await tester.ensureVisible(
-          find.byKey(const ValueKey('money-accounts')),
-        );
+        await reveal(tester, find.byKey(const ValueKey('money-accounts')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('money-accounts')));
         await tester.pumpAndSettle();
@@ -9543,9 +9547,7 @@ void main() {
           '120',
         );
         // Edit is taller than the window now: its heading row is above.
-        await tester.ensureVisible(
-          find.byKey(const ValueKey('money-currency')),
-        );
+        await reveal(tester, find.byKey(const ValueKey('money-currency')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('money-currency')));
         await tester.pumpAndSettle();
@@ -9564,9 +9566,7 @@ void main() {
           'not assigned',
         );
         // In tugrik it's paid from a tugrik account, asked for again.
-        await tester.ensureVisible(
-          find.byKey(const ValueKey('money-accounts')),
-        );
+        await reveal(tester, find.byKey(const ValueKey('money-accounts')));
         await tester.pumpAndSettle();
         expect(find.text('Choose an account'), findsOneWidget);
         await tester.tap(find.byKey(const ValueKey('money-accounts')));
@@ -9717,7 +9717,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Its menu, from a right-click or ⋯, is Edit and Delete.
-      await tester.ensureVisible(find.text('Coffee'));
+      await reveal(tester, find.text('Coffee'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Coffee'), buttons: kSecondaryButton);
       await tester.pumpAndSettle();
@@ -9755,7 +9755,7 @@ void main() {
       final edit = find.byKey(ValueKey('category-editor-$coffee'));
       Future<void> doubleClick() async {
         // Edit, taller with its type cards, can leave the row scrolled away.
-        await tester.ensureVisible(row);
+        await reveal(tester, row);
         await tester.pumpAndSettle();
         // On its name: with the sections' margin (#482) the row's middle
         // is its Assigned, where a click types an amount.
@@ -9794,7 +9794,8 @@ void main() {
       await settle(tester);
       expect(find.text('Coffee & tea'), findsNothing);
       await tester.pump(const Duration(seconds: 7)); // the toast goes
-      await tester.ensureVisible(
+      await reveal(
+        tester,
         find.byKey(const ValueKey('show-archived-categories')),
       );
       await tester.pumpAndSettle();
@@ -9802,7 +9803,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Coffee & tea'), findsOneWidget);
       // Under the key card the list runs past the window: scrolled to.
-      await tester.ensureVisible(find.text('Show in menus'));
+      await reveal(tester, find.text('Show in menus'));
       await tester.pumpAndSettle();
       await tapAndWait(tester, find.text('Show in menus'));
       expect(
@@ -9997,7 +9998,7 @@ void main() {
         ),
         '50000',
       );
-      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await reveal(tester, find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
@@ -10182,6 +10183,7 @@ void main() {
       Future<LedgerData> load() async =>
           (await tester.runAsync(db.loadLedger))!;
       Future<void> type(String key, String text) async {
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.enterText(
           find.descendant(
             of: find.byKey(ValueKey(key)),
@@ -10231,7 +10233,7 @@ void main() {
       final tdb = (await load()).balanceSheetAccounts
           .firstWhere((a) => a.name == 'TDB Checking')
           .id;
-      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await reveal(tester, find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
       await tap('money-accounts');
       await tap('money-account-$tdb');
@@ -10295,6 +10297,7 @@ void main() {
       Future<LedgerData> load() async =>
           (await tester.runAsync(db.loadLedger))!;
       Future<void> type(String key, String text) async {
+        await shown(tester, find.byKey(ValueKey(key)));
         await tester.enterText(
           find.descendant(
             of: find.byKey(ValueKey(key)),
@@ -10308,7 +10311,7 @@ void main() {
       }
 
       Future<void> tap(String key) async {
-        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await reveal(tester, find.byKey(ValueKey(key)));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(ValueKey(key)));
         await settle(tester);
@@ -10395,7 +10398,7 @@ void main() {
 
       // Car repairs opens on Fund: its Edit asks what it holds at most
       // once there's an amount, and nothing about month's end.
-      await tester.ensureVisible(find.text('Car repairs'));
+      await reveal(tester, find.text('Car repairs'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Car repairs'));
       await tester.pump(const Duration(milliseconds: 60));
@@ -10432,14 +10435,14 @@ void main() {
           .data!;
       // One dollar account: it's named.
       await editCategory(tester, 'Car insurance');
-      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await reveal(tester, find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
       expect(paidFrom(), 'AFCU Checking');
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
       // Several tugrik accounts: the one it's paid from (#180).
       await editCategory(tester, 'Groceries');
-      await tester.ensureVisible(find.byKey(const ValueKey('money-accounts')));
+      await reveal(tester, find.byKey(const ValueKey('money-accounts')));
       await tester.pumpAndSettle();
       expect(paidFrom(), 'TDB Checking');
       await tidy(tester, db);
@@ -10551,7 +10554,8 @@ void main() {
       // all time.
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(
+      await reveal(
+        tester,
         find.byKey(ValueKey('category-menu-${groceries.id}')),
       );
       await tester.pumpAndSettle();
@@ -10569,7 +10573,7 @@ void main() {
       // (#273).
       await tester.tap(find.text('Budget'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const ValueKey('total-spent-MNT')));
+      await reveal(tester, find.byKey(const ValueKey('total-spent-MNT')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('total-spent-MNT')));
       await tester.pumpAndSettle();
@@ -11619,7 +11623,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('settings')));
     await tester.pumpAndSettle();
     final card = find.byKey(const ValueKey('recent-problems'));
-    await tester.ensureVisible(card);
+    await reveal(tester, card);
     await tester.pumpAndSettle();
     expect(
       find.descendant(
@@ -12333,7 +12337,7 @@ void main() {
       of: find.byType(MenuItemButton),
       matching: find.text('Bank fees'),
     );
-    await tester.ensureVisible(fees);
+    await reveal(tester, fees);
     await tester.pumpAndSettle();
     await tapAndWait(tester, fees);
     expect(find.text('Filed under Bank fees'), findsOneWidget);
@@ -13625,7 +13629,7 @@ void main() {
         of: find.byType(MenuItemButton),
         matching: find.text('Phone & internet'),
       );
-      await tester.ensureVisible(phone);
+      await reveal(tester, phone);
       await tester.pumpAndSettle();
       Focus.of(tester.element(phone)).requestFocus();
       await tester.pumpAndSettle();
@@ -13799,7 +13803,7 @@ void main() {
         of: find.byType(MenuItemButton),
         matching: find.text('Phone & internet'),
       );
-      await tester.ensureVisible(phone);
+      await reveal(tester, phone);
       await tester.pumpAndSettle();
       await tester.tap(phone);
       await tester.pumpAndSettle();
@@ -13982,7 +13986,7 @@ void main() {
         of: find.byType(MenuItemButton),
         matching: find.text('Phone & internet'),
       );
-      await tester.ensureVisible(phone);
+      await reveal(tester, phone);
       await tester.pumpAndSettle();
       await tapAndWait(tester, phone);
       expect(find.byKey(const ValueKey('toast-more')), findsOneWidget);
@@ -14000,7 +14004,7 @@ void main() {
       }
       await tester.tap(find.text('Categorize'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(phone);
+      await reveal(tester, phone);
       await tester.pumpAndSettle();
       await tapAndWait(tester, phone);
       expect(find.byKey(const ValueKey('toast-more')), findsNothing);
@@ -14031,7 +14035,7 @@ void main() {
         of: find.byType(MenuItemButton),
         matching: find.text('Household'),
       );
-      await tester.ensureVisible(household);
+      await reveal(tester, household);
       await tester.pumpAndSettle();
       await tester.tap(household);
       await tester.pumpAndSettle();
@@ -14247,4 +14251,32 @@ class _KeptBackups extends Backups {
     kept++;
     return File('kept');
   }
+}
+
+/// Scrolls [f] into view as `tester.ensureVisible` does, to the top of
+/// the lists it's in; inside a Budget section, a little further, so it
+/// sits under the section's name staying at the top (#489) rather than
+/// behind it.
+Future<void> reveal(WidgetTester tester, Finder f) async {
+  final element = tester.element(f);
+  await Scrollable.ensureVisible(element);
+  final section = element.findAncestorRenderObjectOfType<RenderHeadedSection>();
+  if (section == null) return;
+  final position = Scrollable.of(element).position;
+  final name = section.firstChild!.size.height;
+  position.jumpTo(math.max(position.minScrollExtent, position.pixels - name));
+}
+
+/// What a person does before clicking [f]: scrolls only if it can't be
+/// clicked where it is, then waits for the scroll.
+Future<void> shown(WidgetTester tester, Finder f) async {
+  final box = tester.renderObject(f.first) as RenderBox;
+  if (box.attached && box.hasSize) {
+    final at = box.localToGlobal(box.size.center(Offset.zero));
+    final hit = HitTestResult();
+    tester.binding.hitTestInView(hit, at, tester.view.viewId);
+    if (hit.path.any((e) => identical(e.target, box))) return;
+  }
+  await reveal(tester, f);
+  await tester.pumpAndSettle();
 }

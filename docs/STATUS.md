@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-16** · version 0.97.1 · schema v26 · 1124 tests pass
+**Last updated: 2026-11-17** · version 0.97.2 · schema v26 · 1124 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -25,9 +25,9 @@ when that is spending (#470, #464). Every category's bar is the same length, a s
 in three colors showing what's left of its own money, and a category that had nothing has
 none; the phone's ring follows, from its next Play build (#465). No line sits under a
 category's Left: "from before" is gone, and a paycheck spent ahead says so in Left's
-tooltip, so those rows are one height (#471). Each section's name is in a margin on the left and
-stays in place while its rows scroll, with Assigned, Spent and Left fixed over the list
-(#482). Every row is one line, 40 points: after the name, one spot holds a warning, else
+tooltip, so those rows are one height (#471). Each section's name is a line above its rows, which
+take the whole width, and stays at the top while they scroll, with Assigned, Spent and
+Left fixed over the list (#482, #489). Every row is one line, 40 points: after the name, one spot holds a warning, else
 the Assign link, else the bar, the plan's sentence is in their tooltips and in Edit, and
 a note is a mark after the name (#483). The owner is trying it all. Next: a first-time
 setup walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until

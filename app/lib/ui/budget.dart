@@ -147,7 +147,7 @@ class _BudgetPageState extends State<_BudgetPage> {
   /// its row's, not to the top of the window (#163).
   final _dots = <int, FocusNode>{};
 
-  /// The Spending list's, which the section names in its margin follow.
+  /// The Spending list's, which the section names over its rows follow.
   final _listScroll = ScrollController();
   FocusNode _dotsOf(int id) =>
       _dots.putIfAbsent(id, () => FocusNode(debugLabel: 'category-menu'));
@@ -804,19 +804,22 @@ class _BudgetPageState extends State<_BudgetPage> {
       ),
     );
 
-    // A type's section (#469), named in the margin beside its first row
-    // (owner's pick C of three, 2026-11-16, #482: "Bill and Day-to-Day
-    // should look more like headers. Instead they look almost the same
-    // size"). Saved, the safety net's (null), is a section too. No line
-    // under it saying what Left is there: a subtitle, which the owner
-    // sent back the same day (#471).
+    // A type's section (#469), named above its rows (owner, 2026-11-16,
+    // #489: "wasting it horizontally is a no-no. … Let's move those headers
+    // above"; before it, #482's margin on the left). Bold and bigger than a
+    // row's name ("Bill and Day-to-Day should look more like headers").
+    // Saved, the safety net's (null), is a section too. No line under it
+    // saying what Left is there: a subtitle, which the owner sent back the
+    // same day (#471). The panel's color behind it, so rows scrolling
+    // under it while it stays at the top don't show through.
     Widget sectionName(CategoryType? type) => Container(
       key: ValueKey(
         type == null ? 'budget-saved' : 'budget-section-${type.name}',
       ),
-      constraints: const BoxConstraints(minHeight: 40),
+      color: Mid.panel,
+      constraints: const BoxConstraints(minHeight: 36),
       alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: Text(
         type == null ? t.planSaved : typeName(type),
         style: onest(15, weight: 700, color: Mid.ink),
@@ -848,9 +851,9 @@ class _BudgetPageState extends State<_BudgetPage> {
       ];
     }
 
-    // The Spending tab's list. With sections, each is a [MarginSection]:
-    // its name stays at the top of the list while its rows scroll, and a
-    // line across parts it from the one before. With one section there
+    // The Spending tab's list. With sections, each is a [HeadedSection]:
+    // its name over its rows stays at the top of the list while they
+    // scroll, and a line across parts it from the one before. With one section there
     // are no names and the rows run across the panel. Stripes restart at
     // every section and group, first row plain, so the row under a
     // heading looks the same in each.
@@ -869,15 +872,14 @@ class _BudgetPageState extends State<_BudgetPage> {
           if (out.isNotEmpty) {
             out.add(
               Padding(
-                padding: const EdgeInsets.fromLTRB(0, 20, 0, 12),
+                padding: const EdgeInsets.fromLTRB(0, 16, 0, 8),
                 child: Container(height: 1, color: Mid.rule),
               ),
             );
           }
           out.add(
-            MarginSection(
+            HeadedSection(
               key: ValueKey('section-${type?.name ?? 'saved'}'),
-              margin: _sectionMargin,
               scroll: _listScroll,
               name: sectionName(type),
               body: Column(
@@ -1798,8 +1800,6 @@ class _ColumnLines extends CustomPainter {
 /// bar starts at the same place down the list.
 const double _barMax = 180;
 
-/// The margin a section's name sits in, left of its rows (#482).
-const double _sectionMargin = 148;
 const double _barNameShare = 0.42;
 const double _barNameMin = 170;
 const double _barNameMax = 300;
