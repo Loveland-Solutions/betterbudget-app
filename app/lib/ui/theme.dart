@@ -441,11 +441,13 @@ Color usedColor({required double left, required bool over}) => over
 /// money, with hatched coral past it (#460: "Why are the red overspent
 /// bars short or long? They should all be the same length, right?").
 ///
-/// A slim pill, its track a faint tint of its own color, so an emptied
-/// bar still says which of the three it is; the colored part has a round
-/// end and glides when the money changes (owner, of flat 14-point slabs:
-/// "The bars look terrible"). It does nothing when clicked ("the bars are
-/// just there"). [words] is its tooltip.
+/// A capsule: an outlined tube in its own color, so an emptied bar still
+/// says which of the three it is, and the colored part filled inside it
+/// with a round end, gliding when the money changes (owner's pick D of
+/// four, 2026-11-17, #491, of the slim pill before: "They're just too
+/// flat"; of flat 14-point slabs before that: "The bars look terrible").
+/// It does nothing when clicked ("the bars are just there"). [words] is
+/// its tooltip.
 class UsedBar extends StatelessWidget {
   const UsedBar({
     super.key,
@@ -457,8 +459,8 @@ class UsedBar extends StatelessWidget {
   final bool over;
   final String? words;
 
-  /// How tall the pill is, and the room it is drawn in.
-  static const double thick = 8;
+  /// How tall the capsule is, and the room it is drawn in.
+  static const double thick = 14;
   static const double height = 16;
 
   @override
@@ -506,37 +508,65 @@ class _UsedBarPainter extends CustomPainter {
   final double share;
   final Color fill;
 
-  /// On a dark page the colored part lights the track a little.
+  /// On a dark page the colored part lights the tube a little.
   final bool glow;
+
+  /// The tube's outline, and how far inside it the colored part sits.
+  static const double edge = 1.5;
+  static const double inset = 3;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0) return;
     const thick = UsedBar.thick;
-    const radius = Radius.circular(thick / 2);
     final top = (size.height - thick) / 2;
-    final track = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, top, size.width, thick),
-      radius,
+    final tube = RRect.fromRectAndRadius(
+      Rect.fromLTWH(edge / 2, top + edge / 2, size.width - edge, thick - edge),
+      const Radius.circular(thick / 2),
     );
-    canvas.drawRRect(track, Paint()..color = fill.withValues(alpha: 0.2));
+    canvas.drawRRect(
+      tube,
+      Paint()..color = fill.withValues(alpha: glow ? 0.08 : 0.07),
+    );
+    canvas.drawRRect(
+      tube,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = edge
+        ..color = fill.withValues(alpha: glow ? 0.55 : 0.6),
+    );
     final part = share.clamp(0.0, 1.0);
     if (part <= 0) return;
+    const inner = thick - inset * 2;
+    final room = size.width - inset * 2;
     // Never shorter than a dot, so a little money can still be seen.
-    final width = size.width * part < thick ? thick : size.width * part;
+    final width = room * part < inner ? inner : room * part;
     final shape = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, top, width, thick),
-      radius,
+      Rect.fromLTWH(inset, top + inset, width, inner),
+      const Radius.circular(inner / 2),
     );
     if (glow) {
       canvas.drawRRect(
         shape,
         Paint()
-          ..color = fill.withValues(alpha: 0.45)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+          ..color = fill.withValues(alpha: 0.5)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
       );
     }
-    canvas.drawRRect(shape, Paint()..color = fill);
+    // A touch lighter along the top, so the fill reads as round.
+    final lit = HSLColor.fromColor(fill);
+    canvas.drawRRect(
+      shape,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            lit.withLightness((lit.lightness + 0.08).clamp(0.0, 1.0)).toColor(),
+            fill,
+          ],
+        ).createShader(shape.outerRect),
+    );
   }
 
   @override
@@ -569,12 +599,10 @@ class UsedRing extends StatelessWidget {
   Widget build(BuildContext context) {
     final ring = CustomPaint(
       size: Size.square(size),
-      // Drawn as the computer's bar is: the track a faint tint of its
-      // own color, the colored part with round ends.
       painter: _UsedRingPainter(
         over ? 1 : left,
         usedColor(left: left, over: over),
-        usedColor(left: left, over: over).withValues(alpha: 0.22),
+        usedColor(left: left, over: over).withValues(alpha: 0.08),
       ),
     );
     return switch (words) {
@@ -598,25 +626,36 @@ class _UsedRingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = size.width / 5.6;
-    final rect = Rect.fromLTWH(
-      stroke / 2,
-      stroke / 2,
-      size.width - stroke,
-      size.height - stroke,
+    // Drawn as the computer's capsule is: an outline in its own color
+    // round a faint tint, the colored part filled inside it, here a slice
+    // clockwise from the top (#491).
+    const edge = 1.5;
+    final center = size.center(Offset.zero);
+    final outer = size.shortestSide / 2 - edge / 2;
+    canvas.drawCircle(center, outer, Paint()..color = track);
+    canvas.drawCircle(
+      center,
+      outer,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = edge
+        ..color = color.withValues(alpha: 0.6),
     );
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..color = track;
-    canvas.drawArc(rect, 0, 2 * math.pi, false, paint);
     final filled = share.clamp(0.0, 1.0);
-    if (filled > 0) {
-      paint
-        ..color = color
-        ..strokeCap = filled < 1 ? StrokeCap.round : StrokeCap.butt;
-      canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * filled, false, paint);
+    if (filled <= 0) return;
+    final inner = size.shortestSide / 2 - edge - 1.5;
+    if (filled >= 1) {
+      canvas.drawCircle(center, inner, Paint()..color = color);
+      return;
     }
+    // Never thinner than a sliver, so a little money can still be seen.
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: inner),
+      -math.pi / 2,
+      2 * math.pi * (filled < 0.08 ? 0.08 : filled),
+      true,
+      Paint()..color = color,
+    );
   }
 
   @override

@@ -6652,6 +6652,15 @@ card and **1** for the bars ("Let's to C and bars 1").
   its own color, so an emptied bar still says which of the three it is; on a dark page
   the colored part has a soft glow of its color; it glides when the money changes
   (`UsedBar` in `theme.dart`, drawn in `used_bar.png`).
+- **A capsule, not a flat pill** (owner, 2026-11-17, #491: "They're just too flat. I
+  don't know. They don't look nice."). Four styles were drawn beside the pill on Budget
+  rows, dark and light; the owner picked **D, Capsule**: a 14-point tube outlined in its
+  own color over a faint tint of it, the colored part filled 3 points inside with round
+  ends, a touch lighter along its top, glowing on a dark page. The phone's ring follows
+  it: an outlined circle with a slice filled inside. *Rejected:* A, Raised (a lit rod in
+  a sunken groove); B, Bead (a fading line ending in a round bead: it reads as a slider
+  to drag, and a bar does nothing when clicked); C, Segments (ten blocks, like a
+  battery).
 - Spent ahead by a paycheck (#468) isn't over: the bare track, not coral.
 - How big a category is, which the bar's length used to say, is the Assigned column's to
   say. Known and accepted: ₮400 over is as red as ₮120,000 over.
