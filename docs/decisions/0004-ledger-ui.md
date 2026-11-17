@@ -6885,7 +6885,9 @@ From the leftovers of "The budget counts income against outflow, not the bank".
   From October, so each is listed.
 - **Not changed:** unfiled pay lowering Income until filed ("I don't really think that
   needs to be fixed"); a first screen with no income reading ₮0, for the walkthrough
-  (#475). *Rejected:* naming the box **Taken back** when more went back to Not assigned
+  (#475); Assigned below zero when money from before was moved out of a category in a
+  period (owner: "it will just roll over to November"); no way out of Assigned too much
+  on the card itself (owner: "Just leave it how it is"). *Rejected:* naming the box **Taken back** when more went back to Not assigned
   than was assigned in a period ("I hate the taken back idea").
 - **Removed:** `IncomeFit`, `EnvelopeLine.backing` and `BudgetPool.money`, worked out
   and tested since #461 with nothing drawing them.
