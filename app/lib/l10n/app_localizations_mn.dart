@@ -7321,4 +7321,22 @@ class WordsMn extends Words {
   String phoneWaitingCategoryAmount(String amount) {
     return 'шинэ ангилал · $amount';
   }
+
+  @override
+  String planBandStepOf(int n) {
+    return '4 алхмын $n-р нь';
+  }
+
+  @override
+  String get planBandNoMonth => 'Энэ бол тусад нь хадгалсан нэг сарын зардал.';
+
+  @override
+  String planBandFull(String category, String amount) {
+    return '«$category» бүрдлээ: $amount, нэг сарын зардал.';
+  }
+
+  @override
+  String planBandFullMonths(String category, String amount, int months) {
+    return '«$category» бүрдлээ: $amount, $months сарын зардал.';
+  }
 }

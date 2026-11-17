@@ -571,6 +571,29 @@ void main() {
     expect(run().conflict, contains('pay_schedules 1 changed on both'));
   });
 
+  test('a filled Savings step noted on both computers: the larger, unasked '
+      '(#487)', () {
+    mine['preferences'] = [
+      ...base['preferences']!,
+      pref('ready.reached.oneMonth', '180000000'),
+    ];
+    theirs['preferences'] = [
+      ...base['preferences']!,
+      pref('ready.reached.oneMonth', '190000000'),
+    ];
+    var found = run();
+    expect(found.conflict, isNull);
+    expect(found.ops, hasLength(1));
+    // Mine is the larger: it stands, and nothing is written.
+    mine['preferences'] = [
+      ...base['preferences']!,
+      pref('ready.reached.oneMonth', '200000000'),
+    ];
+    found = run();
+    expect(found.conflict, isNull);
+    expect(found.ops, isEmpty);
+  });
+
   test('a setting changed on both: asked, unless it only changes a view', () {
     mine['preferences'] = [pref('budget.began', '2026-09-01')];
     theirs['preferences'] = [pref('budget.began', '2026-08-01')];

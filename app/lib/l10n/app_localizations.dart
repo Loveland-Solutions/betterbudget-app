@@ -10547,6 +10547,30 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'new category · {amount}'**
   String phoneWaitingCategoryAmount(String amount);
+
+  /// Budget page, the band under the sum that shows which of the four Savings steps the person is on: read out for the four numbered marks (a screen reader's label, not drawn)
+  ///
+  /// In en, this message translates to:
+  /// **'Step {n} of 4'**
+  String planBandStepOf(int n);
+
+  /// Budget page, the band under the sum, under the step's name Build a safety net, while a month of expenses isn't known yet so there is no amount to show: what the safety net is
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s a month of your expenses, kept apart.'**
+  String get planBandNoMonth;
+
+  /// A popup after the band's Assign button on the Budget page filled the Safety net category to a month of expenses (Savings step 1). A fact, not praise
+  ///
+  /// In en, this message translates to:
+  /// **'{category} is full: {amount}, a month of expenses.'**
+  String planBandFull(String category, String amount);
+
+  /// A popup after the band's Assign button on the Budget page filled the Safety net category to three to six months of expenses (Savings step 3). A fact, not praise
+  ///
+  /// In en, this message translates to:
+  /// **'{category} is full: {amount}, {months} months of expenses.'**
+  String planBandFullMonths(String category, String amount, int months);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

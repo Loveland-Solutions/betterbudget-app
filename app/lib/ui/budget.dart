@@ -53,7 +53,23 @@ class _BudgetPage extends StatefulWidget {
     required this.onBringBackBill,
     required this.onEditOpens,
     required this.keep,
+    required this.onAssignStep,
+    required this.onShowSavings,
   });
+
+  /// The step band's Assign: the Safety net's new total in the period
+  /// today is in, what undo calls it, and what the popup says when that
+  /// fills the step.
+  final void Function(
+    AccountInfo category,
+    int total,
+    String undo,
+    String? full,
+  )
+  onAssignStep;
+
+  /// The step band's name was clicked.
+  final VoidCallback onShowSavings;
 
   /// What's typed in an open Edit, kept by the screen: leaving the page
   /// and coming back finds Edit open as it was (#163).
@@ -137,6 +153,20 @@ class _BudgetPage extends StatefulWidget {
 
 class _BudgetPageState extends State<_BudgetPage> {
   bool _showArchived = false;
+
+  /// The Savings steps as of [_stepsOf]'s ledger and day, for the band
+  /// under the sum: worked out once per ledger, not on every key typed.
+  Readiness? _steps;
+  (LedgerData, DateTime)? _stepsOf;
+  Readiness get _readiness {
+    final of = (widget.data, widget.today);
+    if (_steps case final r?
+        when identical(_stepsOf?.$1, of.$1) && _stepsOf?.$2 == of.$2) {
+      return r;
+    }
+    _stepsOf = of;
+    return _steps = Readiness.of(widget.data, widget.today);
+  }
 
   @override
   void initState() {
@@ -1381,7 +1411,27 @@ class _BudgetPageState extends State<_BudgetPage> {
                   });
                 },
                 onKeep: widget.onKeepStart,
-              ),
+              )
+            // The Savings step they're on (#487). Not in a period that's
+            // over, which only shows what happened, nor under the
+            // first-period offer: one thing asked at a time.
+            else if (!finished)
+              if (_readiness case final r)
+                if (r.current case final step?)
+                  _StepBand(
+                    r: r,
+                    step: step,
+                    currency: savingsCurrency(data),
+                    // Not before the budget has begun: with nothing
+                    // assigned yet, no plan has spoken for rent, and the
+                    // first big button mustn't be the safety net's.
+                    offers: isCurrent && budget.began != null,
+                    onAssign: (category, total, undo, full) {
+                      setState(() => _editing = null);
+                      widget.onAssignStep(category, total, undo, full);
+                    },
+                    onOpen: widget.onShowSavings,
+                  ),
           ],
         ),
       );

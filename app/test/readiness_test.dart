@@ -1055,12 +1055,257 @@ void main() {
     ];
     final prefs = {ReadyKeys.month: 'MNT:9999999900'};
     final r = Readiness.of(budgetedWith(plans: plans, prefs: prefs), today);
-    expect(r.billsToAssign, 40000000);
-    final free = r.notAssigned - r.billsToAssign;
+    expect(r.spokenFor, 40000000);
+    final free = r.notAssigned - r.spokenFor;
     expect(r.offerFor(ReadyStep.oneMonth), free > 0 ? free : 0);
     // No month known: nothing offered.
     final none = Readiness.of(ledger(days: 10), today);
     expect(none.offerFor(ReadyStep.oneMonth), 0);
+  });
+
+  test('the offer leaves every plan its money, everyday amounts too', () {
+    // Food is planned at 500,000.00 a month with nothing assigned yet: on
+    // payday that is spoken for, as a bill is (#487).
+    final plans = [
+      CategoryPlan(
+        categoryId: food,
+        kind: PlanKind.each,
+        amount: 50000000,
+        start: DateTime(2026, 9),
+      ),
+    ];
+    final r = Readiness.of(budgetedWith(plans: plans), today);
+    final line = monthBudget(budgetedWith(plans: plans), today).lines[food]!;
+    // Less what covers Food's own overspending, which already came off
+    // Not assigned.
+    final covers = line.left < 0 ? -line.left : 0;
+    expect(line.toAssign, greaterThan(0));
+    expect(r.spokenFor, line.toAssign > covers ? line.toAssign - covers : 0);
+    // The Safety net's own plan isn't held back from itself.
+    final own = Readiness.of(
+      budgetedWith(
+        plans: [
+          CategoryPlan(
+            categoryId: net,
+            kind: PlanKind.each,
+            amount: 50000000,
+            start: DateTime(2026, 9),
+          ),
+        ],
+      ),
+      today,
+    );
+    expect(own.spokenFor, 0);
+  });
+
+  test('a category with no plan keeps what it was given a month before', () {
+    // Food has no plan; August gave it 900,000.00. On September's payday
+    // that much is spoken for, so the offer isn't the food money (#487).
+    final august = BudgetAmount(
+      categoryId: food,
+      date: DateTime(2026, 8),
+      amount: 90000000,
+    );
+    expect(
+      Readiness.of(budgetedWith(amounts: [august]), today).spokenFor,
+      90000000,
+    );
+    // 300,000.00 of it is in already: the rest is still kept back.
+    final part = Readiness.of(
+      budgetedWith(
+        amounts: [
+          august,
+          BudgetAmount(
+            categoryId: food,
+            date: DateTime(2026, 9),
+            amount: 30000000,
+          ),
+        ],
+      ),
+      today,
+    );
+    expect(part.spokenFor, 60000000);
+    // Given as much as last month, or more: nothing kept back.
+    final all = Readiness.of(
+      budgetedWith(
+        amounts: [
+          august,
+          BudgetAmount(
+            categoryId: food,
+            date: DateTime(2026, 9),
+            amount: 95000000,
+          ),
+        ],
+      ),
+      today,
+    );
+    expect(all.spokenFor, 0);
+  });
+
+  test('a card or loan no category pays keeps its payment back', () {
+    // Visa owes 900.00 and 500.00 a month is typed on Savings; it's paid
+    // by transfer, which never comes off Not assigned.
+    var r = Readiness.of(
+      budgetedWith(prefs: {ReadyKeys.pay(visa): '50000'}),
+      today,
+    );
+    expect(r.spokenFor, 50000);
+    // No more than it owes.
+    r = Readiness.of(
+      budgetedWith(prefs: {ReadyKeys.pay(visa): '5000000'}),
+      today,
+    );
+    expect(r.spokenFor, 90000);
+  });
+
+  test('pay still to come is not offered to the safety net', () {
+    // Paid ₮1,500,000 on the 10th and the 25th, budgeting by month. On
+    // 11.14 the 10th's pay has come and the 25th's hasn't: Not assigned
+    // counts both, and the net is offered only what is there.
+    const income = 9;
+    const pay = PaySchedule(
+      id: 1,
+      categoryId: income,
+      accountId: checking,
+      amount: 150000000,
+      rule: PayRule.twiceMonthly,
+      day1: 10,
+      day2: 25,
+      weekend: PayWeekend.keep,
+    );
+    final day = DateTime(2026, 11, 14);
+    final d = LedgerData(
+      paySchedules: const [pay],
+      accounts: [
+        acct(checking, 'Checking', AccountType.asset),
+        acct(net, 'Safety net', AccountType.expense, AccountRole.emergencyFund),
+        acct(food, 'Food', AccountType.expense),
+        acct(income, 'Income', AccountType.income),
+        acct(opening, 'Opening balances', AccountType.equity),
+      ],
+      txns: [
+        move(DateTime(2026, 8, 1), opening, checking, 100000000),
+        move(DateTime(2026, 11, 10), income, checking, 150000000),
+      ],
+      prefs: {ReadyKeys.month: 'MNT:900000000'},
+      budgetAmounts: [
+        BudgetAmount(categoryId: food, date: DateTime(2026, 10), amount: 100),
+      ],
+    );
+    final r = Readiness.of(d, day);
+    expect(r.toCome, 150000000);
+    expect(r.notAssigned, greaterThan(150000000));
+    expect(r.offerFor(ReadyStep.oneMonth), r.notAssigned - r.toCome - 0);
+    expect(r.offerFor(ReadyStep.oneMonth) % Currency.mnt.scale, 0);
+  });
+
+  test('a full step stays done while its month grows by under a tenth', () {
+    // A month typed at 50,000.00 and a net holding exactly that.
+    LedgerData at(String month, {String? reached, int inNet = 5000000}) =>
+        ledger(
+          inSavings: inNet,
+          owedOnVisa: 0,
+          prefs: {
+            ReadyKeys.month: 'MNT:$month',
+            ReadyKeys.reached(ReadyStep.oneMonth): ?reached,
+          },
+        );
+    final key = ReadyKeys.reached(ReadyStep.oneMonth);
+    var r = Readiness.of(at('5000000'), today);
+    expect(r.isDone(ReadyStep.oneMonth), isTrue);
+    // Seen covered: the app notes what it aimed for, once.
+    expect(r.reachedToKeep, {key: '5000000'});
+    expect(
+      Readiness.of(at('5000000', reached: '5000000'), today).reachedToKeep,
+      isEmpty,
+    );
+
+    // The month grows to 54,000.00: 8% short, still done, nothing offered
+    // on this step, and nothing written.
+    r = Readiness.of(at('5400000', reached: '5000000'), today);
+    expect(r.isDone(ReadyStep.oneMonth), isTrue);
+    expect(r.current, isNot(ReadyStep.oneMonth));
+    expect(r.offerFor(ReadyStep.oneMonth), 0);
+    expect(r.reachedToKeep, isEmpty);
+    // Without the note it was never full: at 92% it is still being built.
+    expect(
+      Readiness.of(at('5400000'), today).isDone(ReadyStep.oneMonth),
+      isFalse,
+    );
+
+    // Past a tenth (60,000.00), it is the step again. The note stays, so
+    // ⌘Z on what made the month jump brings the step back as it was.
+    r = Readiness.of(at('6000000', reached: '5000000'), today);
+    expect(r.isDone(ReadyStep.oneMonth), isFalse);
+    expect(r.current, ReadyStep.oneMonth);
+    expect(r.reachedToKeep, isEmpty);
+    expect(
+      Readiness.of(
+        at('5400000', reached: '5000000'),
+        today,
+      ).isDone(ReadyStep.oneMonth),
+      isTrue,
+    );
+
+    // Money taken out of the net: it no longer holds what it was built
+    // to, so it isn't done, however little the month grew.
+    r = Readiness.of(at('5000000', reached: '5000000', inNet: 4900000), today);
+    expect(r.isDone(ReadyStep.oneMonth), isFalse);
+    expect(r.reachedToKeep, isEmpty);
+
+    // Topped up to a bigger month, the note is raised to it, so taking
+    // that money out again reopens the step at once.
+    r = Readiness.of(at('5400000', reached: '5000000', inNet: 5400000), today);
+    expect(r.reachedToKeep, {key: '5400000'});
+    r = Readiness.of(at('5400000', reached: '5400000', inNet: 5000000), today);
+    expect(r.isDone(ReadyStep.oneMonth), isFalse);
+  });
+
+  test('an overspent net is offered what covers it too, and an archived '
+      'category keeps nothing back', () {
+    // The net was given 300.00 and 500.00 was spent from it: 200.00 over.
+    final data = budgetedWith(prefs: {ReadyKeys.month: 'MNT:1000000'});
+    final over = LedgerData(
+      accounts: data.accounts.values.toList(),
+      txns: [...data.txns, move(today, checking, net, 5030000)],
+      prefs: data.prefs,
+      budgetAmounts: [
+        BudgetAmount(categoryId: net, date: DateTime(2026, 9), amount: 30000),
+      ],
+    );
+    final r = Readiness.of(over, today);
+    expect(r.fund, 0);
+    expect(r.fundLeft, lessThan(0));
+    // Filling it takes the month and the hole; whatever is offered, it
+    // is never called full short of that.
+    final offer = r.offerFor(ReadyStep.oneMonth);
+    expect(offer, lessThanOrEqualTo(1000000 - r.fundLeft));
+
+    // Rent archived with a plan still asking: off the page, so not kept
+    // back.
+    final archived = LedgerData(
+      accounts: [
+        for (final a in data.accounts.values)
+          a.id == rent
+              ? AccountInfo(
+                  id: a.id,
+                  name: a.name,
+                  type: a.type,
+                  archived: true,
+                )
+              : a,
+      ],
+      txns: data.txns,
+      plans: [
+        CategoryPlan(
+          categoryId: rent,
+          kind: PlanKind.each,
+          amount: 40000000,
+          start: DateTime(2026, 9),
+        ),
+      ],
+    );
+    expect(Readiness.of(archived, today).spokenFor, 0);
   });
 
   test('more assigned than there is is said on step 1', () {

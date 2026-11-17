@@ -447,6 +447,128 @@ void main() {
     },
   );
 
+  testWidgets('budget: the step band says the step, assigns what is spare '
+      'and opens Savings (#487)', (tester) async {
+    final db = await pumpLedger(tester);
+    final day = DateTime(2026, 9, 16);
+    // A month typed on Savings, so the numbers don't hang on the demo's
+    // dates.
+    await tester.tap(find.text('Savings'));
+    await tester.pumpAndSettle();
+    await settle(tester);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('month-edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('month-field')),
+      '2000000',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+
+    await tester.tap(find.text('Budget'));
+    await tester.pumpAndSettle();
+    // The step they're on, by its name and marks, under the sum.
+    final band = find.byKey(const ValueKey('step-band'));
+    expect(band, findsOneWidget);
+    expect(
+      find.descendant(of: band, matching: find.text('Build a safety net')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: band, matching: find.byType(SavingsPicture)),
+      findsOneWidget,
+    );
+    // Nothing is assigned yet, so no plan has spoken for rent: the step
+    // and its progress, and no button.
+    expect(find.byKey(const ValueKey('step-band-assign')), findsNothing);
+    var data = (await tester.runAsync(db.loadLedger))!;
+    final groceries = data.categories.firstWhere((c) => c.name == 'Groceries');
+    await tester.tap(find.byKey(ValueKey('assigned-${groceries.id}')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('assign-field')),
+      '300000',
+    );
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await settle(tester);
+    // The first amount asks when the budget starts; one thing is asked at
+    // a time, so the band waits under it.
+    expect(find.byKey(const ValueKey('start-offer')), findsOneWidget);
+    expect(band, findsNothing);
+    await tester.tap(find.byKey(const ValueKey('start-keep')));
+    await settle(tester);
+    expect(band, findsOneWidget);
+    // The popup from the month typed on Savings has gone by now.
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pumpAndSettle();
+    data = (await tester.runAsync(db.loadLedger))!;
+    var r = Readiness.of(data, day);
+    expect(r.current, ReadyStep.oneMonth);
+    // What's spare after every plan has its share, no more than fills it:
+    // the same figure Savings offers.
+    final offer = r.offerFor(ReadyStep.oneMonth);
+    expect(offer, greaterThan(0));
+    expect(offer, lessThanOrEqualTo(r.notAssigned - r.spokenFor));
+    final words =
+        'Assign ${formatShort(offer, currency: Currency.mnt)} to Safety net';
+    expect(find.descendant(of: band, matching: find.text(words)), findsOne);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/budget_step_band.png'),
+    );
+
+    final had = r.fund;
+    await tester.tap(find.byKey(const ValueKey('step-band-assign')));
+    await settle(tester);
+    await settle(tester);
+    await settle(tester);
+    await settle(tester);
+    await tester.pumpAndSettle();
+    data = (await tester.runAsync(db.loadLedger))!;
+    r = Readiness.of(data, day);
+    expect(r.fund, had + offer);
+    // Nothing more is spare, or it's full: the button goes.
+    expect(find.byKey(const ValueKey('step-band-assign')), findsNothing);
+
+    // One ⌘Z takes it back, and the offer with it.
+    await tester.runAsync(() async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    await tester.pumpAndSettle();
+    data = (await tester.runAsync(db.loadLedger))!;
+    expect(Readiness.of(data, day).fund, had);
+    expect(find.text(words), findsOneWidget);
+
+    // A month that's over only shows what happened: no band.
+    await tester.tap(find.byKey(const ValueKey('period-prev')));
+    await tester.pumpAndSettle();
+    expect(band, findsNothing);
+    await tester.tap(find.byKey(const ValueKey('period-today')));
+    await tester.pumpAndSettle();
+    // The month after: the step and its progress, with nothing to click
+    // but its name, since the step counts what the net holds today.
+    await tester.tap(find.byKey(const ValueKey('period-next')));
+    await tester.pumpAndSettle();
+    expect(band, findsOneWidget);
+    expect(find.byKey(const ValueKey('step-band-assign')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('period-today')));
+    await tester.pumpAndSettle();
+
+    // Its name opens Savings.
+    await tester.tap(find.byKey(const ValueKey('step-band-title')));
+    await tester.pumpAndSettle();
+    expect(find.text('Now'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
   testWidgets('savings: an open rate field stays with its debt as lines move', (
     tester,
   ) async {
@@ -7388,6 +7510,9 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await settle(tester);
+      // With the step band over the tabs (#487) the list is two rows
+      // shorter, and the row can sit under its section's name.
+      await shown(tester, find.byKey(ValueKey('plan-assign-$groceries')));
       await tester.runAsync(() async {
         await tester.tap(find.byKey(ValueKey('plan-assign-$groceries')));
         await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -8982,6 +9107,13 @@ void main() {
       Future<void> reload() async =>
           data = (await tester.runAsync(db.loadLedger))!;
       Future<void> type(String key, String text) async {
+        // With the step band over the tabs (#487) the list is two rows
+        // shorter: a field low in Edit may not be built until it's
+        // scrolled to.
+        if (find.byKey(ValueKey(key)).evaluate().isEmpty) {
+          await tester.drag(find.byType(ListView).last, const Offset(0, -200));
+          await tester.pumpAndSettle();
+        }
         await shown(tester, find.byKey(ValueKey(key)));
         await tester.enterText(
           find.descendant(
@@ -9068,6 +9200,9 @@ void main() {
 
       // Gifts, a fund: a set amount up to what it holds at most.
       await editCategory(tester, 'Gifts');
+      // With the step band over the tabs (#487) the list is two rows
+      // shorter, and the card can sit under the section's name.
+      await shown(tester, find.byKey(const ValueKey('plan-type-fund')));
       await tester.tap(find.byKey(const ValueKey('plan-type-fund')));
       await tester.pumpAndSettle();
       await type('plan-amount', '50000');

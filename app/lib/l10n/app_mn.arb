@@ -1727,5 +1727,9 @@
   "ledgerPhoneChanged": "{name}-г орж ирсний дараа утсан дээр өөрчилсөн. Энэ компьютерынх хэвээр үлдэнэ",
   "ledgerPhoneNotesMore": "{count, plural, other{Өөр {count}: Төсөв хуудсыг харна уу}}",
   "phoneWaitingCategoryBill": "шинэ ангилал · {amount}, төлөх өдөр: {date}",
-  "phoneWaitingCategoryAmount": "шинэ ангилал · {amount}"
+  "phoneWaitingCategoryAmount": "шинэ ангилал · {amount}",
+  "planBandStepOf": "4 алхмын {n}-р нь",
+  "planBandNoMonth": "Энэ бол тусад нь хадгалсан нэг сарын зардал.",
+  "planBandFull": "«{category}» бүрдлээ: {amount}, нэг сарын зардал.",
+  "planBandFullMonths": "«{category}» бүрдлээ: {amount}, {months} сарын зардал."
 }

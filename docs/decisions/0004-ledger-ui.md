@@ -6904,3 +6904,82 @@ From the leftovers of "The budget counts income against outflow, not the bank".
   than was assigned in a period ("I hate the taken back idea").
 - **Removed:** `IncomeFit`, `EnvelopeLine.backing` and `BudgetPool.money`, worked out
   and tested since #461 with nothing drawing them.
+
+## The Savings step on the Budget page (owner, 2026-11-17, #487)
+
+The owner, starting the Savings page's comb: "This is really important. I want the
+budget screen to encourage them to feed money into these categories and track their
+progress. I think there should be something on the budget page that shows what step
+the user is on." Five reports (budget expert, layout, flow, words, a first-time user)
+agreed on what was wrong: on payday nothing on Budget leads to savings. A newcomer
+assigns to rent and bills until Not assigned reads ₮0 and stops; the Safety net is the
+last row, under "Saved", which reads as money already kept. This lifts "no savings
+suggestions yet" (2026-09) for the step they're on.
+
+Of three sketches (A, a band under the sum; B, the step as the list's first section,
+the Safety net moved up into it; C, four marks at the end of the title row and the
+progress in the Safety net's own row), the owner picked **A** ("A is beautiful").
+
+- **The band** sits under the sum and Assign what's planned, over the tabs: the step's
+  picture (48), the four numbered marks as Savings draws them (done, the one they're
+  on, skipped, to come), the step's name, a thin line of progress and its figures in
+  Savings' own words ("₮600,000 of ₮1,800,000 · ₮1,200,000 to go"; "₮9,800,000 owed"
+  or "1 of 3 debts paid off · ₮9,800,000 to go"), and one button, Savings' own
+  **Assign ₮150,000 to Safety net**. The name opens Savings; the picture does nothing.
+  The other steps, the guidance and Skip stay on Savings.
+- **The offer is what's really spare**, never more than fills the step. From Not
+  assigned it keeps back what is spoken for: what every other category's plan still
+  asks in the period (bills and everyday amounts, counted as Assign what's planned
+  counts them); for a category with no plan, what it was given in the same period a
+  month before and hasn't been yet (so rent with no plan still has its money on
+  payday); and the month's payment on a card or loan that no category pays (paid by
+  transfer, it never comes off Not assigned). And it is never pay that hasn't come:
+  Not assigned counts the 25th's pay on the 14th, and the safety net must be money
+  that is there, so the offer keeps back the more of what is spoken for and what is
+  still to come (the pay to come can cover the plans). Savings' button uses the same
+  rule now; it held back only dated bills. Short of filling the step it is in whole
+  units. A net that is overspent is offered what covers the hole as well, and isn't
+  called full short of that (budget and code reviews).
+- **When it speaks:** the button only in the period today is in (the step counts what
+  the net holds today), only once the budget has begun (with nothing assigned no plan
+  has spoken for rent), and only while something is spare. A later period shows the
+  step and progress alone; a period that's over shows no band; under the first-period
+  offer it waits (one thing asked at a time). All four done: no band. A month of
+  expenses not known yet: the name and "It's a month of your expenses, kept apart."
+  Step 4 has no figure (owner: "If they're at step 4, then yay").
+- **One click, one undo, quiet**, as a typed Assigned is, except when the click fills
+  the step: "Safety net is full: ₮1,800,000, a month of expenses." A fact, not praise
+  (the writer's line: encourage with a fact, a figure and what this click changes).
+- **A full step stays done until it is a tenth short** (owner: "I'll follow your
+  recommendation"). A month of expenses comes from the budget, so raising Groceries by
+  ₮100,000 left a full net ₮100,000 short and would send the band from step 2 back to
+  step 1. When the app sees a fund step covered it notes the most the step has aimed
+  for (`ready.reached.<step>`, no schema change, written by the app with no undo and
+  nothing said). While the net still holds that much, the step is done until what it
+  asks now is more than a tenth above the net. Money taken out of the net is different:
+  it no longer holds what it was built to, so the step is the current one again at
+  once. The note is raised, never taken away: whether a step is done then follows
+  only from what ⌘Z puts back (code review: a mistyped amount that sent the month up
+  cleared it, and undo left the band a step back). Two computers that each noted it
+  keep the larger, unasked. Savings says a step done this way without "to go", and
+  offers its Assign on the next fund step, not on both.
+- **The band, Savings and the Safety net's row read one period**: the one the Budget
+  page is on today, a paycheck when the budget goes by paycheck. Savings took the net's
+  Left and the bills from the calendar month and Not assigned from the pay period.
+- *Rejected:* B (rows would change section each time a step completes; a debt paid by
+  transfer has no row and step 4 none; it reverses "Saved sits last"); C (no picture,
+  and the row that feeds step 1 is below the fold in a small window, so the page tells
+  without encouraging); a guided order that opens each Assigned box in turn (a mode to
+  learn, and a proposed figure in a field); praise, percentages, "behind"; a button
+  before the bills are covered.
+- **Left as it is, for the owner to see in use** (budget review): a month with one
+  big cost (a ₮400,000 repair, Tsagaan Sar, September's tuition) raises a month of
+  expenses by more than a tenth, so a full net reads short that month and the next,
+  then full again with nothing added; a card still in use and not marked "Paid in
+  full every month" moves the band between steps 2 and 3 as it is bought on and paid;
+  the band shows a level, not what went in this paycheck or when it fills at this
+  pace.
+- **Still to build:** step 2's extra asked for on the Budget row of the debt being
+  paid extra on, so the band can offer it (the owner, asked: "What do all you super
+  smart people think?"; the reports said yes); the phone's Budget, the progress only.
+
