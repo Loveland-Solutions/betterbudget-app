@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-17** · version 0.100.0 · schema v26 · 1131 tests pass
+**Last updated: 2026-11-17** · version 0.100.1 · schema v26 · 1131 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:

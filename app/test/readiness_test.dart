@@ -304,6 +304,26 @@ void main() {
       149999900,
     );
     expect(Readiness.of(d, day).notAssigned, 149999900);
+    expect(Readiness.of(d, day).fundAssigned, 0);
+
+    // ₮300,000 went to the Safety net from the paycheck before, in the
+    // same calendar month. Assign sets this paycheck's total, so what it
+    // starts from is this paycheck's ₮0, not the month's ₮300,000.
+    final earlier = LedgerData(
+      paySchedules: d.paySchedules,
+      accounts: d.accounts.values.toList(),
+      txns: d.txns,
+      budgetAmounts: [
+        ...d.budgetAmounts,
+        BudgetAmount(
+          categoryId: net,
+          date: DateTime(2026, 11, 1),
+          amount: 30000000,
+        ),
+      ],
+    );
+    expect(monthBudget(earlier, day).lines[net]!.assigned, 30000000);
+    expect(Readiness.of(earlier, day).fundAssigned, 0);
   });
 
   test('under four weeks of rows, a month is not known yet', () {
