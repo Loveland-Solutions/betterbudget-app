@@ -1176,14 +1176,14 @@ class _BudgetPageState extends State<_BudgetPage> {
               ),
             // What they had when the budget began, in the period it began
             // in (#461); later it is part of From October.
-            if (p.hadBefore != 0)
+            if (p.hadBefore > 0)
               after(
-                p.hadBefore > 0 ? '+' : '−',
+                '+',
                 _SumBox(
                   key: ValueKey('sum-had$tag'),
                   label: t.planSumHadBefore,
-                  figure: short(p.hadBefore.abs()),
-                  hue: p.hadBefore > 0 ? Mid.green : null,
+                  figure: short(p.hadBefore),
+                  hue: Mid.green,
                 ),
               ),
             // Changed into this currency, or out of it (#461).

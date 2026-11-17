@@ -286,6 +286,9 @@ class _HadBeforeState extends State<_HadBefore> {
   final _focus = FocusNode();
   var _wrong = false;
 
+  /// What was last saved: Enter saves, then losing focus would again.
+  late int? _saved = widget.amount == 0 ? null : widget.amount;
+
   String _shown(int? v) =>
       v == null || v == 0 ? '' : formatWhole(v, widget.currency);
 
@@ -305,7 +308,9 @@ class _HadBeforeState extends State<_HadBefore> {
       return;
     }
     final now = v == 0 ? null : v;
-    if (now != (widget.amount == 0 ? null : widget.amount)) widget.onSave(now);
+    if (now == _saved) return;
+    _saved = now;
+    widget.onSave(now);
   }
 
   @override
@@ -313,6 +318,7 @@ class _HadBeforeState extends State<_HadBefore> {
     super.didUpdateWidget(old);
     // Changed by undo or on another computer; what is being typed stays.
     if (!_focus.hasFocus && widget.amount != old.amount) {
+      _saved = widget.amount == 0 ? null : widget.amount;
       _controller.text = _shown(widget.amount);
     }
   }

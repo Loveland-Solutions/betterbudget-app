@@ -624,6 +624,52 @@ void main() {
     expect(b.lines[housing]!.spent, 50000000);
   });
 
+  test(
+    'an exchange that pays a card in the other currency brings nothing in',
+    () {
+      const exchange = 60, usdCard = 63;
+      final d = ledger(
+        more: [
+          acct(exchange, currencyExchangeName, AccountType.equity),
+          acct(
+            usdCard,
+            'Dollar card',
+            AccountType.liability,
+            currency: Currency.usd,
+          ),
+        ],
+        amounts: [put(food, oct.start, 10000000)],
+        rows: [
+          move(DateTime(2026, 10, 1), salary, checking, 200000000),
+          TxnData(
+            id: nextId++,
+            date: DateTime(2026, 10, 10),
+            entries: [
+              EntryData(id: nextId++, accountId: checking, amount: -34000000),
+              EntryData(id: nextId++, accountId: exchange, amount: 34000000),
+              EntryData(
+                id: nextId++,
+                accountId: exchange,
+                amount: -10000,
+                currency: Currency.usd,
+              ),
+              EntryData(
+                id: nextId++,
+                accountId: usdCard,
+                amount: 10000,
+                currency: Currency.usd,
+              ),
+            ],
+          ),
+        ],
+        prefs: {BudgetKeys.beganIn(Currency.usd): '2026-10-01'},
+      );
+      final o = of(d, oct);
+      expect(o.pools.first.exchanged, -34000000);
+      expect(o.pools[1].exchanged, 0);
+    },
+  );
+
   test('exchanged past what there was is its own cause', () {
     const pool = BudgetPool(
       currency: Currency.mnt,
@@ -2970,7 +3016,6 @@ void main() {
       );
       expect(of(d, oct).cameIn[salary], {Currency.usd: 300000});
     });
-
   });
 
   group('database', () {

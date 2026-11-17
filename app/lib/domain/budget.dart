@@ -915,15 +915,27 @@ class Budget {
           continue;
         }
         if (a.type == AccountType.equity && a.name == currencyExchangeName) {
-          // Into the exchange is out of this currency, and out of it is in.
-          tally(
-            exchBefore,
-            exchIn,
-            x.currency,
-            d,
-            -x.amount,
-            out: x.amount > 0,
-          );
+          // Into the exchange is out of this currency, and out of it is in;
+          // but not when it lands on a credit card or loan: that pays what
+          // is owed, and nothing comes in to give out (code review).
+          final paysDebt =
+              x.amount < 0 &&
+              t.entries.any(
+                (o) =>
+                    o.amount > 0 &&
+                    o.currency == x.currency &&
+                    data.accounts[o.accountId]?.type == AccountType.liability,
+              );
+          if (!paysDebt) {
+            tally(
+              exchBefore,
+              exchIn,
+              x.currency,
+              d,
+              -x.amount,
+              out: x.amount > 0,
+            );
+          }
           continue;
         }
         if (a.type == AccountType.income) {
