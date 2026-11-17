@@ -65,14 +65,6 @@ void main() {
   BudgetAmount put(int category, DateTime date, int amount) =>
       BudgetAmount(categoryId: category, date: date, amount: amount);
 
-  /// A set amount that carries over: money kept for later.
-  CategoryPlan keeps(int category) => CategoryPlan(
-    categoryId: category,
-    kind: PlanKind.each,
-    amount: 0,
-    start: DateTime(2026, 8, 1),
-  );
-
   /// ₮5,400,000 in checking, ₮860,000 owed on the card, a mortgage and a
   /// dollar account that don't count.
   LedgerData ledger({
@@ -139,7 +131,6 @@ void main() {
     // Checking only: what's owed and the dollars aren't counted. And it
     // is no part of Not assigned: with no income, ₮1,200,000 given out is
     // ₮1,200,000 too much.
-    expect(b.money, 540000000);
     expect(b.notAssigned, -120000000);
     expect(b.pools.first.fromBefore, 0);
     expect(b.pools.first.assigned, 120000000);
@@ -156,7 +147,6 @@ void main() {
     // Checking only. The Visa's ₮860,000, the mortgage and the dollars are
     // all out of it. With no income and nothing given out, nothing is
     // waiting to be assigned, whatever the bank holds.
-    expect(b.money, 540000000);
     expect(b.notAssigned, 0);
 
     // Buying on the card is spending in its category and nothing else: the
@@ -165,7 +155,6 @@ void main() {
       ledger(rows: [move(DateTime(2026, 10, 5), visa, food, 5000000)]),
       oct,
     );
-    expect(bought.money, 540000000);
     expect(bought.lines[food]!.spent, 5000000);
   });
 
@@ -181,7 +170,6 @@ void main() {
     );
     // The bank is ₮860,000 lighter, and the category it was budgeted in
     // carries the spending, the way rent does.
-    expect(paid.money, 540000000 - 86000000);
     expect(paid.lines[housing]!.spent, 86000000);
     expect(paid.lines[housing]!.left, 0);
   });
@@ -202,7 +190,6 @@ void main() {
     // Nothing left the bank, and Not assigned doesn't move either: the
     // ₮88,000 was given to the category and spent from it. (Counted from
     // the bank, a card purchase used to raise it until the card was paid.)
-    expect(after.money, before.money);
     expect(after.notAssigned, before.notAssigned);
 
     // Paying the card is what takes it out of the bank. Not assigned
@@ -218,7 +205,6 @@ void main() {
       ),
       oct,
     );
-    expect(paid.money, after.money - 8800000);
     expect(paid.notAssigned, before.notAssigned);
     expect(paid.lines[food]!.left, after.lines[food]!.left);
   });
@@ -450,6 +436,249 @@ void main() {
       (dec.fromBefore, dec.income, dec.assigned, dec.notAssigned),
       (-170000000, 100000000, 0, -70000000),
     );
+  });
+
+  // Money out is counted once, when it's spent (owner's pick, 2026-11-17,
+  // #461): what was bought on a credit card since the budget began was
+  // counted in its category, so paying the card counts in its payment
+  // category only for what the card owed when the budget began.
+  test('paying a card counts only what it owed when the budget began', () {
+    final key = '${BudgetKeys.loanPrefix}$visa';
+    // The Visa owed ₮860,000 before October; ₮88,000 of groceries went on
+    // it in October, and ₮948,000 paid it off.
+    final b = of(
+      ledger(
+        amounts: [
+          put(food, oct.start, 90000000),
+          put(housing, oct.start, 86000000),
+        ],
+        rows: [
+          move(DateTime(2026, 10, 1), salary, checking, 200000000),
+          move(DateTime(2026, 10, 5), visa, food, 8800000),
+          move(DateTime(2026, 10, 25), checking, visa, 94800000),
+        ],
+        prefs: {key: '$housing'},
+      ),
+      oct,
+    );
+    expect(b.lines[food]!.spent, 8800000);
+    expect(b.lines[housing]!.spent, 86000000);
+    // ₮2,000,000 in, ₮1,760,000 given out: ₮240,000 left, the groceries
+    // not counted a second time.
+    expect(b.notAssigned, 24000000);
+  });
+
+  test('a card paid in full each month: its payment counts nothing', () {
+    final key = '${BudgetKeys.loanPrefix}$visa';
+    // The old ₮860,000 was paid in September, before the budget began.
+    final d = ledger(
+      amounts: [
+        put(food, oct.start, 90000000),
+        put(housing, oct.start, 8800000),
+      ],
+      rows: [
+        move(DateTime(2026, 9, 20), checking, visa, 86000000),
+        move(DateTime(2026, 10, 1), salary, checking, 200000000),
+        move(DateTime(2026, 10, 5), visa, food, 8800000),
+        move(DateTime(2026, 10, 25), checking, visa, 8800000),
+      ],
+      prefs: {key: '$housing'},
+    );
+    final b = of(d, oct);
+    expect(b.lines[food]!.spent, 8800000);
+    // The payment is money already counted in Groceries: what was given to
+    // the payment category is still there to move back.
+    expect(b.lines[housing]!.spent, 0);
+    expect(b.lines[housing]!.left, 8800000);
+    expect(b.notAssigned, 200000000 - 90000000 - 8800000);
+  });
+
+  // Exchanged money is gone from one currency and come into the other
+  // (owner, 2026-11-17, #461).
+  test('money exchanged counts out of one currency and into the other', () {
+    const exchange = 60;
+    final d = ledger(
+      more: [acct(exchange, currencyExchangeName, AccountType.equity)],
+      amounts: [put(food, oct.start, 10000000)],
+      rows: [
+        move(DateTime(2026, 10, 1), salary, checking, 200000000),
+        TxnData(
+          id: nextId++,
+          date: DateTime(2026, 10, 10),
+          entries: [
+            EntryData(id: nextId++, accountId: checking, amount: -34000000),
+            EntryData(id: nextId++, accountId: exchange, amount: 34000000),
+            EntryData(
+              id: nextId++,
+              accountId: exchange,
+              amount: -10000,
+              currency: Currency.usd,
+            ),
+            EntryData(
+              id: nextId++,
+              accountId: dollars,
+              amount: 10000,
+              currency: Currency.usd,
+            ),
+          ],
+        ),
+      ],
+      prefs: {BudgetKeys.beganIn(Currency.usd): '2026-10-01'},
+    );
+    final o = of(d, oct);
+    final mnt = o.pools.first, usd = o.pools[1];
+    expect(mnt.exchanged, -34000000);
+    expect(mnt.notAssigned, 200000000 - 34000000 - 10000000);
+    expect(usd.exchanged, 10000);
+    expect(usd.notAssigned, 10000);
+    // November starts from it.
+    final n = of(d, nov);
+    expect(n.pools.first.exchanged, 0);
+    expect(n.pools.first.fromBefore, 200000000 - 34000000 - 10000000);
+    expect(n.pools[1].fromBefore, 10000);
+  });
+
+  // Money the household had when the budget began is counted as income
+  // that day, once it's typed in (owner, 2026-11-17, #461).
+  test('what they had when the budget began counts from that day', () {
+    final d = ledger(
+      amounts: [put(food, oct.start, 90000000)],
+      prefs: {BudgetKeys.hadBefore(Currency.mnt): '100000000'},
+    );
+    final o = of(d, oct).pools.first;
+    expect(o.hadBefore, 100000000);
+    expect(o.notAssigned, 10000000);
+    expect(o.shortBy().assigned, 0);
+    final n = of(d, nov).pools.first;
+    expect(n.hadBefore, 0);
+    expect(n.fromBefore, 10000000);
+    // Nothing assigned yet, no budget day: it waits.
+    final none = of(
+      ledger(prefs: {BudgetKeys.hadBefore(Currency.mnt): '100000000'}),
+      oct,
+    ).pools.first;
+    expect((none.hadBefore, none.notAssigned), (0, 0));
+  });
+
+  test('pay filed into another account isn\'t still expected (#461)', () {
+    const savings = 61;
+    const pay = PaySchedule(
+      id: 1,
+      categoryId: salary,
+      accountId: checking,
+      amount: 150000000,
+      rule: PayRule.monthly,
+      day1: 25,
+      weekend: PayWeekend.keep,
+    );
+    final d = ledger(
+      pay: [pay],
+      more: [acct(savings, 'Savings', AccountType.asset)],
+      amounts: [put(food, oct.start, 100)],
+      rows: [
+        TxnData(
+          id: nextId++,
+          date: DateTime(2026, 10, 18),
+          payScheduleId: 1,
+          entries: [
+            EntryData(id: nextId++, accountId: salary, amount: -150000000),
+            EntryData(id: nextId++, accountId: savings, amount: 150000000),
+          ],
+        ),
+        // A gift filed under the same Income into Savings is not the pay
+        // (budget review).
+        move(DateTime(2026, 10, 19), salary, savings, 30000000),
+      ],
+    );
+    final o = of(d, oct).pools.first;
+    expect((o.income, o.toCome), (180000000, 0));
+    final gift = of(
+      ledger(
+        pay: [pay],
+        more: [acct(savings, 'Savings', AccountType.asset)],
+        amounts: [put(food, oct.start, 100)],
+        rows: [move(DateTime(2026, 10, 19), salary, savings, 30000000)],
+      ),
+      oct,
+    ).pools.first;
+    expect((gift.income, gift.toCome), (30000000, 150000000));
+  });
+
+  test('a card added after the budget began: what it owed still counts', () {
+    // Set up on 10.17 with ₮500,000 owed on a new card; the budget began
+    // 10.01. Paying it off is its payment category's spending.
+    const card = 62;
+    final key = '${BudgetKeys.loanPrefix}$card';
+    final b = of(
+      ledger(
+        more: [acct(card, 'Golomt Visa', AccountType.liability)],
+        amounts: [put(housing, oct.start, 50000000)],
+        rows: [
+          move(DateTime(2026, 10, 17), card, opening, 50000000),
+          move(DateTime(2026, 10, 18), checking, card, 50000000),
+        ],
+        prefs: {key: '$housing'},
+      ),
+      oct,
+    );
+    expect(b.lines[housing]!.spent, 50000000);
+  });
+
+  test(
+    'an exchange that pays a card in the other currency brings nothing in',
+    () {
+      const exchange = 60, usdCard = 63;
+      final d = ledger(
+        more: [
+          acct(exchange, currencyExchangeName, AccountType.equity),
+          acct(
+            usdCard,
+            'Dollar card',
+            AccountType.liability,
+            currency: Currency.usd,
+          ),
+        ],
+        amounts: [put(food, oct.start, 10000000)],
+        rows: [
+          move(DateTime(2026, 10, 1), salary, checking, 200000000),
+          TxnData(
+            id: nextId++,
+            date: DateTime(2026, 10, 10),
+            entries: [
+              EntryData(id: nextId++, accountId: checking, amount: -34000000),
+              EntryData(id: nextId++, accountId: exchange, amount: 34000000),
+              EntryData(
+                id: nextId++,
+                accountId: exchange,
+                amount: -10000,
+                currency: Currency.usd,
+              ),
+              EntryData(
+                id: nextId++,
+                accountId: usdCard,
+                amount: 10000,
+                currency: Currency.usd,
+              ),
+            ],
+          ),
+        ],
+        prefs: {BudgetKeys.beganIn(Currency.usd): '2026-10-01'},
+      );
+      final o = of(d, oct);
+      expect(o.pools.first.exchanged, -34000000);
+      expect(o.pools[1].exchanged, 0);
+    },
+  );
+
+  test('exchanged past what there was is its own cause', () {
+    const pool = BudgetPool(
+      currency: Currency.mnt,
+      income: 200000000,
+      fromBefore: 50000000,
+      exchanged: -350000000,
+      notAssigned: -100000000,
+    );
+    expect(pool.shortBy(), const ShortBy(exchanged: 100000000));
   });
 
   test('pay that came early isn\'t expected again from a period ahead', () {
@@ -780,7 +1009,6 @@ void main() {
       expect(o.lines[food]!.left, 80000000);
       // The count: ₮958,000 spent, and October's ₮800,000 held. September's
       // ₮42,000 is back in it.
-      expect(o.money, 540000000 - 85800000 - 10000000);
       expect(o.notAssigned, -95800000 - 80000000);
       expect(o.pools.first.fromBefore, -85800000);
       // November: October's has gone back by then too.
@@ -2605,7 +2833,7 @@ void main() {
   });
 
   group('currencies and accounts', () {
-    const insurance = 40, savings = 41, fund = 42, trip = 43;
+    const insurance = 40, savings = 41;
     final usd = acct(
       insurance,
       'Car insurance',
@@ -2637,7 +2865,6 @@ void main() {
       // Two pools, never added together: in dollars, $120 given out with
       // no dollar income.
       expect(o.pools.map((p) => p.currency), [Currency.mnt, Currency.usd]);
-      expect(o.pools[1].money, 250000 - 9000);
       expect(o.pools[1].notAssigned, -12000);
       expect(o.notAssigned, -90000000);
     });
@@ -2686,7 +2913,6 @@ void main() {
       );
       final l = of(d, oct).lines[food]!;
       expect(l.spent, 15000000);
-      expect(l.backing, isNull);
     });
 
     test('dollars assigned first don\'t start the tugrik budget', () {
@@ -2752,63 +2978,6 @@ void main() {
       expect(o.pools[1].notAssigned, -69000);
     });
 
-    test('a category paid from the card: nothing to say where it is kept', () {
-      final d = ledger(
-        paidFrom: {food: visa},
-        plans: [
-          CategoryPlan(
-            categoryId: food,
-            kind: PlanKind.each,
-            amount: 900000000,
-            start: oct.start,
-          ),
-        ],
-        amounts: [put(food, oct.start, 900000000)],
-      );
-      // More than the card could hold: a card isn't where money is kept.
-      expect(of(d, oct).lines[food]!.backing, isNull);
-    });
-
-    test('a Paid from account since archived is compared with nothing', () {
-      final d = ledger(
-        more: [
-          AccountInfo(
-            id: savings,
-            name: 'Savings',
-            type: AccountType.asset,
-            archived: true,
-          ),
-        ],
-        paidFrom: {food: savings},
-        plans: [keeps(food)],
-        amounts: [put(food, oct.start, 600000000)],
-      );
-      // More than it holds, and still no word about its account.
-      expect(of(d, oct).lines[food]!.backing, isNull);
-    });
-
-    test('an overspent neighbour does not hide a shortfall', () {
-      final d = ledger(
-        more: [
-          acct(savings, 'Savings', AccountType.asset),
-          acct(fund, 'Emergency', AccountType.expense),
-          acct(trip, 'Trip', AccountType.expense),
-        ],
-        paidFrom: {fund: savings, trip: savings},
-        plans: [keeps(fund), keeps(trip)],
-        amounts: [put(fund, oct.start, 100000000)],
-        rows: [
-          move(DateTime(2026, 8, 1), opening, savings, 60000000),
-          move(DateTime(2026, 10, 5), checking, trip, 50000000),
-        ],
-      );
-      expect(of(d, oct).lines[fund]!.backing, (
-        setAside: 100000000,
-        categories: 1,
-        have: 60000000,
-      ));
-    });
-
     test('a row in the other currency stays named until it is fixed', () {
       final d = ledger(
         more: [usd],
@@ -2846,84 +3015,6 @@ void main() {
         ],
       );
       expect(of(d, oct).cameIn[salary], {Currency.usd: 300000});
-    });
-
-    test('its account holds less than is set aside in it', () {
-      // An emergency fund kept in Savings alone: ₮1,000,000 there.
-      final d = ledger(
-        more: [
-          acct(savings, 'Savings', AccountType.asset),
-          acct(fund, 'Emergency', AccountType.expense),
-          acct(trip, 'Trip', AccountType.expense),
-        ],
-        paidFrom: {fund: savings, trip: savings, food: checking},
-        plans: [keeps(fund), keeps(trip)],
-        amounts: [
-          put(fund, oct.start, 80000000),
-          put(trip, oct.start, 30000000),
-        ],
-        rows: [move(DateTime(2026, 8, 1), opening, savings, 100000000)],
-      );
-      final o = of(d, oct);
-      // The two share Savings: ₮1,100,000 set aside from ₮1,000,000.
-      expect(o.lines[fund]!.backing, (
-        setAside: 110000000,
-        categories: 2,
-        have: 100000000,
-      ));
-      expect(o.lines[trip]!.backing, (
-        setAside: 110000000,
-        categories: 2,
-        have: 100000000,
-      ));
-      expect(o.lines[food]!.backing, isNull);
-      // Within what Savings holds: nothing to say.
-      final ok = of(
-        ledger(
-          more: [
-            acct(savings, 'Savings', AccountType.asset),
-            acct(fund, 'Emergency', AccountType.expense),
-          ],
-          paidFrom: {fund: savings},
-          plans: [keeps(fund)],
-          amounts: [put(fund, oct.start, 80000000)],
-          rows: [move(DateTime(2026, 8, 1), opening, savings, 100000000)],
-        ),
-        oct,
-      );
-      expect(ok.lines[fund]!.backing, isNull);
-    });
-
-    test('one spent down in its period is not compared with its account', () {
-      // Groceries goes back when the month ends: what's left is spent from
-      // checking as it goes, not kept there (#180). Christmas carries
-      // over, so it is.
-      final d = ledger(
-        paidFrom: {food: checking, xmas: checking},
-        plans: [
-          CategoryPlan(
-            categoryId: food,
-            kind: PlanKind.each,
-            amount: 500000000,
-            start: oct.start,
-            rollover: false,
-          ),
-          CategoryPlan(
-            categoryId: xmas,
-            kind: PlanKind.each,
-            amount: 100000000,
-            start: oct.start,
-          ),
-        ],
-        amounts: [
-          put(food, oct.start, 500000000),
-          put(xmas, oct.start, 100000000),
-        ],
-      );
-      final o = of(d, oct);
-      expect(o.lines[food]!.backing, isNull);
-      // Christmas alone: ₮1,000,000 in a ₮5,400,000 account, nothing to say.
-      expect(o.lines[xmas]!.backing, isNull);
     });
   });
 
@@ -3897,182 +3988,6 @@ void main() {
     });
   });
 
-  group('living on the income (#234)', () {
-    const net = 40, school = 41, gifts = 42;
-    const pay = PaySchedule(
-      id: 1,
-      categoryId: salary,
-      accountId: checking,
-      amount: 160000000,
-      rule: PayRule.twiceMonthly,
-      day1: 10,
-      day2: 25,
-      weekend: PayWeekend.keep,
-    );
-    CategoryPlan each(int category, int amount) => CategoryPlan(
-      categoryId: category,
-      kind: PlanKind.each,
-      amount: amount,
-      start: DateTime(2026, 10, 1),
-    );
-    LedgerData month({
-      List<TxnData> more = const [],
-      List<CategoryPlan> plans = const [],
-      List<BudgetAmount> amounts = const [],
-      List<PaySchedule> pays = const [pay],
-    }) => ledger(
-      pay: pays,
-      more: [
-        acct(
-          net,
-          'Safety net',
-          AccountType.expense,
-          role: AccountRole.emergencyFund,
-        ),
-        acct(school, 'School fees', AccountType.expense),
-        acct(gifts, 'Cash box', AccountType.asset),
-      ],
-      plans: [
-        each(food, 200000000),
-        each(housing, 80000000),
-        each(net, 25000000),
-        ...plans,
-      ],
-      amounts: [
-        put(food, oct.start, 100000000),
-        put(dining, oct.start, 50000000),
-        ...amounts,
-      ],
-      rows: [
-        move(DateTime(2026, 10, 10), salary, checking, 160000000),
-        move(DateTime(2026, 10, 12), checking, food, 120000000),
-        move(DateTime(2026, 10, 13), checking, coffee, 10000000),
-        move(DateTime(2026, 10, 14), checking, waiting, 5000000),
-        ...more,
-      ],
-    );
-    IncomeFit fit(
-      LedgerData d, {
-      ({DateTime start, DateTime end})? period,
-      DateTime? on,
-    }) {
-      final p = period ?? oct;
-      final day = on ?? today;
-      final b = Budget.of(d, start: p.start, end: p.end, today: day);
-      final fits = IncomeFit.of(
-        d,
-        b,
-        d.categories.where((c) => !c.isIncome && !isUncategorized(c)),
-        saved: {net},
-        start: p.start,
-        end: p.end,
-        today: day,
-        pay: periodPay(d, start: p.start, end: p.end, today: day),
-      );
-      expect(fits.map((f) => f.currency), [Currency.mnt]);
-      return fits.single;
-    }
-
-    test('the month against its own income, not the balance', () {
-      final f = fit(month());
-      // ₮1,600,000 came on the 10th; the 25th's is still to come.
-      expect(f.cameIn, 160000000);
-      expect(f.toCome, 160000000);
-      expect(f.income, 320000000);
-      expect(f.sure, isTrue);
-      // Groceries spent past what's assigned, Coffee with nothing in it,
-      // and a row with no category: all spent.
-      expect(f.spent, 120000000 + 10000000 + 5000000);
-      // Groceries' plan past what it spent, Dining out's Assigned with no
-      // plan, Housing's plan.
-      expect(f.toSpend, 80000000 + 50000000 + 80000000);
-      // Put aside counts against the income too (owner, 2026-10-27).
-      expect(f.putAside, 25000000);
-      expect(f.over, 370000000 - 320000000);
-    });
-
-    test('pay that came early still counts once', () {
-      final f = fit(
-        month(
-          more: [move(DateTime(2026, 10, 19), salary, checking, 160000000)],
-        ),
-      );
-      expect(f.cameIn, 320000000);
-      expect(f.toCome, 0);
-    });
-
-    test('a gift into another account adds to the month', () {
-      final f = fit(
-        month(more: [move(DateTime(2026, 10, 12), salary, gifts, 50000000)]),
-      );
-      expect(f.cameIn, 210000000);
-      expect(f.toCome, 160000000);
-    });
-
-    test('a payday gone by without its pay is not counted on', () {
-      final late = fit(month(), on: DateTime(2026, 10, 28));
-      expect(late.toCome, 0);
-      expect(late.income, 160000000);
-      // A month gone by expects nothing more.
-      final sep = (start: DateTime(2026, 9, 1), end: DateTime(2026, 9, 30));
-      expect(fit(month(), period: sep).toCome, 0);
-    });
-
-    test('a bill saved for over months counts its share when paid', () {
-      final d = month(
-        plans: [each(school, 10000000)],
-        amounts: [
-          for (var m = 2; m <= 10; m++)
-            put(school, DateTime(2026, m, 1), 10000000),
-        ],
-        more: [move(DateTime(2026, 10, 15), checking, school, 90000000)],
-      );
-      final f = fit(d);
-      // ₮900,000 paid, ₮800,000 of it saved before October.
-      expect(f.spent, 120000000 + 10000000 + 5000000 + 10000000);
-      expect(f.over, 370000000 + 10000000 - 320000000);
-    });
-
-    test('money already there, assigned past a plan, is not this month\'s', () {
-      final f = fit(month(amounts: [put(net, oct.start, 500000000)]));
-      expect(f.putAside, 25000000);
-    });
-
-    test('money in waiting for a category takes nothing off spending', () {
-      final f = fit(
-        month(
-          more: [move(DateTime(2026, 10, 15), waiting, checking, 90000000)],
-        ),
-      );
-      expect(f.spent, 120000000 + 10000000 + 5000000);
-    });
-
-    test('a loan paid with no category is spent; paying the card is not', () {
-      final f = fit(
-        month(
-          more: [
-            move(DateTime(2026, 10, 16), checking, mortgage, 30000000),
-            move(DateTime(2026, 10, 17), checking, visa, 40000000),
-          ],
-        ),
-      );
-      expect(f.spent, 120000000 + 10000000 + 5000000 + 30000000);
-    });
-
-    test(
-      'with no pay set up, a shortfall is not sure until the month ends',
-      () {
-        expect(fit(month(pays: const [])).sure, isFalse);
-        final sep = (start: DateTime(2026, 9, 1), end: DateTime(2026, 9, 30));
-        final gone = month(
-          pays: const [],
-          more: [move(DateTime(2026, 9, 10), salary, checking, 1000)],
-        );
-        expect(fit(gone, period: sep).sure, isTrue);
-      },
-    );
-  });
-
   // The top card's result below zero, named by what made it (#470).
   group('what made the result short', () {
     BudgetPool pool({
@@ -4083,7 +3998,6 @@ void main() {
       int loose = 0,
     }) => BudgetPool(
       currency: Currency.mnt,
-      money: 0,
       income: income,
       fromBefore: fromBefore,
       overspent: overspent,

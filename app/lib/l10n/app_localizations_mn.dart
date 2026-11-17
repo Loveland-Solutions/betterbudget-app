@@ -1412,8 +1412,13 @@ class WordsMn extends Words {
       'Тогтмол орлогоо тохируулах: хэд, хэр давтамжтай, аль данс руу орохыг';
 
   @override
-  String planIncomeExpected(String received, String expected) {
-    return 'Энэ үед $received орсон, орох ёстой нь $expected';
+  String planIncomeToCome(String received, String toCome) {
+    return 'Энэ үед $received орсон, цаашид орох: $toCome';
+  }
+
+  @override
+  String planIncomeReceived(String received) {
+    return 'Энэ үед $received орсон';
   }
 
   @override
@@ -4506,6 +4511,33 @@ class WordsMn extends Words {
   }
 
   @override
+  String get planSumHadBefore => 'Төсөв эхлэхэд байсан мөнгө';
+
+  @override
+  String get planSumExchanged => 'Валют сольсон';
+
+  @override
+  String get settingsHadBefore => 'Төсөв эхлэхэд байсан мөнгө';
+
+  @override
+  String settingsHadBeforeHintOn(String date) {
+    return 'Төсөв $date-с хойш орж ирсэн орлогыг тоолно. Тэр өдөр танд аль хэдийн байсан мөнгө энд бичих хүртэл тоологдохгүй.';
+  }
+
+  @override
+  String get settingsHadBeforeHintOff =>
+      'Төсөв анх мөнгө хуваарилсан өдрөөс хойш орж ирсэн орлогыг тоолно. Тэр өдөр танд аль хэдийн байсан мөнгө энд бичих хүртэл тоологдохгүй.';
+
+  @override
+  String settingsHadBeforeSet(String amount) {
+    return 'Төсөв эхлэхэд байсан мөнгө: $amount';
+  }
+
+  @override
+  String get settingsHadBeforeCleared =>
+      'Төсөв эхлэхэд байсан мөнгийг тоолохоо больсон';
+
+  @override
   String get planSumFromPay => 'Өмнөх орлогын үеийн үлдэгдэл';
 
   @override
@@ -4570,6 +4602,11 @@ class WordsMn extends Words {
   @override
   String planKeyOverSpentPart(String amount) {
     return '$amount хэтэрсэн';
+  }
+
+  @override
+  String planKeyOverExchangedPart(String amount) {
+    return '$amount валют сольсон';
   }
 
   @override

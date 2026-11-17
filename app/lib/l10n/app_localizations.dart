@@ -2039,11 +2039,17 @@ abstract class Words {
   /// **'Set up regular income: how much, how often, and the account it goes into'**
   String get setupAddPayTip;
 
-  /// Budget page, Income tab, beside the Income line: this period's pay that has come, of what the pay schedules expect in it, per currency (the owner's wording)
+  /// Budget page, Income tab, beside the Income line: this period's pay that has come, and what is still to come, the same figure as the sum at the top's still to come, per currency (refines the owner's received-of-expected wording, #461)
   ///
   /// In en, this message translates to:
-  /// **'{received} received of {expected} expected this period'**
-  String planIncomeExpected(String received, String expected);
+  /// **'{received} received · {toCome} still to come'**
+  String planIncomeToCome(String received, String toCome);
+
+  /// Budget page, Income tab, beside the Income line: this period's pay that has come, when no more is still to come, per currency
+  ///
+  /// In en, this message translates to:
+  /// **'{received} received'**
+  String planIncomeReceived(String received);
 
   /// Budget page, the panel's top row: the second tab, beside Spending; it holds this period's income and the pay that is set up
   ///
@@ -6599,6 +6605,48 @@ abstract class Words {
   /// **'From {month}'**
   String planSumFromMonth(String month);
 
+  /// Budget page, the top card's sum, in the period the budget began in: what the person typed in Settings as the money they had then, counted as income that day (owner, 2026-11-17, #461). After it, it is part of From October.
+  ///
+  /// In en, this message translates to:
+  /// **'Had before the budget'**
+  String get planSumHadBefore;
+
+  /// Budget page, the top card's sum: money changed into this currency from another (after a +) or out of it into another (after a −) in the period (owner, 2026-11-17, #461).
+  ///
+  /// In en, this message translates to:
+  /// **'Exchanged'**
+  String get planSumExchanged;
+
+  /// Settings' Budget card: the label of a box for the money the household already had when the budget began, in cash and the bank (#461). The owner's own words.
+  ///
+  /// In en, this message translates to:
+  /// **'Had before the budget'**
+  String get settingsHadBefore;
+
+  /// Settings' Budget card, under Had before the budget, once the budget has begun. {date} is the day it began, like 10.01.
+  ///
+  /// In en, this message translates to:
+  /// **'The budget counts the income that comes in from {date} on. Money you already had that day doesn’t count until you type it here.'**
+  String settingsHadBeforeHintOn(String date);
+
+  /// Settings' Budget card, under Had before the budget, before any money is assigned.
+  ///
+  /// In en, this message translates to:
+  /// **'The budget counts the income that comes in from the day you first assign money. Money you already had that day doesn’t count until you type it here.'**
+  String get settingsHadBeforeHintOff;
+
+  /// Toast after the amount had before the budget is typed in Settings. {amount} with its currency, like ₮2,000,000.
+  ///
+  /// In en, this message translates to:
+  /// **'Had before the budget: {amount}'**
+  String settingsHadBeforeSet(String amount);
+
+  /// Toast after the amount had before the budget is emptied in Settings: it no longer counts.
+  ///
+  /// In en, this message translates to:
+  /// **'Had before the budget no longer counted'**
+  String get settingsHadBeforeCleared;
+
   /// Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. As planSumFromMonth, when the Budget page is by pay period.
   ///
   /// In en, this message translates to:
@@ -6700,6 +6748,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{amount} overspent'**
   String planKeyOverSpentPart(String amount);
+
+  /// Budget page, a part of the line under Short (planKeyOverMixed): money changed into another currency past what was left to give out, like '₮1,000,000 exchanged' (#461). Shown even when it is the only cause.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} exchanged'**
+  String planKeyOverExchangedPart(String amount);
 
   /// Budget page, a part of the line under Short (planKeyOverMixed): money out with no category, past what was left to assign, like '₮50,000 not categorized'.
   ///

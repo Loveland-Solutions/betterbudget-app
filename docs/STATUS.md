@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-17** · version 0.98.0 · schema v26 · 1124 tests pass
+**Last updated: 2026-11-17** · version 0.100.0 · schema v26 · 1131 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -12,7 +12,7 @@ not for reading unless the owner asks.
 
 ## Next step
 
-The Budget page (0.92.1–0.99.0). Budgeting by month or by paycheck is chosen in setup's
+The Budget page (0.92.1–0.100.0). Budgeting by month or by paycheck is chosen in setup's
 pay step and in Settings' Budget card, and a month's title is "November 2026" (#474). By
 paycheck, a month's Assigned is kept where each paycheck it pays for is; a paycheck asks
 only its days' share of months still running, a finished period offers no Assign, and
@@ -33,7 +33,7 @@ a note is a mark after the name (#483). A category can start with an emoji: a sp
 each row's name (a + while pointed at) opens every emoji with a search in English and
 Mongolian, the budget's 48 first; Edit, New category and the phone's New category have a
 square before the name; the emoji is the first thing in the name, and sorting and finding
-go by the words (#486). The owner is trying it all. Next: a first-time
+go by the words (#486). The budget counts income against what goes out, never the bank (#461): a card's payment counts only for what it owed when the budget began, money exchanged leaves one currency and comes into the other, Settings' Budget card has **Had before the budget**, and the Income tab reads "₮… received · ₮… still to come", the same figure as the sum at the top. What's left of #461 is #499. The owner is trying it all. Next: a first-time
 setup walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 
@@ -112,7 +112,7 @@ re-ask; bring one up when its screen comes up again.
 | Budget | Spending and Income tabs; period arrows and Back to today; the title picks Month or an income's pay periods. At the top, one sum in boxes with no pane round them, counted from income and never the bank (#461, #464): Income + From October − Assigned − Saved − Overspent = Not assigned, its box edged in its color, or in its place what made it short (Assigned too much, Over budget, Still short from October, Short); Clear September's Assigned ends the row; what a period leaves, short or spare, carries into the next; under it Assign what's planned (its warning inside the button). Each category reads Assigned · Spent · Left; Left is green, gray at zero, coral when short, and **Move money** moves it. A capsule after the name, the same length for every category (#465): the colored part is what's left of what it had, whole green untouched, gold as it's spent, whole coral when over, and none where it had nothing (the phone's ring follows the same rules). Add category sits on the tabs' row. Everyday categories, then the person's groups, then **Bills**, one line each: its amount, one word when something is up ("paid 10.20", Late, Skipped, short, Paid from archived) and Assign; skipping is a switch for each of the period's bills in its Edit, then **Saved**; a **Total** row; each currency on its own |
 | Budget: Saved | The built-in Safety net, listed last under "Saved"; its money builds up. Renamed and edited, not deleted or archived. Made the first time a ledger past setup opens without one |
 | Categories | Add category and "New category" in the entry row open the same window, with Add, then start another. It and Edit open on four type cards with pictures (#429): **Day-to-day** (an amount each month or pay period, Just for September, what's left at month's end), **Fund** (an amount each period, Most it holds), **Bill** (Amount due, How often: Twice a month with Starts, Every payday, Custom…, On these dates…; Ends), **Goal** (Amount to have ready, Ready by, once or repeating, shown on Savings by what was put toward its next date, never marked paid). The phone's New category has the same cards, two to a row. Also one **Paid from**, Currency; in Edit, Group, Note, In a month of expenses?, Archive, Delete…. The type isn't stored: it comes from the plan. One built-in Income |
-| Regular income | On the Income tab: a name, who it's from, Paid into, the amount (About the same each time, or It varies), How often as a category's or No set day, the first payday, a weekend rule, Ends, each with an ⓘ. "I don't have regular income". "Stop counting on this income" asks what its categories go by from then |
+| Regular income | On the Income tab, under "received · still to come" per currency: a name, who it's from, Paid into, the amount (About the same each time, or It varies), How often as a category's or No set day, the first payday, a weekend rule, Ends, each with an ⓘ. "I don't have regular income". "Stop counting on this income" asks what its categories go by from then |
 | Savings | The owner's four steps with their pictures: Build a safety net (a month of expenses from the budget; what's Left in the Safety net), Eliminate debt (each card and loan's rate, interest and payment; Smallest first or Highest rate first, with when each pays it all off), Build three to six months of savings, Save for the future. Each is done, current, later or skipped for now. Goals under the steps: what for, how much, by when; on track or behind, and what each asks a month. One currency |
 | Payees | Every payee the app remembers a category for, a line each that reads as a sentence ("starts with «Unitel»"), its accounts, its category, Delete. A click or Add a payee opens its Edit in place: the words, where to look, Accounts, Category, how many rows it fits, one drawn as it will read. Save offers to file this period's rows in Not categorized; rows in a category are never moved. On import the longest words win, then the later-made |
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by contents; the column choice is saved per account. Two counts, to import and skipped. A typed row the file has is cleared, not added; one at another amount is offered ("Same purchase: take the bank’s ₮…"). A check of the bank's running balance; a warning when rows overlap an earlier import. Remembered payees file the rows; one in a bill's category pays it. One undo |

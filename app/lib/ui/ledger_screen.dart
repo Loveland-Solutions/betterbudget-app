@@ -1770,6 +1770,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  /// Where the Not categorized tab starts: the day the budget began, when
+  /// that is before today's period, since every row waiting since then
+  /// counts on the Budget page (owner, 2026-11-17, #461); else the
+  /// period's first day (owner, 2026-10-06).
+  DateTime _uncategorizedFrom(LedgerData data, DateTime today) {
+    final start = budgetPeriod(today, data.periodSchedule).start;
+    final began = Budget.beganOf(data);
+    return began != null && began.isBefore(start) ? began : start;
+  }
+
   /// Records an undoable action. Toasts are for saved changes and deletes;
   /// quick clicks like clearing a row stay quiet and rely on ⌘Z.
   void _did(
@@ -4281,7 +4291,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               accountNamed: (id) => data.accounts[id]?.name,
               notItFor: (id) => billNotIt(data.prefs, id),
               paysBill: (id) => data.prefs.containsKey(billPaidKey(id)),
-              uncategorizedFrom: budgetPeriod(today, data.periodSchedule).start,
+              uncategorizedFrom: _uncategorizedFrom(data, today),
               uncategorizedTo: budgetPeriod(today, data.periodSchedule).end,
               search: _search.text,
               selected: _selected,
@@ -7421,12 +7431,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                       now: widget.clock,
                                     ),
                                   },
-                                  budget: data.paySchedules.isEmpty
-                                      ? null
-                                      : _BudgetSettings(
-                                          data: data,
-                                          onPick: _budgetBy,
-                                        ),
+                                  budget: _BudgetSettings(
+                                    data: data,
+                                    onPick: _budgetBy,
+                                    onHadBefore: (c, v) => _setPref(
+                                      BudgetKeys.hadBefore(c),
+                                      v?.toString(),
+                                      v == null
+                                          ? context.t.settingsHadBeforeCleared
+                                          : context.t.settingsHadBeforeSet(
+                                              formatMoney(v, currency: c),
+                                            ),
+                                      toast: true,
+                                    ),
+                                  ),
                                   register: _RegisterSettings(
                                     showSource:
                                         data.prefs[showSourceKey] != '0',
@@ -7764,10 +7782,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 accountNamed: (id) => data.accounts[id]?.name,
                 notItFor: (id) => billNotIt(data.prefs, id),
                 paysBill: (id) => data.prefs.containsKey(billPaidKey(id)),
-                uncategorizedFrom: budgetPeriod(
-                  today,
-                  data.periodSchedule,
-                ).start,
+                uncategorizedFrom: _uncategorizedFrom(data, today),
                 uncategorizedTo: budgetPeriod(today, data.periodSchedule).end,
                 search: _search.text,
                 selected: _selected,

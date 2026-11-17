@@ -1466,8 +1466,13 @@ class WordsEn extends Words {
       'Set up regular income: how much, how often, and the account it goes into';
 
   @override
-  String planIncomeExpected(String received, String expected) {
-    return '$received received of $expected expected this period';
+  String planIncomeToCome(String received, String toCome) {
+    return '$received received · $toCome still to come';
+  }
+
+  @override
+  String planIncomeReceived(String received) {
+    return '$received received';
   }
 
   @override
@@ -4662,6 +4667,33 @@ class WordsEn extends Words {
   }
 
   @override
+  String get planSumHadBefore => 'Had before the budget';
+
+  @override
+  String get planSumExchanged => 'Exchanged';
+
+  @override
+  String get settingsHadBefore => 'Had before the budget';
+
+  @override
+  String settingsHadBeforeHintOn(String date) {
+    return 'The budget counts the income that comes in from $date on. Money you already had that day doesn’t count until you type it here.';
+  }
+
+  @override
+  String get settingsHadBeforeHintOff =>
+      'The budget counts the income that comes in from the day you first assign money. Money you already had that day doesn’t count until you type it here.';
+
+  @override
+  String settingsHadBeforeSet(String amount) {
+    return 'Had before the budget: $amount';
+  }
+
+  @override
+  String get settingsHadBeforeCleared =>
+      'Had before the budget no longer counted';
+
+  @override
   String get planSumFromPay => 'From the pay period before';
 
   @override
@@ -4726,6 +4758,11 @@ class WordsEn extends Words {
   @override
   String planKeyOverSpentPart(String amount) {
     return '$amount overspent';
+  }
+
+  @override
+  String planKeyOverExchangedPart(String amount) {
+    return '$amount exchanged';
   }
 
   @override
