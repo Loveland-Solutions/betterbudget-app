@@ -65,6 +65,29 @@ Future<PhoneStore> _pump(
   return store;
 }
 
+/// The demo ledger with a Safety net holding ₮800,000 put in this month, of
+/// a month of expenses typed on the computer's Savings: ₮2,000,000. And the
+/// Safety net's id.
+Future<(LedgerData, int)> _stepLedger(WidgetTester tester) async =>
+    (await tester.runAsync(() async {
+      final db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      final net = await db.safetyNetCategory(
+        name: 'Safety net',
+        currency: Currency.mnt,
+      );
+      await db.setBudgetAmount(
+        net,
+        DateTime(2026, 10),
+        DateTime(2026, 10, 31),
+        80000000,
+      );
+      await db.setPreference(ReadyKeys.month, '200000000');
+      final data = await db.loadLedger();
+      await db.close();
+      return (data, net);
+    }))!;
+
 /// Types a payee on the amount screen: [pick] taps one the history offers,
 /// otherwise what was typed is kept.
 Future<void> _payee(WidgetTester tester, String typed, {String? pick}) async {
@@ -436,6 +459,82 @@ void main() {
       find.byType(PhoneApp),
       matchesGoldenFile('goldens/phone_budget.png'),
     );
+  });
+
+  testWidgets('Budget opens with the Savings step and its progress, and no '
+      'button (#487)', (tester) async {
+    final (data, _) = await _stepLedger(tester);
+    await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    await _toBudget(tester);
+    final band = find.byKey(const ValueKey('step-band'));
+    expect(band, findsOneWidget);
+    // First in the list, above the categories.
+    expect(
+      tester.getTopLeft(band).dy,
+      lessThan(tester.getTopLeft(find.text('Groceries')).dy),
+    );
+    expect(
+      find.descendant(of: band, matching: find.text('Build a safety net')),
+      findsOneWidget,
+    );
+    final semantics = tester.ensureSemantics();
+    expect(find.bySemanticsLabel(RegExp('Step 1 of 4')), findsOneWidget);
+    semantics.dispose();
+    expect(
+      find.descendant(
+        of: band,
+        matching: find.text('₮800,000 of ₮2,000,000 · ₮1,200,000 to go'),
+      ),
+      findsOneWidget,
+    );
+    // The phone records and checks: money is assigned on the computer.
+    expect(
+      find.descendant(of: band, matching: find.byType(TextButton)),
+      findsNothing,
+    );
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_budget_step.png'),
+    );
+  });
+
+  testWidgets('Budget: the step band counts what this phone took from the '
+      'Safety net, as its row does (#487)', (tester) async {
+    final (data, net) = await _stepLedger(tester);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final store = PhoneStore(
+      snapshotOf(data, today: _now, madeAt: _now),
+      waiting: [
+        PhoneEntry(
+          id: 'e1',
+          categoryId: '$net',
+          accountId: '${data.openAccounts.first.id}',
+          payee: 'Repair',
+          amountMinor: -5000000,
+          date: _now,
+          madeAt: _now,
+        ),
+      ],
+    );
+    await tester.pumpWidget(PhoneApp(store: store, now: () => _now));
+    await tester.pumpAndSettle();
+    await _toBudget(tester);
+    expect(
+      find.text('₮750,000 of ₮2,000,000 · ₮1,250,000 to go'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Budget: with no ledger behind the figures (the preview), no '
+      'step band', (tester) async {
+    await _pump(tester);
+    await _toBudget(tester);
+    expect(find.byKey(const ValueKey('step-band')), findsNothing);
   });
 
   testWidgets('Budget: a group under its heading, a month of its own, a '

@@ -17,12 +17,15 @@ import '../../domain/ledger.dart';
 import '../../domain/money.dart';
 import '../../domain/pay.dart';
 import '../../domain/phone.dart';
+import '../../domain/readiness.dart';
 import '../language.dart';
 import '../plan_form.dart';
 import '../schemes.dart';
 import '../amount_input.dart';
+import '../brand.dart';
 import '../category_types.dart';
 import '../emoji_chooser.dart';
+import '../savings_steps.dart';
 import '../theme.dart';
 
 part 'phone_new_category.dart';
@@ -719,7 +722,8 @@ class _BudgetScreen extends StatelessWidget {
       final t = context.t;
       final snapshot = store.snapshot;
       final today = now();
-      final listed = _spendThenBills(store.categories);
+      final band = _stepBandOf(snapshot, store.waiting);
+      final listed = <Object?>[?band, ..._spendThenBills(store.categories)];
       // "+ New category" ends the money to spend, where the new row lands.
       final newAt = listed.contains(null)
           ? listed.indexOf(null)
@@ -810,6 +814,7 @@ class _BudgetScreen extends StatelessWidget {
                     }
                     final item = listed[i > newAt ? i - 1 : i];
                     if (item == null) return const _BillsHeading();
+                    if (item is _PhoneStepBand) return item;
                     if (item is String) return _GroupHeading(item);
                     final category = item as PhoneCategory;
                     return _CategoryRow(
@@ -828,6 +833,122 @@ class _BudgetScreen extends StatelessWidget {
       );
     },
   );
+}
+
+/// The Savings steps of a ledger, worked out once per copy from the
+/// computer rather than on every entry typed.
+final _readinessOf = Expando<(DateTime, Readiness)>('readiness');
+
+/// The Savings step the household is on, first in Budget's list, as the
+/// computer's Budget page shows it under its sum (#487; owner, 2026-11-17:
+/// "I want the budget screen to encourage them to feed money into these
+/// categories and track their progress"). Null with no ledger behind the
+/// figures (the preview) or every step done or set aside.
+///
+/// It reads the period the rows under it read, the one the computer's copy
+/// was made in, and counts what this phone has recorded in the fund since,
+/// as the fund's own row does ([leftNow]). A debt paid from the phone moves
+/// step 2 once the computer has it.
+_PhoneStepBand? _stepBandOf(
+  PhoneSnapshot snapshot,
+  Iterable<PhoneEntry> waiting,
+) {
+  final data = snapshot.data;
+  if (data == null) return null;
+  final day = dateOnly(snapshot.madeAt);
+  final kept = _readinessOf[data];
+  final r = kept != null && kept.$1 == day
+      ? kept.$2
+      : (_readinessOf[data] = (day, Readiness.of(data, day))).$2;
+  final step = r.current;
+  if (step == null) return null;
+  final fund = {for (final c in r.fundCategories) '${c.id}'};
+  var change = 0;
+  for (final e in waiting) {
+    if (fund.contains(e.categoryId)) change += e.amountMinor;
+    for (final l in e.lines) {
+      if (fund.contains(l.categoryId)) change += l.amountMinor;
+    }
+  }
+  return _PhoneStepBand(
+    r: r,
+    step: step,
+    currency: savingsCurrency(data),
+    fundChange: change,
+  );
+}
+
+/// The step's picture, its four marks, its name, its bar and how far
+/// along it is. No Assign: the phone records and checks (ADR 0005), and
+/// money is assigned on the computer.
+class _PhoneStepBand extends StatelessWidget {
+  const _PhoneStepBand({
+    required this.r,
+    required this.step,
+    required this.currency,
+    this.fundChange = 0,
+  });
+  final Readiness r;
+  final ReadyStep step;
+  final Currency currency;
+
+  /// What this phone's waiting entries put into or took out of the fund.
+  final int fundChange;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final (:words, :value) = stepProgress(
+      t,
+      r,
+      step,
+      currency,
+      fundChange: fundChange,
+    );
+    return Container(
+      key: const ValueKey('step-band'),
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: Mid.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Mid.rule),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ExcludeSemantics(child: SavingsPicture(stepPicture(step), size: 44)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                StepMarkers(r: r, step: step),
+                const SizedBox(height: 6),
+                Text(
+                  stepTitle(t, step),
+                  key: const ValueKey('step-band-title'),
+                  style: onest(16, weight: 600),
+                ),
+                if (value != null) ...[
+                  const SizedBox(height: 8),
+                  StepBar(value: value, done: false, muted: false, width: null),
+                ],
+                if (words != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    words,
+                    key: const ValueKey('step-band-progress'),
+                    style: onest(14, color: Mid.ink2, tabular: true),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Send feedback… (#92): lls.mn's form in the phone's browser, with the
