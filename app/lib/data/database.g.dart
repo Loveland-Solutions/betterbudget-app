@@ -6562,6 +6562,29 @@ class $PayeeRulesTable extends PayeeRules
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _shownAsMeta = const VerificationMeta(
+    'shownAs',
+  );
+  @override
+  late final GeneratedColumn<String> shownAs = GeneratedColumn<String>(
+    'shown_as',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _spellingsMeta = const VerificationMeta(
+    'spellings',
+  );
+  @override
+  late final GeneratedColumn<String> spellings = GeneratedColumn<String>(
+    'spellings',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6572,6 +6595,8 @@ class $PayeeRulesTable extends PayeeRules
     payScheduleId,
     createdAt,
     deletedAt,
+    shownAs,
+    spellings,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6641,6 +6666,18 @@ class $PayeeRulesTable extends PayeeRules
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
+    if (data.containsKey('shown_as')) {
+      context.handle(
+        _shownAsMeta,
+        shownAs.isAcceptableOrUnknown(data['shown_as']!, _shownAsMeta),
+      );
+    }
+    if (data.containsKey('spellings')) {
+      context.handle(
+        _spellingsMeta,
+        spellings.isAcceptableOrUnknown(data['spellings']!, _spellingsMeta),
+      );
+    }
     return context;
   }
 
@@ -6682,6 +6719,14 @@ class $PayeeRulesTable extends PayeeRules
         DriftSqlType.int,
         data['${effectivePrefix}deleted_at'],
       ),
+      shownAs: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}shown_as'],
+      )!,
+      spellings: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}spellings'],
+      ),
     );
   }
 
@@ -6712,6 +6757,17 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
   /// Deleted by the person: kept so an import doesn't put the payee back
   /// where it went last ([PayeeRuleInfo.deletedBlocks]).
   final int? deletedAt;
+
+  /// The name the ledger shows for it; empty: rows keep the bank's words
+  /// (v27, [PayeeRuleInfo.shownAs]).
+  final String shownAs;
+
+  /// Every spelling and how each is looked for, as [PayeeSpelling.encode]
+  /// writes them (v27). Null on a row no v27 build has written yet: then
+  /// its one spelling is [name], looked for as [anywhere] says. Once set
+  /// it is the truth, and [words], [name] and [anywhere] hold a copy of
+  /// its first spelling.
+  final String? spellings;
   const PayeeRuleRow({
     required this.id,
     required this.words,
@@ -6721,6 +6777,8 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
     this.payScheduleId,
     required this.createdAt,
     this.deletedAt,
+    required this.shownAs,
+    this.spellings,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6736,6 +6794,10 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
     map['created_at'] = Variable<int>(createdAt);
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['shown_as'] = Variable<String>(shownAs);
+    if (!nullToAbsent || spellings != null) {
+      map['spellings'] = Variable<String>(spellings);
     }
     return map;
   }
@@ -6754,6 +6816,10 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      shownAs: Value(shownAs),
+      spellings: spellings == null && nullToAbsent
+          ? const Value.absent()
+          : Value(spellings),
     );
   }
 
@@ -6771,6 +6837,8 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
       payScheduleId: serializer.fromJson<int?>(json['payScheduleId']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      shownAs: serializer.fromJson<String>(json['shownAs']),
+      spellings: serializer.fromJson<String?>(json['spellings']),
     );
   }
   @override
@@ -6785,6 +6853,8 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
       'payScheduleId': serializer.toJson<int?>(payScheduleId),
       'createdAt': serializer.toJson<int>(createdAt),
       'deletedAt': serializer.toJson<int?>(deletedAt),
+      'shownAs': serializer.toJson<String>(shownAs),
+      'spellings': serializer.toJson<String?>(spellings),
     };
   }
 
@@ -6797,6 +6867,8 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
     Value<int?> payScheduleId = const Value.absent(),
     int? createdAt,
     Value<int?> deletedAt = const Value.absent(),
+    String? shownAs,
+    Value<String?> spellings = const Value.absent(),
   }) => PayeeRuleRow(
     id: id ?? this.id,
     words: words ?? this.words,
@@ -6808,6 +6880,8 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
         : this.payScheduleId,
     createdAt: createdAt ?? this.createdAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    shownAs: shownAs ?? this.shownAs,
+    spellings: spellings.present ? spellings.value : this.spellings,
   );
   PayeeRuleRow copyWithCompanion(PayeeRulesCompanion data) {
     return PayeeRuleRow(
@@ -6823,6 +6897,8 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
           : this.payScheduleId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      shownAs: data.shownAs.present ? data.shownAs.value : this.shownAs,
+      spellings: data.spellings.present ? data.spellings.value : this.spellings,
     );
   }
 
@@ -6836,7 +6912,9 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
           ..write('categoryId: $categoryId, ')
           ..write('payScheduleId: $payScheduleId, ')
           ..write('createdAt: $createdAt, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('shownAs: $shownAs, ')
+          ..write('spellings: $spellings')
           ..write(')'))
         .toString();
   }
@@ -6851,6 +6929,8 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
     payScheduleId,
     createdAt,
     deletedAt,
+    shownAs,
+    spellings,
   );
   @override
   bool operator ==(Object other) =>
@@ -6863,7 +6943,9 @@ class PayeeRuleRow extends DataClass implements Insertable<PayeeRuleRow> {
           other.categoryId == this.categoryId &&
           other.payScheduleId == this.payScheduleId &&
           other.createdAt == this.createdAt &&
-          other.deletedAt == this.deletedAt);
+          other.deletedAt == this.deletedAt &&
+          other.shownAs == this.shownAs &&
+          other.spellings == this.spellings);
 }
 
 class PayeeRulesCompanion extends UpdateCompanion<PayeeRuleRow> {
@@ -6875,6 +6957,8 @@ class PayeeRulesCompanion extends UpdateCompanion<PayeeRuleRow> {
   final Value<int?> payScheduleId;
   final Value<int> createdAt;
   final Value<int?> deletedAt;
+  final Value<String> shownAs;
+  final Value<String?> spellings;
   const PayeeRulesCompanion({
     this.id = const Value.absent(),
     this.words = const Value.absent(),
@@ -6884,6 +6968,8 @@ class PayeeRulesCompanion extends UpdateCompanion<PayeeRuleRow> {
     this.payScheduleId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.shownAs = const Value.absent(),
+    this.spellings = const Value.absent(),
   });
   PayeeRulesCompanion.insert({
     this.id = const Value.absent(),
@@ -6894,6 +6980,8 @@ class PayeeRulesCompanion extends UpdateCompanion<PayeeRuleRow> {
     this.payScheduleId = const Value.absent(),
     required int createdAt,
     this.deletedAt = const Value.absent(),
+    this.shownAs = const Value.absent(),
+    this.spellings = const Value.absent(),
   }) : words = Value(words),
        name = Value(name),
        categoryId = Value(categoryId),
@@ -6907,6 +6995,8 @@ class PayeeRulesCompanion extends UpdateCompanion<PayeeRuleRow> {
     Expression<int>? payScheduleId,
     Expression<int>? createdAt,
     Expression<int>? deletedAt,
+    Expression<String>? shownAs,
+    Expression<String>? spellings,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -6917,6 +7007,8 @@ class PayeeRulesCompanion extends UpdateCompanion<PayeeRuleRow> {
       if (payScheduleId != null) 'pay_schedule_id': payScheduleId,
       if (createdAt != null) 'created_at': createdAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (shownAs != null) 'shown_as': shownAs,
+      if (spellings != null) 'spellings': spellings,
     });
   }
 
@@ -6929,6 +7021,8 @@ class PayeeRulesCompanion extends UpdateCompanion<PayeeRuleRow> {
     Value<int?>? payScheduleId,
     Value<int>? createdAt,
     Value<int?>? deletedAt,
+    Value<String>? shownAs,
+    Value<String?>? spellings,
   }) {
     return PayeeRulesCompanion(
       id: id ?? this.id,
@@ -6939,6 +7033,8 @@ class PayeeRulesCompanion extends UpdateCompanion<PayeeRuleRow> {
       payScheduleId: payScheduleId ?? this.payScheduleId,
       createdAt: createdAt ?? this.createdAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      shownAs: shownAs ?? this.shownAs,
+      spellings: spellings ?? this.spellings,
     );
   }
 
@@ -6969,6 +7065,12 @@ class PayeeRulesCompanion extends UpdateCompanion<PayeeRuleRow> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<int>(deletedAt.value);
     }
+    if (shownAs.present) {
+      map['shown_as'] = Variable<String>(shownAs.value);
+    }
+    if (spellings.present) {
+      map['spellings'] = Variable<String>(spellings.value);
+    }
     return map;
   }
 
@@ -6982,7 +7084,9 @@ class PayeeRulesCompanion extends UpdateCompanion<PayeeRuleRow> {
           ..write('categoryId: $categoryId, ')
           ..write('payScheduleId: $payScheduleId, ')
           ..write('createdAt: $createdAt, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('shownAs: $shownAs, ')
+          ..write('spellings: $spellings')
           ..write(')'))
         .toString();
   }
@@ -13772,6 +13876,8 @@ typedef $$PayeeRulesTableCreateCompanionBuilder = PayeeRulesCompanion Function({
   Value<int?> payScheduleId,
   required int createdAt,
   Value<int?> deletedAt,
+  Value<String> shownAs,
+  Value<String?> spellings,
 });
 typedef $$PayeeRulesTableUpdateCompanionBuilder = PayeeRulesCompanion Function({
   Value<int> id,
@@ -13782,6 +13888,8 @@ typedef $$PayeeRulesTableUpdateCompanionBuilder = PayeeRulesCompanion Function({
   Value<int?> payScheduleId,
   Value<int> createdAt,
   Value<int?> deletedAt,
+  Value<String> shownAs,
+  Value<String?> spellings,
 });
 
 final class $$PayeeRulesTableReferences
@@ -13881,6 +13989,16 @@ class $$PayeeRulesTableFilterComposer
 
   ColumnFilters<int> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shownAs => $composableBuilder(
+    column: $table.shownAs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get spellings => $composableBuilder(
+    column: $table.spellings,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13995,6 +14113,16 @@ class $$PayeeRulesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get shownAs => $composableBuilder(
+    column: $table.shownAs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get spellings => $composableBuilder(
+    column: $table.spellings,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$AccountsTableOrderingComposer get categoryId {
     final $$AccountsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -14068,6 +14196,12 @@ class $$PayeeRulesTableAnnotationComposer
 
   GeneratedColumn<int> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get shownAs =>
+      $composableBuilder(column: $table.shownAs, builder: (column) => column);
+
+  GeneratedColumn<String> get spellings =>
+      $composableBuilder(column: $table.spellings, builder: (column) => column);
 
   $$AccountsTableAnnotationComposer get categoryId {
     final $$AccountsTableAnnotationComposer composer = $composerBuilder(
@@ -14182,6 +14316,8 @@ class $$PayeeRulesTableTableManager
                 Value<int?> payScheduleId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
+                Value<String> shownAs = const Value.absent(),
+                Value<String?> spellings = const Value.absent(),
               }) => PayeeRulesCompanion(
                 id: id,
                 words: words,
@@ -14191,6 +14327,8 @@ class $$PayeeRulesTableTableManager
                 payScheduleId: payScheduleId,
                 createdAt: createdAt,
                 deletedAt: deletedAt,
+                shownAs: shownAs,
+                spellings: spellings,
               ),
           createCompanionCallback:
               ({
@@ -14202,6 +14340,8 @@ class $$PayeeRulesTableTableManager
                 Value<int?> payScheduleId = const Value.absent(),
                 required int createdAt,
                 Value<int?> deletedAt = const Value.absent(),
+                Value<String> shownAs = const Value.absent(),
+                Value<String?> spellings = const Value.absent(),
               }) => PayeeRulesCompanion.insert(
                 id: id,
                 words: words,
@@ -14211,6 +14351,8 @@ class $$PayeeRulesTableTableManager
                 payScheduleId: payScheduleId,
                 createdAt: createdAt,
                 deletedAt: deletedAt,
+                shownAs: shownAs,
+                spellings: spellings,
               ),
           withReferenceMapper: (p0) => p0
               .map(

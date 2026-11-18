@@ -1122,9 +1122,7 @@ void main() {
         await db.putPayeeRule(
           PayeeRuleInfo(
             id: id,
-            words: 'bus',
-            name: 'Bus',
-            anywhere: false,
+            spellings: const [PayeeSpelling(PayeeMatch.starts, 'Bus')],
             categoryId: category,
             accountIds: {bank},
             createdAt: at,
@@ -1171,7 +1169,9 @@ void main() {
       // Another spelling is another payee.
       expect(by['Nomin'], isNot(groceries));
       // At the start of the payee, the description isn't looked at.
-      await db.putPayeeRule(rule.copyWith(anywhere: false));
+      await db.putPayeeRule(
+        rule.copyWith(spellings: [PayeeSpelling(PayeeMatch.starts, rule.name)]),
+      );
       by = await filed(
         await bring([
           ImportRow(
@@ -1227,9 +1227,7 @@ void main() {
     test('a pay\'s line is for money in only', () {
       const pay = PayeeRuleInfo(
         id: 1,
-        words: 'unitel llc',
-        name: 'Unitel LLC',
-        anywhere: false,
+        spellings: [PayeeSpelling(PayeeMatch.starts, 'Unitel LLC')],
         categoryId: 2,
         payId: 3,
         accountIds: {4},
@@ -1247,6 +1245,203 @@ void main() {
       // On a typed row, whether money comes in isn't known yet.
       expect(PayeeRuleInfo.pick(rules, 4, 'Unitel LLC', null), isNull);
     });
+
+    test('a spelling is looked for as it says: contains, starts with, is '
+        'exactly; the longest that fits wins', () {
+      const p = 'pos 12345678: номин', none = '';
+      const contains = PayeeSpelling(PayeeMatch.contains, 'Номин');
+      const starts = PayeeSpelling(PayeeMatch.starts, 'Номин');
+      const exactly = PayeeSpelling(PayeeMatch.exactly, 'Номин');
+      expect(contains.fitsWords(p, none), isTrue);
+      // In the memo too, where a named row keeps the bank's words.
+      expect(contains.fitsWords('nomin supermarket', p), isTrue);
+      expect(starts.fitsWords(p, none), isFalse);
+      expect(starts.fitsWords('номин зайсан', none), isTrue);
+      // The start is the payee's: a memo that starts so isn't it.
+      expect(starts.fitsWords('pos', 'номин'), isFalse);
+      expect(exactly.fitsWords('номин', none), isTrue);
+      expect(exactly.fitsWords('номин зайсан', none), isFalse);
+      // Nothing typed finds nothing.
+      expect(
+        const PayeeSpelling(PayeeMatch.contains, '  ').fitsWords(p, none),
+        isFalse,
+      );
+
+      const shop = PayeeRuleInfo(
+        id: 1,
+        spellings: [
+          PayeeSpelling(PayeeMatch.contains, 'Nomin'),
+          PayeeSpelling(PayeeMatch.contains, 'Номин'),
+        ],
+        shownAs: 'Nomin Supermarket',
+        categoryId: 2,
+        accountIds: {4},
+      );
+      const hall = PayeeRuleInfo(
+        id: 2,
+        spellings: [PayeeSpelling(PayeeMatch.starts, 'Nomin Hall')],
+        categoryId: 3,
+        accountIds: {4},
+        createdAt: -1,
+      );
+      expect(shop.fits('NOMIN HOS 0123', null), isTrue);
+      expect(shop.fits('POS 12345678: НОМИН', null), isTrue);
+      // By its name, on a row that shows it.
+      expect(shop.fits('Nomin Supermarket', null), isTrue);
+      expect(shop.fits('Sakura', null), isFalse);
+      // The longer words win, though that line was made earlier.
+      expect(PayeeRuleInfo.pick([shop, hall], 4, 'Nomin Hall 2', null), hall);
+      expect(PayeeRuleInfo.pick([shop, hall], 4, 'Nomin HOS', null), shop);
+      // Two payees can't go by one set of words on one account.
+      expect(shop.sharedWith(hall), isNull);
+      const again = PayeeRuleInfo(
+        id: 3,
+        spellings: [PayeeSpelling(PayeeMatch.exactly, 'NOMIN')],
+        categoryId: 3,
+        accountIds: {4, 5},
+      );
+      expect(shop.sharedWith(again)?.text, 'Nomin');
+      expect(
+        shop.copyWith(accountIds: {6}).sharedWith(again),
+        isNull,
+        reason: 'on another account',
+      );
+      // What the column holds reads back; what isn't a list reads as none.
+      expect(
+        PayeeSpelling.decode(PayeeSpelling.encode(shop.spellings)),
+        shop.spellings,
+      );
+      expect(PayeeSpelling.decode('not json'), isEmpty);
+      expect(PayeeSpelling.decode(null), isEmpty);
+    });
+
+    test(
+      'the bank\'s words are kept in the memo of a row that takes a name',
+      () {
+        expect(memoKeeping('NOMIN HOS 0123', null), 'NOMIN HOS 0123');
+        expect(memoKeeping('NOMIN HOS 0123', '  '), 'NOMIN HOS 0123');
+        expect(memoKeeping('NOMIN HOS 0123', 'card'), 'NOMIN HOS 0123 · card');
+        // Already there: not written twice.
+        expect(
+          memoKeeping('NOMIN HOS 0123', 'POS nomin hos 0123 UB'),
+          'POS nomin hos 0123 UB',
+        );
+        expect(memoKeeping(null, 'card'), 'card');
+        expect(memoKeeping('', ''), isNull);
+      },
+    );
+
+    test(
+      'a payee with a name: a row brought in shows it and keeps the '
+      'bank\'s words; rows already in take it only when asked, with undo',
+      () async {
+        // Already in, under the bank's words.
+        final old = await db.postSimple(
+          accountId: bank,
+          date: DateTime(2026, 9, 1),
+          today: DateTime(2026, 9, 30),
+          payee: 'NOMIN HOS 0123 UB',
+          counterAccountId: groceries,
+          amount: -500,
+        );
+        final oldMemo = await db.postSimple(
+          accountId: bank,
+          date: DateTime(2026, 9, 2),
+          today: DateTime(2026, 9, 30),
+          payee: 'POS 12345678: НОМИН',
+          memo: 'card',
+          counterAccountId: groceries,
+          amount: -600,
+        );
+        final rule = await db.addPayeeRule(
+          spellings: const [
+            PayeeSpelling(PayeeMatch.contains, 'NOMIN HOS'),
+            PayeeSpelling(PayeeMatch.contains, 'Номин'),
+            PayeeSpelling(PayeeMatch.exactly, 'Nomin'),
+          ],
+          shownAs: 'Nomin Supermarket',
+          categoryId: groceries,
+          accountIds: {bank},
+        );
+        expect((await db.allPayeeRules()).single, rule);
+
+        final r = await bring([
+          row(15, -700, 'NOMIN HOS 0915 UB'),
+          row(16, -900, 'POS 87654321: НОМИН'),
+          row(17, -200, 'Nomin'),
+          row(18, -300, 'Nomin Plaza'),
+        ]);
+        Future<Map<int, ({String? payee, String? memo, int category})>>
+        rows() async => {
+          for (final t in (await db.loadLedger()).txns)
+            t.id: (
+              payee: t.payee,
+              memo: t.memo,
+              category: t.entries
+                  .firstWhere((e) => e.accountId != bank)
+                  .accountId,
+            ),
+        };
+        var now = await rows();
+        final added = [for (final id in r.added.keys) now[id]!];
+        expect(
+          added.where((x) => x.payee == 'Nomin Supermarket').map((x) => x.memo),
+          unorderedEquals([
+            'NOMIN HOS 0915 UB',
+            'POS 87654321: НОМИН',
+            'Nomin',
+          ]),
+        );
+        expect(
+          added
+              .where((x) => x.payee == 'Nomin Supermarket')
+              .every((x) => x.category == groceries),
+          isTrue,
+        );
+        // "is exactly Nomin" isn't Nomin Plaza: its own words, no category.
+        final plaza = added.singleWhere((x) => x.payee == 'Nomin Plaza');
+        expect(plaza.memo, isNull);
+        expect(plaza.category, isNot(groceries));
+        // Rows already in are as they were.
+        expect(now[old]!.payee, 'NOMIN HOS 0123 UB');
+        expect(now[oldMemo]!.payee, 'POS 12345678: НОМИН');
+
+        // Asked: they take the name, and keep the bank's words first in the
+        // memo. One that has the name already is left alone.
+        final named = r.added.keys.firstWhere(
+          (id) => now[id]!.payee == 'Nomin Supermarket',
+        );
+        final previous = await db.renamePayeeMany(
+          transactionIds: [old, oldMemo, named],
+          name: 'Nomin Supermarket',
+        );
+        expect(previous.keys, unorderedEquals([old, oldMemo]));
+        final renamed = await rows();
+        expect(renamed[old], (
+          payee: 'Nomin Supermarket',
+          memo: 'NOMIN HOS 0123 UB',
+          category: groceries,
+        ));
+        expect(renamed[oldMemo], (
+          payee: 'Nomin Supermarket',
+          memo: 'POS 12345678: НОМИН · card',
+          category: groceries,
+        ));
+        // Still this payee's, by its name and by the words in the memo.
+        expect(rule.fits(renamed[old]!.payee, renamed[old]!.memo), isTrue);
+        // Undo: each as it was.
+        await db.restorePayees(previous);
+        expect(await rows(), now);
+        // The same file again brings nothing new.
+        expect(
+          (await plan([
+            row(15, -700, 'NOMIN HOS 0915 UB'),
+            row(17, -200, 'Nomin'),
+          ])).map((p) => p.fate),
+          everyElement(ImportFate.already),
+        );
+      },
+    );
 
     test('a remembered category in another currency isn\'t used', () async {
       final dollars = await db.createAccount(

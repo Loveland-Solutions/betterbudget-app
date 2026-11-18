@@ -258,7 +258,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v26-from-v22-')),
+        contains(startsWith('betterbudget.before-v27-from-v22-')),
       );
     },
   );
@@ -335,7 +335,7 @@ void main() {
     expect((await db.loadLedger()).plans[groceries.id]!.spentEach, isTrue);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v24-')),
+      contains(startsWith('betterbudget.before-v27-from-v24-')),
     );
   });
 
@@ -402,7 +402,7 @@ void main() {
     expect(await pays(db), before);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v25-')),
+      contains(startsWith('betterbudget.before-v27-from-v25-')),
     );
     // None of them has a repeat of its own.
     for (final p in (await db.loadLedger()).paySchedules) {
@@ -436,6 +436,107 @@ void main() {
     expect(odd.nextAfter(DateTime(2026, 10, 2)), DateTime(2026, 11, 6));
     expect(odd.nextAfter(DateTime(2027, 12, 3)), payNever);
   });
+
+  test(
+    'upgrades a v26 file: every payee keeps its words and how they are '
+    'looked for, with no name; then it can have a name and more spellings',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('bb-migration');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/betterbudget.sqlite');
+
+      var db = AppDatabase(NativeDatabase(file));
+      await seedDemoIfEmpty(db, today);
+      final data = await db.loadLedger();
+      final bank = data.balanceSheetAccounts
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      final groceries = data.categories
+          .firstWhere((c) => c.name == 'Groceries')
+          .id;
+      final dining = data.categories
+          .firstWhere((c) => c.name == 'Dining out')
+          .id;
+      final starts = await db.addPayeeRule(
+        name: 'Unitel',
+        anywhere: false,
+        categoryId: groceries,
+        accountIds: {bank},
+      );
+      final anywhere = await db.addPayeeRule(
+        name: 'Номин',
+        anywhere: true,
+        categoryId: dining,
+        accountIds: {bank},
+      );
+      Future<List<Map<String, Object?>>> stored(AppDatabase d) async => [
+        for (final r
+            in await d
+                .customSelect(
+                  'SELECT id, words, name, anywhere, category_id, '
+                  'pay_schedule_id, created_at, deleted_at FROM payee_rules '
+                  'ORDER BY id',
+                )
+                .get())
+          r.data,
+      ];
+      final before = await stored(db);
+      expect(before, hasLength(2));
+
+      await dropAddedInV26(db);
+      await db.customStatement('PRAGMA user_version = 26');
+      await db.close();
+
+      db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      await expectAllColumns(db);
+      // Every payee, column by column, as the older build left it.
+      expect(await stored(db), before);
+      expect(
+        dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
+        contains(startsWith('betterbudget.before-v27-from-v26-')),
+      );
+      // Each reads as its one spelling, looked for as before, and no name:
+      // nothing is filed or shown differently.
+      final rules = {for (final r in await db.allPayeeRules()) r.id: r};
+      expect(rules[starts.id]!.spellings, const [
+        PayeeSpelling(PayeeMatch.starts, 'Unitel'),
+      ]);
+      expect(rules[anywhere.id]!.spellings, const [
+        PayeeSpelling(PayeeMatch.contains, 'Номин'),
+      ]);
+      expect(rules.values.every((r) => r.shownAs.isEmpty), isTrue);
+      expect(rules[starts.id]!.accountIds, {bank});
+      expect(rules[starts.id]!.fits('Unitel LLC', null), isTrue);
+      expect(rules[starts.id]!.fits('Pay Unitel', 'Unitel'), isFalse);
+      expect(rules[anywhere.id]!.fits('POS 12345678: НОМИН', null), isTrue);
+      expect(rules[anywhere.id]!.fits('POS', 'номин супермаркет'), isTrue);
+
+      // And one takes a name and two more spellings, and reads back so.
+      final named = rules[starts.id]!.copyWith(
+        shownAs: 'Unitel Mobile',
+        spellings: const [
+          PayeeSpelling(PayeeMatch.starts, 'Unitel'),
+          PayeeSpelling(PayeeMatch.contains, 'Юнител'),
+          PayeeSpelling(PayeeMatch.exactly, 'UNITEL 0123'),
+        ],
+      );
+      await db.putPayeeRule(named);
+      final back = (await db.allPayeeRules()).firstWhere(
+        (r) => r.id == starts.id,
+      );
+      expect(back, named);
+      expect(back.fits('POS: ЮНИТЕЛ', null), isTrue);
+      expect(back.fits('UNITEL 0123', null), isTrue);
+      expect(back.fits('UNITEL 0123 UB', null), isTrue, reason: 'starts with');
+      expect(back.fits('Unitel Mobile', null), isTrue, reason: 'by its name');
+      // The other is untouched by that.
+      expect(
+        (await stored(db)).firstWhere((r) => r['id'] == anywhere.id),
+        before.firstWhere((r) => r['id'] == anywhere.id),
+      );
+    },
+  );
 
   test('upgrades a v23 file: every plan stays as it was, and a bill can '
       'come twice a month', () async {
@@ -487,7 +588,7 @@ void main() {
     expect(ledger.plans[category.id]!.monthDays, [1, 15]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v23-')),
+      contains(startsWith('betterbudget.before-v27-from-v23-')),
     );
   });
 
@@ -548,7 +649,7 @@ void main() {
     expect(ledger.accounts[groceries.id]!.note, 'Market');
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v21-')),
+      contains(startsWith('betterbudget.before-v27-from-v21-')),
     );
   });
 
@@ -587,7 +688,7 @@ void main() {
     expect(await db.lastChangeSeq(), 1);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v19-')),
+      contains(startsWith('betterbudget.before-v27-from-v19-')),
     );
     await db.close();
 
@@ -603,13 +704,13 @@ void main() {
     expect(await db.lastChangeSeq(), 2);
     // A newer build's file is refused and left as it is; this build then
     // opens it again with everything in place.
-    await db.customStatement('PRAGMA user_version = 27');
+    await db.customStatement('PRAGMA user_version = 28');
     await db.close();
     db = AppDatabase(NativeDatabase(file));
     await expectLater(db.loadLedger(), throwsA(isA<NewerLedgerException>()));
     await db.close();
     final raw = sqlite3.open(file.path);
-    raw.execute('PRAGMA user_version = 26');
+    raw.execute('PRAGMA user_version = 27');
     raw.close();
     db = AppDatabase(NativeDatabase(file));
     await expectAllColumns(db);
@@ -665,7 +766,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v18-')),
+      contains(startsWith('betterbudget.before-v27-from-v18-')),
     );
   });
 
@@ -703,7 +804,7 @@ void main() {
     );
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v17-')),
+      contains(startsWith('betterbudget.before-v27-from-v17-')),
     );
   });
 
@@ -767,7 +868,7 @@ void main() {
       expect(after.paySchedules.single.name, isNull);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v26-from-v16-')),
+        contains(startsWith('betterbudget.before-v27-from-v16-')),
       );
     },
   );
@@ -827,7 +928,7 @@ void main() {
     expect(plan.nth, isNull);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v15-')),
+      contains(startsWith('betterbudget.before-v27-from-v15-')),
     );
   });
 
@@ -860,7 +961,7 @@ void main() {
     expect(pay.split, isFalse);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v6-')),
+      contains(startsWith('betterbudget.before-v27-from-v6-')),
     );
   });
 
@@ -917,7 +1018,7 @@ void main() {
       );
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v26-from-v11-')),
+        contains(startsWith('betterbudget.before-v27-from-v11-')),
       );
     });
   }
@@ -1001,7 +1102,7 @@ void main() {
       expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v26-from-v12-')),
+        contains(startsWith('betterbudget.before-v27-from-v12-')),
       );
     },
   );
@@ -1056,7 +1157,7 @@ void main() {
     expect(plans[ids[3]]!.due, DateTime(2027, 1, 15));
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v13-')),
+      contains(startsWith('betterbudget.before-v27-from-v13-')),
     );
   });
 
@@ -1097,7 +1198,7 @@ void main() {
     expect((await db.loadLedger()).plans[food.id], plan);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v10-')),
+      contains(startsWith('betterbudget.before-v27-from-v10-')),
     );
   });
 
@@ -1133,7 +1234,7 @@ void main() {
       expect(data.budgetAmounts.single.amount, 90000000);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v26-from-v9-')),
+        contains(startsWith('betterbudget.before-v27-from-v9-')),
       );
     },
   );
@@ -1171,7 +1272,7 @@ void main() {
     expect(pays.map((p) => p.weekend), [PayWeekend.after, PayWeekend.before]);
     expect(
       dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-      contains(startsWith('betterbudget.before-v26-from-v8-')),
+      contains(startsWith('betterbudget.before-v27-from-v8-')),
     );
   });
 
@@ -1281,7 +1382,7 @@ void main() {
       expect(data.txns.length, before.txns.length);
       expect(
         dir.listSync().whereType<File>().map((f) => f.path.split('/').last),
-        contains(startsWith('betterbudget.before-v26-from-v5-')),
+        contains(startsWith('betterbudget.before-v27-from-v5-')),
       );
       await db.setPreference('ready.health', 'yes');
       expect((await db.loadLedger()).prefs, {'ready.health': 'yes'});
@@ -1480,6 +1581,17 @@ Future<void> dropAddedInV5(AppDatabase db) async {
   await db.customStatement('ALTER TABLE accounts DROP COLUMN payday');
   await db.customStatement('PRAGMA legacy_alter_table = OFF');
   await db.customStatement('PRAGMA foreign_keys = ON');
+}
+
+/// v27: a payee's name and its spellings.
+Future<void> dropAddedInV26(AppDatabase db) async {
+  // The triggers name the columns; the change log itself stays.
+  for (final name in await db.changeTriggersPresent()) {
+    await db.customStatement('DROP TRIGGER IF EXISTS temp."$name"');
+  }
+  for (final c in ['shown_as', 'spellings']) {
+    await db.customStatement('ALTER TABLE payee_rules DROP COLUMN $c');
+  }
 }
 
 /// v25: whether a set amount's money is spent within its period.

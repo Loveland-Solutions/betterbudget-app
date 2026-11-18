@@ -8983,22 +8983,6 @@
   "@payeesAdd": {
     "description": "Payees page, the green button at the top right: opens an empty Edit at the top of the list."
   },
-  "payeesWordsLabel": "Payee, or a word in it",
-  "@payeesWordsLabel": {
-    "description": "Payees page, Edit: the small label over the words field."
-  },
-  "payeesWhere": "Where to look",
-  "@payeesWhere": {
-    "description": "Payees page, Edit: label of the line with payeesAtStart and payeesAnywhere."
-  },
-  "payeesAtStart": "At the start of the payee",
-  "@payeesAtStart": {
-    "description": "Payees page, Edit, Where: the payee's name has to begin with the words."
-  },
-  "payeesAnywhere": "Anywhere in the payee or memo",
-  "@payeesAnywhere": {
-    "description": "Payees page, Edit, Where: the words may be anywhere in the payee or in the memo the bank wrote."
-  },
   "payeesStartsWith": "starts with «{name}»",
   "@payeesStartsWith": {
     "description": "Payees page, a closed line: the payee's words, which a payee's name has to begin with. The «» stay: the words between them are drawn in ink.",
@@ -9008,36 +8992,18 @@
       }
     }
   },
-  "payeesHasAnywhere": "has «{name}» anywhere",
+  "payeesHasAnywhere": "contains «{name}»",
   "@payeesHasAnywhere": {
-    "description": "Payees page, a closed line: the words, looked for anywhere in the payee or the bank's description. The «» stay.",
+    "description": "Payees page, a closed line of a payee with no name: a spelling looked for anywhere in the payee or the memo (the bank's description). Several are joined with a dot. The «» stay.",
     "placeholders": {
       "name": {
         "type": "String"
       }
     }
   },
-  "payeesFitsStarts": "{count, plural, =0{No row starts with this yet} =1{1 row starts with this} other{{count} rows start with this}}",
-  "@payeesFitsStarts": {
-    "description": "Payees page, Edit: how many rows of the chosen accounts begin with the words typed, as they are typed. May be followed by payeesWaiting and payeesElsewhere after a dot.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "payeesFitsAnywhere": "{count, plural, =0{No row has this yet} =1{1 row has this} other{{count} rows have this}}",
-  "@payeesFitsAnywhere": {
-    "description": "Payees page, Edit: how many rows of the chosen accounts have the words anywhere in the payee or the bank's description.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "payeesWaiting": "{count, plural, =1{1 still in Not categorized} other{{count} still in Not categorized}}",
   "@payeesWaiting": {
-    "description": "Payees page, Edit, after payeesFitsStarts or payeesFitsAnywhere: how many of those rows have no category yet.",
+    "description": "Payees page, Edit, after payeesFitsTotal: how many of those rows have no category yet.",
     "placeholders": {
       "count": {
         "type": "int"
@@ -9053,11 +9019,7 @@
       }
     }
   },
-  "payeesHowRowReads": "Rows like this will read",
-  "@payeesHowRowReads": {
-    "description": "Payees page, Edit: label over one real row that fits, drawn with the chosen category."
-  },
-  "payeesNeedsWords": "Type a payee, or a word in it",
+  "payeesNeedsWords": "Type how the bank writes it",
   "@payeesNeedsWords": {
     "description": "Payees page, Edit: in place of the count while the words field is empty, and in red after Save with it empty."
   },
@@ -9126,15 +9088,6 @@
       }
     }
   },
-  "payeesAnywhereWould": "{count, plural, =1{1 has it elsewhere in the payee or memo} other{{count} have it elsewhere in the payee or memo}}",
-  "@payeesAnywhereWould": {
-    "description": "Payees page, Edit, after \"No row starts with this yet\": how many rows would fit with Where set to anywhere.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "payeesCategoryArchived": "{category} (archived: rows wait in Not categorized)",
   "@payeesCategoryArchived": {
     "description": "Payees page, a line's category when that category is archived: imported rows of the payee aren't filed there and wait in Not categorized",
@@ -9165,6 +9118,114 @@
   "payeesCategoryGone": "A deleted category",
   "@payeesCategoryGone": {
     "description": "Payees page, in place of a category's name once the category was deleted."
+  },
+  "payeesNameLabel": "Name",
+  "@payeesNameLabel": {
+    "description": "Payees page, Edit: the small label over the big field at the top, the name the ledger shows for this payee (\"Nomin Supermarket\" for the bank's \"NOMIN HOS 0123\")."
+  },
+  "payeesNameHint": "Give it a name",
+  "@payeesNameHint": {
+    "description": "Payees page, Edit: shown in the name field while it is empty. A payee without a name keeps the bank's words on its rows."
+  },
+  "payeesSpellingsLabel": "How the bank writes it",
+  "@payeesSpellingsLabel": {
+    "description": "Payees page, Edit: label over the lines of spellings, one way of writing the payee per line."
+  },
+  "payeesSpellingFirstHint": "What the bank writes, or a word in it",
+  "@payeesSpellingFirstHint": {
+    "description": "Payees page, Edit: shown in the first spelling's field while a new payee has none yet."
+  },
+  "payeesSpellingHint": "Another way it's written",
+  "@payeesSpellingHint": {
+    "description": "Payees page, Edit: shown in the empty line after the last spelling, where the next one is typed."
+  },
+  "payeesHowContains": "contains",
+  "@payeesHowContains": {
+    "description": "Payees page, Edit: the choice before a spelling's field. The row's payee or memo has the spelling anywhere in it. The owner's word."
+  },
+  "payeesHowStarts": "starts with",
+  "@payeesHowStarts": {
+    "description": "Payees page, Edit: the choice before a spelling's field. The row's payee begins with the spelling."
+  },
+  "payeesHowExactly": "is exactly",
+  "@payeesHowExactly": {
+    "description": "Payees page, Edit: the choice before a spelling's field. The row's payee is the spelling and nothing more."
+  },
+  "payeesSpellingRows": "{count, plural, =0{no row yet} =1{1 row} other{{count} rows}}",
+  "@payeesSpellingRows": {
+    "description": "Payees page, Edit: after a spelling's field, how many rows of the chosen accounts it finds, as it is typed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "payeesSpellingTaken": "already in the list, with {category}",
+  "@payeesSpellingTaken": {
+    "description": "Payees page, Edit: after a spelling's field, in red, when another payee on one of these accounts already goes by the same words. {category} is that payee's category.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesRemoveSpelling": "Remove this spelling",
+  "@payeesRemoveSpelling": {
+    "description": "Payees page, Edit: tooltip of the x at the end of a spelling's line."
+  },
+  "payeesNextFromBank": "The next one from the bank",
+  "@payeesNextFromBank": {
+    "description": "Payees page, Edit: label over the two drawn rows, payeesAsBankSends and payeesAsLedgerShows. \"Next\" because rows already in are not changed by Save."
+  },
+  "payeesAsBankSends": "As the bank sends it",
+  "@payeesAsBankSends": {
+    "description": "Payees page, Edit: small label in the first drawn row, the bank's own words."
+  },
+  "payeesAsLedgerShows": "As your ledger shows it",
+  "@payeesAsLedgerShows": {
+    "description": "Payees page, Edit: small label in the second drawn row: the payee's name, the bank's words under it as the memo, and the category."
+  },
+  "payeesFitsTotal": "{count, plural, =0{No row is written this way yet} =1{1 row so far is written this way} other{{count} rows so far are written this way}}",
+  "@payeesFitsTotal": {
+    "description": "Payees page, Edit: how many rows of the chosen accounts any of the spellings finds. May be followed by payeesWaiting, payeesAlreadyIn and payeesElsewhere after a dot.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "payeesIsExactly": "is exactly «{name}»",
+  "@payeesIsExactly": {
+    "description": "Payees page, a closed line of a payee with no name: a spelling the row's payee has to be, nothing more. The «» stay.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesShowName": "{count, plural, =1{Show «{name}» on the 1 row already in} other{Show «{name}» on the {count} rows already in}}",
+  "@payeesShowName": {
+    "description": "The button in the popup after a payee with a name is saved: its rows already in the ledger take the name too, each keeping the bank's words in its memo. One undo. {name} is the payee's name.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesNameShown": "{count, plural, =1{1 row now shows «{name}»} other{{count} rows now show «{name}»}}",
+  "@payeesNameShown": {
+    "description": "The popup after payeesShowName was clicked.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "ledgerRowsThisComputer": "This computer",
   "@ledgerRowsThisComputer": {

@@ -8739,55 +8739,19 @@ abstract class Words {
   /// **'Add a payee'**
   String get payeesAdd;
 
-  /// Payees page, Edit: the small label over the words field.
-  ///
-  /// In en, this message translates to:
-  /// **'Payee, or a word in it'**
-  String get payeesWordsLabel;
-
-  /// Payees page, Edit: label of the line with payeesAtStart and payeesAnywhere.
-  ///
-  /// In en, this message translates to:
-  /// **'Where to look'**
-  String get payeesWhere;
-
-  /// Payees page, Edit, Where: the payee's name has to begin with the words.
-  ///
-  /// In en, this message translates to:
-  /// **'At the start of the payee'**
-  String get payeesAtStart;
-
-  /// Payees page, Edit, Where: the words may be anywhere in the payee or in the memo the bank wrote.
-  ///
-  /// In en, this message translates to:
-  /// **'Anywhere in the payee or memo'**
-  String get payeesAnywhere;
-
   /// Payees page, a closed line: the payee's words, which a payee's name has to begin with. The «» stay: the words between them are drawn in ink.
   ///
   /// In en, this message translates to:
   /// **'starts with «{name}»'**
   String payeesStartsWith(String name);
 
-  /// Payees page, a closed line: the words, looked for anywhere in the payee or the bank's description. The «» stay.
+  /// Payees page, a closed line of a payee with no name: a spelling looked for anywhere in the payee or the memo (the bank's description). Several are joined with a dot. The «» stay.
   ///
   /// In en, this message translates to:
-  /// **'has «{name}» anywhere'**
+  /// **'contains «{name}»'**
   String payeesHasAnywhere(String name);
 
-  /// Payees page, Edit: how many rows of the chosen accounts begin with the words typed, as they are typed. May be followed by payeesWaiting and payeesElsewhere after a dot.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =0{No row starts with this yet} =1{1 row starts with this} other{{count} rows start with this}}'**
-  String payeesFitsStarts(int count);
-
-  /// Payees page, Edit: how many rows of the chosen accounts have the words anywhere in the payee or the bank's description.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =0{No row has this yet} =1{1 row has this} other{{count} rows have this}}'**
-  String payeesFitsAnywhere(int count);
-
-  /// Payees page, Edit, after payeesFitsStarts or payeesFitsAnywhere: how many of those rows have no category yet.
+  /// Payees page, Edit, after payeesFitsTotal: how many of those rows have no category yet.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 still in Not categorized} other{{count} still in Not categorized}}'**
@@ -8799,16 +8763,10 @@ abstract class Words {
   /// **'{count, plural, =1{1 in another category} other{{count} in another category}}'**
   String payeesElsewhere(int count);
 
-  /// Payees page, Edit: label over one real row that fits, drawn with the chosen category.
-  ///
-  /// In en, this message translates to:
-  /// **'Rows like this will read'**
-  String get payeesHowRowReads;
-
   /// Payees page, Edit: in place of the count while the words field is empty, and in red after Save with it empty.
   ///
   /// In en, this message translates to:
-  /// **'Type a payee, or a word in it'**
+  /// **'Type how the bank writes it'**
   String get payeesNeedsWords;
 
   /// Payees page, Edit: in red after Save with no category chosen.
@@ -8865,12 +8823,6 @@ abstract class Words {
   /// **'{count, plural, =1{1 already in {category}} other{{count} already in {category}}}'**
   String payeesAlreadyIn(int count, String category);
 
-  /// Payees page, Edit, after "No row starts with this yet": how many rows would fit with Where set to anywhere.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 has it elsewhere in the payee or memo} other{{count} have it elsewhere in the payee or memo}}'**
-  String payeesAnywhereWould(int count);
-
   /// Payees page, a line's category when that category is archived: imported rows of the payee aren't filed there and wait in Not categorized
   ///
   /// In en, this message translates to:
@@ -8900,6 +8852,114 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'A deleted category'**
   String get payeesCategoryGone;
+
+  /// Payees page, Edit: the small label over the big field at the top, the name the ledger shows for this payee ("Nomin Supermarket" for the bank's "NOMIN HOS 0123").
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get payeesNameLabel;
+
+  /// Payees page, Edit: shown in the name field while it is empty. A payee without a name keeps the bank's words on its rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Give it a name'**
+  String get payeesNameHint;
+
+  /// Payees page, Edit: label over the lines of spellings, one way of writing the payee per line.
+  ///
+  /// In en, this message translates to:
+  /// **'How the bank writes it'**
+  String get payeesSpellingsLabel;
+
+  /// Payees page, Edit: shown in the first spelling's field while a new payee has none yet.
+  ///
+  /// In en, this message translates to:
+  /// **'What the bank writes, or a word in it'**
+  String get payeesSpellingFirstHint;
+
+  /// Payees page, Edit: shown in the empty line after the last spelling, where the next one is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Another way it\'s written'**
+  String get payeesSpellingHint;
+
+  /// Payees page, Edit: the choice before a spelling's field. The row's payee or memo has the spelling anywhere in it. The owner's word.
+  ///
+  /// In en, this message translates to:
+  /// **'contains'**
+  String get payeesHowContains;
+
+  /// Payees page, Edit: the choice before a spelling's field. The row's payee begins with the spelling.
+  ///
+  /// In en, this message translates to:
+  /// **'starts with'**
+  String get payeesHowStarts;
+
+  /// Payees page, Edit: the choice before a spelling's field. The row's payee is the spelling and nothing more.
+  ///
+  /// In en, this message translates to:
+  /// **'is exactly'**
+  String get payeesHowExactly;
+
+  /// Payees page, Edit: after a spelling's field, how many rows of the chosen accounts it finds, as it is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{no row yet} =1{1 row} other{{count} rows}}'**
+  String payeesSpellingRows(int count);
+
+  /// Payees page, Edit: after a spelling's field, in red, when another payee on one of these accounts already goes by the same words. {category} is that payee's category.
+  ///
+  /// In en, this message translates to:
+  /// **'already in the list, with {category}'**
+  String payeesSpellingTaken(String category);
+
+  /// Payees page, Edit: tooltip of the x at the end of a spelling's line.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this spelling'**
+  String get payeesRemoveSpelling;
+
+  /// Payees page, Edit: label over the two drawn rows, payeesAsBankSends and payeesAsLedgerShows. "Next" because rows already in are not changed by Save.
+  ///
+  /// In en, this message translates to:
+  /// **'The next one from the bank'**
+  String get payeesNextFromBank;
+
+  /// Payees page, Edit: small label in the first drawn row, the bank's own words.
+  ///
+  /// In en, this message translates to:
+  /// **'As the bank sends it'**
+  String get payeesAsBankSends;
+
+  /// Payees page, Edit: small label in the second drawn row: the payee's name, the bank's words under it as the memo, and the category.
+  ///
+  /// In en, this message translates to:
+  /// **'As your ledger shows it'**
+  String get payeesAsLedgerShows;
+
+  /// Payees page, Edit: how many rows of the chosen accounts any of the spellings finds. May be followed by payeesWaiting, payeesAlreadyIn and payeesElsewhere after a dot.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No row is written this way yet} =1{1 row so far is written this way} other{{count} rows so far are written this way}}'**
+  String payeesFitsTotal(int count);
+
+  /// Payees page, a closed line of a payee with no name: a spelling the row's payee has to be, nothing more. The «» stay.
+  ///
+  /// In en, this message translates to:
+  /// **'is exactly «{name}»'**
+  String payeesIsExactly(String name);
+
+  /// The button in the popup after a payee with a name is saved: its rows already in the ledger take the name too, each keeping the bank's words in its memo. One undo. {name} is the payee's name.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Show «{name}» on the 1 row already in} other{Show «{name}» on the {count} rows already in}}'**
+  String payeesShowName(int count, String name);
+
+  /// The popup after payeesShowName was clicked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row now shows «{name}»} other{{count} rows now show «{name}»}}'**
+  String payeesNameShown(int count, String name);
 
   /// Heading over this computer’s version of a thing both computers changed.
   ///

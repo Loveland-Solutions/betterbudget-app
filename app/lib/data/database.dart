@@ -335,6 +335,17 @@ class PayeeRules extends Table {
   /// Deleted by the person: kept so an import doesn't put the payee back
   /// where it went last ([PayeeRuleInfo.deletedBlocks]).
   IntColumn get deletedAt => integer().nullable()();
+
+  /// The name the ledger shows for it; empty: rows keep the bank's words
+  /// (v27, [PayeeRuleInfo.shownAs]).
+  TextColumn get shownAs => text().withDefault(const Constant(''))();
+
+  /// Every spelling and how each is looked for, as [PayeeSpelling.encode]
+  /// writes them (v27). Null on a row no v27 build has written yet: then
+  /// its one spelling is [name], looked for as [anywhere] says. Once set
+  /// it is the truth, and [words], [name] and [anywhere] hold a copy of
+  /// its first spelling.
+  TextColumn get spellings => text().nullable()();
 }
 
 /// The accounts a remembered payee holds on.
@@ -1085,7 +1096,7 @@ class AppDatabase extends _$AppDatabase {
   String? thisComputer;
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1334,6 +1345,15 @@ class AppDatabase extends _$AppDatabase {
           ]) {
             await _addColumnOnce(m, paySchedules, c);
           }
+        }
+        if (from < 27) {
+          // A payee has a name the ledger shows and several spellings,
+          // each looked for in its own way (#117, #488). Two columns, both
+          // empty for every payee already here: each keeps its words and
+          // how they are looked for (read as its one spelling), and no
+          // name, so nothing is filed or shown differently.
+          await _addColumnOnce(m, payeeRules, payeeRules.shownAs);
+          await _addColumnOnce(m, payeeRules, payeeRules.spellings);
         }
         // Each trigger names its table's columns: made afresh after every
         // upgrade, whatever it changed.
@@ -6408,9 +6428,17 @@ class AppDatabase extends _$AppDatabase {
     Iterable<PayeeRuleAccountRow> links,
   ) => PayeeRuleInfo(
     id: r.id,
-    words: r.words,
-    name: r.name,
-    anywhere: r.anywhere,
+    // Written by a build before v27: its one spelling.
+    spellings: switch (PayeeSpelling.decode(r.spellings)) {
+      final written when written.isNotEmpty => written,
+      _ => [
+        PayeeSpelling(
+          r.anywhere ? PayeeMatch.contains : PayeeMatch.starts,
+          r.name,
+        ),
+      ],
+    },
+    shownAs: r.shownAs,
     categoryId: r.categoryId,
     payId: r.payScheduleId,
     accountIds: {
@@ -6451,9 +6479,13 @@ class AppDatabase extends _$AppDatabase {
     await into(payeeRules).insertOnConflictUpdate(
       PayeeRulesCompanion.insert(
         id: Value(r.id),
+        // A copy of the first spelling, where a build before v27 kept its
+        // only one.
         words: r.words,
         name: r.name,
         anywhere: Value(r.anywhere),
+        spellings: Value(PayeeSpelling.encode(r.spellings)),
+        shownAs: Value(r.shownAs.trim()),
         categoryId: r.categoryId,
         payScheduleId: Value(r.payId),
         createdAt: r.createdAt,
@@ -6469,10 +6501,14 @@ class AppDatabase extends _$AppDatabase {
     }
   });
 
-  /// A payee remembered now, with its own id and time.
+  /// A payee remembered now, with its own id and time: one spelling,
+  /// [name], looked for anywhere or at the start as [anywhere] says, or
+  /// every one of [spellings] when they are given.
   Future<PayeeRuleInfo> addPayeeRule({
-    required String name,
-    required bool anywhere,
+    String name = '',
+    bool anywhere = false,
+    List<PayeeSpelling>? spellings,
+    String shownAs = '',
     required int categoryId,
     int? payId,
     required Set<int> accountIds,
@@ -6480,9 +6516,15 @@ class AppDatabase extends _$AppDatabase {
   }) async {
     final r = PayeeRuleInfo(
       id: id ?? newRowId(),
-      words: payeeWords(name),
-      name: name.trim(),
-      anywhere: anywhere,
+      spellings:
+          spellings ??
+          [
+            PayeeSpelling(
+              anywhere ? PayeeMatch.contains : PayeeMatch.starts,
+              name.trim(),
+            ),
+          ],
+      shownAs: shownAs.trim(),
       categoryId: categoryId,
       payId: payId,
       accountIds: accountIds,
@@ -6507,9 +6549,16 @@ class AppDatabase extends _$AppDatabase {
     int? payId,
   }) => transaction(() async {
     final words = payeeWords(payee);
+    // A line that goes by these words and no others: one with more
+    // spellings is the person's own work on the Payees page, and stays.
     final twins =
         (await allPayeeRules())
-            .where((x) => x.words == words && x.accountIds.contains(accountId))
+            .where(
+              (x) =>
+                  x.spellings.length == 1 &&
+                  x.words == words &&
+                  x.accountIds.contains(accountId),
+            )
             .toList()
           ..sort(
             (a, b) => a.createdAt != b.createdAt
@@ -6521,7 +6570,7 @@ class AppDatabase extends _$AppDatabase {
       final now = was.copyWith(
         categoryId: categoryId,
         payId: () => payId,
-        name: payee.trim(),
+        spellings: [PayeeSpelling(was.spellings.single.how, payee.trim())],
       );
       await putPayeeRule(now);
       return (was: was, now: now, left: null);
@@ -6545,6 +6594,58 @@ class AppDatabase extends _$AppDatabase {
       id: left?.was.id == shared ? null : shared,
     );
     return (was: null, now: now, left: left);
+  });
+
+  /// Gives each of [transactionIds] the payee [name], as a bank row
+  /// brought in after the payee was named would have it: the words it had
+  /// as its payee go to the front of its memo ([memoKeeping]). One that
+  /// has the name already is left alone. Returns what each changed row
+  /// had, for [restorePayees]. A reconciled row's payee and memo can be
+  /// changed, as in its Edit.
+  Future<Map<int, ({int? payeeId, String? memo})>> renamePayeeMany({
+    required Iterable<int> transactionIds,
+    required String name,
+  }) => transaction(() async {
+    final to = name.trim();
+    final previous = <int, ({int? payeeId, String? memo})>{};
+    if (to.isEmpty) return previous;
+    final toId = await _payeeId(to);
+    for (final id in transactionIds) {
+      final t = await (select(
+        transactions,
+      )..where((x) => x.id.equals(id))).getSingleOrNull();
+      if (t == null || t.deletedAt != null || t.payeeId == toId) continue;
+      final had = t.payeeId == null
+          ? null
+          : (await (select(
+              payees,
+            )..where((x) => x.id.equals(t.payeeId!))).getSingleOrNull())?.name;
+      if (payeeWords(had ?? '') == payeeWords(to)) continue;
+      previous[id] = (payeeId: t.payeeId, memo: t.memo);
+      await (update(transactions)..where((x) => x.id.equals(id))).write(
+        TransactionsCompanion(
+          payeeId: Value(toId),
+          memo: Value(memoKeeping(had, t.memo)),
+          updatedAt: Value(_now),
+        ),
+      );
+    }
+    return previous;
+  });
+
+  /// Undo for [renamePayeeMany]: each row's payee and memo as they were.
+  Future<void> restorePayees(
+    Map<int, ({int? payeeId, String? memo})> previous,
+  ) => transaction(() async {
+    for (final e in previous.entries) {
+      await (update(transactions)..where((x) => x.id.equals(e.key))).write(
+        TransactionsCompanion(
+          payeeId: Value(e.value.payeeId),
+          memo: Value(e.value.memo),
+          updatedAt: Value(_now),
+        ),
+      );
+    }
   });
 
   /// Takes a rule out altogether: the undo of adding it.
@@ -7131,10 +7232,13 @@ class AppDatabase extends _$AppDatabase {
           final category = said != null && categories.contains(said)
               ? said
               : await uncategorized();
+          // A payee with a name: the row shows it, and the bank's own
+          // words are kept in the memo (#117).
+          final shown = rule?.shownAs.trim() ?? '';
           final id = await postTransaction(
             date: dateOnly(p.row.date),
-            payee: payee,
-            memo: p.row.memo,
+            payee: shown.isEmpty ? payee : shown,
+            memo: shown.isEmpty ? p.row.memo : memoKeeping(payee, memo),
             // The same row on every computer that imports this bank row.
             shared: SharedKey('bank', p.key),
             how: MadeHow.imported,

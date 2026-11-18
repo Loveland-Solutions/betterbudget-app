@@ -6165,49 +6165,13 @@ class WordsEn extends Words {
   String get payeesAdd => 'Add a payee';
 
   @override
-  String get payeesWordsLabel => 'Payee, or a word in it';
-
-  @override
-  String get payeesWhere => 'Where to look';
-
-  @override
-  String get payeesAtStart => 'At the start of the payee';
-
-  @override
-  String get payeesAnywhere => 'Anywhere in the payee or memo';
-
-  @override
   String payeesStartsWith(String name) {
     return 'starts with «$name»';
   }
 
   @override
   String payeesHasAnywhere(String name) {
-    return 'has «$name» anywhere';
-  }
-
-  @override
-  String payeesFitsStarts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count rows start with this',
-      one: '1 row starts with this',
-      zero: 'No row starts with this yet',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String payeesFitsAnywhere(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count rows have this',
-      one: '1 row has this',
-      zero: 'No row has this yet',
-    );
-    return '$_temp0';
+    return 'contains «$name»';
   }
 
   @override
@@ -6233,10 +6197,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get payeesHowRowReads => 'Rows like this will read';
-
-  @override
-  String get payeesNeedsWords => 'Type a payee, or a word in it';
+  String get payeesNeedsWords => 'Type how the bank writes it';
 
   @override
   String get payeesNeedsCategory => 'Pick a category';
@@ -6293,17 +6254,6 @@ class WordsEn extends Words {
   }
 
   @override
-  String payeesAnywhereWould(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count have it elsewhere in the payee or memo',
-      one: '1 has it elsewhere in the payee or memo',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String payeesCategoryArchived(String category) {
     return '$category (archived: rows wait in Not categorized)';
   }
@@ -6328,6 +6278,98 @@ class WordsEn extends Words {
 
   @override
   String get payeesCategoryGone => 'A deleted category';
+
+  @override
+  String get payeesNameLabel => 'Name';
+
+  @override
+  String get payeesNameHint => 'Give it a name';
+
+  @override
+  String get payeesSpellingsLabel => 'How the bank writes it';
+
+  @override
+  String get payeesSpellingFirstHint => 'What the bank writes, or a word in it';
+
+  @override
+  String get payeesSpellingHint => 'Another way it\'s written';
+
+  @override
+  String get payeesHowContains => 'contains';
+
+  @override
+  String get payeesHowStarts => 'starts with';
+
+  @override
+  String get payeesHowExactly => 'is exactly';
+
+  @override
+  String payeesSpellingRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows',
+      one: '1 row',
+      zero: 'no row yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesSpellingTaken(String category) {
+    return 'already in the list, with $category';
+  }
+
+  @override
+  String get payeesRemoveSpelling => 'Remove this spelling';
+
+  @override
+  String get payeesNextFromBank => 'The next one from the bank';
+
+  @override
+  String get payeesAsBankSends => 'As the bank sends it';
+
+  @override
+  String get payeesAsLedgerShows => 'As your ledger shows it';
+
+  @override
+  String payeesFitsTotal(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows so far are written this way',
+      one: '1 row so far is written this way',
+      zero: 'No row is written this way yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesIsExactly(String name) {
+    return 'is exactly «$name»';
+  }
+
+  @override
+  String payeesShowName(int count, String name) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Show «$name» on the $count rows already in',
+      one: 'Show «$name» on the 1 row already in',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesNameShown(int count, String name) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows now show «$name»',
+      one: '1 row now shows «$name»',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get ledgerRowsThisComputer => 'This computer';

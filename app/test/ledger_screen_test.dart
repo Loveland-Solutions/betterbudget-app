@@ -10,6 +10,8 @@ import 'package:betterbudget/domain/budget.dart'
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
+import 'package:betterbudget/domain/payee_rules.dart'
+    show PayeeMatch, PayeeSpelling;
 import 'package:betterbudget/domain/phone.dart'
     show computerMachinePrefix, computerNamePrefix;
 import 'package:betterbudget/domain/readiness.dart';
@@ -14189,30 +14191,64 @@ void main() {
       await tester.tap(find.text('starts with «Unitel»', findRichText: true));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
-      // As it is: one row starts with Unitel, in the category chosen.
+      // As it is: one row starts with Unitel, in the category chosen. Its
+      // one spelling says so on its own line, too.
       expect(
-        find.text('1 row starts with this · 1 already in Groceries'),
+        find.text('1 row so far is written this way · 1 already in Groceries'),
         findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('payee-how')),
+          matching: find.text('starts with'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('payee-rows'))).data,
+        '1 row',
       );
       await tester.enterText(find.byKey(const ValueKey('payee-words')), 'UNI');
       await tester.pumpAndSettle();
       // Last year's UNI SHOP fits, and stays where it is.
       expect(
         find.text(
-          '2 rows start with this · 1 more in Not categorized stays there · '
-          '1 already in Groceries',
+          '2 rows so far are written this way · 1 more in Not categorized '
+          'stays there · 1 already in Groceries',
         ),
         findsOneWidget,
       );
-      await tester.tap(find.byKey(const ValueKey('payee-where-anywhere')));
+      // "contains" finds it in the middle of the bank's words and in the
+      // memo; the spelling's own count follows.
+      await tester.tap(find.byKey(const ValueKey('payee-how')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('payee-how-contains')));
       await tester.pumpAndSettle();
       expect(
         find.text(
-          '4 rows have this · 2 still in Not categorized · 1 more in Not '
-          'categorized stays there · 1 already in Groceries',
+          '4 rows so far are written this way · 2 still in Not categorized · '
+          '1 more in Not categorized stays there · 1 already in Groceries',
         ),
         findsOneWidget,
       );
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('payee-rows'))).data,
+        '4 rows',
+      );
+      // "is exactly" finds none: no row's payee is just UNI.
+      await tester.tap(find.byKey(const ValueKey('payee-how')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('payee-how-exactly')));
+      await tester.pumpAndSettle();
+      expect(find.text('No row is written this way yet'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('payee-rows'))).data,
+        'no row yet',
+      );
+      await tester.tap(find.byKey(const ValueKey('payee-how')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('payee-how-contains')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('payee-category')));
       await tester.pumpAndSettle();
       final phone = find.descendant(
@@ -14226,8 +14262,8 @@ void main() {
       // The Unitel row in Groceries is said, and never moved.
       expect(
         find.text(
-          '4 rows have this · 2 still in Not categorized · 1 more in Not '
-          'categorized stays there · 1 in another category',
+          '4 rows so far are written this way · 2 still in Not categorized · '
+          '1 more in Not categorized stays there · 1 in another category',
         ),
         findsOneWidget,
       );
@@ -14238,10 +14274,7 @@ void main() {
         find.text('Phone & internet remembered for next time'),
         findsOneWidget,
       );
-      expect(
-        find.text('has «UNI» anywhere', findRichText: true),
-        findsOneWidget,
-      );
+      expect(find.text('contains «UNI»', findRichText: true), findsOneWidget);
       var rule = (await tester.runAsync(db.allPayeeRules))!.single;
       expect(rule.words, 'uni');
       expect(rule.name, 'UNI');
@@ -14286,6 +14319,127 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('a payee takes a name and another spelling; rows already in '
+        'show the name only when asked, with undo (#117)', (tester) async {
+      final db = await withRule(tester);
+      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      await tester.pumpAndSettle();
+      // No name yet: the row reads the same as the bank sends it.
+      final shows = find.byKey(const ValueKey('payee-example'));
+      expect(
+        find.descendant(of: shows, matching: find.text('Unitel')),
+        findsOneWidget,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-name')),
+        'Unitel Mobile',
+      );
+      await tester.pumpAndSettle();
+      // The ledger's row shows the name, the bank's words under it.
+      expect(
+        find.descendant(of: shows, matching: find.text('Unitel Mobile')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: shows,
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Text &&
+                w.data != 'Unitel Mobile' &&
+                (w.data ?? '').startsWith('Unitel'),
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('payee-bank-row')),
+          matching: find.text('Unitel Mobile'),
+        ),
+        findsNothing,
+      );
+      // Another spelling on the empty line: a new empty line follows it.
+      expect(find.byKey(const ValueKey('payee-words-2')), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-words-1')),
+        'Юнител',
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('payee-words-2')), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('payee-rows-1'))).data,
+        'no row yet',
+      );
+      // One typed by mistake comes off by its x.
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-words-2')),
+        'Oops',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('payee-remove-2')));
+      await tester.pumpAndSettle();
+      expect(find.text('Oops'), findsNothing);
+      expect(find.byKey(const ValueKey('payee-words-3')), findsNothing);
+
+      await tapAndWait(tester, find.byKey(const ValueKey('payee-save')));
+      expect(find.byKey(const ValueKey('payee-editor')), findsNothing);
+      var rule = (await tester.runAsync(db.allPayeeRules))!.single;
+      expect(rule.shownAs, 'Unitel Mobile');
+      expect(rule.spellings, const [
+        PayeeSpelling(PayeeMatch.starts, 'Unitel'),
+        PayeeSpelling(PayeeMatch.contains, 'Юнител'),
+      ]);
+      // Its line: the name, then how the bank writes it.
+      expect(
+        find.text('Unitel Mobile   Unitel · Юнител', findRichText: true),
+        findsOneWidget,
+      );
+      // Save renamed nothing: it offers.
+      expect(
+        await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel'),
+        hasLength(1),
+      );
+      expect(
+        find.text('Show «Unitel Mobile» on the 1 row already in'),
+        findsOneWidget,
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
+      expect(find.text('1 row now shows «Unitel Mobile»'), findsOneWidget);
+      final shown = await rowsOf(
+        tester,
+        db,
+        (r) => r.txnPayee == 'Unitel Mobile',
+      );
+      expect(shown, hasLength(1));
+      expect(shown.single.memo, contains('Unitel'));
+      expect(shown.single.categoryLabel, 'Groceries');
+      expect(await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel'), isEmpty);
+      // One undo: the row under the bank's words again, the payee as saved.
+      await closePopup(tester);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      expect(
+        await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel'),
+        hasLength(1),
+      );
+      rule = (await tester.runAsync(db.allPayeeRules))!.single;
+      expect(rule.shownAs, 'Unitel Mobile');
+      // The next undo: the payee as it was, one spelling and no name.
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      rule = (await tester.runAsync(db.allPayeeRules))!.single;
+      expect(rule.shownAs, isEmpty);
+      expect(rule.spellings, const [
+        PayeeSpelling(PayeeMatch.starts, 'Unitel'),
+      ]);
+      expect(
+        find.text('starts with «Unitel»', findRichText: true),
+        findsOneWidget,
+      );
+      await tidy(tester, db);
+    });
+
     testWidgets('Add a payee: Save says what is missing, then a payee on a '
         'chosen account is listed', (tester) async {
       final db = await withRule(tester);
@@ -14299,8 +14453,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         find.text(
-          'Type a payee, or a word in it · Pick an account · Pick a '
-          'category',
+          'Type how the bank writes it · Pick an account · Pick a category',
         ),
         findsOneWidget,
       );
@@ -14317,7 +14470,7 @@ void main() {
       await tester.tap(find.byKey(ValueKey('payee-account-$checkingId')));
       await tester.pumpAndSettle();
       expect(
-        find.text('1 row starts with this · 1 in another category'),
+        find.text('1 row so far is written this way · 1 in another category'),
         findsOneWidget,
       );
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -14334,7 +14487,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        find.text('1 row starts with this · 1 already in Dining out'),
+        find.text('1 row so far is written this way · 1 already in Dining out'),
         findsOneWidget,
       );
       await expectLater(
@@ -14346,7 +14499,7 @@ void main() {
       // Nothing waits, so nothing is offered.
       expect(find.byKey(const ValueKey('toast-more')), findsNothing);
       expect(
-        find.text('starts with «Sakura»', findRichText: true),
+        find.text('contains «Sakura»', findRichText: true),
         findsOneWidget,
       );
       final rules = (await tester.runAsync(db.allPayeeRules))!;
@@ -14482,25 +14635,36 @@ void main() {
       final db = await withRule(tester);
       await tester.tap(find.text('starts with «Unitel»', findRichText: true));
       await tester.pumpAndSettle();
-      expect(focusedKey(), 'payee-words');
+      expect(focusedKey(), 'payee-name');
       final seen = <String?>[];
-      for (var i = 0; i < 8; i++) {
+      for (var i = 0; i < 12; i++) {
         await tester.sendKeyEvent(LogicalKeyboardKey.tab);
         await tester.pumpAndSettle();
         seen.add(focusedKey());
       }
       expect(seen, [
-        'payee-where-starts',
-        'payee-where-anywhere',
+        // Its one spelling: how, the words, its x.
+        'payee-how',
+        'payee-words',
+        'payee-remove',
+        // The empty line for the next: nothing to remove.
+        'payee-how-1',
+        'payee-words-1',
         'payee-accounts',
         'payee-category',
         'payee-cancel',
         'payee-save',
         'payee-edit-delete',
         // Round again, not into the lines below.
-        'payee-words',
+        'payee-name',
+        'payee-how',
       ]);
-      // Shift+Tab from the words goes round backwards, to Delete, the last.
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+      expect(focusedKey(), 'payee-name');
+      // Shift+Tab from the name goes round backwards, to Delete, the last.
       await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
@@ -14508,7 +14672,7 @@ void main() {
       expect(focusedKey(), 'payee-edit-delete');
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
-      expect(focusedKey(), 'payee-words');
+      expect(focusedKey(), 'payee-name');
       // By keys alone: Category, Space opens it, Enter picks, and Tab goes
       // on to Cancel. Enter on a button presses it: Cancel throws the
       // change away.

@@ -5983,19 +5983,6 @@ class WordsMn extends Words {
   String get payeesAdd => 'Харилцагч нэмэх';
 
   @override
-  String get payeesWordsLabel => 'Харилцагч, эсвэл нэрэнд нь орсон үг';
-
-  @override
-  String get payeesWhere => 'Хаана хайх';
-
-  @override
-  String get payeesAtStart => 'Харилцагчийн нэрийн эхэнд';
-
-  @override
-  String get payeesAnywhere =>
-      'Харилцагчийн нэр эсвэл тэмдэглэлийн аль ч хэсэгт';
-
-  @override
   String payeesStartsWith(String name) {
     return '«$name» гэж эхэлсэн';
   }
@@ -6003,28 +5990,6 @@ class WordsMn extends Words {
   @override
   String payeesHasAnywhere(String name) {
     return '«$name» гэсэн үг орсон';
-  }
-
-  @override
-  String payeesFitsStarts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count мөр ингэж эхэлж байна',
-      zero: 'Ингэж эхэлсэн мөр хараахан алга',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String payeesFitsAnywhere(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count мөрд энэ үг орсон байна',
-      zero: 'Энэ үг орсон мөр хараахан алга',
-    );
-    return '$_temp0';
   }
 
   @override
@@ -6048,10 +6013,7 @@ class WordsMn extends Words {
   }
 
   @override
-  String get payeesHowRowReads => 'Ийм мөр ингэж харагдана';
-
-  @override
-  String get payeesNeedsWords => 'Харилцагч, эсвэл нэрэнд нь орсон үг бичнэ үү';
+  String get payeesNeedsWords => 'Банк хэрхэн бичдэгийг бичнэ үү';
 
   @override
   String get payeesNeedsCategory => 'Ангилал сонгоорой';
@@ -6105,17 +6067,6 @@ class WordsMn extends Words {
   }
 
   @override
-  String payeesAnywhereWould(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other:
-          '$count мөрд энэ үг харилцагчийн нэрийн дунд эсвэл тэмдэглэлд байна',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String payeesCategoryArchived(String category) {
     return '$category (архивласан: мөрүүд «Ангилаагүй» хэсэгт хүлээнэ)';
   }
@@ -6139,6 +6090,94 @@ class WordsMn extends Words {
 
   @override
   String get payeesCategoryGone => 'Устгасан ангилал';
+
+  @override
+  String get payeesNameLabel => 'Нэр';
+
+  @override
+  String get payeesNameHint => 'Нэр өгөөрэй';
+
+  @override
+  String get payeesSpellingsLabel => 'Банк ингэж бичдэг';
+
+  @override
+  String get payeesSpellingFirstHint => 'Банкны бичдэг үг, эсвэл түүний хэсэг';
+
+  @override
+  String get payeesSpellingHint => 'Өөрөөр бичдэг хэлбэр';
+
+  @override
+  String get payeesHowContains => 'орсон';
+
+  @override
+  String get payeesHowStarts => 'эхэлсэн';
+
+  @override
+  String get payeesHowExactly => 'яг ижил';
+
+  @override
+  String payeesSpellingRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөр',
+      zero: 'мөр алга',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesSpellingTaken(String category) {
+    return 'жагсаалтад аль хэдийн байна ($category)';
+  }
+
+  @override
+  String get payeesRemoveSpelling => 'Энэ бичиглэлийг хасах';
+
+  @override
+  String get payeesNextFromBank => 'Банкнаас ирэх дараагийн мөр';
+
+  @override
+  String get payeesAsBankSends => 'Банкнаас ирэхдээ';
+
+  @override
+  String get payeesAsLedgerShows => 'Дэвтэрт харагдахдаа';
+
+  @override
+  String payeesFitsTotal(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Одоогоор $count мөр ингэж бичигдсэн',
+      zero: 'Ингэж бичсэн мөр хараахан алга',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesIsExactly(String name) {
+    return 'яг «$name» гэсэн';
+  }
+
+  @override
+  String payeesShowName(int count, String name) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Дэвтэрт байгаа $count мөрд «$name» гэж харуулах',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesNameShown(int count, String name) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөр одоо «$name» гэж харагдана',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get ledgerRowsThisComputer => 'Энэ компьютер';

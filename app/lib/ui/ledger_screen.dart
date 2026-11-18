@@ -227,6 +227,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? detail,
     VoidCallback? undo,
     ({String label, VoidCallback onTap})? more,
+    ({String label, VoidCallback onTap})? also,
     bool failed,
     String? why,
   })?
@@ -1793,6 +1794,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? message,
     String? detail,
     ({String label, VoidCallback onTap})? more,
+    // A second offer under the first (a payee saved: its rows to file,
+    // and its rows to show by its name).
+    ({String label, VoidCallback onTap})? also,
   }) {
     final action = _Undoable(label, undo, redo, detail: detail);
     _history.add(action);
@@ -1801,7 +1805,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _showToast(
         message ?? label,
         detail: detail,
-        more: more,
+        more: more ?? also,
+        also: more == null ? null : also,
         undo: () async {
           // Undo runs newest first, so an older toast can't jump the queue:
           // restoring its state would silently wipe the newer changes.
@@ -1920,6 +1925,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String? detail,
     Future<void> Function()? undo,
     ({String label, VoidCallback onTap})? more,
+    ({String label, VoidCallback onTap})? also,
     bool failed = false,
     Object? why,
     String? kept,
@@ -1949,6 +1955,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onTap: () {
                   _toastClicked();
                   more.onTap();
+                },
+              ),
+        also: also == null
+            ? null
+            : (
+                label: also.label,
+                onTap: () {
+                  _toastClicked();
+                  also.onTap();
                 },
               ),
         undo: undo == null
@@ -4607,7 +4622,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final name = (r.txnPayee ?? '').trim();
     if (data == null || name.isEmpty || isUncategorized(c)) return null;
     if (r.kind != RowKind.simple) return null;
-    final words = payeeWords(name);
     // Already remembered so, by these words or by wider ones.
     final covering = PayeeRuleInfo.pick(
       data.payeeRules,
@@ -4627,9 +4641,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // not one a longer line wins.
     final probe = PayeeRuleInfo(
       id: -1,
-      words: words,
-      name: name,
-      anywhere: false,
+      spellings: [PayeeSpelling(PayeeMatch.starts, name)],
       categoryId: c.id,
       payId: pay?.id,
       accountIds: {r.accountId},
@@ -4779,16 +4791,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // line already had (the same payee remembered on two computers) is
     // taken into it instead: deleted with this Save, in its one undo.
     bool overlaps(PayeeRuleInfo x) =>
-        x.id != before?.id &&
-        x.words == after.words &&
-        x.accountIds.intersection(after.accountIds).isNotEmpty;
+        x.id != before?.id && after.sharedWith(x) != null;
     final twins = [
       for (final x in data.payeeRules)
-        if (overlaps(x) &&
-            before != null &&
-            x.words == before.words &&
-            x.anywhere == before.anywhere)
-          x,
+        if (overlaps(x) && before != null && x.sameSpellings(before)) x,
     ];
     final twin = data.payeeRules
         .where((x) => overlaps(x) && !twins.contains(x))
@@ -4796,7 +4802,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (twin != null) {
       _showFailure(
         t.payeesAlreadyListed(
-          twin.name,
+          // As the line already there writes it.
+          twin.sharedWith(after)!.text,
           _ruleLabel(t, data, twin, _payChoices(data)),
         ),
       );
@@ -4806,8 +4813,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     try {
       if (before == null) {
         saved = await db.addPayeeRule(
-          name: after.name,
-          anywhere: after.anywhere,
+          spellings: after.spellings,
+          shownAs: after.shownAs,
           categoryId: after.categoryId,
           payId: after.payId,
           accountIds: after.accountIds,
@@ -4829,14 +4836,23 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!mounted) return true;
     final label = _ruleLabel(t, data, saved, _payChoices(data));
     final waiting = _waitingFor(data, saved, today);
+    // Rows already in that it fits and that don't show its name: never
+    // renamed by Save itself, offered (the owner's ledger is theirs).
+    final unnamed = _unnamedFor(data, saved);
     _did(
       t.ledgerAlwaysFiled(0, label),
-      detail: saved.name,
+      detail: saved.title,
       more: waiting.isEmpty
           ? null
           : (
               label: t.payeesFileWaiting(waiting.length),
               onTap: () => _fileWaiting(saved, waiting, label),
+            ),
+      also: unnamed.isEmpty
+          ? null
+          : (
+              label: t.payeesShowName(unnamed.length, saved.shownAs.trim()),
+              onTap: () => _showNameOn(saved, unnamed),
             ),
       undo: () => before == null
           ? db.removePayeeRule(saved.id)
@@ -4881,7 +4897,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       message: t.payeesDeletedMessage(
         _ruleLabel(t, data, rule, _payChoices(data)),
       ),
-      detail: rule.name,
+      detail: rule.title,
       undo: () {
         _payeesKey.currentState?.changed(rule.id);
         return db.putPayeeRule(rule);
@@ -4945,9 +4961,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (!mounted) return;
+    // Filed, and still under the bank's words: the name is offered again.
+    final data = _data;
+    final unnamed = data == null
+        ? const <RegisterRow>[]
+        : _unnamedFor(data, rule);
     _did(
       t.payeesFiled(waiting.length, label),
-      detail: rule.name,
+      detail: rule.title,
+      more: unnamed.isEmpty
+          ? null
+          : (
+              label: t.payeesShowName(unnamed.length, rule.shownAs.trim()),
+              onTap: () => _showNameOn(rule, unnamed),
+            ),
       undo: () async {
         for (final p in paychecks.reversed) {
           await db.undoTakeAsPay(p);
@@ -4956,6 +4983,44 @@ class _LedgerScreenState extends State<LedgerScreen> {
           await db.restoreCategories(e.value, e.key);
         }
       },
+      redo: write,
+    );
+  }
+
+  /// The rows already in the ledger that [rule] fits and that don't show
+  /// its name; none when it has no name.
+  List<RegisterRow> _unnamedFor(LedgerData data, PayeeRuleInfo rule) {
+    final shown = payeeWords(rule.shownAs);
+    if (shown.isEmpty) return const [];
+    return [
+      for (final r in _fitting(data, rule))
+        if (payeeWords(r.txnPayee ?? '') != shown) r,
+    ];
+  }
+
+  /// The offer after a payee with a name is saved, taken: its rows already
+  /// in show the name, each keeping the bank's words in its memo, as a row
+  /// brought in from now on would. One undo; the payee is left as it is.
+  Future<void> _showNameOn(PayeeRuleInfo rule, List<RegisterRow> rows) async {
+    final t = context.t;
+    final name = rule.shownAs.trim();
+    final ids = {for (final r in rows) r.txnId};
+    var previous = <int, ({int? payeeId, String? memo})>{};
+    Future<void> write() async {
+      previous = await db.renamePayeeMany(transactionIds: ids, name: name);
+    }
+
+    try {
+      await write();
+    } catch (e) {
+      debugPrint('Showing a payee’s name on its rows failed: $e');
+      if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
+      return;
+    }
+    if (!mounted || previous.isEmpty) return;
+    _did(
+      t.payeesNameShown(previous.length, name),
+      undo: () => db.restorePayees(previous),
       redo: write,
     );
   }
@@ -10073,6 +10138,7 @@ class _Toast extends StatelessWidget {
     String? detail,
     VoidCallback? undo,
     ({String label, VoidCallback onTap})? more,
+    ({String label, VoidCallback onTap})? also,
     bool failed,
     String? why,
   })
@@ -10304,6 +10370,40 @@ class _Toast extends StatelessWidget {
                           // Two lines when it needs them (Mongolian does).
                           child: Text(
                             more.label,
+                            textAlign: TextAlign.center,
+                            style: onest(13, weight: 600, color: ink),
+                          ),
+                        ),
+                      ),
+                    if (toast.also case final also?)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          top: 4,
+                          right: 8,
+                          bottom: 4,
+                        ),
+                        child: OutlinedButton(
+                          key: const ValueKey('toast-also'),
+                          onPressed: also.onTap,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: ink,
+                            visualDensity: VisualDensity.standard,
+                            side: BorderSide(
+                              color: ink.withValues(alpha: 0.55),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            minimumSize: const Size(0, 34),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          // Two lines when it needs them (Mongolian does).
+                          child: Text(
+                            also.label,
                             textAlign: TextAlign.center,
                             style: onest(13, weight: 600, color: ink),
                           ),
