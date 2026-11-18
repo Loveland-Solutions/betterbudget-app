@@ -146,6 +146,8 @@ class RegisterActions {
     required this.onMove,
     this.pays = const [],
     this.onSetPay,
+    this.onSetPayRemembering,
+    this.onSetCategoryRemembering,
     this.onBillPaid,
     this.onNotIt,
     this.onNotThisBill,
@@ -182,6 +184,7 @@ class RegisterActions {
   /// a row of money in makes the row that pay's paycheck.
   final List<({int id, int accountId, String label})> pays;
   final void Function(RegisterRow row, int payId)? onSetPay;
+  final void Function(RegisterRow row, int payId)? onSetPayRemembering;
 
   final ValueChanged<RegisterFilter> onFilter;
 
@@ -191,6 +194,11 @@ class RegisterActions {
   final ValueChanged<RegisterRow> onToggleCleared;
   final ValueChanged<RegisterRow> onConfirm;
   final void Function(RegisterRow row, AccountInfo category) onSetCategory;
+
+  /// The same with the box at the foot of the list ticked: the payee is
+  /// remembered too, in the same undo. Null: no box.
+  final void Function(RegisterRow row, AccountInfo category)?
+  onSetCategoryRemembering;
 
   /// New category in a row's list: the window, then the row is filed in it.
   final ValueChanged<RegisterRow> onNewCategory;
@@ -219,6 +227,12 @@ List<AccountInfo> categoriesFor(RegisterRow r, List<AccountInfo> all) {
   final spending = offered.where((c) => !c.isIncome);
   return r.amount > 0 ? [...income, ...spending] : [...spending, ...income];
 }
+
+/// Whether a row's Category list has the box that remembers the payee:
+/// there's a payee to remember, as for the box under a row.
+bool _remembers(RegisterRow r, RegisterActions actions) =>
+    actions.onSetCategoryRemembering != null &&
+    (r.txnPayee ?? '').trim().isNotEmpty;
 
 /// The pays [r] could be a paycheck of: money in, into the pay's account.
 List<({int id, int accountId, String label})> paysFor(
@@ -570,6 +584,10 @@ class RegisterPanel extends StatelessWidget {
       onNewCategory: () => actions.onNewCategory(r),
       pays: paysFor(r, actions),
       onSetPay: (id) => actions.onSetPay?.call(r, id),
+      onSetCategoryRemembering: _remembers(r, actions)
+          ? (c) => actions.onSetCategoryRemembering!(r, c)
+          : null,
+      onSetPayRemembering: (id) => actions.onSetPayRemembering?.call(r, id),
       categoryShown: categoryShown(r, actions),
       hoveredStatus: hoveredStatus,
     );
@@ -975,9 +993,16 @@ class _RowActions extends StatelessWidget {
             categories: categoriesFor(r, categories),
             onPicked: (c) => actions.onSetCategory(r, c),
             onNew: () => actions.onNewCategory(r),
+            onPickedRemembering: _remembers(r, actions)
+                ? (c) => actions.onSetCategoryRemembering!(r, c)
+                : null,
             leading: [
               for (final p in paysFor(r, actions))
                 (label: p.label, onTap: () => actions.onSetPay!(r, p.id)),
+            ],
+            leadingRemembering: [
+              for (final p in paysFor(r, actions))
+                () => actions.onSetPayRemembering?.call(r, p.id),
             ],
             current: categoryShown(r, actions),
             builder: (open, toggle) => BarButton(
@@ -1272,6 +1297,8 @@ class _PostedRow extends StatelessWidget {
     required this.onNewCategory,
     this.pays = const [],
     this.onSetPay,
+    this.onSetCategoryRemembering,
+    this.onSetPayRemembering,
     this.categoryShown,
     required this.hoveredStatus,
   });
@@ -1279,6 +1306,10 @@ class _PostedRow extends StatelessWidget {
   /// The pays this row could be a paycheck of, first in the dropdown.
   final List<({int id, int accountId, String label})> pays;
   final ValueChanged<int>? onSetPay;
+
+  /// A pick with the list's box ticked; null: no box (no payee).
+  final ValueChanged<AccountInfo>? onSetCategoryRemembering;
+  final ValueChanged<int>? onSetPayRemembering;
 
   /// The chip's words when they aren't the category's own (a paycheck).
   final String? categoryShown;
@@ -1552,12 +1583,17 @@ class _PostedRow extends StatelessWidget {
                                   current: categoryShown ?? r.categoryLabel,
                                   onPicked: onSetCategory,
                                   onNew: onNewCategory,
+                                  onPickedRemembering: onSetCategoryRemembering,
                                   leading: [
                                     for (final p in pays)
                                       (
                                         label: p.label,
                                         onTap: () => onSetPay?.call(p.id),
                                       ),
+                                  ],
+                                  leadingRemembering: [
+                                    for (final p in pays)
+                                      () => onSetPayRemembering?.call(p.id),
                                   ],
                                   builder: (open, toggle) => CategoryChip(
                                     label: categoryShown ?? r.categoryLabel,
@@ -2106,7 +2142,7 @@ class CategoryChip extends StatelessWidget {
 
 /// A list of categories (or accounts, for Move to) that opens in place.
 /// No modal.
-class CategoryMenu extends StatelessWidget {
+class CategoryMenu extends StatefulWidget {
   const CategoryMenu({
     super.key,
     required this.categories,
@@ -2117,7 +2153,17 @@ class CategoryMenu extends StatelessWidget {
     this.onNew,
     this.controller,
     this.consumeOutsideTap = false,
+    this.onPickedRemembering,
+    this.leadingRemembering,
   });
+
+  /// A row's list (#117, owner 2026-11-18: "do it"): a box at its foot,
+  /// worded as the one under a row, and a pick made with it ticked goes
+  /// here instead of [onPicked]. Unticked each time the list opens.
+  final ValueChanged<AccountInfo>? onPickedRemembering;
+
+  /// The same for each of [leading], in its order.
+  final List<VoidCallback>? leadingRemembering;
 
   /// New category at the top, over a line, as in the entry row's list
   /// (owner, 2026-10-22). The keys start on the first choice under it.
@@ -2140,10 +2186,30 @@ class CategoryMenu extends StatelessWidget {
   final Widget Function(bool open, VoidCallback toggle) builder;
 
   @override
+  State<CategoryMenu> createState() => _CategoryMenuState();
+}
+
+class _CategoryMenuState extends State<CategoryMenu> {
+  var _remember = false;
+
+  @override
   Widget build(BuildContext context) {
+    final w = widget;
+    final onNew = w.onNew, current = w.current;
+    final remembering = w.onPickedRemembering;
+    void picked(AccountInfo c) =>
+        _remember && remembering != null ? remembering(c) : w.onPicked(c);
+    void led(int i) {
+      final also = w.leadingRemembering;
+      _remember && also != null ? also[i]() : w.leading[i].onTap();
+    }
+
     return MenuAnchor(
-      controller: controller,
-      consumeOutsideTap: consumeOutsideTap,
+      controller: w.controller,
+      consumeOutsideTap: w.consumeOutsideTap,
+      onOpen: () {
+        if (_remember) setState(() => _remember = false);
+      },
       style: MenuStyle(
         backgroundColor: WidgetStatePropertyAll(Mid.raised),
         shape: WidgetStatePropertyAll(
@@ -2152,7 +2218,10 @@ class CategoryMenu extends StatelessWidget {
         padding: const WidgetStatePropertyAll(
           EdgeInsets.symmetric(vertical: 6),
         ),
-        maximumSize: const WidgetStatePropertyAll(Size(260, 360)),
+        // Wider with the box, so its words fit on one line.
+        maximumSize: WidgetStatePropertyAll(
+          Size(remembering != null ? 320 : 260, 360),
+        ),
       ),
       alignmentOffset: const Offset(0, 4),
       menuChildren: [
@@ -2171,10 +2240,38 @@ class CategoryMenu extends StatelessWidget {
           ),
           Divider(height: 1, color: Mid.rule),
         ],
+        if (remembering != null) ...[
+          // Ticked here, then a category picked: the row is filed and the
+          // payee remembered at once. At the top, under New category, in
+          // the order it's used and in sight however long the list (the
+          // foot of a long list is out of sight until scrolled to). The
+          // list stays open while it's ticked.
+          MenuItemButton(
+            key: const ValueKey('menu-remember'),
+            closeOnActivate: false,
+            onPressed: () => setState(() => _remember = !_remember),
+            style: ButtonStyle(
+              minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
+              overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+            ),
+            leadingIcon: Icon(
+              _remember
+                  ? Icons.check_box_rounded
+                  : Icons.check_box_outline_blank_rounded,
+              size: 16,
+              color: _remember ? Mid.blue : Mid.ink3,
+            ),
+            child: Text(
+              context.t.rowsRemember,
+              style: onest(12.5, color: _remember ? Mid.ink : Mid.ink2),
+            ),
+          ),
+          Divider(height: 1, color: Mid.rule),
+        ],
         ...focusFirstOnKeys([
-          for (final l in leading)
+          for (final (i, l) in w.leading.indexed)
             MenuItemButton(
-              onPressed: l.onTap,
+              onPressed: () => led(i),
               style: ButtonStyle(
                 minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
                 overlayColor: WidgetStatePropertyAll(Mid.blueWash),
@@ -2190,9 +2287,9 @@ class CategoryMenu extends StatelessWidget {
                 ),
               ),
             ),
-          for (final c in categories.where((c) => !c.archived))
+          for (final c in w.categories.where((c) => !c.archived))
             MenuItemButton(
-              onPressed: () => onPicked(c),
+              onPressed: () => picked(c),
               style: ButtonStyle(
                 minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
                 overlayColor: WidgetStatePropertyAll(Mid.blueWash),
@@ -2207,8 +2304,10 @@ class CategoryMenu extends StatelessWidget {
             ),
         ]),
       ],
-      builder: (context, menu, _) =>
-          builder(menu.isOpen, () => menu.isOpen ? menu.close() : menu.open()),
+      builder: (context, menu, _) => w.builder(
+        menu.isOpen,
+        () => menu.isOpen ? menu.close() : menu.open(),
+      ),
     );
   }
 }

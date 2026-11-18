@@ -3706,6 +3706,14 @@ on the transaction for associating the payee with the category."
   bank's text kept in the memo, several spellings on one line, and the offer to
   remember from a row's Edit and the foot of its Category list: "do it" to each.
   A payee for money in or out only, or above an amount: "I don't like this idea."
+- **The box in a row's Category list** (#117): "Remember this category for this
+  payee", the words of the box under a row, at the top of the list under New
+  category (not its foot, where a long list hides it until scrolled to, and it is
+  ticked before a category is picked). Shown while the row has a payee; unticked
+  each time the list opens; the list stays open when it is ticked. A pick with it
+  ticked files the row and remembers the payee (and files that payee's rows still
+  waiting) in one undo; the popup says "Groceries remembered for next time", not
+  "Filed under Groceries" as well. A pay picked so is remembered as that pay's.
 
 ### Two computers: the one row both changed (2026-10-12)
 

@@ -3660,8 +3660,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Categorize'));
       await tester.pumpAndSettle();
-      expect(menu().take(3), [
+      expect(menu().take(4), [
         'New category',
+        'Remember this category for this payee',
         'Income · Loveland Solutions',
         'Income',
       ]);
@@ -3708,7 +3709,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Categorize'));
       await tester.pumpAndSettle();
-      expect(menu()[1], isNot(contains('Income')));
+      expect(menu()[2], isNot(contains('Income')));
       expect(menu().last, 'Income');
       expect(menu(), isNot(contains('Income · Loveland Solutions')));
       await tidy(tester, db);
@@ -14534,9 +14535,80 @@ void main() {
       await settle(tester);
       await settle(tester);
       expect(find.byKey(const ValueKey('payee-editor')), findsNothing);
+      expect((await tester.runAsync(db.allPayeeRules))!.single.words, 'unitel');
+      await tidy(tester, db);
+    });
+
+    testWidgets('the box at the foot of a row\'s Category list: the row '
+        'filed and the payee remembered, in one undo (#117)', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      final box = find.byKey(const ValueKey('menu-remember'));
+      await reveal(tester, box);
+      await tester.pumpAndSettle();
+      await tester.tap(box);
+      await tester.pumpAndSettle();
+      // Ticked, and the list still open.
       expect(
-        (await tester.runAsync(db.allPayeeRules))!.single.words,
-        'unitel',
+        find.descendant(
+          of: box,
+          matching: find.byIcon(Icons.check_box_rounded),
+        ),
+        findsOneWidget,
+      );
+      await tapAndWait(
+        tester,
+        find.descendant(
+          of: find.byType(MenuItemButton),
+          matching: find.text('Groceries'),
+        ),
+      );
+      expect(
+        find.textContaining('Groceries remembered for next time'),
+        findsOneWidget,
+      );
+      expect(find.text('Filed under Groceries'), findsNothing);
+      final rules = (await tester.runAsync(db.allPayeeRules))!;
+      expect(rules.single.words, 'unitel');
+      final groceries = (await tester.runAsync(db.loadLedger))!.accounts.values
+          .singleWhere((a) => a.name == 'Groceries')
+          .id;
+      expect(rules.single.categoryId, groceries);
+      final unitel = await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel');
+      expect(unitel.every((r) => r.categoryId == groceries), isTrue);
+
+      // One ⌘Z: the payee forgotten and the row back where it was.
+      await closePopup(tester);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      expect(await tester.runAsync(db.allPayeeRules), isEmpty);
+      final back = await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel');
+      expect(back.any((r) => r.categoryId == groceries), isFalse);
+      // And redo puts both back.
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await tester.pumpAndSettle();
+      expect(await tester.runAsync(db.allPayeeRules), hasLength(1));
+      final again = await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel');
+      expect(again.every((r) => r.categoryId == groceries), isTrue);
+
+      // Opened again, the box starts unticked: a plain pick is a plain pick.
+      if (find.text('Categorize').evaluate().isEmpty) {
+        await tester.tap(find.text('Unitel').first);
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await reveal(tester, box);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: box,
+          matching: find.byIcon(Icons.check_box_outline_blank_rounded),
+        ),
+        findsOneWidget,
       );
       await tidy(tester, db);
     });
