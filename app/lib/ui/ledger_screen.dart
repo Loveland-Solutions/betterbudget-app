@@ -873,7 +873,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
       final under = onlyNotes || countsFirst ? notes.skip(1).toList() : notes;
       // One category to see to: its Edit is where that's done.
       final toEdit = {
-        ...categories,
+        // Not categorized made for a count's difference has nothing to edit.
+        for (final c in categories)
+          if (!take.counts.any((k) => k.categoryId == c)) c,
         for (final l in take.leftOut) l.categoryId,
       };
       // Not in ⌘Z's history (owner, 2026-10-08): ⌘Z pressed for something

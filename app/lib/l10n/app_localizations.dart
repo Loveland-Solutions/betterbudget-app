@@ -8943,6 +8943,18 @@ abstract class Words {
   /// **'{account} counted · {amount} is its opening balance'**
   String countSavedOpening(String account, String amount);
 
+  /// On the phone's count page, under how old the phone's copy is, when it is from an earlier day.
+  ///
+  /// In en, this message translates to:
+  /// **'Your computer works the difference out again from its own rows when it takes the count in.'**
+  String get phoneCountRechecked;
+
+  /// Under a waiting count whose account was deleted, archived or made not cash on the computer.
+  ///
+  /// In en, this message translates to:
+  /// **'This account isn’t a cash account on your computer now, so this count can’t go in.'**
+  String get phoneCountCantGoIn;
+
   /// A count of cash made on the phone, in the list of what isn’t on the computer yet.
   ///
   /// In en, this message translates to:

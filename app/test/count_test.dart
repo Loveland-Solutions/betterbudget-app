@@ -182,6 +182,7 @@ void main() {
           date: DateTime(2026, 11, 18),
           madeAt: morning.add(Duration(minutes: minutes)),
           categoryId: category,
+          heldMinor: 0,
         );
 
     test('is saved once, in the order the phone made things', () async {
@@ -220,6 +221,44 @@ void main() {
       // Undo takes the count's row out with the entries.
       await db.undoPhoneTake(take);
       expect((await db.loadLedger()).balanceOf(wallet), 300000);
+    });
+
+    test('two phones: lunch typed on one after a count on the other isn\'t '
+        'missing money; a forgotten purchase from the day before is taken '
+        'before the count', () async {
+      await db.postSimple(
+        accountId: wallet,
+        date: DateTime(2026, 11, 1),
+        today: today,
+        payee: 'ATM',
+        counterAccountId: holding,
+        amount: 50000,
+      );
+      final hers = PhoneInbox(
+        device: 'aa11',
+        // Counted 40,000 at 9:30; then remembered Sunday's 10,000.
+        entries: [
+          PhoneEntry(
+            id: 'sunday',
+            categoryId: '$groceries',
+            accountId: '$wallet',
+            payee: 'Market',
+            amountMinor: -10000,
+            date: DateTime(2026, 11, 16),
+            madeAt: morning.add(const Duration(minutes: 40)),
+          ),
+        ],
+        counts: [counted(30, 40000)],
+      );
+      // Lunch at noon on the other phone, read first.
+      final his = PhoneInbox(
+        device: 'bb22',
+        entries: [typed('lunch', 180, -5000)],
+      );
+      final take = (await db.takePhoneEntries([his, hers], today: today))!;
+      // The rows held 40,000 at the count, Sunday's purchase included.
+      expect(take.counts.single.difference, 0);
+      expect((await db.loadLedger()).balanceOf(wallet), 35000);
     });
 
     test('goes to the category picked, and makes an opening balance when '
@@ -263,6 +302,7 @@ void main() {
               countedMinor: 1000,
               date: DateTime(2026, 11, 18),
               madeAt: morning,
+              heldMinor: 0,
             ),
           ],
         ),

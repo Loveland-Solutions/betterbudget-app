@@ -6322,6 +6322,14 @@ class WordsEn extends Words {
   }
 
   @override
+  String get phoneCountRechecked =>
+      'Your computer works the difference out again from its own rows when it takes the count in.';
+
+  @override
+  String get phoneCountCantGoIn =>
+      'This account isn’t a cash account on your computer now, so this count can’t go in.';
+
+  @override
   String phoneCountedTitle(String account) {
     return '$account counted';
   }

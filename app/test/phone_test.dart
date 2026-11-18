@@ -1795,6 +1795,7 @@ void main() {
           countedMinor: 8600000,
           date: DateTime(2026, 10, 7),
           madeAt: _now,
+          heldMinor: 8600000,
         ),
       );
       await tester.pumpAndSettle();
@@ -1828,15 +1829,68 @@ void main() {
         date: DateTime(2026, 10, 7),
         madeAt: DateTime(2026, 10, 7, 9, minute),
       );
+      // Counted 60 when the phone said 80: 20 missing.
       final count = PhoneCount(
         id: 'c',
         accountId: 'cash',
         countedMinor: 60,
         date: DateTime(2026, 10, 7),
         madeAt: DateTime(2026, 10, 7, 9, 30),
+        heldMinor: 80,
       );
       expect(balanceNow(wallet, [spent(10, -20)]), 80);
       expect(balanceNow(wallet, [spent(10, -20), spent(40, -5)], [count]), 55);
+      // A newer copy arrives with the purchase before the count in it (an
+      // older computer took it): still counted, not frozen.
+      const newer = PhoneAccount(
+        id: 'cash',
+        name: 'Cash wallet',
+        balanceMinor: 80,
+        cash: true,
+      );
+      expect(balanceNow(newer, [spent(40, -5)], [count]), 55);
+    });
+
+    test('what is typed after a count waits on the phone until the count '
+        'is taken; an earlier day\'s purchase goes with it', () {
+      PhoneEntry typed(
+        String id,
+        int minute, {
+        int day = 7,
+        String at = 'cash',
+      }) => PhoneEntry(
+        id: id,
+        categoryId: 'groceries',
+        accountId: at,
+        payee: 'Market',
+        amountMinor: -100,
+        date: DateTime(2026, 10, day),
+        madeAt: DateTime(2026, 10, 7, 9, minute),
+      );
+      PhoneCount count(String id, int minute, {String at = 'cash'}) =>
+          PhoneCount(
+            id: id,
+            accountId: at,
+            countedMinor: 0,
+            date: DateTime(2026, 10, 7),
+            madeAt: DateTime(2026, 10, 7, 9, minute),
+            heldMinor: 0,
+          );
+      final inbox = PhoneInbox(
+        device: 'ab12',
+        entries: [
+          typed('before', 10),
+          typed('lunch', 40),
+          typed('sunday', 50, day: 6),
+          typed('card', 45, at: 'tdb'),
+        ],
+        counts: [count('first', 30), count('second', 60)],
+      );
+      final send = sendingOf(inbox, (id) => id == 'cash');
+      expect(send.entries.map((e) => e.id), ['before', 'sunday', 'card']);
+      expect(send.counts.map((c) => c.id), ['first']);
+      // A count the computer won't take holds nothing back.
+      expect(identical(sendingOf(inbox, (_) => false), inbox), isTrue);
     });
   });
 

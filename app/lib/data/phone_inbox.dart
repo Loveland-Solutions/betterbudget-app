@@ -82,18 +82,20 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
       db.execute(
         'CREATE TABLE counts (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, '
         'counted_minor INTEGER NOT NULL, date TEXT NOT NULL, '
-        'made_at TEXT NOT NULL, category_id TEXT)',
+        'made_at TEXT NOT NULL, category_id TEXT, '
+        'held_minor INTEGER NOT NULL)',
       );
       db.execute('BEGIN');
       db.execute('INSERT INTO phone VALUES (?)', [inbox.device]);
       for (final c in inbox.counts) {
-        db.execute('INSERT INTO counts VALUES (?, ?, ?, ?, ?, ?)', [
+        db.execute('INSERT INTO counts VALUES (?, ?, ?, ?, ?, ?, ?)', [
           c.id,
           c.accountId,
           c.countedMinor,
           c.date.toIso8601String(),
           c.madeAt.toIso8601String(),
           c.categoryId,
+          c.heldMinor,
         ]);
       }
       for (final c in inbox.categories) {
@@ -182,6 +184,7 @@ String phoneInboxSaying(PhoneInbox inbox) => jsonEncode([
       c.date.toIso8601String(),
       c.madeAt.toIso8601String(),
       c.categoryId,
+      c.heldMinor,
     ],
 ]);
 
@@ -286,6 +289,7 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
                 date: DateTime.parse(r['date'] as String),
                 madeAt: DateTime.parse(r['made_at'] as String),
                 categoryId: r['category_id'] as String?,
+                heldMinor: r['held_minor'] as int,
               ),
         ],
       );
@@ -453,10 +457,18 @@ class PhoneOutbox {
     );
   }
 
-  /// Keeps [inbox] on the phone and gives the file's bytes, for the folder.
-  Uint8List save(PhoneInbox inbox) {
+  /// Keeps [inbox] on the phone and gives the bytes of the file for the
+  /// folder: [send] when only part of it goes now (#119), else the same.
+  Uint8List save(PhoneInbox inbox, {PhoneInbox? send}) {
     dir.createSync(recursive: true);
     writePhoneInbox(_file, key, inbox);
-    return _file.readAsBytesSync();
+    if (send == null) return _file.readAsBytesSync();
+    final sending = File('${dir.path}/sending.$phoneInboxExtension');
+    writePhoneInbox(sending, key, send);
+    try {
+      return sending.readAsBytesSync();
+    } finally {
+      sending.deleteSync();
+    }
   }
 }

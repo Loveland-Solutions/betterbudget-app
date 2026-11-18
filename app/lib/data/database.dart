@@ -699,6 +699,15 @@ class PhoneTake {
   final List<int> unarchivedIds;
 }
 
+/// One entry or count from a phone's file, to be taken in its turn.
+typedef _PhoneWork = ({
+  DateTime madeAt,
+  DateTime date,
+  (int, int) order,
+  bool count,
+  Future<void> Function() run,
+});
+
 /// A phone's count of cash as the computer saved it: the difference from
 /// the rows, the category it went to, or that it made the opening balance.
 typedef PhoneCountTaken = ({
@@ -6345,6 +6354,8 @@ class AppDatabase extends _$AppDatabase {
     final madeNames = <String>[];
     final leftOut = <PhonePlanLeftOut>[];
     final nameOf = {for (final a in live) a.id: a.name};
+    final work = <_PhoneWork>[];
+    final takenNow = <String, Set<String>>{};
     for (final inbox in inboxes) {
       final was = taken[inbox.device] ?? const PhoneTaken();
       final categories = {...was.categories};
@@ -6457,7 +6468,12 @@ class AppDatabase extends _$AppDatabase {
         }
         seen[c.id] = print;
       }
-      final entries = {...was.entries};
+      // One set for every copy of a phone's file in the folder: an entry
+      // in two copies is taken once, whichever comes first below.
+      final entries = takenNow.putIfAbsent(
+        inbox.device,
+        () => {...was.entries},
+      );
       // The ledger's category for one a phone names: its own id, one it
       // made (taken in now if need be), or Income by the word. Null when
       // it's gone from the ledger.
@@ -6683,27 +6699,65 @@ class AppDatabase extends _$AppDatabase {
         entries.add(c.id);
       }
 
-      // In the order the phone made them: a purchase typed after a count
-      // isn't in what the count found missing.
-      // Entries first at the same moment, each kind in its file's order.
-      final inOrder =
-          <(DateTime, int, Object)>[
-            for (final (i, e) in inbox.entries.indexed) (e.madeAt, i, e),
-            for (final (i, c) in inbox.counts.indexed)
-              (c.madeAt, inbox.entries.length + i, c),
-          ]..sort((a, b) {
-            final at = a.$1.compareTo(b.$1);
-            return at != 0 ? at : a.$2.compareTo(b.$2);
-          });
-      for (final (_, _, item) in inOrder) {
-        if (item is PhoneEntry) await takeEntry(item);
-        if (item is PhoneCount) await takeCount(item);
+      for (final (i, e) in inbox.entries.indexed) {
+        work.add((
+          madeAt: e.madeAt,
+          date: e.date,
+          order: (inboxes.indexOf(inbox), i),
+          count: false,
+          run: () => takeEntry(e),
+        ));
       }
+      for (final (i, c) in inbox.counts.indexed) {
+        work.add((
+          madeAt: c.madeAt,
+          date: c.date,
+          order: (inboxes.indexOf(inbox), inbox.entries.length + i),
+          count: true,
+          run: () => takeCount(c),
+        ));
+      }
+      // The same set, filled as the entries are taken below.
       taken[inbox.device] = PhoneTaken(
         entries: entries,
         categories: categories,
         seen: seen,
       );
+    }
+    // Every phone's entries and counts in one order (#119): before each
+    // count, whatever was typed before it, or is dated before its day,
+    // from any phone; then the count; the rest after the last. So lunch
+    // typed on one phone after a count on another isn't in what the count
+    // found missing, nor a forgotten purchase from the day before counted
+    // as missing money as well.
+    int byMade(_PhoneWork a, _PhoneWork b) {
+      final at = a.madeAt.compareTo(b.madeAt);
+      if (at != 0) return at;
+      final phone = a.order.$1.compareTo(b.order.$1);
+      return phone != 0 ? phone : a.order.$2.compareTo(b.order.$2);
+    }
+
+    final waiting = [
+      for (final w in work)
+        if (!w.count) w,
+    ]..sort(byMade);
+    final counted = [
+      for (final w in work)
+        if (w.count) w,
+    ]..sort(byMade);
+    for (final c in counted) {
+      final day = dateOnly(c.date);
+      for (final e in [...waiting]) {
+        if (e.madeAt.isAfter(c.madeAt) && !dateOnly(e.date).isBefore(day)) {
+          continue;
+        }
+        waiting.remove(e);
+        await e.run();
+      }
+      await c.run();
+    }
+    for (final e in waiting) {
+      await e.run();
     }
     final after = PhoneTaken.encode(taken);
     if (after != row?.value) await setPreference(phoneTakenKey, after);

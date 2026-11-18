@@ -100,6 +100,15 @@ class PhoneStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether the computer takes a count of [accountId] in: a cash account
+  /// in its last copy.
+  bool countable(String accountId) =>
+      _snapshot.accounts.any((a) => a.id == accountId && a.cash);
+
+  /// What goes to the folder now: entries typed after a count wait for it
+  /// ([sendingOf]).
+  PhoneInbox get sending => sendingOf(inbox, countable);
+
   /// [account]'s balance with what waits here: entries, and a count.
   int balanceOf(PhoneAccount account) => balanceNow(account, _waiting, _counts);
 
@@ -186,14 +195,7 @@ class PhoneStore extends ChangeNotifier {
     // The cash was still counted: its difference goes to Not categorized.
     for (var i = 0; i < _counts.length; i++) {
       final c = _counts[i];
-      if (c.categoryId != id) continue;
-      _counts[i] = PhoneCount(
-        id: c.id,
-        accountId: c.accountId,
-        countedMinor: c.countedMinor,
-        date: c.date,
-        madeAt: c.madeAt,
-      );
+      if (c.categoryId == id) _counts[i] = c.uncategorized();
     }
     notifyListeners();
   }
@@ -3800,8 +3802,14 @@ class _WaitingScreen extends StatelessWidget {
               final currency = account?.currency ?? Currency.mnt;
               return _row(
                 key: ValueKey('waiting-${c.id}'),
-                title: t.phoneCountedTitle(account?.name ?? ''),
-                under: fullDate(c.date),
+                title: account == null
+                    ? t.countTitle
+                    : t.phoneCountedTitle(account.name),
+                // One the computer won't take says why, not only that it
+                // waits.
+                under: store.countable(c.accountId)
+                    ? fullDate(c.date)
+                    : t.phoneCountCantGoIn,
                 amount: Text(
                   formatMoney(c.countedMinor, currency: currency),
                   style: onest(16, weight: 600, tabular: true),

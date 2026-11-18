@@ -58,6 +58,13 @@ class _CountPageState extends State<_CountPage> {
   bool _missing = false;
 
   PhoneAccount get _account => widget.account;
+
+  /// It has an opening balance, or a count waiting here that will make it
+  /// or find it: a second count is then an ordinary one, as the computer
+  /// will save it.
+  bool get _opened =>
+      _account.opened ||
+      widget.store.counts.any((c) => c.accountId == _account.id);
   Currency get _currency => _account.currency;
 
   void _press(String key) => setState(() {
@@ -76,7 +83,7 @@ class _CountPageState extends State<_CountPage> {
     final t = context.t;
     final counted = typedAmountMinor(_typed, _currency);
     final diff = counted - held;
-    final opens = !_account.opened && diff > 0;
+    final opens = !_opened && diff > 0;
     final now = widget.store.now();
     final random = Random.secure();
     final count = PhoneCount(
@@ -85,6 +92,7 @@ class _CountPageState extends State<_CountPage> {
       countedMinor: counted,
       date: DateTime(now.year, now.month, now.day),
       madeAt: now,
+      heldMinor: held,
       categoryId: _category?.id,
     );
     widget.store.addCount(count);
@@ -114,7 +122,7 @@ class _CountPageState extends State<_CountPage> {
     final held = widget.store.balanceOf(_account);
     final counted = _typed.isEmpty ? null : typedAmountMinor(_typed, _currency);
     final diff = counted == null ? null : counted - held;
-    final opens = !_account.opened && diff != null && diff > 0;
+    final opens = !_opened && diff != null && diff > 0;
     final categoryName = _category?.name ?? t.importUncategorized;
     final low = MediaQuery.sizeOf(context).height < 800;
     return Scaffold(
@@ -173,6 +181,23 @@ class _CountPageState extends State<_CountPage> {
                           key: const ValueKey('count-sentence'),
                           style: onest(15, color: Mid.ink2, height: 1.3),
                         ),
+                        // The rows are the computer's last copy: from an
+                        // earlier day, it says so, and that the computer
+                        // works the difference out again.
+                        if (!_sameDay(
+                          widget.store.snapshot.madeAt,
+                          widget.store.now(),
+                        )) ...[
+                          const SizedBox(height: 4),
+                          _FromMac(
+                            made: widget.store.snapshot.madeAt,
+                            today: widget.store.now(),
+                          ),
+                          Text(
+                            t.phoneCountRechecked,
+                            style: onest(13, color: Mid.ink2, height: 1.3),
+                          ),
+                        ],
                         if (diff != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),

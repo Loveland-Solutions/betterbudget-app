@@ -7259,11 +7259,28 @@ more chore).
   its amount and day, Delete) and counts in "1 entry isn’t on your computer yet".
   - **The computer saves it as its own Count**, against what its rows hold through
     the count's day when it takes it in, so a row the phone hadn't seen yet is in
-    the difference it saves. Entries and counts come in in the order the phone
-    made them: lunch typed after a morning count isn't counted as missing money.
-    A category deleted since, or in another currency, gives Not categorized; an
-    account no longer cash is left out, and the count waits. The popup says it in
-    the computer's words ("Cash wallet counted · −₮30,000 to Not categorized"),
-    and its Undo takes the count's rows out with the rest.
-  - **An older computer** doesn't read the phone's counts, which wait on the
-    phone until a computer at 0.108.0 or after takes them in.
+    the difference it saves. When the phone's copy is from an earlier day, the page
+    says how old it is and that the computer works the difference out again.
+    Every phone's entries and counts come in in one order: before a count, what was
+    typed before it or is dated before its day, from any phone; then the count. So
+    lunch typed after a morning count, on either phone, isn't counted as missing
+    money, and a forgotten purchase from the day before isn't counted twice. A
+    category deleted since, or in another currency, gives Not categorized. The popup
+    says it in the computer's words ("Cash wallet counted · −₮30,000 to Not
+    categorized"), and its Undo takes the count's rows out with the rest.
+  - **What is typed after a count waits for it** (the code review: an older
+    computer took the lunch typed after a count and not the count, and a newer one
+    then counted the lunch as missing). The phone sends a cash account's first
+    waiting count, and the entries touching that account made before it or dated
+    before its day; the rest stay on the phone, in its waiting list, until the
+    computer has taken the count. A computer before 0.108.0 never takes a count, so
+    behind one it waits for a newer computer.
+  - **The phone's balance keeps what the count found**: each waiting count carries
+    what the phone showed when it was saved, and the balance is off from the
+    computer's copy by counted less that, so a newer copy doesn't undo it.
+  - **A count that can't go in says so**: its account deleted, archived or not cash
+    on the computer, the waiting row reads "This account isn’t a cash account on
+    your computer now, so this count can’t go in", with Delete, and holds nothing
+    back.
+  - A second count waiting behind a first is an ordinary count: the first makes the
+    opening balance or finds one, so the second never offers to.
