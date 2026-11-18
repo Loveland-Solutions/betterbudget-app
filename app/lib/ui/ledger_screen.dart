@@ -45,6 +45,7 @@ import 'category_types.dart';
 import 'emoji_chooser.dart';
 import 'entry_row.dart';
 import 'reconcile.dart';
+import 'count_panel.dart';
 import 'recovery_key_screen.dart';
 import 'register.dart';
 import 'appearance.dart';
@@ -250,6 +251,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// A reconcile in progress, if any.
   ReconcileSession? _reconcile;
+
+  /// A count of a cash account in progress (#119).
+  CountSession? _count;
 
   /// Lock was pressed and the write hasn't returned; a second click waits.
   bool _locking = false;
@@ -3024,6 +3028,161 @@ class _LedgerScreenState extends State<LedgerScreen> {
     });
   }
 
+  // ---------- counting cash (#119) ----------
+
+  void _startCount(AccountInfo account) {
+    if (_adding && _entry.isDirty()) {
+      _showFailure(context.t.ledgerSaveOrDiscard);
+      return;
+    }
+    if (_editing != null) {
+      if (_editing!.controller.isDirty()) {
+        _showFailure(context.t.ledgerSaveOrDiscard);
+        return;
+      }
+      _cancelEdit();
+    }
+    _count?.dispose();
+    final session = CountSession(
+      accountId: account.id,
+      today: today,
+      currency: account.currency,
+    );
+    setState(() {
+      _count = session;
+      _selected = null;
+      _adding = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_count == session) session.countedFocus.requestFocus();
+    });
+  }
+
+  Set<int> _cashIds(LedgerData data) => {
+    for (final a in data.balanceSheetAccounts)
+      if (a.isCash) a.id,
+  };
+
+  void _endCount() {
+    final s = _count;
+    if (s == null) return;
+    setState(() => _count = null);
+    _registerFocus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) => s.dispose());
+  }
+
+  /// What [accountId]'s rows hold through [day]: what a count that day is
+  /// measured against.
+  int _rowsThrough(LedgerData data, int accountId, DateTime day) => data
+      .registerFor(accountId)
+      .posted
+      .where((r) => !r.date.isAfter(day))
+      .fold(0, (sum, r) => sum + r.amount);
+
+  /// The newest count of [accountId]: its day and what was counted.
+  ({DateTime date, int counted})? _lastCount(LedgerData data, int accountId) {
+    RegisterRow? last;
+    for (final r in data.registerFor(accountId).posted) {
+      if (r.counted == null) continue;
+      if (last == null ||
+          r.date.isAfter(last.date) ||
+          (r.date == last.date && r.txnId > last.txnId)) {
+        last = r;
+      }
+    }
+    return last == null ? null : (date: last.date, counted: last.counted!);
+  }
+
+  /// The categories a count's difference can go to: spending first, then
+  /// Income (money found), in the account's currency.
+  List<AccountInfo> _countCategories(LedgerData data, AccountInfo account) {
+    final all = data.categories.where(
+      (c) =>
+          !c.archived &&
+          !isUncategorized(c) &&
+          categoryTakes(c, account.currency),
+    );
+    // Not categorized first, so a pick can be taken back.
+    final holding = data.categories.where(isUncategorized).firstOrNull;
+    return [
+      ?holding,
+      ...all.where((c) => !c.isIncome),
+      ...all.where((c) => c.isIncome),
+    ];
+  }
+
+  /// Enter pressed twice before the first save is written saves once.
+  bool _savingCount = false;
+
+  Future<void> _saveCount(LedgerData data, AccountInfo account) async {
+    final s = _count;
+    if (s == null || _savingCount) return;
+    final t = context.t;
+    final counted = s.countedAmount;
+    final day = parseRowDate(s.date.text, today);
+    if (counted == null) {
+      _showFailure(t.countNeedsAmount);
+      s.countedFocus.requestFocus();
+      return;
+    }
+    if (day == null || day.isAfter(today)) {
+      s.dateFocus.requestFocus();
+      return;
+    }
+    final ({int id, int difference, int? openingId}) saved;
+    int? madeHolding;
+    _savingCount = true;
+    try {
+      final into =
+          s.categoryId ??
+          _uncategorizedId(data) ??
+          (madeHolding = await db.createCategory(t.importUncategorized));
+      // The popup says what was saved, not what the panel last showed.
+      saved = await db.postCount(
+        accountId: account.id,
+        date: day,
+        counted: counted,
+        categoryId: into,
+      );
+    } catch (e) {
+      debugPrint('Saving a count failed: $e');
+      if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
+      return;
+    } finally {
+      _savingCount = false;
+    }
+    if (!mounted) return;
+    final diff = saved.difference;
+    final categoryName =
+        data.accounts[s.categoryId]?.name ?? t.importUncategorized;
+    final label = saved.openingId != null
+        ? t.countSavedOpening(account.name, _accountMoney(account.id, diff))
+        : diff == 0
+        ? t.countSavedMatch(account.name)
+        : t.countSaved(
+            account.name,
+            diff > 0
+                ? '+${_accountMoney(account.id, diff)}'
+                : _accountMoney(account.id, diff),
+            categoryName,
+          );
+    _endCount();
+    final rows = [saved.id, ?saved.openingId];
+    _did(
+      label,
+      undo: () => db.transaction(() async {
+        _expect((await db.softDeleteMany(rows)).length == rows.length);
+        if (madeHolding case final c?) await db.deleteEmptyAccount(c);
+      }),
+      redo: () => db.transaction(() async {
+        if (madeHolding case final c?) {
+          await db.undeleteAccount(DeletedAccount(c, const []));
+        }
+        await db.restoreMany(rows);
+      }),
+    );
+  }
+
   void _endReconcile() {
     final s = _reconcile;
     if (s == null) return;
@@ -4294,6 +4453,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             child: RegisterPanel(
               owed: false,
               accountName: null,
+              cashIds: _cashIds(data),
               posted: register.posted,
               everyPosted: () => data.registerAll().posted,
               scheduled: register.scheduled,
@@ -8006,10 +8166,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
               hoveredStatus: _hoveredStatus,
               activeStatus: activeStatus,
               onOpenScheduled: _reconcile == null ? _openScheduled : null,
-              // Cash: no statement to reconcile against.
+              // Cash: no statement to reconcile against; it is counted.
               onReconcile: account.isCash
                   ? null
                   : () => _startReconcile(data, account),
+              onCount: account.isCash ? () => _startCount(account) : null,
+              lastCount: account.isCash ? _lastCount(data, account.id) : null,
               // Asked until there's pay anywhere; once there is, an account
               // it doesn't go into doesn't nag, and a click can't start a
               // second Salary by mistake.
@@ -8020,7 +8182,23 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       data.prefs[noRegularPayKey] == '1'
                   ? null
                   : () => _openPaySetup(account: account),
-              reconcile: _reconcile == null
+              reconcile: _count != null && _count!.accountId == account.id
+                  ? CountPanel(
+                      session: _count!,
+                      today: today,
+                      rowsSay: (day) => _rowsThrough(data, account.id, day),
+                      // No opening balance: more cash than the rows is it.
+                      opening: !data
+                          .registerFor(account.id)
+                          .posted
+                          .any((r) => r.kind == RowKind.opening),
+                      categories: _countCategories(data, account),
+                      holdingName: context.t.importUncategorized,
+                      onPick: () => setState(() {}),
+                      onSave: () => _saveCount(data, account),
+                      onCancel: _endCount,
+                    )
+                  : _reconcile == null
                   ? null
                   : ReconcilePanel(
                       session: _reconcile!,
@@ -8051,13 +8229,25 @@ class _LedgerScreenState extends State<LedgerScreen> {
               child: RegisterPanel(
                 owed: account.isOwed,
                 accountName: account.name,
+                cash: account.isCash,
+                cashIds: _cashIds(data),
                 posted: register.posted,
                 everyPosted: () => data.registerAll().posted,
                 scheduled: register.scheduled,
                 reconcileThrough: _reconcile == null
                     ? null
                     : parseRowDate(_reconcile!.date.text, today) ?? today,
-                filter: _filter,
+                // A filter by cleared state chosen on a bank account
+                // means nothing on cash, which has no such tab.
+                filter:
+                    account.isCash &&
+                        const {
+                          RegisterFilter.uncleared,
+                          RegisterFilter.cleared,
+                          RegisterFilter.reconciled,
+                        }.contains(_filter)
+                    ? RegisterFilter.all
+                    : _filter,
                 uncategorizedId: _uncategorizedId(data),
                 looksPaid: billPayments(
                   data,

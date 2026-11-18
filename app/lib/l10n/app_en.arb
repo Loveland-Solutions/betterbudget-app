@@ -9068,7 +9068,166 @@
       }
     }
   },
-    "importJoined": "{count, plural, =1{1 is the other side of a row {account} already had} other{{count} are the other side of rows {account} already had}}",
+    "countButton": "Count the cash…",
+  "@countButton": {
+    "description": "Button on a cash account's header, where Reconcile is on a bank account: opens the count (#119)."
+  },
+  "countTitle": "Count the cash",
+  "@countTitle": {
+    "description": "Heading of the count panel in a cash account's header."
+  },
+  "countDate": "Counted on",
+  "@countDate": {
+    "description": "Count panel: the label before the day the cash was counted."
+  },
+  "countInWallet": "Cash counted",
+  "@countInWallet": {
+    "description": "Count panel: the label before the amount the person counted in the account (a wallet, a jar)."
+  },
+  "countTheDifference": "The difference",
+  "@countTheDifference": {
+    "description": "Count panel: the label before the category the difference between the count and the rows goes to."
+  },
+  "countMatches": "Matches the rows",
+  "@countMatches": {
+    "description": "Count panel: what was counted is what the rows say."
+  },
+  "countSave": "Save the count",
+  "@countSave": {
+    "description": "Count panel's button when there is no difference (or nothing typed yet)."
+  },
+  "countNeedsAmount": "Type how much cash you counted",
+  "@countNeedsAmount": {
+    "description": "Popup when Save is pressed in the count panel with no amount typed."
+  },
+  "countRowPayee": "Cash count",
+  "@countRowPayee": {
+    "description": "Register: the payee of the row a count made (its amount is the difference)."
+  },
+  "countRowsSay": "The rows say {held}. You counted {counted}.",
+  "@countRowsSay": {
+    "description": "Count panel: what the account's rows hold through the day, and what was counted.",
+    "placeholders": {
+      "held": {
+        "type": "String"
+      },
+      "counted": {
+        "type": "String"
+      }
+    }
+  },
+  "countRowsSayOnly": "The rows say {held}.",
+  "@countRowsSayOnly": {
+    "description": "Count panel, before an amount is typed.",
+    "placeholders": {
+      "held": {
+        "type": "String"
+      }
+    }
+  },
+  "countLess": "{amount} less than the rows",
+  "@countLess": {
+    "description": "Count panel: the wallet holds less than the rows say (spending nobody typed).",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "countMore": "{amount} more than the rows",
+  "@countMore": {
+    "description": "Count panel: the wallet holds more than the rows say (a receipt typed twice, money in not typed).",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "countSaveWith": "Put {amount} in {category} and save the count",
+  "@countSaveWith": {
+    "description": "Count panel's button: the difference, signed, goes to that category (Not categorized unless one was picked).",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "countHeaderCounted": "Counted on {date}",
+  "@countHeaderCounted": {
+    "description": "Cash account header: the day of the last count; its amount is beside it. date is month.day.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "countRowCounted": "counted {amount}",
+  "@countRowCounted": {
+    "description": "Register: under or after a count's row, what was counted that day.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "countSaved": "{account} counted · {amount} to {category}",
+  "@countSaved": {
+    "description": "Popup after a count is saved with a difference; also what Undo names.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "countSavedMatch": "{account} counted · it matches the rows",
+  "@countSavedMatch": {
+    "description": "Popup after a count is saved that matches; also what Undo names.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "countBecomesOpening": "{amount} more than the rows: with no opening balance yet, this becomes it",
+  "@countBecomesOpening": {
+    "description": "Count panel, on a cash account with no opening balance, when more was counted than the rows say: the extra becomes the account's opening balance, not a category's.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "countSaveOpening": "Make {amount} the opening balance and save the count",
+  "@countSaveOpening": {
+    "description": "Count panel's button in that case.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "countSavedOpening": "{account} counted · {amount} is its opening balance",
+  "@countSavedOpening": {
+    "description": "Popup after such a count is saved; also what Undo names.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "importJoined": "{count, plural, =1{1 is the other side of a row {account} already had} other{{count} are the other side of rows {account} already had}}",
   "@importJoined": {
     "description": "Clause of the popup after a bank file is brought in, after \" · \": rows a payee says are money moved to another account, which became the other side of a row that account's own file had already brought in (instead of a second copy).",
     "placeholders": {

@@ -15049,6 +15049,60 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('cash is counted: the sentence says the numbers, the '
+        'difference goes to Not categorized, and one Undo takes it back '
+        '(#119)', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Cash wallet'));
+      await tester.pumpAndSettle();
+      // Nothing clears cash: no Uncleared tab, no Cleared line; a count.
+      expect(find.text('Uncleared'), findsNothing);
+      expect(find.byKey(const ValueKey('count-last')), findsNothing);
+      final data = (await tester.runAsync(db.loadLedger))!;
+      final wallet = data.balanceSheetAccounts.firstWhere(
+        (a) => a.name == 'Cash wallet',
+      );
+      final held = data.balanceOf(wallet.id);
+      await tester.tap(find.byKey(const ValueKey('count')));
+      await tester.pumpAndSettle();
+      expect(find.text('Count the cash'), findsOneWidget);
+      // Save with nothing typed says what's missing.
+      await tester.tap(find.byKey(const ValueKey('count-save')));
+      await tester.pumpAndSettle();
+      expect(find.text('Type how much cash you counted'), findsOneWidget);
+      final counted = held - 1700000;
+      await tester.enterText(
+        find.byKey(const ValueKey('count-counted')),
+        '${counted ~/ 100}',
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('count-sentence')), findsOneWidget);
+      expect(find.text('₮17,000 less than the rows'), findsOneWidget);
+      expect(
+        find.text('Put −₮17,000 in Not categorized and save the count'),
+        findsOneWidget,
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('count-save')));
+      expect(
+        find.text('Cash wallet counted · −₮17,000 to Not categorized'),
+        findsOneWidget,
+      );
+      // The header says the count; the register has its row.
+      expect(find.byKey(const ValueKey('count-last')), findsOneWidget);
+      expect(find.text('Cash count'), findsOneWidget);
+      var now = (await tester.runAsync(db.loadLedger))!;
+      expect(now.balanceOf(wallet.id), counted);
+      // One Undo: the count is gone, the balance as it was.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      now = (await tester.runAsync(db.loadLedger))!;
+      expect(now.balanceOf(wallet.id), held);
+      expect(find.byKey(const ValueKey('count-last')), findsNothing);
+      await tidy(tester, db);
+    });
+
     testWidgets('the box under a transfer row remembers the payee as money '
         'moved to that account (#117, #516)', (tester) async {
       final db = await pumpLedger(tester);

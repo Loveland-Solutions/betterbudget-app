@@ -157,6 +157,12 @@ class Transactions extends Table {
   /// payee's spellings and a later bank file are compared with. Null on
   /// every other row. The memo holds the same words, for the eye.
   TextColumn get bankPayee => text().nullable()();
+
+  /// A count of a cash account (v28, #119): what the person counted in it
+  /// on [date]. The row's own amount is the difference from what the rows
+  /// held when it was counted ([AppDatabase.postCount]), an ordinary
+  /// row from then on. Null on every other row.
+  IntColumn get countedMinor => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
   IntColumn get deletedAt => integer().nullable()();
@@ -1199,7 +1205,7 @@ class AppDatabase extends _$AppDatabase {
   String? thisComputer;
 
   @override
-  int get schemaVersion => 27;
+  int get schemaVersion => 28;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1460,6 +1466,12 @@ class AppDatabase extends _$AppDatabase {
           // And a row that shows a name keeps what the bank wrote: empty
           // for every row already here, none of which shows one.
           await _addColumnOnce(m, transactions, transactions.bankPayee);
+        }
+        if (from < 28) {
+          // A count of a cash account is its difference row, which keeps
+          // what was counted (#119). Empty on every row already here: no
+          // row is a count, so nothing is shown or counted differently.
+          await _addColumnOnce(m, transactions, transactions.countedMinor);
         }
         // Each trigger names its table's columns: made afresh after every
         // upgrade, whatever it changed.
@@ -2376,6 +2388,7 @@ class AppDatabase extends _$AppDatabase {
             madeHow: t.madeHow,
             madeOn: t.madeOn,
             bankPayee: t.bankPayee,
+            counted: t.countedMinor,
             entries: byTxn[t.id] ?? const [],
           ),
       ],
@@ -6160,6 +6173,86 @@ class AppDatabase extends _$AppDatabase {
       'UPDATE entries SET cleared = $clr '
       'WHERE cleared = $rec AND reconciliation_id IS NULL',
     );
+  }
+
+  // ---------- counting cash (#119) ----------
+
+  /// Counts [accountId], a cash account: [counted] was in it on [date]. As
+  /// a reconcile's difference on a bank account (owner, 2026-11-18: "Just
+  /// treat it the same way we treat the other accounts"), the difference
+  /// from what the rows hold through that day is one ordinary row, against
+  /// [categoryId] (Not categorized unless the person picked one), which
+  /// keeps [counted] ([Transactions.countedMinor]) and is never changed by
+  /// the app afterwards.
+  ///
+  /// An account with no opening balance that holds more than its rows say
+  /// gets the difference as its opening balance instead (owner, 2026-11-18:
+  /// "this should be opening balance"), dated at its first row, or the
+  /// count's day when it has none; the count's own row is then ₮0. Returns
+  /// the count's id, the difference, and the opening balance's id if one was
+  /// made.
+  Future<({int id, int difference, int? openingId})> postCount({
+    required int accountId,
+    required DateTime date,
+    required int counted,
+    required int categoryId,
+  }) => transaction(() async {
+    await _assertLive(accountId);
+    await _assertLive(categoryId);
+    final day = dateOnly(date);
+    final diff = counted - await heldThrough(accountId, day);
+    int? openingId;
+    if (diff > 0 && await _openingOf(accountId) == null) {
+      final first = await customSelect(
+        'SELECT MIN(t.date) AS first FROM entries e '
+        'JOIN transactions t ON t.id = e.transaction_id '
+        'WHERE e.account_id = ? AND t.deleted_at IS NULL AND t.scheduled = 0',
+        variables: [Variable.withInt(accountId)],
+        readsFrom: {entries, transactions},
+      ).getSingle();
+      final firstDay = first.read<String?>('first');
+      final on = firstDay == null || parseDateKey(firstDay).isAfter(day)
+          ? day
+          : parseDateKey(firstDay);
+      openingId = await postOpeningBalance(
+        accountId: accountId,
+        date: on,
+        balance: diff,
+      );
+    }
+    final rest = openingId == null ? diff : 0;
+    final id = await postTransaction(
+      date: day,
+      lines: [
+        (accountId: accountId, amount: rest, cleared: Cleared.uncleared),
+        (accountId: categoryId, amount: -rest, cleared: Cleared.uncleared),
+      ],
+    );
+    await (update(transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(countedMinor: Value(counted)),
+    );
+    return (id: id, difference: diff, openingId: openingId);
+  });
+
+  /// Whether [accountId] has an opening balance: with none, a count that
+  /// finds more than the rows makes one ([postCount]).
+  Future<bool> hasOpeningBalance(int accountId) async =>
+      await _openingOf(accountId) != null;
+
+  /// What [accountId]'s rows hold through [date], that day included.
+  Future<int> heldThrough(int accountId, DateTime date) async {
+    final row = await customSelect(
+      'SELECT COALESCE(SUM(e.amount_minor), 0) AS held FROM entries e '
+      'JOIN transactions t ON t.id = e.transaction_id '
+      'WHERE e.account_id = ? AND t.deleted_at IS NULL AND t.scheduled = 0 '
+      'AND t.date <= ?',
+      variables: [
+        Variable.withInt(accountId),
+        Variable.withString(dateKey(date)),
+      ],
+      readsFrom: {entries, transactions},
+    ).getSingle();
+    return row.read<int>('held');
   }
 
   // ---------- phones (ADR 0005) ----------

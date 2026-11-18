@@ -290,6 +290,8 @@ class RegisterPanel extends StatelessWidget {
     this.searchBox,
     this.reconcileThrough,
     this.owed = false,
+    this.cashIds = const {},
+    this.cash = false,
     this.accountName,
     this.uncategorizedId,
     this.uncategorizedFrom,
@@ -332,6 +334,14 @@ class RegisterPanel extends StatelessWidget {
   /// A credit account: the Balance column shows what's owed, positive, and
   /// is never coral.
   final bool owed;
+
+  /// Cash accounts (#119): their rows have no tick or clock, since nothing
+  /// clears cash; a count says what is counted (a row above the last
+  /// count).
+  final Set<int> cashIds;
+
+  /// The register shown is a cash account's: no Uncleared tab.
+  final bool cash;
 
   /// Reconciling: only rows not yet reconciled, dated on or before this
   /// statement date, so they can be ticked off against it.
@@ -424,8 +434,12 @@ class RegisterPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    // Nothing clears cash: its rows aren't waiting to be (#119).
     final uncleared = posted
-        .where((r) => r.cleared == Cleared.uncleared)
+        .where(
+          (r) =>
+              r.cleared == Cleared.uncleared && !cashIds.contains(r.accountId),
+        )
         .length;
     bool waiting(RegisterRow r) =>
         uncategorizedId != null &&
@@ -448,7 +462,10 @@ class RegisterPanel extends StatelessWidget {
     final visiblePosted = posted.reversed
         .where(
           (r) => through == null
-              ? (status == null || r.cleared == status) &&
+              ? (status == null ||
+                        r.cleared == status &&
+                            !(status == Cleared.uncleared &&
+                                cashIds.contains(r.accountId))) &&
                     (filter != RegisterFilter.uncategorized || waiting(r))
               : r.cleared != Cleared.reconciled && !r.date.isAfter(through),
         )
@@ -572,6 +589,7 @@ class RegisterPanel extends StatelessWidget {
       today: today,
       check: unclearedCheck(r.accountId),
       owed: owed,
+      cash: cashIds.contains(r.accountId),
       accountName: _accountOf(r),
       striped: i.isOdd,
       pointed: isPointed ?? r.txnId == pointed,
@@ -729,6 +747,7 @@ class RegisterPanel extends StatelessWidget {
                                 scheduled: scheduled.length,
                                 uncategorized: uncategorized,
                                 onFilter: actions.onFilter,
+                                cash: cash,
                               ),
                             ),
                           ),
@@ -799,8 +818,11 @@ class _Tabs extends StatelessWidget {
     required this.scheduled,
     required this.uncategorized,
     required this.onFilter,
+    this.cash = false,
   });
 
+  /// A cash account: nothing to clear, so no Uncleared tab.
+  final bool cash;
   final RegisterFilter filter;
   final int uncleared;
   final int scheduled;
@@ -826,13 +848,14 @@ class _Tabs extends StatelessWidget {
           filter == RegisterFilter.all,
           () => onFilter(RegisterFilter.all),
         ),
-        _Tab(
-          t.rowsTabUncleared,
-          uncleared,
-          filter == RegisterFilter.uncleared,
-          () => onFilter(RegisterFilter.uncleared),
-          hue: Mid.blue,
-        ),
+        if (!cash)
+          _Tab(
+            t.rowsTabUncleared,
+            uncleared,
+            filter == RegisterFilter.uncleared,
+            () => onFilter(RegisterFilter.uncleared),
+            hue: Mid.blue,
+          ),
         _Tab(
           t.rowsTabScheduled,
           scheduled,
@@ -1285,6 +1308,7 @@ class _PostedRow extends StatelessWidget {
     required this.today,
     required this.check,
     required this.owed,
+    this.cash = false,
     this.accountName,
     required this.striped,
     this.pointed = false,
@@ -1323,6 +1347,9 @@ class _PostedRow extends StatelessWidget {
   /// What this row's account holds an uncleared row against.
   final UnclearedCheck? check;
   final bool owed;
+
+  /// A cash account's row: no tick or clock.
+  final bool cash;
 
   /// All accounts: the row's account, shown where the balance would be.
   final String? accountName;
@@ -1382,6 +1409,11 @@ class _PostedRow extends StatelessWidget {
                   : formatRounded(rate.base.scale, currency: rate.base),
             ),
           ].join(' · ')
+        : r.counted != null
+        ? [
+            t.countRowCounted(formatShort(r.counted!, currency: r.currency)),
+            if (r.memo.isNotEmpty) r.memo,
+          ].join(' · ')
         : r.memo;
     final stale = unclearedNoteIn(t, r, today, check);
     final statusTip = r.clearedIn == null
@@ -1427,32 +1459,37 @@ class _PostedRow extends StatelessWidget {
                     children: _onFirstLine([
                       SizedBox(
                         width: Cols.status,
-                        child: MouseRegion(
-                          onEnter: (_) => hoveredStatus.value = r.cleared,
-                          onExit: (_) {
-                            if (hoveredStatus.value == r.cleared) {
-                              hoveredStatus.value = null;
-                            }
-                          },
-                          child: Tooltip(
-                            message: statusTip,
-                            child: Hoverable(
-                              onTap: r.cleared == Cleared.reconciled
-                                  ? null
-                                  : onToggleCleared,
-                              builder: (h) => Container(
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: h && r.cleared != Cleared.reconciled
-                                      ? Mid.raised
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(6),
+                        child: cash
+                            ? null
+                            : MouseRegion(
+                                onEnter: (_) => hoveredStatus.value = r.cleared,
+                                onExit: (_) {
+                                  if (hoveredStatus.value == r.cleared) {
+                                    hoveredStatus.value = null;
+                                  }
+                                },
+                                child: Tooltip(
+                                  message: statusTip,
+                                  child: Hoverable(
+                                    onTap: r.cleared == Cleared.reconciled
+                                        ? null
+                                        : onToggleCleared,
+                                    builder: (h) => Container(
+                                      height: 28,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            h && r.cleared != Cleared.reconciled
+                                            ? Mid.raised
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Center(
+                                        child: StatusGlyph(r.cleared),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                child: Center(child: StatusGlyph(r.cleared)),
                               ),
-                            ),
-                          ),
-                        ),
                       ),
                       const SizedBox(width: Cols.gap),
                       _Cell(

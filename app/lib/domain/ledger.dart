@@ -239,7 +239,12 @@ class TxnData {
     this.madeHow,
     this.madeOn,
     this.bankPayee,
+    this.counted,
   });
+
+  /// A count of a cash account: what was counted, the row's amount being
+  /// the difference (v28, #119). Null on every other row.
+  final int? counted;
 
   /// How it came to be ([MadeHow]) and where: a computer's name, or a
   /// phone's id. Null for a row from before this was kept.
@@ -320,7 +325,12 @@ class RegisterRow {
     this.madeHow,
     this.madeOn,
     this.bankPayee,
+    this.counted,
   });
+
+  /// A count of a cash account: what was counted on the row's day; the
+  /// row's amount is the difference (#119). Null on every other row.
+  final int? counted;
 
   /// Where the transaction came from, as [TxnData] holds it.
   final String? madeHow;
@@ -468,6 +478,7 @@ class RegisterRow {
     madeHow: madeHow,
     madeOn: madeOn,
     bankPayee: bankPayee,
+    counted: counted,
   );
 
   /// The same row on another day, or for another amount: a payday or a
@@ -508,6 +519,7 @@ class RegisterRow {
         madeHow: madeHow,
         madeOn: madeOn,
         bankPayee: bankPayee,
+        counted: counted,
       );
 
   RegisterRow withBalance(int b, {int clearedTotal = 0}) => RegisterRow(
@@ -543,6 +555,7 @@ class RegisterRow {
     madeHow: madeHow,
     madeOn: madeOn,
     bankPayee: bankPayee,
+    counted: counted,
   );
 }
 
@@ -1903,6 +1916,7 @@ class LedgerData {
       madeHow: t.madeHow,
       madeOn: t.madeOn,
       bankPayee: t.bankPayee,
+      counted: t.counted,
       estimate: switch (_schedulesById[t.payScheduleId]) {
         final p? when p.varies => p.amountOn(t.date),
         _ => null,
