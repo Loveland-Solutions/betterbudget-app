@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-18** · version 0.105.0 · schema v27 · 1152 tests pass
+**Last updated: 2026-11-18** · version 0.106.0 · schema v27 · 1159 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -45,9 +45,12 @@ count, and the row as the bank sends it and as the ledger shows it. A bank row t
 fits a named payee takes the name and keeps the bank's words in its memo and apart on
 the row; rows already in take it only from the offer after Save or in the Edit. The
 owner's ledger was upgraded to v27 on 2026-11-18 (a copy, `before-v27-from-v26-…`,
-beside it). What the reviews left is on #488. Left of #117: a payee that is money
-moved to another account. After that: a first-time setup walkthrough (#475), sketches
-first. The Mongolian of everything since #90's last pass is a draft until
+beside it). What the reviews left is on #488. A payee can be money moved to another
+account in its currency, "→ Khan Savings" in its Category list (0.106.0, #117 closed):
+its bank rows come in as transfers, and the other account's row of the same money
+still in Not categorized, when exactly one fits, becomes that transfer instead of a
+second copy, on import and on File; what the reviews left is #516. Next: a first-time
+setup walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 
 ## In the stores
