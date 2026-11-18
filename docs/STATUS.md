@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-18** · version 0.106.1 · schema v27 · 1162 tests pass
+**Last updated: 2026-11-18** · version 0.107.0 · schema v28 · 1169 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -49,11 +49,19 @@ beside it). What the reviews left is on #488. A payee can be money moved to anot
 account in its currency, "→ Khan Savings" in its Category list (0.106.0, #117 closed):
 its bank rows come in as transfers, and the other account's row of the same money
 still in Not categorized, when exactly one fits, becomes that transfer instead of a
-second copy, on import and on File; what the reviews left was done in 0.106.1 (#516). Next:
-counting a cash account (#119), the owner's pick A of three sketches
-(<https://claude.ai/artifact/4vzCMSNxGPDQ2rgksBpVYA>), on the computer and the phone
-(ADR 0004, "Counting a cash account"); then a first-time setup walkthrough (#475),
-sketches first. The Mongolian of everything since #90's last pass is a draft until
+second copy, on import and on File; what the reviews left was done in 0.106.1 (#516). A
+payee's name is required, and one remembered from a row is named what the row calls
+it (0.106.2, #521).
+
+A cash account is counted (0.107.0, schema v28, #119, ADR 0004 "Counting a cash
+account"): Count the cash… where Reconcile is; the difference from the rows is saved
+once as an ordinary row (owner: "treat it the same way we treat the other accounts"),
+to Not categorized unless a category is picked; a first count of an account with no
+opening balance that finds more makes the opening balance. Cash rows have no tick or
+Uncleared tab; the header says the newest count. The owner's ledger was upgraded to
+v28 on 2026-11-18 (`Ledger.before-v28-from-v27-…` beside it). **The phones can't read
+the folder until they get a Play build at or after 0.107.0.** Next: the phone's Count
+(#119, step 2); then a first-time setup walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 
 ## In the stores
