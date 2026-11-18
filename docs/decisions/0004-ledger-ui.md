@@ -3828,11 +3828,28 @@ into a picture of a row is a new habit, and a new payee has no row to draw).
     Khan Savings" (or From, by its sign) with the bank's words under it.
   - A row typed with that payee in the entry row starts at "→ Khan Savings",
     as a remembered category fills (only remembered payees are filled).
-  - *Not built*: the box under a row, "Remember this category for this
-    payee", still isn't offered on a transfer; a transfer payee is made on the
-    Payees page. The phone doesn't fill a transfer payee in (it fills
-    remembered categories only). No "Show «name»" offer for a transfer payee:
-    its rows name the account.
+  - The phone doesn't fill a transfer payee in (it fills remembered
+    categories only). No "Show «name»" offer for a transfer payee: its rows
+    name the account.
+  - **What the reviews left, done** (#516, 2026-11-18, at the owner's "Let's
+    do what needs to be done"):
+    - The accounts are at the top of a payee's Category list, under the pays,
+      with a line under them: after every category, a long list hid them.
+    - The box under a row, "Remember this category for this payee", is
+      offered on a transfer in one currency too ("→ Cash wallet"); the popup
+      says "Transfers with Cash wallet remembered for next time".
+    - The import's popup says a join: "1 is the other side of a row Khan
+      Savings already had".
+    - When the other account already has a row of the same money near the
+      day filed under a category, the transfer is still made and that row
+      stays where the person filed it, but the popup says it with real
+      numbers, "Khan Savings already has ₮500,000 on 11.09 under Groceries:
+      it may be the same money", and Show opens it (warn, don't block).
+    - Two computers, one of which joined a bank row to the other account's
+      row while the other made it a transfer of its own: the combine asks
+      which ledger to keep, as for any bank row filed two ways; nothing is
+      doubled (a test pins it). Rare enough (both computers bringing in
+      different files of the same days) to leave so.
 
 ### Two computers: the one row both changed (2026-10-12)
 

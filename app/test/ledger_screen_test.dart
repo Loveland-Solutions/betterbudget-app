@@ -15019,6 +15019,54 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('the box under a transfer row remembers the payee as money '
+        'moved to that account (#117, #516)', (tester) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'ATM 0042',
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        '→ Cash wallet',
+      );
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('remember-line')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('remember-line')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byWidgetPredicate(
+          (w) =>
+              w is TextField &&
+              w.controller?.text.isEmpty == true &&
+              (w.decoration?.hintText ?? '').contains('0'),
+        ),
+        '100000',
+      );
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      await settle(tester);
+      expect(
+        find.textContaining(
+          'Transfers with Cash wallet remembered for next time',
+        ),
+        findsOneWidget,
+      );
+      final rule = (await tester.runAsync(db.allPayeeRules))!.single;
+      expect(rule.categoryId, await accountId(tester, db, 'Cash wallet'));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tidy(tester, db);
+    });
+
     testWidgets('the box in a row’s Edit; not offered once it is remembered '
         'so', (tester) async {
       final db = await pumpLedger(tester);

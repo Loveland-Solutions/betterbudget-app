@@ -468,7 +468,8 @@ class _EntryRowState extends State<EntryRow> {
   bool get _picking => widget.accountChoices != null && !_editing;
 
   /// Whether the row can offer to remember its category for its payee: a
-  /// payee, and a category (a new one too; not a transfer, not Not
+  /// payee, and a category (a new one too, or another account in this
+  /// one's currency, a transfer; not Not
   /// categorized) that isn't already remembered for it.
   bool get _canRemember {
     if (!(_hasContent || _active)) return false;
@@ -479,7 +480,13 @@ class _EntryRowState extends State<EntryRow> {
     if (payee.isEmpty || q.isEmpty) return false;
     final counter = _counterFor(q)?.account;
     if (counter == null) return _newCategory != null;
-    if (!counter.isCategory || isUncategorized(counter)) return false;
+    // Money moved to another account is a payee's too (#117, #516), in
+    // one currency only: an exchange has two amounts a bank row hasn't.
+    if (counter.isBalanceSheet) {
+      if (_exchangeWith != null) return false;
+    } else if (!counter.isCategory || isUncategorized(counter)) {
+      return false;
+    }
     return !(widget.controller.remembered?.call(
           payee,
           counter.id,

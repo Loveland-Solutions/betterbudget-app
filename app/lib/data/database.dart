@@ -952,7 +952,14 @@ class ImportRecord {
     this.openingFixes = const [],
     this.openingKept,
     this.joined = const [],
+    this.doubts = const [],
   });
+
+  /// Transfers made apart where the other account already had a row of
+  /// the same money filed under a category: never moved (the person filed
+  /// it), said on the popup with Show, as it may be this money twice
+  /// (budget review, 2026-11-18, #516).
+  final List<TransferDoubt> doubts;
 
   /// Bank rows a payee said are money moved to another account, whose
   /// other side that account's own file had already brought in and left in
@@ -992,6 +999,22 @@ class ImportRecord {
   final int uncategorizedCount;
 }
 
+/// A row in [accountId] of [amount], dated [date], filed under [category],
+/// that may be the money a transfer the import made moved there.
+class TransferDoubt {
+  const TransferDoubt({
+    required this.accountId,
+    required this.transactionId,
+    required this.date,
+    required this.amount,
+    required this.category,
+  });
+  final int accountId, transactionId;
+  final DateTime date;
+  final int amount;
+  final String category;
+}
+
 /// A bank row brought in as the other side of a row already in another
 /// account ([ImportRecord.joined]): [entryId], in [categoryId] (Not
 /// categorized) before, moved to the imported account with the bank's
@@ -1004,6 +1027,7 @@ class JoinedImport {
     required this.key,
     required this.date,
     required this.amount,
+    required this.otherAccountId,
     this.memoBefore,
     this.memoAfter,
   });
@@ -1011,6 +1035,9 @@ class JoinedImport {
   final int entryId;
   final int categoryId;
   final String key;
+
+  /// The account whose row it joined.
+  final int otherAccountId;
 
   /// The row's memo before and after this bank's own words were added to
   /// it, so they aren't lost (budget review, 2026-11-18). Equal when they
@@ -7538,6 +7565,7 @@ class AppDatabase extends _$AppDatabase {
         a.id,
     };
     final joined = <JoinedImport>[];
+    final doubts = <TransferDoubt>[];
     int? made;
     int? fallback;
     var holding = 0;
@@ -7604,6 +7632,7 @@ class AppDatabase extends _$AppDatabase {
                 key: p.key,
                 date: dateOnly(p.row.date),
                 amount: p.row.amount,
+                otherAccountId: said,
                 memoBefore: other.memo,
                 memoAfter: _memoAdding(other.memo, memoKeeping(payee, memo)),
               );
@@ -7611,6 +7640,13 @@ class AppDatabase extends _$AppDatabase {
               addedOn[j.transactionId] = (date: j.date, amount: j.amount);
               continue;
             }
+            final filed = await _filedThere(
+              otherAccountId: said,
+              date: dateOnly(p.row.date),
+              amount: -p.row.amount,
+              taken: {for (final d in doubts) d.transactionId},
+            );
+            if (filed != null) doubts.add(filed);
           }
           final category = moved
               ? said
@@ -7756,6 +7792,7 @@ class AppDatabase extends _$AppDatabase {
       openingFixes: fixes,
       openingKept: openingKept,
       joined: joined,
+      doubts: doubts,
     );
     await _keyAdded(accountId, record);
     await _applyJoins(accountId, record);
@@ -7854,6 +7891,58 @@ class AppDatabase extends _$AppDatabase {
       memo: r.read<String?>('memo'),
       payee: r.read<String?>('payee'),
     );
+  }
+
+  /// A row [otherAccountId]'s own bank file brought in, of [amount] there,
+  /// near [date], filed under a category: perhaps the money a transfer
+  /// moved there. The nearest day, then the first made. Null when none.
+  Future<TransferDoubt?> _filedThere({
+    required int otherAccountId,
+    required DateTime date,
+    required int amount,
+    required Set<int> taken,
+  }) async {
+    final rows = await customSelect(
+      'SELECT t.id AS txn_id, t.date AS date, a.name AS category '
+      'FROM entries e JOIN transactions t ON t.id = e.transaction_id '
+      'JOIN entries c ON c.transaction_id = t.id AND c.id != e.id '
+      'JOIN accounts a ON a.id = c.account_id '
+      'WHERE e.account_id = ? AND e.import_key IS NOT NULL '
+      'AND e.amount_minor = ? AND t.deleted_at IS NULL AND t.scheduled = 0 '
+      "AND a.type IN ('income', 'expense') "
+      'AND (SELECT COUNT(*) FROM entries x WHERE x.transaction_id = t.id) = 2 '
+      'AND t.date BETWEEN ? AND ? ORDER BY t.date, t.id',
+      variables: [
+        Variable.withInt(otherAccountId),
+        Variable.withInt(amount),
+        Variable.withString(
+          dateKey(date.subtract(const Duration(days: matchDaysAfter))),
+        ),
+        Variable.withString(
+          dateKey(date.add(const Duration(days: matchDaysAfter))),
+        ),
+      ],
+      readsFrom: {entries, transactions, accounts},
+    ).get();
+    TransferDoubt? best;
+    var bestGap = 1 << 30;
+    for (final r in rows) {
+      final id = r.read<int>('txn_id');
+      if (taken.contains(id)) continue;
+      final day = parseDateKey(r.read<String>('date'));
+      final gap = day.difference(date).inDays.abs();
+      if (gap < bestGap) {
+        bestGap = gap;
+        best = TransferDoubt(
+          accountId: otherAccountId,
+          transactionId: id,
+          date: day,
+          amount: amount,
+          category: r.read<String>('category'),
+        );
+      }
+    }
+    return best;
   }
 
   /// Moves each joined row's Not categorized side to [accountId], cleared,

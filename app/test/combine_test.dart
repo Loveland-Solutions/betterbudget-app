@@ -1142,6 +1142,28 @@ void main() {
       row(theirs, 'entries', 601)['account_id'] = 7;
       expect(run().conflict, contains('one bank row in both'));
     });
+
+    test('a bank row joined to the other account\'s row here, and brought '
+        'in as its own transfer there, is asked about, never doubled '
+        '(#117, #516)', () {
+      // Cash's file brought +7000 in on both; it waits in Groceries.
+      for (final side in [base, mine, theirs]) {
+        side['transactions']!.add(txn(50, '2026-10-06'));
+        side['entries']!
+          ..add(entry(500, 50, 2, 7000, importKey: 'a2|2026-10-06|7000'))
+          ..add(entry(501, 50, 3, -7000));
+      }
+      // Here Checking's file joined it: the waiting side moved to Checking.
+      row(mine, 'entries', 501)
+        ..['account_id'] = 1
+        ..['import_key'] = 'a1|2026-10-06|-7000';
+      // There it came in as a transfer of its own.
+      theirs['transactions']!.add(txn(60, '2026-10-06'));
+      theirs['entries']!
+        ..add(entry(600, 60, 1, -7000, importKey: 'a1|2026-10-06|-7000'))
+        ..add(entry(601, 60, 2, 7000));
+      expect(run().conflict, contains('one bank row in both'));
+    });
   });
 
   test('rows of one id that aren’t one row are asked about, as a block', () {

@@ -1418,6 +1418,45 @@ void main() {
       );
     });
 
+    test('the other account\'s row already filed under a category is left, '
+        'and said as maybe the same money (#516)', () async {
+      final savings = await db.createAccount(
+        name: 'Savings',
+        type: AccountType.asset,
+      );
+      final record0 = await bring([
+        row(9, 500000, 'FROM CHECKING'),
+      ], into: savings);
+      await db.setCategoryMany(
+        transactionIds: record0.added.keys,
+        accountId: savings,
+        categoryId: groceries,
+      );
+      await db.addPayeeRule(
+        name: 'TO SAVINGS',
+        anywhere: true,
+        categoryId: savings,
+        accountIds: {bank},
+      );
+      final record = await bring([row(10, -500000, 'TO SAVINGS')]);
+      expect(record.joined, isEmpty);
+      expect(record.added, hasLength(1));
+      final doubt = record.doubts.single;
+      expect(doubt.accountId, savings);
+      expect(doubt.transactionId, record0.added.keys.single);
+      expect(doubt.category, 'Groceries');
+      expect(doubt.amount, 500000);
+      // Still where the person filed it.
+      final data = await db.loadLedger();
+      expect(
+        data
+            .registerFor(savings)
+            .posted
+            .where((r) => r.categoryId == groceries),
+        hasLength(1),
+      );
+    });
+
     test('rows filed as a transfer, and back (#117)', () async {
       final savings = await db.createAccount(
         name: 'Savings',

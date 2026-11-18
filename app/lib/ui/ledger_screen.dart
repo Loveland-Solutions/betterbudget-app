@@ -1361,8 +1361,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final waiting = data == null
         ? const <RegisterRow>[]
         : _waitingFor(data, rule, today);
+    final moved = data == null ? null : _movedTo(data, rule);
     return (
-      said: t.ledgerAlwaysFiled(0, label),
+      said: moved != null
+          ? t.payeesTransferRemembered(moved.name)
+          : t.ledgerAlwaysFiled(0, label),
       more: waiting.isEmpty
           ? null
           : (
@@ -6600,14 +6603,27 @@ class _LedgerScreenState extends State<LedgerScreen> {
           )
         : await _settleIncoming(record.added.keys.toSet());
     if (!mounted) return;
+    // Rows joined to another account's own row, by that account.
+    final joinedIn = <int, int>{};
+    for (final j in record.joined) {
+      joinedIn[j.otherAccountId] = (joinedIn[j.otherAccountId] ?? 0) + 1;
+    }
+    String nameOf(int id) => _data?.accounts[id]?.name ?? '';
+    final doubt = record.doubts.firstOrNull;
     _did(
       label,
-      more: settled.unsure.isEmpty
-          ? null
-          : (
+      more: settled.unsure.isNotEmpty
+          ? (
               label: t.ledgerShowMoved,
               onTap: () => _askBill(settled.unsure.first),
-            ),
+            )
+          : doubt != null
+          // The row that may be the same money, where it is.
+          ? (
+              label: t.ledgerShowMoved,
+              onTap: () => _showIn(doubt.accountId, doubt.transactionId),
+            )
+          : null,
       // One write each way: a tie undone and the import refused would
       // leave half of it.
       undo: () => db.transaction(() async {
@@ -6625,6 +6641,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
       message: [
         label,
         if (brought > 0 && newlyCleared > 0) t.importMatchedToast(newlyCleared),
+        for (final MapEntry(:key, :value) in joinedIn.entries)
+          t.importJoined(value, nameOf(key)),
+        if (doubt != null)
+          record.doubts.length == 1
+              ? t.importTransferDoubt(
+                  nameOf(doubt.accountId),
+                  _accountMoney(doubt.accountId, doubt.amount),
+                  sayDate(t, doubt.date),
+                  doubt.category,
+                )
+              : t.importTransferDoubts(
+                  record.doubts.length,
+                  nameOf(doubt.accountId),
+                ),
         if (record.uncategorizedCount > 0)
           t.importUncategorizedToast(record.uncategorizedCount, uncategorized),
         if (settled.ties.isNotEmpty)
