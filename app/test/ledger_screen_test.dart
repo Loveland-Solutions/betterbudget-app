@@ -14462,6 +14462,135 @@ void main() {
       await tidy(tester, db);
     });
 
+    /// The key of the nearest keyed widget around what has the keys.
+    String? focusedKey() {
+      String? found;
+      FocusManager.instance.primaryFocus?.context?.visitAncestorElements((e) {
+        final k = e.widget.key;
+        if (k is ValueKey<String>) {
+          found = k.value;
+          return false;
+        }
+        return true;
+      });
+      return found;
+    }
+
+    testWidgets('Tab goes round a payee\'s Edit and stays in it, Delete '
+        'last (#284)', (tester) async {
+      final db = await withRule(tester);
+      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      await tester.pumpAndSettle();
+      expect(focusedKey(), 'payee-words');
+      final seen = <String?>[];
+      for (var i = 0; i < 8; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        seen.add(focusedKey());
+      }
+      expect(seen, [
+        'payee-where-starts',
+        'payee-where-anywhere',
+        'payee-accounts',
+        'payee-category',
+        'payee-cancel',
+        'payee-save',
+        'payee-edit-delete',
+        // Round again, not into the lines below.
+        'payee-words',
+      ]);
+      // Shift+Tab from the words goes round backwards, to Delete, the last.
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+      expect(focusedKey(), 'payee-edit-delete');
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(focusedKey(), 'payee-words');
+      // By keys alone: Category, Space opens it, Enter picks, and Tab goes
+      // on to Cancel. Enter on a button presses it: Cancel throws the
+      // change away.
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-words')),
+        'Unitel LLC',
+      );
+      await tester.pumpAndSettle();
+      while (focusedKey() != 'payee-category') {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+      }
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsWidgets);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsNothing);
+      expect(focusedKey(), 'payee-category');
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(focusedKey(), 'payee-cancel');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await settle(tester);
+      await settle(tester);
+      expect(find.byKey(const ValueKey('payee-editor')), findsNothing);
+      expect(
+        (await tester.runAsync(db.allPayeeRules))!.single.words,
+        'unitel',
+      );
+      await tidy(tester, db);
+    });
+
+    testWidgets('the box under a row is a Tab stop: Space ticks it, Enter '
+        'saves the row (#284)', (tester) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New transaction — payee'),
+        'Gobi',
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Category'),
+        'Clothing',
+      );
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byWidgetPredicate(
+          (w) =>
+              w is TextField &&
+              w.controller?.text.isEmpty == true &&
+              (w.decoration?.hintText ?? '').contains('0'),
+        ),
+        '120000',
+      );
+      await tester.pumpAndSettle();
+      // From the amount, Tab reaches the box.
+      for (var i = 0; i < 4 && focusedKey() != 'remember-line'; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+      }
+      expect(focusedKey(), 'remember-line');
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      final box = find.descendant(
+        of: find.byKey(const ValueKey('remember-line')),
+        matching: find.byIcon(Icons.check_box_rounded),
+      );
+      expect(box, findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await settle(tester);
+      await settle(tester);
+      expect(
+        find.text('Gobi added · Clothing remembered for next time'),
+        findsOneWidget,
+      );
+      expect((await tester.runAsync(db.allPayeeRules))!.single.words, 'gobi');
+      await tidy(tester, db);
+    });
+
     testWidgets('the box under a new row remembers the category for the '
         'payee, in one undo with the row', (tester) async {
       final db = await pumpLedger(tester);

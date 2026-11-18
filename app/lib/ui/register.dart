@@ -2051,10 +2051,12 @@ class CategoryChip extends StatelessWidget {
     required this.open,
     required this.onTap,
     this.arrow = true,
+    this.focusNode,
   });
   final String label;
   final bool open;
   final VoidCallback onTap;
+  final FocusNode? focusNode;
 
   /// The ▾ on hover: off where a click opens something else than a list.
   final bool arrow;
@@ -2062,6 +2064,7 @@ class CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Hoverable(
     onTap: onTap,
+    focusNode: focusNode,
     builder: (hover) => Container(
       height: 28,
       padding: const EdgeInsets.fromLTRB(10, 0, 8, 0),

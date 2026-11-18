@@ -3681,7 +3681,8 @@ on the transaction for associating the payee with the category."
 
 - **A box under the row**, in the new-transaction row and a row's Edit: "Remember
   this category for this payee", level with the lines under the category and
-  amount (where "still owed" sits), out of Tab order so Enter still saves. Shown
+  amount (where "still owed" sits), a Tab stop after the amount since the Payees
+  comb (#488): Space ticks it, Enter still saves the row. Shown
   only while there is a payee and a category to remember (a new one too; not a
   transfer, not Not categorized) and the payee isn't already remembered so on that
   account. Unticked to start. Ticked, the category is remembered when the row is
@@ -3689,6 +3690,14 @@ on the transaction for associating the payee with the category."
   added · Clothing remembered for next time", or "Changes saved · Dining out
   remembered for next time", with the offer to file that payee's rows still in Not
   categorized. The popup's own offer after a category is picked stays.
+- **By keys, in a payee's Edit** (owner, 2026-11-18, of the Tab order: "Ooh, fix
+  that"): Tab goes round the Edit and stays in it: the words, Where, Accounts,
+  Category, Cancel, Save, then Delete, and on to the words again; Shift+Tab goes
+  back the same way. After a pick in Category by keys, the keys are Category's, so
+  Tab goes on to Cancel. Enter on a button presses it; from anywhere else it saves.
+- **Latin and Cyrillic spellings stay two lines** (owner, 2026-11-18, of "Nomin"
+  and "Номин" each a line of its own, sorted apart: "I don't think this is a
+  bug"). The review finding that would join them is dropped.
 
 ### Two computers: the one row both changed (2026-10-12)
 
