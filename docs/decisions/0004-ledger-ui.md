@@ -7166,3 +7166,32 @@ progress in the Safety net's own row), the owner picked **A** ("A is beautiful")
   phone moves step 2 once the computer has it. Before the budget has begun the phone
   shows it too: the computer holds it back there so as to ask one thing at a time,
   and the phone asks nothing. The preview's made-up figures have no band.
+
+## Counting a cash account (owner, 2026-11-18, #119)
+
+The owner asked for #119 to be done (in September: "not yet"). The interaction designer
+and the budget expert worked it out; three sketches, live
+(<https://claude.ai/artifact/4vzCMSNxGPDQ2rgksBpVYA>): A, Count in the header where
+Reconcile sits on a bank account, the difference following late receipts; B, the count
+as a row typed into the register's Balance column, ticking rows and fixing the
+difference; C, the count only a check, the person adding the row. The owner: "A".
+Rejected: B (a late receipt for a day already counted is spent twice until the next
+count, and the ticks and a fixed difference protect nobody: nothing checks cash but the
+count) and C (the budget doesn't see the gap until it is typed, and every count is one
+more chore).
+
+- **On the phone too** (owner: "Both"): the owner's wife carries cash and enters
+  receipts on the phone.
+- **As many cash accounts as people want** (owner: "Let them make multiple if they
+  want"): one per wallet, or one for the wallet and the jar; the app doesn't say which.
+- What A was drawn with, to build: **Count the cash…** where Reconcile is; the day
+  (today) and "In the wallet" (empty, the cursor in it); a sentence with real numbers,
+  "The rows say ₮117,000. You counted ₮100,000. ₮17,000 less than the rows."; the
+  difference to Not categorized unless a category is picked (no guess; Balance
+  adjustments is never spending, and cash that went is); the button says the act and
+  the amount. The count keeps the counted figure, and the difference row is always it
+  less every other row dated up to the count, so a receipt for an earlier day that
+  arrives later makes it smaller by itself, said on that row's popup. Nothing is
+  locked; Undo this count stays. No tick or clock on a cash row: a row above the last
+  count is counted. The header: "Counted on 11.18 ₮151,500 · Since then −₮34,500 · 4
+  rows" over what should be in the wallet now. No row already in the ledger changes.
