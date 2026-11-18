@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-18** · version 0.106.0 · schema v27 · 1159 tests pass
+**Last updated: 2026-11-18** · version 0.106.1 · schema v27 · 1162 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -49,8 +49,11 @@ beside it). What the reviews left is on #488. A payee can be money moved to anot
 account in its currency, "→ Khan Savings" in its Category list (0.106.0, #117 closed):
 its bank rows come in as transfers, and the other account's row of the same money
 still in Not categorized, when exactly one fits, becomes that transfer instead of a
-second copy, on import and on File; what the reviews left is #516. Next: a first-time
-setup walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
+second copy, on import and on File; what the reviews left was done in 0.106.1 (#516). Next:
+counting a cash account (#119), the owner's pick A of three sketches
+(<https://claude.ai/artifact/4vzCMSNxGPDQ2rgksBpVYA>), on the computer and the phone
+(ADR 0004, "Counting a cash account"); then a first-time setup walkthrough (#475),
+sketches first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 
 ## In the stores
