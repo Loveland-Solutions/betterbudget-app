@@ -6137,6 +6137,19 @@ class WordsMn extends Words {
   }
 
   @override
+  String get phoneCountRechecked =>
+      'Компьютер тооллогыг авахдаа зөрүүг өөрийн мөрүүдээр дахин тооцно.';
+
+  @override
+  String get phoneCountCantGoIn =>
+      'Энэ данс одоо компьютер дээр бэлэн мөнгөний данс биш тул энэ тооллогыг оруулах боломжгүй.';
+
+  @override
+  String phoneCountedTitle(String account) {
+    return '$account тоолсон';
+  }
+
+  @override
   String importJoined(int count, String account) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

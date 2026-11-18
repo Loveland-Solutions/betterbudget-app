@@ -28,6 +28,7 @@ import '../emoji_chooser.dart';
 import '../savings_steps.dart';
 import '../theme.dart';
 
+part 'phone_count.dart';
 part 'phone_new_category.dart';
 
 /// The snapshot and this phone's waiting entries. Where they are kept and how
@@ -38,7 +39,9 @@ class PhoneStore extends ChangeNotifier {
     this.device = 'preview',
     List<PhoneEntry> waiting = const [],
     List<PhoneCategory> made = const [],
-  }) : _waiting = [...waiting] {
+    List<PhoneCount> counts = const [],
+  }) : _waiting = [...waiting],
+       _counts = [...counts] {
     _made.addAll(made);
     _dropTaken();
   }
@@ -51,6 +54,7 @@ class PhoneStore extends ChangeNotifier {
     device: device,
     entries: List.unmodifiable(_waiting),
     categories: List.unmodifiable(_made),
+    counts: List.unmodifiable(_counts),
   );
 
   /// Lets go of what the computer's ledger says it has taken in. An entry
@@ -59,6 +63,7 @@ class PhoneStore extends ChangeNotifier {
     final taken = _snapshot.taken[device];
     if (taken == null) return;
     _waiting.removeWhere((e) => taken.entries.contains(e.id));
+    _counts.removeWhere((c) => taken.entries.contains(c.id));
     for (final c in [..._made]) {
       final real = taken.categories[c.id];
       if (real == null) continue;
@@ -67,12 +72,45 @@ class PhoneStore extends ChangeNotifier {
         if (!e.categoryIds.contains(c.id)) continue;
         _waiting[i] = e.withCategory(c.id, real);
       }
+      for (var i = 0; i < _counts.length; i++) {
+        _counts[i] = _counts[i].withCategory(c.id, real);
+      }
       _made.remove(c);
     }
   }
 
   PhoneSnapshot _snapshot;
   final List<PhoneEntry> _waiting;
+
+  /// Cash counted here (#119), waiting for the computer as entries do.
+  final List<PhoneCount> _counts;
+  List<PhoneCount> get counts => List.unmodifiable(_counts);
+
+  /// Nothing here for the computer.
+  bool get nothingWaiting =>
+      _waiting.isEmpty && _made.isEmpty && _counts.isEmpty;
+
+  void addCount(PhoneCount count) {
+    _counts.add(count);
+    notifyListeners();
+  }
+
+  void removeCount(String id) {
+    _counts.removeWhere((c) => c.id == id);
+    notifyListeners();
+  }
+
+  /// Whether the computer takes a count of [accountId] in: a cash account
+  /// in its last copy.
+  bool countable(String accountId) =>
+      _snapshot.accounts.any((a) => a.id == accountId && a.cash);
+
+  /// What goes to the folder now: entries typed after a count wait for it
+  /// ([sendingOf]).
+  PhoneInbox get sending => sendingOf(inbox, countable);
+
+  /// [account]'s balance with what waits here: entries, and a count.
+  int balanceOf(PhoneAccount account) => balanceNow(account, _waiting, _counts);
 
   /// The phone's clock: the screens set it to theirs, so a page opened
   /// over them (New category) reads the same day.
@@ -154,6 +192,11 @@ class PhoneStore extends ChangeNotifier {
   void removeCategory(String id) {
     _made.removeWhere((c) => c.id == id);
     _waiting.removeWhere((e) => e.categoryIds.contains(id));
+    // The cash was still counted: its difference goes to Not categorized.
+    for (var i = 0; i < _counts.length; i++) {
+      final c = _counts[i];
+      if (c.categoryId == id) _counts[i] = c.uncategorized();
+    }
     notifyListeners();
   }
 
@@ -1530,7 +1573,7 @@ class _EntryState extends State<_EntryScreen> {
         // A transfer changes no category: what the account it reached
         // holds now is what there is to say.
         final now = formatMoney(
-          balanceNow(to, _store.waiting),
+          balanceNow(to, _store.waiting, _store.counts),
           currency: to.currency,
         );
         _saved = t.phoneSavedTransfer(
@@ -1948,12 +1991,12 @@ class _EntryState extends State<_EntryScreen> {
                   a.owes
                       ? t.phoneOwed(
                           formatMoney(
-                            balanceNow(a, _othersWaiting),
+                            balanceNow(a, _othersWaiting, _store.counts),
                             currency: a.currency,
                           ),
                         )
                       : formatMoney(
-                          balanceNow(a, _othersWaiting),
+                          balanceNow(a, _othersWaiting, _store.counts),
                           currency: a.currency,
                         ),
                   style: onest(14, color: Mid.ink2, tabular: true),
@@ -2017,7 +2060,8 @@ class _EntryState extends State<_EntryScreen> {
   }
 
   String _waitingLine(Words t) {
-    final entries = _store.waiting.length;
+    // A count waits as an entry does.
+    final entries = _store.waiting.length + _store.counts.length;
     final categories = _store.made.length;
     if (categories == 0) return t.phoneWaiting(entries);
     if (entries == 0) return t.phoneWaitingCategories(categories);
@@ -2041,7 +2085,8 @@ class _EntryState extends State<_EntryScreen> {
       // Moved out of [from]: what it holds once this has gone, or owes.
       final fromAfter = from == null
           ? 0
-          : balanceNow(from, _othersWaiting) + (from.owes ? amount : -amount);
+          : balanceNow(from, _othersWaiting, _store.counts) +
+                (from.owes ? amount : -amount);
       final after = moneyIn ? left + amount : left - amount;
       final date = _draft.date;
       final over = to != null
@@ -2336,8 +2381,7 @@ class _EntryState extends State<_EntryScreen> {
                             child: Text(t.rowsSave),
                           ),
                           // Offered only while there is something waiting.
-                          if (_store.waiting.isNotEmpty ||
-                              _store.made.isNotEmpty)
+                          if (!_store.nothingWaiting)
                             TextButton(
                               key: const ValueKey('waiting-link'),
                               onPressed: _openWaiting,
@@ -2524,8 +2568,16 @@ class _CategoryMenu extends StatefulWidget {
     this.exclude = const {},
     this.onlyCurrency = false,
     this.controller,
+    this.first,
+    this.newCategory = true,
   });
   final PhoneStore store;
+
+  /// Offered before everything else: Not categorized, for a count.
+  final PhoneCategory? first;
+
+  /// "New category" ends the list; a count's difference has no need of it.
+  final bool newCategory;
 
   /// A category made here is in this currency; with [onlyCurrency], the
   /// only one offered (Income has none of its own).
@@ -2701,6 +2753,12 @@ class _CategoryMenuState extends State<_CategoryMenu> {
             ),
           ),
         if (widget.split) Divider(height: 1, thickness: 1, color: Mid.rule),
+        if (widget.first case final f?)
+          _item(
+            key: ValueKey('menu-${f.id}'),
+            name: f.name,
+            onPressed: () => widget.onPicked(f),
+          ),
         if (income != null) category(income),
         if (income != null)
           for (final p in widget.pays) category(p),
@@ -2718,26 +2776,22 @@ class _CategoryMenuState extends State<_CategoryMenu> {
               trailing: Text(
                 a.owes
                     ? t.phoneOwed(
-                        formatMoney(
-                          balanceNow(a, store.waiting),
-                          currency: a.currency,
-                        ),
+                        formatMoney(store.balanceOf(a), currency: a.currency),
                       )
-                    : formatMoney(
-                        balanceNow(a, store.waiting),
-                        currency: a.currency,
-                      ),
+                    : formatMoney(store.balanceOf(a), currency: a.currency),
                 style: onest(14, color: Mid.ink2, tabular: true),
               ),
               onPressed: () => widget.onPicked(_toAccount(t, a)),
             ),
         ],
-        Divider(height: 1, thickness: 1, color: Mid.rule),
-        _item(
-          key: const ValueKey('new-category'),
-          name: t.phoneNewCategory,
-          onPressed: _newCategory,
-        ),
+        if (widget.newCategory) ...[
+          Divider(height: 1, thickness: 1, color: Mid.rule),
+          _item(
+            key: const ValueKey('new-category'),
+            name: t.phoneNewCategory,
+            onPressed: _newCategory,
+          ),
+        ],
       ],
       builder: (context, controller, _) => widget.builder(
         context,
@@ -3491,41 +3545,63 @@ class _AccountsScreen extends StatelessWidget {
           final a = snapshot.accounts[at - 1];
           // This phone's waiting entries are counted, as they are in what
           // each category has left.
-          final balance = balanceNow(a, store.waiting);
+          final balance = store.balanceOf(a);
           final amount = formatMoney(balance.abs(), currency: a.currency);
+          final line = Row(
+            children: [
+              Expanded(
+                child: Text(
+                  a.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(17, weight: 500),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                a.owes
+                    ? (balance < 0
+                          ? t.phoneInCredit(amount)
+                          : t.phoneOwed(amount))
+                    : formatMoney(balance, currency: a.currency),
+                style: onest(
+                  17,
+                  weight: 600,
+                  tabular: true,
+                  color: !a.owes && balance < 0 ? Mid.coral : Mid.ink,
+                ),
+              ),
+            ],
+          );
           return Container(
+            key: ValueKey('account-${a.id}'),
             constraints: const BoxConstraints(minHeight: 56),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.fromLTRB(16, 0, 16, a.cash ? 4 : 0),
             decoration: BoxDecoration(
               color: Mid.card,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    a.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: onest(17, weight: 500),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  a.owes
-                      ? (balance < 0
-                            ? t.phoneInCredit(amount)
-                            : t.phoneOwed(amount))
-                      : formatMoney(balance, currency: a.currency),
-                  style: onest(
-                    17,
-                    weight: 600,
-                    tabular: true,
-                    color: !a.owes && balance < 0 ? Mid.coral : Mid.ink,
-                  ),
-                ),
-              ],
-            ),
+            child: a.cash
+                // Cash is counted here too (#119, owner: "Both").
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 52, child: line),
+                      TextButton(
+                        key: ValueKey('count-${a.id}'),
+                        onPressed: () =>
+                            _openCount(context, store: store, account: a),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(44, 44),
+                          padding: EdgeInsets.zero,
+                          foregroundColor: Mid.blue,
+                          textStyle: onest(15, weight: 500),
+                        ),
+                        child: Text(t.countTitle),
+                      ),
+                    ],
+                  )
+                : line,
           );
         },
       ),
@@ -3705,6 +3781,7 @@ class _WaitingScreen extends StatelessWidget {
       final accounts = {for (final a in store.snapshot.accounts) a.id: a};
       final made = store.made;
       final entries = store.waiting.reversed.toList();
+      final counts = store.counts.reversed.toList();
       return Scaffold(
         backgroundColor: Mid.ground,
         appBar: AppBar(
@@ -3716,9 +3793,31 @@ class _WaitingScreen extends StatelessWidget {
         ),
         body: ListView.separated(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-          itemCount: made.length + entries.length,
+          itemCount: made.length + counts.length + entries.length,
           separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (context, i) {
+            if (i >= made.length && i < made.length + counts.length) {
+              final c = counts[i - made.length];
+              final account = accounts[c.accountId];
+              final currency = account?.currency ?? Currency.mnt;
+              return _row(
+                key: ValueKey('waiting-${c.id}'),
+                title: account == null
+                    ? t.countTitle
+                    : t.phoneCountedTitle(account.name),
+                // One the computer won't take says why, not only that it
+                // waits.
+                under: store.countable(c.accountId)
+                    ? fullDate(c.date)
+                    : t.phoneCountCantGoIn,
+                amount: Text(
+                  formatMoney(c.countedMinor, currency: currency),
+                  style: onest(16, weight: 600, tabular: true),
+                ),
+                onDelete: () => store.removeCount(c.id),
+                deleteLabel: t.rowsDelete,
+              );
+            }
             if (i < made.length) {
               final c = made[i];
               return _row(
@@ -3748,7 +3847,7 @@ class _WaitingScreen extends StatelessWidget {
                 deleteLabel: t.rowsDelete,
               );
             }
-            final e = entries[i - made.length];
+            final e = entries[i - made.length - counts.length];
             final category = names[e.categoryId];
             // Money moved: the two accounts are its name.
             final to = accounts[e.categoryId];

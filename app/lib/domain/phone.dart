@@ -152,10 +152,19 @@ class PhoneAccount {
     required this.balanceMinor,
     this.currency = Currency.mnt,
     this.owes = false,
+    this.cash = false,
+    this.opened = true,
   });
 
   final String id;
   final String name;
+
+  /// Cash in hand (#119): counted, not reconciled.
+  final bool cash;
+
+  /// It has an opening balance. A count of one that hasn't, finding more
+  /// than its rows, makes that its opening balance, as on the computer.
+  final bool opened;
 
   /// The working balance; for a card or loan, what is owed, as a positive.
   final int balanceMinor;
@@ -337,6 +346,99 @@ class PhoneEntry {
   final DateTime madeAt;
 }
 
+/// A cash account counted on a phone (#119): what was in it. The computer
+/// saves the difference from its rows as its own Count does, against
+/// [categoryId] (null: Not categorized), in the order the phone's entries
+/// were made, so a purchase typed after the count isn't in it.
+class PhoneCount {
+  const PhoneCount({
+    required this.id,
+    required this.accountId,
+    required this.countedMinor,
+    required this.date,
+    required this.madeAt,
+    required this.heldMinor,
+    this.categoryId,
+  });
+
+  /// Random, as an entry's; the computer keeps it with the entries taken.
+  final String id;
+  final String accountId;
+  final int countedMinor;
+
+  /// What the phone said the account held when it was counted: the phone
+  /// shows the account as counted from then on ([balanceNow]), even after
+  /// a newer copy of the ledger arrives.
+  final int heldMinor;
+  final DateTime date;
+  final DateTime madeAt;
+  final String? categoryId;
+
+  PhoneCount withCategory(String from, String to) => PhoneCount(
+    id: id,
+    accountId: accountId,
+    countedMinor: countedMinor,
+    date: date,
+    madeAt: madeAt,
+    heldMinor: heldMinor,
+    categoryId: categoryId == from ? to : categoryId,
+  );
+
+  /// The same count with its difference to Not categorized.
+  PhoneCount uncategorized() => PhoneCount(
+    id: id,
+    accountId: accountId,
+    countedMinor: countedMinor,
+    date: date,
+    madeAt: madeAt,
+    heldMinor: heldMinor,
+  );
+}
+
+/// What of [inbox] goes to the folder now (#119): for each cash account
+/// counted here, its first waiting count goes, with the entries made before
+/// it or dated before its day; the entries touching that account typed
+/// after it, and its later counts, stay on the phone until the computer has
+/// taken that count. So no computer, of any version, takes in spending
+/// from after a count before the count itself. A count of an account the
+/// computer won't take ([countable] false) holds nothing back.
+PhoneInbox sendingOf(
+  PhoneInbox inbox,
+  bool Function(String accountId) countable,
+) {
+  final first = <String, PhoneCount>{};
+  for (final c in inbox.counts) {
+    if (!countable(c.accountId)) continue;
+    final was = first[c.accountId];
+    if (was == null || c.madeAt.isBefore(was.madeAt)) first[c.accountId] = c;
+  }
+  if (first.isEmpty) return inbox;
+  bool held(PhoneEntry e) {
+    for (final c in first.values) {
+      final touches = e.accountId == c.accountId || e.categoryId == c.accountId;
+      if (touches &&
+          e.madeAt.isAfter(c.madeAt) &&
+          !dateOnly(e.date).isBefore(dateOnly(c.date))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return PhoneInbox(
+    device: inbox.device,
+    categories: inbox.categories,
+    entries: [
+      for (final e in inbox.entries)
+        if (!held(e)) e,
+    ],
+    counts: [
+      for (final c in inbox.counts)
+        if (!countable(c.accountId) || identical(first[c.accountId], c)) c,
+    ],
+  );
+}
+
 /// What one phone has written to the folder for the computer: its entries
 /// and the categories it made, until the computer's ledger says they are in.
 class PhoneInbox {
@@ -344,7 +446,12 @@ class PhoneInbox {
     required this.device,
     this.entries = const [],
     this.categories = const [],
+    this.counts = const [],
   });
+
+  /// Cash counted here (#119). A computer before 0.108.0 doesn't read them,
+  /// and they wait.
+  final List<PhoneCount> counts;
 
   /// Random, made once on the phone: it names the phone's file and its
   /// part of [PhoneTaken].
@@ -701,6 +808,17 @@ PhoneSnapshot snapshotOf(
                 : data.balanceOf(a.id),
             currency: a.currency,
             owes: a.isOwed,
+            cash: a.isCash,
+            opened:
+                !a.isCash ||
+                data
+                    .registerFor(a.id)
+                    .posted
+                    .any(
+                      (r) =>
+                          r.kind == RowKind.opening &&
+                          r.equity == AppEquity.openingBalances,
+                    ),
           ),
     ],
   );
@@ -708,8 +826,14 @@ PhoneSnapshot snapshotOf(
 
 /// [account]'s balance once the [waiting] entries paid from it, and the
 /// transfers into it, are counted. What is owed on a card grows as money
-/// goes out and shrinks as a payment comes in.
-int balanceNow(PhoneAccount account, Iterable<PhoneEntry> waiting) {
+/// goes out and shrinks as a payment comes in. A cash account counted here
+/// ([counts]) is off from it by what each count found: counted, the moment
+/// it is saved, and what is typed after it.
+int balanceNow(
+  PhoneAccount account,
+  Iterable<PhoneEntry> waiting, [
+  Iterable<PhoneCount> counts = const [],
+]) {
   var balance = account.balanceMinor;
   for (final e in waiting) {
     final change = e.accountId == account.id
@@ -718,6 +842,9 @@ int balanceNow(PhoneAccount account, Iterable<PhoneEntry> waiting) {
         ? -e.amountMinor
         : 0;
     balance += account.owes ? -change : change;
+  }
+  for (final c in counts) {
+    if (c.accountId == account.id) balance += c.countedMinor - c.heldMinor;
   }
   return balance;
 }

@@ -293,13 +293,14 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         device: kept.device,
         waiting: kept.entries,
         made: kept.categories,
+        counts: kept.counts,
       )..addListener(_keep);
       // Only while something is waiting: that is all there is to wait
       // for. Coming back to the front always reads.
       _again ??= Timer.periodic(widget.every, (_) {
         final store = _store;
         if (_step != _Step.ready || store == null) return;
-        if (store.waiting.isEmpty && store.made.isEmpty) return;
+        if (store.nothingWaiting) return;
         _load(onlyIfNewer: true);
       });
     } else {
@@ -316,13 +317,13 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     final store = _store, outbox = _outbox, folder = _folder;
     if (store == null || outbox == null || folder == null) return;
     final inbox = store.inbox;
-    final saying = phoneInboxSaying(inbox);
+    final send = store.sending;
+    // What is kept and what goes: entries held behind a count go once it is
+    // taken, which changes only the second.
+    final saying = phoneInboxSaying(inbox) + phoneInboxSaying(send);
     if (saying == _sent) return;
     // A phone that has never had anything to say writes no file.
-    if (_sent == null &&
-        inbox.entries.isEmpty &&
-        inbox.categories.isEmpty &&
-        !outbox.exists) {
+    if (_sent == null && store.nothingWaiting && !outbox.exists) {
       return;
     }
     _sent = saying;
@@ -330,7 +331,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     // folder that hangs with no signal can't cost an entry.
     final Uint8List bytes;
     try {
-      bytes = outbox.save(inbox);
+      bytes = outbox.save(inbox, send: identical(send, inbox) ? null : send);
       _saveFailing = false;
     } catch (e) {
       debugPrint('Keeping this phone’s entries failed: $e');

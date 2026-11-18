@@ -9227,6 +9227,19 @@
       }
     }
   },
+  "phoneCountRechecked": "Your computer works the difference out again from its own rows when it takes the count in.",
+  "@phoneCountRechecked": {
+    "description": "On the phone's count page, under how old the phone's copy is, when it is from an earlier day."
+  },
+  "phoneCountCantGoIn": "This account isn’t a cash account on your computer now, so this count can’t go in.",
+  "@phoneCountCantGoIn": {
+    "description": "Under a waiting count whose account was deleted, archived or made not cash on the computer."
+  },
+  "phoneCountedTitle": "{account} counted",
+  "@phoneCountedTitle": {
+    "description": "A count of cash made on the phone, in the list of what isn’t on the computer yet.",
+    "placeholders": {"account": {"type": "String"}}
+  },
   "importJoined": "{count, plural, =1{1 is the other side of a row {account} already had} other{{count} are the other side of rows {account} already had}}",
   "@importJoined": {
     "description": "Clause of the popup after a bank file is brought in, after \" · \": rows a payee says are money moved to another account, which became the other side of a row that account's own file had already brought in (instead of a second copy).",

@@ -7227,7 +7227,7 @@ more chore).
   start below nothing. The panel: "₮105,000 more than the rows: with no opening
   balance yet, this becomes it", and "Make ₮105,000 the opening balance and save
   the count"; one Undo takes both rows.
-- **Built** (0.107.0, schema v28), the computer's half; the phone's comes next:
+- **Built** (0.107.0, schema v28), the computer's half:
   - **A count is its difference row**, which keeps what was counted
     (`transactions.counted_minor`): no table of its own, so it goes to the other
     computer, into Undo and through the folder as any row does. Its payee reads
@@ -7247,3 +7247,40 @@ more chore).
     Saved: "Cash wallet counted · −₮46,500 to Not categorized", one Undo.
   - **The upgrade adds one empty column**: no row is a count, nothing is shown or
     counted differently, and a phone needs a build at or after it to read the folder.
+- **On the phone** (0.108.0, the owner's "Both"): Accounts has **Count the cash**
+  under a cash account's balance. Its page is the panel phone-sized: the account,
+  Cash counted on the amount pad (empty until counted), the same sentence and
+  result, The difference (Not categorized first, then Income and the categories in
+  the account's currency; no New category: it would only hold a count), and one
+  Save that says the act and the amount. The day is today: a count is of the cash
+  in hand. Saved, the page closes with "Cash wallet counted · −₮36,000 to
+  Groceries" and Undo; the wallet's balance is then what was counted, plus what is
+  typed after. The count waits with the phone's entries ("Cash wallet counted",
+  its amount and day, Delete) and counts in "1 entry isn’t on your computer yet".
+  - **The computer saves it as its own Count**, against what its rows hold through
+    the count's day when it takes it in, so a row the phone hadn't seen yet is in
+    the difference it saves. When the phone's copy is from an earlier day, the page
+    says how old it is and that the computer works the difference out again.
+    Every phone's entries and counts come in in one order: before a count, what was
+    typed before it or is dated before its day, from any phone; then the count. So
+    lunch typed after a morning count, on either phone, isn't counted as missing
+    money, and a forgotten purchase from the day before isn't counted twice. A
+    category deleted since, or in another currency, gives Not categorized. The popup
+    says it in the computer's words ("Cash wallet counted · −₮30,000 to Not
+    categorized"), and its Undo takes the count's rows out with the rest.
+  - **What is typed after a count waits for it** (the code review: an older
+    computer took the lunch typed after a count and not the count, and a newer one
+    then counted the lunch as missing). The phone sends a cash account's first
+    waiting count, and the entries touching that account made before it or dated
+    before its day; the rest stay on the phone, in its waiting list, until the
+    computer has taken the count. A computer before 0.108.0 never takes a count, so
+    behind one it waits for a newer computer.
+  - **The phone's balance keeps what the count found**: each waiting count carries
+    what the phone showed when it was saved, and the balance is off from the
+    computer's copy by counted less that, so a newer copy doesn't undo it.
+  - **A count that can't go in says so**: its account deleted, archived or not cash
+    on the computer, the waiting row reads "This account isn’t a cash account on
+    your computer now, so this count can’t go in", with Delete, and holds nothing
+    back.
+  - A second count waiting behind a first is an ordinary count: the first makes the
+    opening balance or finds one, so the second never offers to.

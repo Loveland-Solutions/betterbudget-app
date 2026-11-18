@@ -55,6 +55,9 @@ void main() {
       'recovery_key_screen.dart',
       'ledger_screen.dart',
       'phone_app.dart',
+      // A part of phone_app.dart: the count's "what's missing" line is the
+      // entry screen's, in its color.
+      'phone_count.dart',
       // The version in the ledger now, of a thing both computers changed:
       // settled, done and safe.
       'rows_dialog.dart',
