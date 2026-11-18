@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-18** · version 0.104.0 · schema v26 · 1147 tests pass
+**Last updated: 2026-11-18** · version 0.105.0 · schema v27 · 1152 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -38,15 +38,15 @@ go by the words (#486). The budget counts income against what goes out, never th
 The owner is combing the Payees page (#488). Tab goes round a payee's Edit and stays in
 it, Delete last, and the box under a row that remembers its category is a Tab stop
 (0.103.1). A row's Category list has a box under New category that remembers the
-payee with the pick, in one undo (0.104.0). The owner then sent a payee's Edit back
-("It looks disorganized. I don't think the average user would find this intuitive"),
-and asked for the display name with it: three sketches are drawn
-(<https://claude.ai/artifact/BqkEgEuvBQAZMzLje9nnf4>), each spelling keeping its own
-contains, starts with or is exactly, and **the owner's pick is awaited**. The Edit
-that is picked takes the rest of #117 with it: a name the ledger shows with the
-bank's text kept in the memo, several spellings on one payee (a schema bump), and a
-payee that is money moved to another account. Money in or out only, or an amount
-floor, is dropped. After those: a first-time setup walkthrough (#475), sketches
+payee with the pick, in one undo (0.104.0). A payee's Edit is the payee's card, the
+owner's pick of three sketches (0.105.0, schema v27): its name as the heading, a line
+per way the bank writes it, each with contains, starts with or is exactly and its own
+count, and the row as the bank sends it and as the ledger shows it. A bank row that
+fits a named payee takes the name and keeps the bank's words in its memo and apart on
+the row; rows already in take it only from the offer after Save or in the Edit. The
+owner's ledger was upgraded to v27 on 2026-11-18 (a copy, `before-v27-from-v26-…`,
+beside it). What the reviews left is on #488. Left of #117: a payee that is money
+moved to another account. After that: a first-time setup walkthrough (#475), sketches
 first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 
