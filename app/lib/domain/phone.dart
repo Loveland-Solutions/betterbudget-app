@@ -154,10 +154,15 @@ class PhoneAccount {
     this.owes = false,
     this.cash = false,
     this.opened = true,
+    this.ahead = const [],
   });
 
   final String id;
   final String name;
+
+  /// Rows dated after the day the copy was made, signed as [balanceMinor]
+  /// is: a count leaves out those after its day, as the computer's does.
+  final List<({DateTime date, int amountMinor})> ahead;
 
   /// Cash in hand (#119): counted, not reconciled.
   final bool cash;
@@ -809,6 +814,16 @@ PhoneSnapshot snapshotOf(
             currency: a.currency,
             owes: a.isOwed,
             cash: a.isCash,
+            ahead: [
+              for (final t in data.txns)
+                if (!t.scheduled && t.date.isAfter(today))
+                  for (final e in t.entries)
+                    if (e.accountId == a.id)
+                      (
+                        date: t.date,
+                        amountMinor: a.isOwed ? -e.amount : e.amount,
+                      ),
+            ],
             opened:
                 !a.isCash ||
                 data
@@ -828,14 +843,22 @@ PhoneSnapshot snapshotOf(
 /// transfers into it, are counted. What is owed on a card grows as money
 /// goes out and shrinks as a payment comes in. A cash account counted here
 /// ([counts]) is off from it by what each count found: counted, the moment
-/// it is saved, and what is typed after it.
+/// it is saved, and what is typed after it. With [through], only what is
+/// dated through that day: what a count there measures, as the computer's
+/// does.
 int balanceNow(
   PhoneAccount account,
   Iterable<PhoneEntry> waiting, [
   Iterable<PhoneCount> counts = const [],
+  DateTime? through,
 ]) {
+  bool later(DateTime d) => through != null && d.isAfter(through);
   var balance = account.balanceMinor;
+  for (final r in account.ahead) {
+    if (later(r.date)) balance -= r.amountMinor;
+  }
   for (final e in waiting) {
+    if (later(e.date)) continue;
     final change = e.accountId == account.id
         ? e.amountMinor
         : e.categoryId == account.id
@@ -844,7 +867,9 @@ int balanceNow(
     balance += account.owes ? -change : change;
   }
   for (final c in counts) {
-    if (c.accountId == account.id) balance += c.countedMinor - c.heldMinor;
+    if (c.accountId == account.id && !later(c.date)) {
+      balance += c.countedMinor - c.heldMinor;
+    }
   }
   return balance;
 }

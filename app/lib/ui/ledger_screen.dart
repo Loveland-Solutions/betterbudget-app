@@ -831,23 +831,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       // The categories it made, and one it had already that took the
       // phone's bill.
       final categories = {...take.categoryIds, ...take.plans.keys}.toList();
-      // Each cash count, as the computer's own Count says it (#119).
-      String countNote(PhoneCountTaken c) {
-        final name = _data?.accounts[c.accountId]?.name ?? '';
-        final money = _accountMoney(c.accountId, c.difference);
-        return c.opening
-            ? t.countSavedOpening(name, money)
-            : c.difference == 0
-            ? t.countSavedMatch(name)
-            : t.countSaved(
-                name,
-                c.difference > 0 ? '+$money' : money,
-                _data?.accounts[c.categoryId]?.name ?? t.importUncategorized,
-              );
-      }
-
       final notes = [
-        for (final c in take.counts) countNote(c),
+        for (final c in take.counts) phoneCountNote(t, c, _data),
         if (_data != null)
           ...phonePlanNotes(t, take, _data!, today, paid: settled.paid),
       ];
@@ -10339,6 +10324,29 @@ class _PrimaryButton extends StatelessWidget {
 /// An undo or redo found its rows changed since; the popup says so.
 class _ChangedSince implements Exception {
   const _ChangedSince();
+}
+
+/// A phone's cash count, as the computer's own Count says it (#119): the
+/// account, the difference saved and where it went, or the opening balance
+/// it made. [data] is the ledger once it has the account and category.
+String phoneCountNote(Words t, PhoneCountTaken c, LedgerData? data) {
+  final account = data?.accounts[c.accountId];
+  final name = account?.name ?? '';
+  final owed = account?.isOwed ?? false;
+  final short = formatShort(
+    owed ? -c.difference : c.difference,
+    currency: account?.currency ?? Currency.mnt,
+  );
+  final money = owed ? t.ledgerOwed(short) : short;
+  return c.opening
+      ? t.countSavedOpening(name, money)
+      : c.difference == 0
+      ? t.countSavedMatch(name)
+      : t.countSaved(
+          name,
+          c.difference > 0 ? '+$money' : money,
+          data?.accounts[c.categoryId]?.name ?? t.importUncategorized,
+        );
 }
 
 /// What a phone's categories brought (#244), the ones to act on first:

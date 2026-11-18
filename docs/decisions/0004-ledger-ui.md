@@ -7268,6 +7268,11 @@ more chore).
     category deleted since, or in another currency, gives Not categorized. The popup
     says it in the computer's words ("Cash wallet counted · −₮30,000 to Not
     categorized"), and its Undo takes the count's rows out with the rest.
+  - **The phone measures as the computer does** (0.108.1; owner, 2026-11-19, of a
+    phone whose "The rows say" took in a row dated after today: "The phone should be
+    the same as the computer"). Its "The rows say" is what the rows hold through the
+    count's day, with what waits on the phone dated through it; a row dated ahead
+    isn't in the wallet yet, so it isn't in the count.
   - **What is typed after a count waits for it** (the code review: an older
     computer took the lunch typed after a count and not the count, and a newer one
     then counted the lunch as missing). The phone sends a cash account's first

@@ -118,8 +118,9 @@ class _CountPageState extends State<_CountPage> {
 
   Widget _page(BuildContext context) {
     final t = context.t;
-    // What the rows hold now, with what waits here (an earlier count too).
-    final held = widget.store.balanceOf(_account);
+    // What the rows hold through today, with what waits here (an earlier
+    // count too); rows dated ahead aren't in the wallet yet.
+    final held = widget.store.heldToday(_account);
     final counted = _typed.isEmpty ? null : typedAmountMinor(_typed, _currency);
     final diff = counted == null ? null : counted - held;
     final opens = !_opened && diff != null && diff > 0;
