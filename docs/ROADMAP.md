@@ -185,6 +185,11 @@ Open: #110.
 Designed in [ADR 0005](decisions/0005-mobile-companion.md): record transactions and see
 what's left in each budget, synced through a cloud folder the user picks. Comes after C,
 since phones show budget amounts.
+
+**Superseded (owner, 2026-11-19): the phone does everything the computer does, before
+beta** ("We need parity now"). It joins the folder as another computer, and can be used
+with no computer at all (ADR 0005 "The phone joins as another computer"). The work is
+#402 and its sub-issues, milestone Beta.
 - [x] The ledger stored in a cloud folder, written by the Mac (2026-10-07,
       `Ledger.betterbudget`)
 - [x] Entry screen and budget-left screen, on Android, reading the folder (2026-10-07)
