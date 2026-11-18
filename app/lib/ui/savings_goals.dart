@@ -221,7 +221,7 @@ class _GoalCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 6,
             children: [
-              _Progress(
+              StepBar(
                 value: g.amount == 0 ? 1 : g.saved / g.amount,
                 done: g.ready,
                 muted: false,

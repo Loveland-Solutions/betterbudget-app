@@ -50,35 +50,7 @@ class _StepBand extends StatelessWidget {
     String m(int v) => formatShort(v, currency: currency);
     final fundStep = step == ReadyStep.oneMonth || step == ReadyStep.moreMonths;
     final target = r.targetOf(step);
-    String? words;
-    double? value;
-    switch (step) {
-      case ReadyStep.oneMonth:
-      case ReadyStep.moreMonths:
-        if (target > 0 && r.hasFund && r.fund < target) {
-          words = t.planFundOfToGo(m(r.fund), m(target), m(target - r.fund));
-          value = r.fund / target;
-        } else if (step == ReadyStep.oneMonth) {
-          // A month of expenses isn't known yet: what the step is.
-          words = t.planBandNoMonth;
-        }
-      case ReadyStep.consumerDebt:
-        words = r.paidOff.isEmpty
-            ? t.planAmountOwed(m(r.consumerOwed))
-            : t.planDebtsPaidOff(
-                r.paidOff.length,
-                r.paidOff.length + r.consumerDebts.length,
-                m(r.consumerOwed),
-              );
-        // Of the most these debts ever owed together, how much is gone.
-        final most = [
-          for (final d in r.consumerDebts) r.mostOwed[d.account.id] ?? d.owed,
-          for (final a in r.paidOff) r.mostOwed[a.id] ?? 0,
-        ].fold(0, (s, v) => s + v);
-        if (most > 0) value = 1 - r.consumerOwed / most;
-      case ReadyStep.future:
-        break;
-    }
+    final (:words, :value) = stepProgress(t, r, step, currency);
     final category = r.fundCategories.length == 1
         ? r.fundCategories.single
         : null;
@@ -99,7 +71,7 @@ class _StepBand extends StatelessWidget {
       ),
       child: Row(
         children: [
-          ExcludeSemantics(child: SavingsPicture(_stepPicture(step), size: 48)),
+          ExcludeSemantics(child: SavingsPicture(stepPicture(step), size: 48)),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -108,37 +80,14 @@ class _StepBand extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    // One, two, three, four: done, the one they're on,
-                    // skipped, and still to come, as Savings marks them.
-                    Semantics(
-                      label: t.planBandStepOf(step.index + 1),
-                      child: ExcludeSemantics(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (final s in ReadyStep.values) ...[
-                              if (s.index > 0)
-                                Container(
-                                  width: 10,
-                                  height: 1,
-                                  color: Mid.ink3.withValues(alpha: 0.5),
-                                ),
-                              _StepMarker(
-                                number: s.index + 1,
-                                state: r.stateOf(s),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
+                    StepMarkers(r: r, step: step),
                     const SizedBox(width: 12),
                     Flexible(
                       child: Hoverable(
                         key: const ValueKey('step-band-title'),
                         onTap: onOpen,
                         builder: (hover) => Text(
-                          _stepTitle(t, step),
+                          stepTitle(t, step),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: onest(
@@ -156,7 +105,7 @@ class _StepBand extends StatelessWidget {
                   Row(
                     children: [
                       if (value != null) ...[
-                        _Progress(
+                        StepBar(
                           value: value,
                           done: false,
                           muted: false,

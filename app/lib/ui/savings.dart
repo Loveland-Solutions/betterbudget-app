@@ -265,21 +265,6 @@ class _SavingsPage extends StatelessWidget {
   }
 }
 
-String _stepTitle(Words t, ReadyStep s) => switch (s) {
-  ReadyStep.oneMonth => t.planStepOneMonth,
-  ReadyStep.consumerDebt => t.planStepConsumerDebt,
-  ReadyStep.moreMonths => t.planStepMoreMonths,
-  ReadyStep.future => t.planStepFuture,
-};
-
-/// The owner's picture for a step, by its file's name.
-String _stepPicture(ReadyStep s) => switch (s) {
-  ReadyStep.oneMonth => 'safety-net',
-  ReadyStep.consumerDebt => 'eliminate-debt',
-  ReadyStep.moreMonths => 'three-to-six-months',
-  ReadyStep.future => 'save-for-the-future',
-};
-
 class _StepRow extends StatelessWidget {
   const _StepRow({
     super.key,
@@ -313,10 +298,10 @@ class _StepRow extends StatelessWidget {
         children: [
           Opacity(
             opacity: aside ? 0.45 : 1,
-            child: SavingsPicture(_stepPicture(step), size: 96),
+            child: SavingsPicture(stepPicture(step), size: 96),
           ),
           const SizedBox(width: 20),
-          _StepMarker(number: number, state: state),
+          StepMarker(number: number, state: state),
           const SizedBox(width: 12),
           Expanded(
             // The page fills the window; a step's sentences stay a width
@@ -332,7 +317,7 @@ class _StepRow extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            _stepTitle(t, step),
+                            stepTitle(t, step),
                             style: onest(
                               14.5,
                               weight: current ? 600 : 500,
@@ -368,8 +353,8 @@ class _StepRow extends StatelessWidget {
               step,
               a,
               a
-                  ? t.planSetAsideUndo(_stepTitle(t, step))
-                  : t.planBackInStepsUndo(_stepTitle(t, step)),
+                  ? t.planSetAsideUndo(stepTitle(t, step))
+                  : t.planBackInStepsUndo(stepTitle(t, step)),
             ),
           ),
         ],
@@ -433,7 +418,7 @@ class _StepRow extends StatelessWidget {
               color: Mid.ink,
             ),
             const SizedBox(height: 8),
-            _Progress(
+            StepBar(
               value: r.fund / target,
               done: r.fund >= target || r.isDone(step),
               muted: !current && state != ReadyState.done,
@@ -726,72 +711,6 @@ String _names(Words t, Iterable<String> names) {
   final l = names.toList();
   if (l.length < 2) return l.join();
   return t.planNamesAnd(l.sublist(0, l.length - 1).join(', '), l.last);
-}
-
-class _StepMarker extends StatelessWidget {
-  const _StepMarker({required this.number, required this.state});
-  final int number;
-  final ReadyState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final (fill, edge, ink) = switch (state) {
-      ReadyState.done => (
-        Mid.green.withValues(alpha: 0.16),
-        Mid.green,
-        Mid.green,
-      ),
-      ReadyState.current => (Mid.blue, Mid.blue, Mid.ink),
-      ReadyState.later => (Colors.transparent, Mid.ink3, Mid.ink2),
-      ReadyState.setAside => (Colors.transparent, Mid.rule, Mid.ink3),
-    };
-    return Container(
-      width: 22,
-      height: 22,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: fill,
-        shape: BoxShape.circle,
-        border: Border.all(color: edge),
-      ),
-      child: state == ReadyState.done
-          ? Icon(Icons.check_rounded, size: 14, color: Mid.green)
-          : Text('$number', style: onest(11.5, weight: 600, color: ink)),
-    );
-  }
-}
-
-class _Progress extends StatelessWidget {
-  const _Progress({
-    required this.value,
-    required this.done,
-    required this.muted,
-    this.width = 360,
-  });
-  final double value;
-  final bool done;
-  final bool muted;
-  final double width;
-
-  @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(3),
-    child: SizedBox(
-      height: 6,
-      width: width,
-      child: Stack(
-        children: [
-          Container(color: Mid.ground.withValues(alpha: 0.7)),
-          FractionallySizedBox(
-            widthFactor: value.clamp(0.0, 1.0),
-            child: Container(
-              color: done ? Mid.green : (muted ? Mid.ink3 : Mid.blue),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 /// A month of expenses, typed over the average. Empty goes back to it.
@@ -1410,7 +1329,7 @@ class _DebtLineState extends State<_DebtLine> {
             padding: const EdgeInsets.only(left: _debtName, top: 4),
             child: Row(
               children: [
-                _Progress(
+                StepBar(
                   value: r.paidOffOf(debt) / most,
                   done: false,
                   muted: false,

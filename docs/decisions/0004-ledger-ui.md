@@ -6995,4 +6995,13 @@ progress in the Safety net's own row), the owner picked **A** ("A is beautiful")
     split, a bill's paid mark, the forecast, the phone, a month of expenses, which
     would grow by the extra and reopen step 1), so the band asks and the row doesn't.
     For the owner to see in use.
-- **Still to build:** the phone's Budget, the progress only.
+- **The phone's Budget** (2026-11-18) opens its list with the same band: the picture
+  (44), the four marks, the step's name, the bar the whole width and its figures under
+  it, wrapping rather than cut. No button and no link: the phone records and checks
+  (ADR 0005), there is no Savings page on it, and the Safety net's row is a tap away.
+  It is worked out on the phone from the ledger the computer last wrote, for the
+  period that copy was made in (the one the rows read), and it counts what the phone
+  has recorded in the Safety net since, as the net's row does. A debt paid from the
+  phone moves step 2 once the computer has it. Before the budget has begun the phone
+  shows it too: the computer holds it back there so as to ask one thing at a time,
+  and the phone asks nothing. The preview's made-up figures have no band.
