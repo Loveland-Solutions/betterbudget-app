@@ -1433,6 +1433,7 @@
   "payeesHasAnywhere": "«{name}» гэсэн үг орсон",
   "payeesWaiting": "{count, plural, other{{count} нь Ангилаагүй хэвээр}}",
   "payeesElsewhere": "{count, plural, other{{count} нь өөр ангилалд}}",
+  "payeesNeedsName": "Нэр бичнэ үү",
   "payeesNeedsWords": "Банк хэрхэн бичдэгийг бичнэ үү",
   "payeesNeedsCategory": "Ангилал сонгоорой",
   "payeesNeedsAccount": "Данс сонгоорой",

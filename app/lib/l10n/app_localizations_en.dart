@@ -6197,6 +6197,9 @@ class WordsEn extends Words {
   }
 
   @override
+  String get payeesNeedsName => 'Type a name';
+
+  @override
   String get payeesNeedsWords => 'Type how the bank writes it';
 
   @override
