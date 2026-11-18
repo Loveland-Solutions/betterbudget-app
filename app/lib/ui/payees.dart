@@ -72,6 +72,9 @@ List<RegisterRow> _waitingOf(
           !r.date.isBefore(period.start) &&
           !r.date.isAfter(period.end) &&
           categoryTakes(category, r.currency) &&
+          r.accountId != category.id &&
+          // A statement holds a row's accounts: it isn't made a transfer.
+          !(category.isBalanceSheet && r.cleared == Cleared.reconciled) &&
           (pay == null || r.accountId == pay.accountId) &&
           PayeeRuleInfo.pick(
                 rules,
@@ -104,8 +107,13 @@ String _ruleLabel(
   // An import doesn't file into an archived one: said, not left to look
   // as if it works (code review, 2026-10-26).
   if (c.archived) return t.payeesCategoryArchived(c.name);
-  return pays.where((p) => p.id == rule.payId).firstOrNull?.label ?? c.name;
+  return pays.where((p) => p.id == rule.payId).firstOrNull?.label ??
+      counterLabel(c);
 }
+
+/// A payee's category as its list names it: an account, money moved to or
+/// from it (#117), as the entry row's Category list writes it.
+String counterLabel(AccountInfo c) => c.isBalanceSheet ? '→ ${c.name}' : c.name;
 
 /// The accounts a payee holds on, by name: never "All accounts", which
 /// would read as taking in an account opened later (budget review,
@@ -739,6 +747,19 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     return [...all.where((c) => !c.isIncome), ...all.where((c) => c.isIncome)];
   }
 
+  /// The accounts a payee's rows can be money moved to or from (#117):
+  /// open, not one it holds on, in the accounts' one currency.
+  List<AccountInfo> _transfers() {
+    final currencies = _currencies;
+    if (currencies.length > 1) return const [];
+    return [
+      for (final a in widget.data.openAccounts)
+        if (!_accounts.contains(a.id) &&
+            currencies.every((x) => a.currency == x))
+          a,
+    ];
+  }
+
   /// An account ticked or not: a pay paid into one no longer ticked, or a
   /// category the accounts' currencies don't all take, is let go.
   void _tick(int id) => setState(() {
@@ -746,7 +767,9 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     final pay = widget.data.payScheduleById(_payId);
     if (pay != null && !_accounts.contains(pay.accountId)) _payId = null;
     final c = widget.data.accounts[_categoryId];
-    if (c != null && !_currencies.every((x) => categoryTakes(c, x))) {
+    if (c != null &&
+        (!_currencies.every((x) => categoryTakes(c, x)) ||
+            c.isBalanceSheet && _accounts.contains(c.id))) {
       _categoryId = null;
       _payId = null;
     }
@@ -838,7 +861,13 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     ];
     final category = data.accounts[_categoryId];
     final categoryLabel =
-        pays.where((p) => p.id == _payId).firstOrNull?.label ?? category?.name;
+        pays.where((p) => p.id == _payId).firstOrNull?.label ??
+        (category == null ? null : counterLabel(category));
+    // Money moved to another account: the ledger names that account, as
+    // its row does, and keeps the bank's words in the memo.
+    final movedTo = category != null && category.isBalanceSheet
+        ? category
+        : null;
     // The row drawn: one still under the bank's own words if there is one;
     // of those, one still waiting, else one in the category, else the
     // newest.
@@ -859,8 +888,19 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     final bankMemo = example == null || example.bankPayee != null
         ? null
         : example.memo;
-    final ledgerPayee = name.isEmpty ? bankPayee : name;
-    final ledgerMemo = name.isEmpty
+    final out = (example?.amount ?? -1) < 0;
+    final ledgerPayee = movedTo != null
+        ? [
+            out ? t.rowsTransferToBefore : t.rowsTransferFromBefore,
+            movedTo.name,
+            out ? t.rowsTransferToAfter : t.rowsTransferFromAfter,
+          ].where((w) => w.isNotEmpty).join(' ')
+        : name.isEmpty
+        ? bankPayee
+        : name;
+    final ledgerMemo = movedTo != null && example?.bankPayee == null
+        ? memoKeeping(bankPayee, bankMemo)
+        : name.isEmpty
         ? bankMemo
         : example?.bankPayee != null
         ? example!.memo
@@ -1347,6 +1387,7 @@ class _PayeeEditorState extends State<_PayeeEditor> {
                                             ),
                                         ],
                                         categories: _categories(),
+                                        transfers: _transfers(),
                                         current: categoryLabel,
                                         onPicked: (c) {
                                           setState(() {

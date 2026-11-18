@@ -1189,6 +1189,269 @@ void main() {
       expect(by['номин маркет'], groceries);
     });
 
+    test(
+      'a payee that is money moved to another account brings its rows '
+      'in as transfers, and that account\'s file then matches them (#117)',
+      () async {
+        final savings = await db.createAccount(
+          name: 'Savings',
+          type: AccountType.asset,
+        );
+        await db.addPayeeRule(
+          name: 'TO SAVINGS',
+          anywhere: true,
+          categoryId: savings,
+          accountIds: {bank},
+        );
+        await bring([row(3, -500000, 'TO SAVINGS 0042')]);
+        var data = await db.loadLedger();
+        final out = data.registerFor(bank).posted.single;
+        expect(out.kind, RowKind.transfer);
+        expect(out.cleared, Cleared.cleared);
+        // The row names the account; the bank's words stay in the memo.
+        expect(out.memo, contains('TO SAVINGS 0042'));
+        final inSavings = data.registerFor(savings).posted.single;
+        expect(inSavings.amount, 500000);
+        expect(inSavings.cleared, Cleared.uncleared);
+        // Savings' own file a day later: the same money, matched, not added.
+        final p = await plan([row(4, 500000, 'FROM CHECKING')], into: savings);
+        expect(p.single.fate, ImportFate.match);
+        await db.applyImport(
+          accountId: savings,
+          plan: p,
+          uncategorizedNames: ['Not categorized'],
+        );
+        data = await db.loadLedger();
+        expect(
+          data.registerFor(savings).posted.single.cleared,
+          Cleared.cleared,
+        );
+      },
+    );
+
+    test(
+      'a transfer payee joins the other account\'s row already in Not '
+      'categorized, instead of a second copy; undo and redo (#117)',
+      () async {
+        final savings = await db.createAccount(
+          name: 'Savings',
+          type: AccountType.asset,
+        );
+        // Savings' file first: nothing says what it is.
+        await bring([row(10, 200000, 'FROM CHECKING')], into: savings);
+        var data = await db.loadLedger();
+        final holding = data.accounts.values
+            .firstWhere((a) => a.name == 'Not categorized')
+            .id;
+        expect(data.registerFor(savings).posted.single.categoryId, holding);
+        await db.addPayeeRule(
+          name: 'TO SAVINGS',
+          anywhere: true,
+          categoryId: savings,
+          accountIds: {bank},
+        );
+        final rows = [
+          row(11, -200000, 'TO SAVINGS 0042'),
+          row(12, -900, 'Fee'),
+        ];
+        final record = await bring(rows);
+        expect(record.joined, hasLength(1));
+        expect(record.added, hasLength(1));
+        data = await db.loadLedger();
+        final there = data.registerFor(savings).posted.single;
+        expect(there.kind, RowKind.transfer);
+        final here = data
+            .registerFor(bank)
+            .posted
+            .where((r) => r.kind == RowKind.transfer)
+            .single;
+        expect(here.txnId, there.txnId);
+        expect(here.amount, -200000);
+        expect(here.cleared, Cleared.cleared);
+        // The same file again: both rows are already in.
+        expect((await plan(rows)).map((x) => x.fate), [
+          ImportFate.already,
+          ImportFate.already,
+        ]);
+
+        await db.undoImport(record);
+        data = await db.loadLedger();
+        expect(data.registerFor(bank).posted, isEmpty);
+        final back = data.registerFor(savings).posted.single;
+        expect(back.categoryId, holding);
+        expect(back.amount, 200000);
+
+        await db.redoImport(record, bank);
+        data = await db.loadLedger();
+        expect(data.registerFor(savings).posted.single.kind, RowKind.transfer);
+        expect(data.registerFor(bank).posted, hasLength(2));
+      },
+    );
+
+    test(
+      'filing a transfer payee\'s waiting rows joins the other '
+      'account\'s own row, not a second copy; undo puts both back (#117)',
+      () async {
+        final savings = await db.createAccount(
+          name: 'Savings',
+          type: AccountType.asset,
+        );
+        // Both files in before the payee: each side waits in Not categorized.
+        await bring([row(10, 200000, 'FROM CHECKING')], into: savings);
+        final mine = await bring([
+          row(11, -200000, 'TO SAVINGS'),
+          row(12, -300, 'TO SAVINGS'),
+        ]);
+        var data = await db.loadLedger();
+        final holding = data.accounts.values
+            .firstWhere((a) => a.name == 'Not categorized')
+            .id;
+        final f = await db.fileAsTransfers(
+          transactionIds: mine.added.keys.toList(),
+          accountId: bank,
+          toAccountId: savings,
+          holdingId: holding,
+        );
+        expect(f.joined, hasLength(1));
+        expect(f.moved, hasLength(1));
+        data = await db.loadLedger();
+        final there = data.registerFor(savings).posted;
+        // 200,000 once, cleared by its bank; 300 waits for Savings' file.
+        expect(there.map((r) => (r.amount, r.kind, r.cleared)), {
+          (200000, RowKind.transfer, Cleared.cleared),
+          (300, RowKind.transfer, Cleared.uncleared),
+        });
+        final joined = there.firstWhere((r) => r.amount == 200000);
+        expect(joined.memo, contains('FROM CHECKING'));
+        // Savings' file again: its row is in, not brought a second time.
+        expect(
+          (await plan([
+            row(10, 200000, 'FROM CHECKING'),
+          ], into: savings)).single.fate,
+          ImportFate.already,
+        );
+
+        await db.unfileTransfers(f, bank);
+        data = await db.loadLedger();
+        expect(
+          data.registerFor(savings).posted.map((r) => (r.amount, r.categoryId)),
+          [(200000, holding)],
+        );
+        expect(data.registerFor(bank).posted.map((r) => r.categoryId).toSet(), {
+          holding,
+        });
+        expect(
+          (await plan([
+            row(10, 200000, 'FROM CHECKING'),
+          ], into: savings)).single.fate,
+          ImportFate.already,
+        );
+      },
+    );
+
+    test('two rows of one amount in the other account are not guessed '
+        'between: the transfer is made apart (#117)', () async {
+      final savings = await db.createAccount(
+        name: 'Savings',
+        type: AccountType.asset,
+      );
+      await bring([
+        row(9, 500000, 'FROM CHECKING'),
+        row(12, 500000, 'FROM AUNT'),
+      ], into: savings);
+      await db.addPayeeRule(
+        name: 'TO SAVINGS',
+        anywhere: true,
+        categoryId: savings,
+        accountIds: {bank},
+      );
+      final record = await bring([row(10, -500000, 'TO SAVINGS')]);
+      expect(record.joined, isEmpty);
+      expect(record.added, hasLength(1));
+    });
+
+    test('undo leaves a transfer side its bank has matched since; a '
+        'reconciled row is never filed as a transfer (#117)', () async {
+      final savings = await db.createAccount(
+        name: 'Savings',
+        type: AccountType.asset,
+      );
+      final record = await bring([row(3, -700, 'TO SAVINGS')]);
+      final id = record.added.keys.single;
+      final previous = await db.setCategoryMany(
+        transactionIds: [id],
+        accountId: bank,
+        categoryId: savings,
+      );
+      // Savings' file matches the side the filing made.
+      final p = await plan([row(4, 700, 'FROM CHECKING')], into: savings);
+      expect(p.single.fate, ImportFate.match);
+      await db.applyImport(
+        accountId: savings,
+        plan: p,
+        uncategorizedNames: ['Not categorized'],
+      );
+      expect(await db.restoreCategories(previous, bank), isEmpty);
+      var data = await db.loadLedger();
+      expect(data.registerFor(savings).posted.single.cleared, Cleared.cleared);
+
+      // A reconciled row in Not categorized stays where it is.
+      final other = await bring([row(20, -900, 'TO SAVINGS')]);
+      final otherId = other.added.keys.single;
+      data = await db.loadLedger();
+      final e = data
+          .registerFor(bank)
+          .posted
+          .firstWhere((r) => r.txnId == otherId)
+          .entryId;
+      await db.customStatement(
+        'UPDATE entries SET cleared = ${Cleared.reconciled.index} '
+        'WHERE id = $e',
+      );
+      expect(
+        await db.setCategoryMany(
+          transactionIds: [otherId],
+          accountId: bank,
+          categoryId: savings,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('rows filed as a transfer, and back (#117)', () async {
+      final savings = await db.createAccount(
+        name: 'Savings',
+        type: AccountType.asset,
+      );
+      final record = await bring([row(3, -700, 'TO SAVINGS')]);
+      final id = record.added.keys.single;
+      final previous = await db.setCategoryMany(
+        transactionIds: [id],
+        accountId: bank,
+        categoryId: savings,
+      );
+      var data = await db.loadLedger();
+      expect(data.registerFor(bank).posted.single.kind, RowKind.transfer);
+      expect(data.registerFor(savings).posted.single.amount, 700);
+      expect(
+        data.registerFor(savings).posted.single.cleared,
+        Cleared.uncleared,
+      );
+      await db.restoreCategories(previous, bank);
+      data = await db.loadLedger();
+      expect(data.registerFor(bank).posted.single.kind, RowKind.simple);
+      expect(data.registerFor(savings).posted, isEmpty);
+      // Never a transfer to its own account.
+      await expectLater(
+        db.setCategoryMany(
+          transactionIds: [id],
+          accountId: bank,
+          categoryId: bank,
+        ),
+        throwsA(isA<LockedException>()),
+      );
+    });
+
     test('only a remembered payee is filed; where it went last is no '
         'reason (owner, 2026-10-26)', () async {
       final phone = await db.createCategory('Phone');

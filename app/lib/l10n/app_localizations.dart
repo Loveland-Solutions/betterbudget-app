@@ -8805,6 +8805,24 @@ abstract class Words {
   /// **'{count, plural, =1{1 row filed under {category}} other{{count} rows filed under {category}}}'**
   String payeesFiled(int count, String category);
 
+  /// Popup card after a payee is saved whose rows are money moved to or from another of the person's accounts (Payees page, Category list: "→ Khan Savings"). The payee is on the line under it. Also what Undo names.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfers with {account} remembered for next time'**
+  String payeesTransferRemembered(String account);
+
+  /// Popup card after payeesFileWaiting is clicked for a payee whose rows are money moved to or from another account: the rows that were in Not categorized are now transfers with it. Also what Undo names.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row is now a transfer with {account}} other{{count} rows are now transfers with {account}}}'**
+  String payeesFiledTransfer(int count, String account);
+
+  /// Popup card after Delete on the Payees page, for a payee whose rows were money moved to or from another account. Rows already in stay.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted · transfers with {account} no longer remembered for next time'**
+  String payeesDeletedTransfer(String account);
+
   /// Button on the popup after a payee is saved on the Payees page, or a row is saved with its Remember box ticked: files this period's rows of the payee still in Not categorized under its category.
   ///
   /// In en, this message translates to:

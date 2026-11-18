@@ -4775,6 +4775,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   // ---------- payees ----------
 
+  /// The account a payee's rows are money moved to or from (#117), or
+  /// null for a category.
+  AccountInfo? _movedTo(LedgerData data, PayeeRuleInfo rule) {
+    final a = data.accounts[rule.categoryId];
+    return a != null && a.isBalanceSheet ? a : null;
+  }
+
   /// A payee saved from its Edit on the Payees page: new ([before] null)
   /// or changed. The popup offers to file the rows it fits that are still
   /// in Not categorized; rows already in a category are never moved
@@ -4840,7 +4847,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // renamed by Save itself, offered (the owner's ledger is theirs).
     final unnamed = _unnamedFor(data, saved);
     _did(
-      t.ledgerAlwaysFiled(0, label),
+      switch (_movedTo(data, saved)) {
+        final a? => t.payeesTransferRemembered(a.name),
+        null => t.ledgerAlwaysFiled(0, label),
+      },
       detail: saved.title,
       more: waiting.isEmpty
           ? null
@@ -4894,9 +4904,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!mounted) return;
     _did(
       t.payeesDeleted,
-      message: t.payeesDeletedMessage(
-        _ruleLabel(t, data, rule, _payChoices(data)),
-      ),
+      message: switch (_movedTo(data, rule)) {
+        final a? => t.payeesDeletedTransfer(a.name),
+        null => t.payeesDeletedMessage(
+          _ruleLabel(t, data, rule, _payChoices(data)),
+        ),
+      },
       detail: rule.title,
       undo: () {
         _payeesKey.currentState?.changed(rule.id);
@@ -4925,12 +4938,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     var previous = <int, Map<int, int>>{};
     var paychecks = <PayTaken>[];
+    var moved = <int, FiledTransfers>{};
+    final movedTo = _data == null ? null : _movedTo(_data!, rule);
     Future<void> write() async {
       previous = {};
       paychecks = [];
+      moved = {};
       final pay = _data?.payScheduleById(rule.payId);
       for (final e in byAccount.entries) {
-        if (pay != null && pay.accountId == e.key) {
+        if (movedTo != null) {
+          // Money moved: joined with the other account's own bank row
+          // where it has one waiting, so it isn't there twice.
+          moved[e.key] = await db.fileAsTransfers(
+            transactionIds: e.value,
+            accountId: e.key,
+            toAccountId: movedTo.id,
+            holdingId: _uncategorizedId(_data!)!,
+          );
+        } else if (pay != null && pay.accountId == e.key) {
           for (final id in e.value) {
             paychecks.add(
               await db.takeAsPay(
@@ -4967,7 +4992,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ? const <RegisterRow>[]
         : _unnamedFor(data, rule);
     _did(
-      t.payeesFiled(waiting.length, label),
+      switch (data == null ? null : _movedTo(data, rule)) {
+        final a? => t.payeesFiledTransfer(waiting.length, a.name),
+        null => t.payeesFiled(waiting.length, label),
+      },
       detail: rule.title,
       more: unnamed.isEmpty
           ? null
@@ -4982,6 +5010,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         for (final e in previous.entries) {
           await db.restoreCategories(e.value, e.key);
         }
+        for (final e in moved.entries) {
+          await db.unfileTransfers(e.value, e.key);
+        }
       },
       redo: write,
     );
@@ -4995,7 +5026,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// 2026-11-18). None when it has no name.
   List<RegisterRow> _unnamedFor(LedgerData data, PayeeRuleInfo rule) {
     final shown = payeeWords(rule.shownAs);
-    if (shown.isEmpty) return const [];
+    // A transfer's row names the other account, never the payee.
+    if (shown.isEmpty || _movedTo(data, rule) != null) return const [];
     final rules = [
       for (final r in data.payeeRules)
         if (r.id != rule.id) r,
@@ -6553,8 +6585,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final newlyCleared = record.matched
         .where((m) => m.before == Cleared.uncleared)
         .length;
-    final label = record.added.isNotEmpty
-        ? t.importDone(record.added.length)
+    // A bank row joined to the other account's row is a row brought in.
+    final brought = record.added.length + record.joined.length;
+    final label = brought > 0
+        ? t.importDone(brought)
         : t.importMatchedToast(record.matched.length);
     // The file's rows in a bill's category pay it (owner, 2026-10-21),
     // in the same undo as the import.
@@ -6590,8 +6624,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }),
       message: [
         label,
-        if (record.added.isNotEmpty && newlyCleared > 0)
-          t.importMatchedToast(newlyCleared),
+        if (brought > 0 && newlyCleared > 0) t.importMatchedToast(newlyCleared),
         if (record.uncategorizedCount > 0)
           t.importUncategorizedToast(record.uncategorizedCount, uncategorized),
         if (settled.ties.isNotEmpty)

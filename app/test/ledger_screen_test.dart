@@ -14592,6 +14592,76 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('a payee can be money moved to another account: its list '
+        'offers the others, not its own, and Save says so (#117)', (
+      tester,
+    ) async {
+      final db = await withRule(tester);
+      final checkingId = await accountId(tester, db, 'TDB Checking');
+      final savingsId = await accountId(tester, db, 'Khan Savings');
+      await tester.tap(find.byKey(const ValueKey('payee-add')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-words')),
+        'TO KHAN',
+      );
+      await tester.tap(find.byKey(const ValueKey('payee-accounts')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('payee-account-$checkingId')));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('payee-category')));
+      await tester.pumpAndSettle();
+      Finder choice(String label) => find.descendant(
+        of: find.byType(MenuItemButton),
+        matching: find.text(label),
+      );
+      expect(choice('→ Khan Savings'), findsOneWidget);
+      expect(choice('→ Cash wallet'), findsOneWidget);
+      // Not the account the payee is on.
+      expect(choice('→ TDB Checking'), findsNothing);
+      // After every category, as in the entry row's list.
+      await tester.ensureVisible(choice('→ Khan Savings'));
+      await tester.pumpAndSettle();
+      await tester.tap(choice('→ Khan Savings'));
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('payee-category')),
+          matching: find.text('→ Khan Savings'),
+        ),
+        findsOneWidget,
+      );
+      await tapAndWait(tester, find.byKey(const ValueKey('payee-save')));
+      expect(
+        find.text('Transfers with Khan Savings remembered for next time'),
+        findsOneWidget,
+      );
+      final rule = (await tester.runAsync(db.allPayeeRules))!
+          .singleWhere((r) => r.words == 'to khan');
+      expect(rule.categoryId, savingsId);
+      // Ticking the account it moves to as one it's on lets the pick go.
+      await tester.tap(find.text('contains «TO KHAN»', findRichText: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('payee-accounts')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('payee-account-$savingsId')));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('payee-category')),
+          matching: find.text('Pick a category'),
+        ),
+        findsOneWidget,
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tidy(tester, db);
+    });
+
     testWidgets('remembered again under another category from a row, the '
         'payee is changed, not doubled', (tester) async {
       final db = await withRule(tester);

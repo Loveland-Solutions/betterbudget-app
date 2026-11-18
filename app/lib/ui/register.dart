@@ -2155,7 +2155,12 @@ class CategoryMenu extends StatefulWidget {
     this.consumeOutsideTap = false,
     this.onPickedRemembering,
     this.leadingRemembering,
+    this.transfers = const [],
   });
+
+  /// Accounts listed after the categories, "→ Khan Savings": money moved
+  /// to or from them (a payee's list, #117). Picked through [onPicked].
+  final List<AccountInfo> transfers;
 
   /// A row's list (#117, owner 2026-11-18: "do it"): a box at its foot,
   /// worded as the one under a row, and a pick made with it ticked goes
@@ -2300,6 +2305,24 @@ class _CategoryMenuState extends State<CategoryMenu> {
               child: Text(
                 c.name,
                 style: onest(13, color: c.name == current ? Mid.ink : Mid.ink2),
+              ),
+            ),
+          for (final a in w.transfers.where((a) => !a.archived))
+            MenuItemButton(
+              onPressed: () => picked(a),
+              style: ButtonStyle(
+                minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
+                overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+              ),
+              trailingIcon: '→ ${a.name}' == current
+                  ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
+                  : null,
+              child: Text(
+                '→ ${a.name}',
+                style: onest(
+                  13,
+                  color: '→ ${a.name}' == current ? Mid.ink : Mid.ink2,
+                ),
               ),
             ),
         ]),

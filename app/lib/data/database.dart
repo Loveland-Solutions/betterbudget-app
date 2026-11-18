@@ -951,7 +951,13 @@ class ImportRecord {
     this.paid = const [],
     this.openingFixes = const [],
     this.openingKept,
+    this.joined = const [],
   });
+
+  /// Bank rows a payee said are money moved to another account, whose
+  /// other side that account's own file had already brought in and left in
+  /// Not categorized: that row became the transfer (#117).
+  final List<JoinedImport> joined;
 
   /// The opening balance's two settings ([openingAsOfKey],
   /// [openingTakenKey]) before and after the import moved it, so undo puts
@@ -984,6 +990,70 @@ class ImportRecord {
 
   /// New rows that went to the holding category (made or found).
   final int uncategorizedCount;
+}
+
+/// A bank row brought in as the other side of a row already in another
+/// account ([ImportRecord.joined]): [entryId], in [categoryId] (Not
+/// categorized) before, moved to the imported account with the bank's
+/// [key], cleared.
+class JoinedImport {
+  const JoinedImport({
+    required this.transactionId,
+    required this.entryId,
+    required this.categoryId,
+    required this.key,
+    required this.date,
+    required this.amount,
+    this.memoBefore,
+    this.memoAfter,
+  });
+  final int transactionId;
+  final int entryId;
+  final int categoryId;
+  final String key;
+
+  /// The row's memo before and after this bank's own words were added to
+  /// it, so they aren't lost (budget review, 2026-11-18). Equal when they
+  /// were already there.
+  final String? memoBefore, memoAfter;
+
+  /// The bank row's day and amount, on the imported account.
+  final DateTime date;
+  final int amount;
+}
+
+/// Rows in Not categorized filed as money moved to another account
+/// ([AppDatabase.fileAsTransfers]): [moved] as [AppDatabase.setCategoryMany]
+/// returns, and the rows that took the other account's bank row in place
+/// of a second copy of it.
+class FiledTransfers {
+  const FiledTransfers(this.moved, this.joined);
+  final Map<int, int> moved;
+  final List<FiledJoin> joined;
+  int get count => moved.length + joined.length;
+}
+
+/// A row of this account, [transactionId], whose Not categorized side
+/// ([entryId], in [holdingId]) became the other account's side: it took
+/// that account's bank row's [key] and cleared state from [bankEntryId],
+/// whose transaction [otherTransactionId] was deleted as the second copy.
+class FiledJoin {
+  const FiledJoin({
+    required this.transactionId,
+    required this.entryId,
+    required this.holdingId,
+    required this.otherTransactionId,
+    required this.bankEntryId,
+    required this.key,
+    required this.cleared,
+    this.memoBefore,
+    this.memoAfter,
+  });
+  final int transactionId, entryId, holdingId;
+  final int otherTransactionId, bankEntryId;
+  final String? key;
+  final Cleared cleared;
+  final String? memoBefore, memoAfter;
 }
 
 /// The ledger was changed between being compared with the folder's and
@@ -2652,24 +2722,38 @@ class AppDatabase extends _$AppDatabase {
   /// [transactionIds]; splits and transfers are left alone. Returns each
   /// changed transaction's previous category, for undo.
   /// With [onlyFrom], only rows still in that category move.
+  ///
+  /// [categoryId] may be another account in the same currency: the rows
+  /// become transfers to it, that side uncleared, as its bank hasn't shown
+  /// it (a payee that is money moved, #117). With [transfersToo] (undo), a
+  /// transfer's other side moves back too, unless it is reconciled.
   Future<Map<int, int>> setCategoryMany({
     required Iterable<int> transactionIds,
     required int accountId,
     required int categoryId,
     int? onlyFrom,
+    bool transfersToo = false,
   }) {
     return transaction(() async {
-      final categoryIds = {
-        for (final a
-            in await (select(accounts)..where(
-                  (a) => a.type.isInValues([
-                    AccountType.income,
-                    AccountType.expense,
-                  ]),
-                ))
-                .get())
-          a.id,
-      };
+      final all = {for (final a in await select(accounts).get()) a.id: a};
+      bool isCategory(int id) => const {
+        AccountType.income,
+        AccountType.expense,
+      }.contains(all[id]?.type);
+      bool isAccount(int id) => const {
+        AccountType.asset,
+        AccountType.liability,
+      }.contains(all[id]?.type);
+      final toAccount = isAccount(categoryId);
+      if (toAccount && categoryId == accountId) {
+        throw LockedException(DbProblem.ownAccount);
+      }
+      // Never into an account that's closed: an import doesn't either.
+      if (toAccount &&
+          (all[categoryId]!.deletedAt != null ||
+              all[categoryId]!.archivedAt != null)) {
+        return const <int, int>{};
+      }
       final previous = <int, int>{};
       for (final id in transactionIds) {
         final rows = await (select(
@@ -2678,18 +2762,162 @@ class AppDatabase extends _$AppDatabase {
         final others = rows.where((e) => e.accountId != accountId).toList();
         if (rows.length != 2 || others.length != 1) continue;
         final other = others.single;
-        if (!categoryIds.contains(other.accountId)) continue;
+        final fromAccount = isAccount(other.accountId);
+        if (!isCategory(other.accountId) && !(transfersToo && fromAccount)) {
+          continue;
+        }
+        // Back from a transfer only as it was left: uncleared, no bank's
+        // key. One that bank has matched since is that bank's row now.
+        if (fromAccount &&
+            (other.cleared != Cleared.uncleared || other.importKey != null)) {
+          continue;
+        }
+        // A statement holds its accounts (as an edit's Category does).
+        if ((toAccount || fromAccount) &&
+            (await _reconciledAmong([id])).isNotEmpty) {
+          continue;
+        }
         if (other.accountId == categoryId) continue;
         if (onlyFrom != null && other.accountId != onlyFrom) continue;
+        // Never across currencies: an exchange holds both amounts.
+        if (toAccount && all[categoryId]!.currency != other.currency) {
+          continue;
+        }
         previous[id] = other.accountId;
         await (update(entries)..where((e) => e.id.equals(other.id))).write(
-          EntriesCompanion(accountId: Value(categoryId)),
+          EntriesCompanion(
+            accountId: Value(categoryId),
+            cleared: toAccount || fromAccount
+                ? const Value(Cleared.uncleared)
+                : const Value.absent(),
+          ),
         );
         await _touch(id);
       }
       return previous;
     });
   }
+
+  /// Files [transactionIds] on [accountId], those still in [holdingId], as
+  /// money moved to [toAccountId] (a payee's "File the 3 still in Not
+  /// categorized", #117). When [toAccountId]'s own bank file brought the
+  /// same money in already and exactly one such row is still in Not
+  /// categorized, that row is this transfer's other side: this row takes
+  /// its bank key and cleared state and it goes, or the other account
+  /// would hold the money twice (both reviews, 2026-11-18). Otherwise the
+  /// row becomes a transfer with an uncleared side there.
+  Future<FiledTransfers> fileAsTransfers({
+    required List<int> transactionIds,
+    required int accountId,
+    required int toAccountId,
+    required int holdingId,
+  }) => transaction(() async {
+    final joined = <FiledJoin>[];
+    final rest = <int>[];
+    final taken = <int>{};
+    for (final id in transactionIds) {
+      final header =
+          await (select(transactions)
+                ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
+              .getSingleOrNull();
+      final rows = await (select(
+        entries,
+      )..where((e) => e.transactionId.equals(id))).get();
+      final mine = rows.where((e) => e.accountId == accountId).toList();
+      final side = rows.where((e) => e.accountId == holdingId).toList();
+      if (header == null ||
+          rows.length != 2 ||
+          mine.length != 1 ||
+          side.length != 1 ||
+          rows.any((e) => e.cleared == Cleared.reconciled)) {
+        rest.add(id);
+        continue;
+      }
+      final other = await _joinableSide(
+        otherAccountId: toAccountId,
+        holdingIds: {holdingId},
+        date: parseDateKey(header.date),
+        amount: -mine.single.amountMinor,
+        taken: {...taken, id},
+      );
+      if (other == null || other.transactionId == id) {
+        rest.add(id);
+        continue;
+      }
+      taken.add(other.transactionId);
+      final words = memoKeeping(other.payee, other.memo);
+      final j = FiledJoin(
+        transactionId: id,
+        entryId: side.single.id,
+        holdingId: holdingId,
+        otherTransactionId: other.transactionId,
+        bankEntryId: other.bankEntryId,
+        key: other.key,
+        cleared: other.cleared,
+        memoBefore: header.memo,
+        memoAfter: _memoAdding(header.memo, words),
+      );
+      // The key off the other row first: one bank row, one key.
+      await (update(entries)..where((e) => e.id.equals(j.bankEntryId))).write(
+        const EntriesCompanion(importKey: Value(null)),
+      );
+      await (update(entries)..where((e) => e.id.equals(j.entryId))).write(
+        EntriesCompanion(
+          accountId: Value(toAccountId),
+          cleared: Value(j.cleared),
+          importKey: Value(j.key),
+        ),
+      );
+      await (update(transactions)..where((t) => t.id.equals(id))).write(
+        TransactionsCompanion(memo: Value(j.memoAfter), updatedAt: Value(_now)),
+      );
+      await (update(
+        transactions,
+      )..where((t) => t.id.equals(j.otherTransactionId))).write(
+        TransactionsCompanion(deletedAt: Value(_now), updatedAt: Value(_now)),
+      );
+      await _assertBalanced(id);
+      joined.add(j);
+    }
+    final moved = await setCategoryMany(
+      transactionIds: rest,
+      accountId: accountId,
+      categoryId: toAccountId,
+      onlyFrom: holdingId,
+    );
+    return FiledTransfers(moved, joined);
+  });
+
+  /// Undo for [fileAsTransfers]. A joined row a statement holds since stays,
+  /// and the undo stops.
+  Future<void> unfileTransfers(FiledTransfers f, int accountId) =>
+      transaction(() async {
+        for (final j in f.joined.reversed) {
+          if ((await _reconciledAmong([j.transactionId])).isNotEmpty) {
+            throw LockedException(DbProblem.reconciled);
+          }
+          await (update(entries)..where((e) => e.id.equals(j.entryId))).write(
+            EntriesCompanion(
+              accountId: Value(j.holdingId),
+              cleared: const Value(Cleared.uncleared),
+              importKey: const Value(null),
+            ),
+          );
+          await (update(entries)..where((e) => e.id.equals(j.bankEntryId)))
+              .write(EntriesCompanion(importKey: Value(j.key)));
+          await restoreMany([j.otherTransactionId]);
+          await (update(
+            transactions,
+          )..where((t) => t.id.equals(j.transactionId))).write(
+            TransactionsCompanion(
+              memo: Value(j.memoBefore),
+              updatedAt: Value(_now),
+            ),
+          );
+          await _assertBalanced(j.transactionId);
+        }
+        await restoreCategories(f.moved, accountId);
+      });
 
   /// Undo for [setCategoryMany]. Returns what it changed, as that does.
   Future<Map<int, int>> restoreCategories(
@@ -2703,6 +2931,7 @@ class AppDatabase extends _$AppDatabase {
           transactionIds: [e.key],
           accountId: accountId,
           categoryId: e.value,
+          transfersToo: true,
         ),
       );
     }
@@ -7280,6 +7509,35 @@ class AppDatabase extends _$AppDatabase {
             a.currency == here)
           a.id,
     };
+    // The accounts a payee can say its rows are money moved to (#117):
+    // open, another one, in this account's currency (an exchange asks for
+    // both amounts, which a bank row doesn't have).
+    final transfers = {
+      for (final a
+          in await (select(accounts)..where(
+                (a) =>
+                    a.deletedAt.isNull() &
+                    a.archivedAt.isNull() &
+                    a.type.isInValues([
+                      AccountType.asset,
+                      AccountType.liability,
+                    ]),
+              ))
+              .get())
+        if (a.id != accountId && a.currency == here) a.id,
+    };
+    final holdingIds = {
+      for (final a
+          in await (select(accounts)..where(
+                (a) =>
+                    a.name.isIn(uncategorizedNames) &
+                    a.type.equalsValue(AccountType.expense) &
+                    a.deletedAt.isNull(),
+              ))
+              .get())
+        a.id,
+    };
+    final joined = <JoinedImport>[];
     int? made;
     int? fallback;
     var holding = 0;
@@ -7326,15 +7584,47 @@ class AppDatabase extends _$AppDatabase {
           // account's currency takes; nothing else is guessed (owner,
           // 2026-10-26).
           final said = rule?.categoryId;
-          final category = said != null && categories.contains(said)
+          final moved = said != null && transfers.contains(said);
+          if (moved) {
+            // The other account's file brought this money in already and
+            // left it in Not categorized: that row is the transfer, or the
+            // other account would have it twice.
+            final other = await _joinableSide(
+              otherAccountId: said,
+              holdingIds: holdingIds,
+              date: dateOnly(p.row.date),
+              amount: -p.row.amount,
+              taken: {for (final j in joined) j.transactionId},
+            );
+            if (other != null) {
+              final j = JoinedImport(
+                transactionId: other.transactionId,
+                entryId: other.entryId,
+                categoryId: other.categoryId,
+                key: p.key,
+                date: dateOnly(p.row.date),
+                amount: p.row.amount,
+                memoBefore: other.memo,
+                memoAfter: _memoAdding(other.memo, memoKeeping(payee, memo)),
+              );
+              joined.add(j);
+              addedOn[j.transactionId] = (date: j.date, amount: j.amount);
+              continue;
+            }
+          }
+          final category = moved
+              ? said
+              : said != null && categories.contains(said)
               ? said
               : await uncategorized();
           // A payee with a name: the row shows it, and the bank's own
           // words are kept in the memo (#117).
           // The bank's "UNITEL" under a payee named "Unitel" is the name
-          // already: nothing to keep.
+          // already: nothing to keep. A transfer's row shows the other
+          // account's name, so the bank's words go in the memo too.
           final shown = rule?.shownAs.trim() ?? '';
           final named =
+              moved ||
               shown.isNotEmpty && payeeWords(shown) != payeeWords(payee);
           final id = await postTransaction(
             date: dateOnly(p.row.date),
@@ -7465,8 +7755,10 @@ class AppDatabase extends _$AppDatabase {
       paid: paid,
       openingFixes: fixes,
       openingKept: openingKept,
+      joined: joined,
     );
     await _keyAdded(accountId, record);
+    await _applyJoins(accountId, record);
     await _applyMatches(record);
     // A typed row taken out of the opening balance, now at the bank's
     // amount: the balance takes out that instead, or the account is off
@@ -7483,6 +7775,116 @@ class AppDatabase extends _$AppDatabase {
     }
     return record;
   });
+
+  /// [memo] with [words] after it, unless it holds them already.
+  static String? _memoAdding(String? memo, String? words) {
+    final m = (memo ?? '').trim(), w = (words ?? '').trim();
+    if (w.isEmpty) return memo;
+    if (m.isEmpty) return w;
+    if (payeeWords(m).contains(payeeWords(w))) return memo;
+    return '$m · $w';
+  }
+
+  /// The side in Not categorized of a row [otherAccountId]'s own bank file
+  /// brought in: two-sided, of [amount] there, near [date], with nothing
+  /// reconciled. Only when exactly one fits: two of one round amount
+  /// (a relative's ₮500,000 and the move to savings) aren't guessed
+  /// between, the transfer is made apart (budget review, 2026-11-18).
+  Future<
+    ({
+      int transactionId,
+      int entryId,
+      int categoryId,
+      int bankEntryId,
+      String? key,
+      Cleared cleared,
+      String? memo,
+      String? payee,
+    })?
+  >
+  _joinableSide({
+    required int otherAccountId,
+    required Set<int> holdingIds,
+    required DateTime date,
+    required int amount,
+    required Set<int> taken,
+  }) async {
+    if (holdingIds.isEmpty) return null;
+    final rows = await customSelect(
+      'SELECT t.id AS txn_id, c.id AS entry_id, c.account_id AS category, '
+      't.date AS date, t.memo AS memo, e.id AS bank_entry, '
+      'e.import_key AS key, e.cleared AS cleared, '
+      'COALESCE(t.bank_payee, p.name) AS payee FROM entries e '
+      'JOIN transactions t ON t.id = e.transaction_id '
+      'JOIN entries c ON c.transaction_id = t.id AND c.id != e.id '
+      'LEFT JOIN payees p ON p.id = t.payee_id '
+      'WHERE e.account_id = ? AND e.import_key IS NOT NULL '
+      'AND e.amount_minor = ? AND t.deleted_at IS NULL AND t.scheduled = 0 '
+      'AND c.account_id IN (${holdingIds.join(',')}) '
+      'AND e.cleared != ? AND c.cleared != ? '
+      'AND (SELECT COUNT(*) FROM entries x WHERE x.transaction_id = t.id) = 2 '
+      'AND t.date BETWEEN ? AND ? ORDER BY t.date, t.id',
+      variables: [
+        Variable.withInt(otherAccountId),
+        Variable.withInt(amount),
+        Variable.withInt(Cleared.reconciled.index),
+        Variable.withInt(Cleared.reconciled.index),
+        Variable.withString(
+          dateKey(date.subtract(const Duration(days: matchDaysAfter))),
+        ),
+        Variable.withString(
+          dateKey(date.add(const Duration(days: matchDaysAfter))),
+        ),
+      ],
+      readsFrom: {entries, transactions, payees},
+    ).get();
+    final free = [
+      for (final r in rows)
+        if (!taken.contains(r.read<int>('txn_id'))) r,
+    ];
+    if (free.length != 1) return null;
+    final r = free.single;
+    return (
+      transactionId: r.read<int>('txn_id'),
+      entryId: r.read<int>('entry_id'),
+      categoryId: r.read<int>('category'),
+      bankEntryId: r.read<int>('bank_entry'),
+      key: r.read<String?>('key'),
+      cleared: Cleared.values[r.read<int>('cleared')],
+      memo: r.read<String?>('memo'),
+      payee: r.read<String?>('payee'),
+    );
+  }
+
+  /// Moves each joined row's Not categorized side to [accountId], cleared,
+  /// with the bank's key.
+  Future<void> _applyJoins(int accountId, ImportRecord r) async {
+    for (final j in r.joined) {
+      // On redo: a statement since holds it, or it was filed since.
+      if ((await _reconciledAmong([j.transactionId])).isNotEmpty) {
+        throw LockedException(DbProblem.reconciled);
+      }
+      final side = await (select(
+        entries,
+      )..where((e) => e.id.equals(j.entryId))).getSingleOrNull();
+      if (side == null || side.accountId != j.categoryId) {
+        throw NotFoundException(DbProblem.notSingleCategory);
+      }
+      if (j.memoAfter != j.memoBefore) {
+        await (update(transactions)..where((t) => t.id.equals(j.transactionId)))
+            .write(TransactionsCompanion(memo: Value(j.memoAfter)));
+      }
+      await (update(entries)..where((e) => e.id.equals(j.entryId))).write(
+        EntriesCompanion(
+          accountId: Value(accountId),
+          cleared: const Value(Cleared.cleared),
+          importKey: Value(j.key),
+        ),
+      );
+      await _touch(j.transactionId);
+      await _assertBalanced(j.transactionId);
+    }
+  }
 
   Future<void> _keyAdded(int accountId, ImportRecord r) async {
     for (final e in r.added.entries) {
@@ -7553,6 +7955,32 @@ class AppDatabase extends _$AppDatabase {
     for (final p in r.paid.reversed) {
       await _untakePayday(p);
     }
+    // A joined row goes back to the other account's row in Not
+    // categorized; one reconciled since stays.
+    for (final j in r.joined.reversed) {
+      if ((await _reconciledAmong([j.transactionId])).isNotEmpty) {
+        throw LockedException(DbProblem.reconciled);
+      }
+      await (update(entries)..where((e) => e.id.equals(j.entryId))).write(
+        EntriesCompanion(
+          accountId: Value(j.categoryId),
+          cleared: const Value(Cleared.uncleared),
+          importKey: const Value(null),
+        ),
+      );
+      // The memo back, unless it was changed since.
+      if (j.memoAfter != j.memoBefore) {
+        await (update(transactions)..where(
+              (t) =>
+                  t.id.equals(j.transactionId) &
+                  (j.memoAfter == null
+                      ? t.memo.isNull()
+                      : t.memo.equals(j.memoAfter!)),
+            ))
+            .write(TransactionsCompanion(memo: Value(j.memoBefore)));
+      }
+      await _touch(j.transactionId);
+    }
     final ids = r.added.keys.toList();
     await _deleteUnlocked(ids);
     await (update(entries)..where((e) => e.transactionId.isIn(ids))).write(
@@ -7609,6 +8037,7 @@ class AppDatabase extends _$AppDatabase {
         }
         await restoreMany([...r.added.keys, ?r.openingId]);
         await _keyAdded(accountId, r);
+        await _applyJoins(accountId, r);
         await _applyMatches(r);
         if (r.openingMove case final o?) {
           await _setOpening(o.transactionId, o.toDate, o.toAmount);
