@@ -14322,14 +14322,40 @@ void main() {
     testWidgets('a payee takes a name and another spelling; rows already in '
         'show the name only when asked, with undo (#117)', (tester) async {
       final db = await withRule(tester);
+      // One row of it from a bank file, beside the one typed by hand.
+      final checkingId = await accountId(tester, db, 'TDB Checking');
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        await db.postSimple(
+          accountId: checkingId,
+          date: DateTime(2026, 9, 10),
+          today: DateTime(2026, 9, 16),
+          payee: 'UNITEL 0412 UB',
+          counterAccountId: data.categories
+              .firstWhere((c) => c.name == 'Groceries')
+              .id,
+          amount: -30000,
+          how: MadeHow.imported,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pumpAndSettle();
       await tester.tap(find.text('starts with «Unitel»', findRichText: true));
       await tester.pumpAndSettle();
       // No name yet: the row reads the same as the bank sends it.
       final shows = find.byKey(const ValueKey('payee-example'));
       expect(
-        find.descendant(of: shows, matching: find.text('Unitel')),
+        find.descendant(
+          of: shows,
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Text && (w.data ?? '').toLowerCase().startsWith('unitel'),
+          ),
+        ),
         findsOneWidget,
       );
+      // Nothing to offer for a payee with no name.
+      expect(find.byKey(const ValueKey('payee-show-name')), findsNothing);
       await tester.enterText(
         find.byKey(const ValueKey('payee-name')),
         'Unitel Mobile',
@@ -14347,7 +14373,7 @@ void main() {
             (w) =>
                 w is Text &&
                 w.data != 'Unitel Mobile' &&
-                (w.data ?? '').startsWith('Unitel'),
+                (w.data ?? '').toLowerCase().startsWith('unitel'),
           ),
         ),
         findsOneWidget,
@@ -14395,36 +14421,60 @@ void main() {
         find.text('Unitel Mobile   Unitel · Юнител', findRichText: true),
         findsOneWidget,
       );
-      // Save renamed nothing: it offers.
-      expect(
-        await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel'),
-        hasLength(1),
-      );
+      // Save renamed nothing: it offers, for the row from the bank file.
+      // The one typed by hand says what the person wrote, and isn't counted.
+      Future<List<RegisterRow>> bankRows() =>
+          rowsOf(tester, db, (r) => r.txnPayee == 'UNITEL 0412 UB');
+      expect(await bankRows(), hasLength(1));
       expect(
         find.text('Show «Unitel Mobile» on the 1 row already in'),
         findsOneWidget,
       );
       await tapAndWait(tester, find.byKey(const ValueKey('toast-more')));
       expect(find.text('1 row now shows «Unitel Mobile»'), findsOneWidget);
-      final shown = await rowsOf(
+      var shown = await rowsOf(
         tester,
         db,
         (r) => r.txnPayee == 'Unitel Mobile',
       );
       expect(shown, hasLength(1));
-      expect(shown.single.memo, contains('Unitel'));
+      expect(shown.single.memo, 'UNITEL 0412 UB');
       expect(shown.single.categoryLabel, 'Groceries');
-      expect(await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel'), isEmpty);
-      // One undo: the row under the bank's words again, the payee as saved.
-      await closePopup(tester);
-      await chord(tester, LogicalKeyboardKey.keyZ);
-      await tester.pumpAndSettle();
+      expect(await bankRows(), isEmpty);
       expect(
         await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel'),
         hasLength(1),
       );
+      // One undo: the row under the bank's words again, the payee as saved.
+      await closePopup(tester);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      expect(await bankRows(), hasLength(1));
       rule = (await tester.runAsync(db.allPayeeRules))!.single;
       expect(rule.shownAs, 'Unitel Mobile');
+      // The popup is gone; the offer is in the payee's Edit while there is
+      // a row for it, and not once there is none.
+      await tester.tap(
+        find.text('Unitel Mobile   Unitel · Юнител', findRichText: true),
+      );
+      await tester.pumpAndSettle();
+      final offer = find.byKey(const ValueKey('payee-show-name'));
+      expect(
+        find.descendant(
+          of: offer,
+          matching: find.text('Show «Unitel Mobile» on the 1 row already in'),
+        ),
+        findsOneWidget,
+      );
+      await tapAndWait(tester, offer);
+      shown = await rowsOf(tester, db, (r) => r.txnPayee == 'Unitel Mobile');
+      expect(shown.single.memo, 'UNITEL 0412 UB');
+      expect(offer, findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await tester.pumpAndSettle();
+      expect(await bankRows(), hasLength(1));
       // The next undo: the payee as it was, one spelling and no name.
       await chord(tester, LogicalKeyboardKey.keyZ);
       await tester.pumpAndSettle();

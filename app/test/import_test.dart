@@ -1440,6 +1440,95 @@ void main() {
           ])).map((p) => p.fate),
           everyElement(ImportFate.already),
         );
+
+        // Another category remembered from a row that shows the name: that
+        // payee is the one changed, spellings and all, not a second line
+        // for the name alone, so the next row from the bank follows.
+        final dining = await db.createCategory('Dining out');
+        final remembered = await db.rememberPayee(
+          accountId: bank,
+          payee: 'Nomin Supermarket',
+          categoryId: dining,
+        );
+        expect(remembered.was, rule);
+        expect(remembered.left, isNull);
+        final after = (await db.allPayeeRules()).single;
+        expect(after.id, rule.id);
+        expect(after.categoryId, dining);
+        expect(after.spellings, rule.spellings);
+        expect(after.shownAs, 'Nomin Supermarket');
+        final next = await bring([row(20, -400, 'NOMIN HOS 0920 UB')]);
+        expect((await filed(next, bank))['Nomin Supermarket'], dining);
+
+        // The name changed: the row that shows the old one is still this
+        // payee's, by what the bank wrote, and takes the new one; its memo
+        // doesn't collect the old name. "starts with" finds it too, though
+        // the row's payee no longer starts so.
+        final starts = after.copyWith(
+          shownAs: 'Nomin',
+          spellings: const [PayeeSpelling(PayeeMatch.starts, 'NOMIN HOS')],
+        );
+        await db.putPayeeRule(starts);
+        final id = next.added.keys.single;
+        Future<TxnData> shownRow() async =>
+            (await db.loadLedger()).txns.firstWhere((t) => t.id == id);
+        var t = await shownRow();
+        expect(t.payee, 'Nomin Supermarket');
+        expect(t.bankPayee, 'NOMIN HOS 0920 UB');
+        expect(starts.fits(t.bankPayee, t.memo), isTrue);
+        final again = await db.renamePayeeMany(
+          transactionIds: [id],
+          name: 'Nomin',
+        );
+        expect(again.keys, [id]);
+        t = await shownRow();
+        expect(t.payee, 'Nomin');
+        expect(t.memo, 'NOMIN HOS 0920 UB');
+        expect(t.bankPayee, 'NOMIN HOS 0920 UB');
+        // Undo puts back the name it had; not once the row was renamed by
+        // hand since.
+        await db.restorePayees(again);
+        expect((await shownRow()).payee, 'Nomin Supermarket');
+        final once = await db.renamePayeeMany(
+          transactionIds: [id],
+          name: 'Nomin',
+        );
+        await db.renamePayeeMany(transactionIds: [id], name: 'By hand');
+        await db.restorePayees(once);
+        expect((await shownRow()).payee, 'By hand');
+
+        // Remembered from a row written as one of several spellings (not
+        // one looked for anywhere): that payee is changed and keeps every
+        // spelling; no second line for the one.
+        final both = starts.copyWith(
+          spellings: const [
+            PayeeSpelling(PayeeMatch.starts, 'NOMIN HOS'),
+            PayeeSpelling(PayeeMatch.exactly, 'Nomin Plaza'),
+          ],
+        );
+        await db.putPayeeRule(both);
+        final forPlaza = await db.rememberPayee(
+          accountId: bank,
+          payee: 'Nomin Plaza',
+          categoryId: groceries,
+        );
+        expect(forPlaza.was, both);
+        final kept = (await db.allPayeeRules()).single;
+        expect(kept.spellings, both.spellings);
+        expect(kept.categoryId, groceries);
+
+        // A second file with the same purchase under another key is left
+        // out as its repeat, not the taxi beside it: compared by what the
+        // bank wrote, not by the name the row shows (code review).
+        final second = [row(20, -400, 'TAXI'), row(20, -400, 'NOMIN HOS 0920')];
+        final planned = await db.planImport(bank, second, [
+          'other-file|1',
+          'other-file|2',
+        ]);
+        expect(planned.rows.map((p) => p.fate), [
+          ImportFate.add,
+          ImportFate.leftOut,
+        ]);
       },
     );
 

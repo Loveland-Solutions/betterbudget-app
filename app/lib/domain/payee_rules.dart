@@ -261,6 +261,15 @@ class PayeeRuleInfo {
   int get hashCode => Object.hash(id, words, categoryId, deleted);
 }
 
+/// What a row had before it took a payee's name, and the payee it was
+/// given ([nowId]), for undo.
+typedef PayeeBefore = ({
+  int? payeeId,
+  String? memo,
+  String? bankPayee,
+  int? nowId,
+});
+
 /// What remembering a payee from a row changed, for undo: the line it
 /// changed ([was] before, [now] after; [was] null when one was made), and
 /// a line it took this account off ([left]): one shared with other

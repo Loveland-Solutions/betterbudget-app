@@ -535,6 +535,25 @@ void main() {
         (await stored(db)).firstWhere((r) => r['id'] == anywhere.id),
         before.firstWhere((r) => r['id'] == anywhere.id),
       );
+
+      // Another computer still on the older build changes the named
+      // payee's words afterwards: it writes only the columns it knows. Its
+      // change is the first spelling here, not dropped for the copy this
+      // build kept; the name and the other spellings stay.
+      await db.customStatement(
+        "UPDATE payee_rules SET words = 'unitel llc', name = 'Unitel LLC', "
+        'anywhere = 1 WHERE id = ?',
+        [starts.id],
+      );
+      final merged = (await db.allPayeeRules()).firstWhere(
+        (r) => r.id == starts.id,
+      );
+      expect(merged.spellings, const [
+        PayeeSpelling(PayeeMatch.contains, 'Unitel LLC'),
+        PayeeSpelling(PayeeMatch.contains, 'Юнител'),
+        PayeeSpelling(PayeeMatch.exactly, 'UNITEL 0123'),
+      ]);
+      expect(merged.shownAs, 'Unitel Mobile');
     },
   );
 

@@ -3760,7 +3760,21 @@ into a picture of a row is a new habit, and a new payee has no row to draw).
   "Show «Nomin Supermarket» on the 6 rows already in", beside "File the 2 still in
   Not categorized" when both apply (the popup takes a second button for it); its
   own Undo. Asked of the owner with the sketches and not answered; built as
-  recommended, the choice that changes nothing of theirs unless they click.
+  recommended, the choice that changes nothing of theirs unless they click. The
+  same offer is a button in the payee's Edit while there is a row for it, since
+  the popup is gone in seconds. It counts the rows an import would have named:
+  ones brought in from a bank file (a row typed by hand, here or on the phone,
+  says what the person wrote and is left), and this payee's by the test an import
+  makes, so not one a longer payee wins (budget review, 2026-11-18).
+- **A row that shows a name keeps what the bank wrote**, twice: at the front of
+  its memo, for the eye and for search, and apart on the row (`bank_payee`), which
+  is what the payee's spellings and a later bank file are compared with. So the
+  row is still that payee's when the name is changed or taken away, "starts with"
+  and "is exactly" included, and a second file's copy of it is still seen as its
+  repeat (code review, 2026-11-18).
+- **Remember this category, on a row that shows a name**, changes that payee, with
+  every spelling it has, so the next row from the bank follows; a second payee for
+  the name alone would have left the bank's rows where they were (both reviews).
 - **Delete** is quiet, at the left of Cancel and Save's row. **By keys**: Tab goes
   round the name, each spelling (its dropdown, its words, its x), Accounts,
   Category, Cancel, Save, Delete.
@@ -3769,8 +3783,11 @@ into a picture of a row is a new habit, and a new payee has no row to draw).
   ("starts with «Unitel»", "contains «Номин»", "is exactly «Nomin»"). The list is
   in order of what each is called.
 - **Kept in the file** (schema v27) as two columns on a payee, its name and its
-  spellings; every payee already there reads as its one spelling, looked for as
-  it was, with no name, so nothing is filed or shown differently by the upgrade.
+  spellings, and one on a row, what the bank wrote; every payee already there
+  reads as its one spelling, looked for as it was, with no name, and no row
+  already there shows one, so nothing is filed or shown differently by the
+  upgrade. A computer still on the build before can change a payee's words
+  afterwards: its change is taken as the first spelling.
 - Still to come from #117: a payee that is money moved to another account.
 
 ### Two computers: the one row both changed (2026-10-12)

@@ -9205,7 +9205,7 @@
   },
   "payeesShowName": "{count, plural, =1{Show «{name}» on the 1 row already in} other{Show «{name}» on the {count} rows already in}}",
   "@payeesShowName": {
-    "description": "The button in the popup after a payee with a name is saved: its rows already in the ledger take the name too, each keeping the bank's words in its memo. One undo. {name} is the payee's name.",
+    "description": "The button in the popup after a payee with a name is saved, and in that payee's Edit while there are such rows: its rows already in the ledger that came from a bank file take the name too, each keeping the bank's words in its memo. One undo. {name} is the payee's name.",
     "placeholders": {
       "count": {
         "type": "int"

@@ -14,7 +14,16 @@ class _PayeesActions {
     required this.delete,
     required this.unsaved,
     required this.opened,
+    required this.unnamed,
+    required this.showName,
   });
+
+  /// The rows already in that a named payee would give its name to.
+  final List<RegisterRow> Function(PayeeRuleInfo rule) unnamed;
+
+  /// Those rows take the name; one undo.
+  final Future<void> Function(PayeeRuleInfo rule, List<RegisterRow> rows)
+  showName;
 
   /// An Edit opened.
   final VoidCallback opened;
@@ -34,7 +43,7 @@ List<RegisterRow> _fitting(LedgerData data, PayeeRuleInfo probe) => [
   for (final a in data.openAccounts)
     if (probe.accountIds.contains(a.id))
       for (final r in data.registerFor(a.id).posted)
-        if (r.kind == RowKind.simple && probe.fits(r.txnPayee, r.memo)) r,
+        if (r.kind == RowKind.simple && probe.fits(r.payeeWritten, r.memo)) r,
 ];
 
 /// Of [rows], the ones still in Not categorized that [rule] would file
@@ -67,7 +76,7 @@ List<RegisterRow> _waitingOf(
           PayeeRuleInfo.pick(
                 rules,
                 r.accountId,
-                r.txnPayee,
+                r.payeeWritten,
                 r.memo,
                 amount: r.amount,
               )?.id ==
@@ -383,6 +392,8 @@ class _PayeesPageState extends State<_PayeesPage> {
                                       draft: _keep.of(r, data),
                                       onCancel: closeEdit,
                                       menus: _menus,
+                                      unnamed: widget.actions.unnamed,
+                                      onShowName: widget.actions.showName,
                                       onSave: (after) async {
                                         final saved = await widget.actions.save(
                                           r,
@@ -565,7 +576,16 @@ class _PayeeEditor extends StatefulWidget {
     this.rule,
     this.onDelete,
     this.menus,
+    this.unnamed,
+    this.onShowName,
   });
+
+  /// The rows already in that the saved payee would give its name to, and
+  /// the way to do it: offered in the Edit while there are any, since the
+  /// popup's offer after Save is gone in seconds.
+  final List<RegisterRow> Function(PayeeRuleInfo rule)? unnamed;
+  final Future<void> Function(PayeeRuleInfo rule, List<RegisterRow> rows)?
+  onShowName;
 
   /// Told how to close a dropdown open in the Edit, so Esc from anywhere
   /// closes that before the Edit; and when that one is gone ([gone]).
@@ -819,13 +839,10 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     final category = data.accounts[_categoryId];
     final categoryLabel =
         pays.where((p) => p.id == _payId).firstOrNull?.label ?? category?.name;
-    // The row drawn: one still under the bank's own words if there is one
-    // (a row that shows the name already has them in its memo); of those,
-    // one still waiting, else one in the category, else the newest.
-    final shown = payeeWords(name);
-    bool named(RegisterRow r) =>
-        shown.isNotEmpty && payeeWords(r.txnPayee ?? '') == shown;
-    final plain = rows.where((r) => !named(r)).toList();
+    // The row drawn: one still under the bank's own words if there is one;
+    // of those, one still waiting, else one in the category, else the
+    // newest.
+    final plain = rows.where((r) => r.bankPayee == null).toList();
     final from = plain.isEmpty ? rows : plain;
     final example =
         waiting.where(from.contains).lastOrNull ??
@@ -834,18 +851,25 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     final exampleAccount = example == null
         ? null
         : data.accounts[example.accountId];
-    // What the bank wrote: the row's payee, or its memo once the row shows
-    // the name; with no row yet, the first spelling as typed.
+    // What the bank wrote: the row's payee (kept apart on a row that shows
+    // a name); with no row yet, the first spelling as typed.
     final bankPayee = example == null
         ? typed.firstOrNull?.text
-        : named(example)
-        ? (example.memo.trim().isEmpty ? example.txnPayee : example.memo)
-        : example.txnPayee;
-    final bankMemo = example == null || named(example) ? null : example.memo;
+        : example.payeeWritten;
+    final bankMemo = example == null || example.bankPayee != null
+        ? null
+        : example.memo;
     final ledgerPayee = name.isEmpty ? bankPayee : name;
     final ledgerMemo = name.isEmpty
         ? bankMemo
+        : example?.bankPayee != null
+        ? example!.memo
         : memoKeeping(bankPayee, bankMemo);
+    // Of the payee as saved, while nothing typed here says otherwise.
+    final saved = widget.rule;
+    final toName = saved == null || _d.changed || widget.unnamed == null
+        ? const <RegisterRow>[]
+        : widget.unnamed!(saved);
     final missing = <String>[
       if (_tried && typed.isEmpty) t.payeesNeedsWords,
       if (_tried && _accounts.isEmpty) t.payeesNeedsAccount,
@@ -1407,6 +1431,27 @@ class _PayeeEditorState extends State<_PayeeEditor> {
                                             : Mid.ink2,
                                       ),
                                     ),
+                                  if (toName.isNotEmpty && saved != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 10),
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: FocusTraversalOrder(
+                                          order: const NumericFocusOrder(5.5),
+                                          child: BarButton(
+                                            key: const ValueKey(
+                                              'payee-show-name',
+                                            ),
+                                            label: t.payeesShowName(
+                                              toName.length,
+                                              saved.shownAs.trim(),
+                                            ),
+                                            onTap: () => widget.onShowName
+                                                ?.call(saved, toName),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -1547,7 +1592,9 @@ class _PayeeDraft {
         empty(spellings.last) &&
         empty(spellings[spellings.length - 2]) &&
         !spellings.last.focus.hasFocus) {
-      spellings.removeLast().dispose();
+      // After the frame: its field is still on screen in this one.
+      final gone = spellings.removeLast();
+      WidgetsBinding.instance.addPostFrameCallback((_) => gone.dispose());
     }
     if (spellings.isEmpty || !empty(spellings.last)) {
       spellings.add(_SpellingDraft());
@@ -1564,9 +1611,10 @@ class _PayeeDraft {
   }
 
   String get _now =>
-      '${name.text}|'
+      // A space typed after the name or a spelling isn't a change.
+      '${name.text.trim()}|'
       '${[for (final s in spellings)
-        if (s.text.text.trim().isNotEmpty) '${s.how.name}:${s.text.text}'].join('\n')}|'
+        if (s.text.text.trim().isNotEmpty) '${s.how.name}:${s.text.text.trim()}'].join('\n')}|'
       '${(accounts.toList()..sort()).join(',')}|'
       '$categoryId|$payId';
 

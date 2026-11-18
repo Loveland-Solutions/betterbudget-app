@@ -4657,7 +4657,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             PayeeRuleInfo.pick(
                   [...data.payeeRules, probe],
                   r.accountId,
-                  x.txnPayee,
+                  x.payeeWritten,
                   x.memo,
                   amount: x.amount,
                 )?.id ==
@@ -4987,14 +4987,34 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  /// The rows already in the ledger that [rule] fits and that don't show
-  /// its name; none when it has no name.
+  /// The rows already in the ledger that would show [rule]'s name had
+  /// they come in after it was given, and don't: brought in from a bank
+  /// file (a row typed by hand, here or on a phone, says what the person
+  /// wrote), and this payee's by the same test an import makes, so not one
+  /// a longer line wins or money out of a pay's payee (budget review,
+  /// 2026-11-18). None when it has no name.
   List<RegisterRow> _unnamedFor(LedgerData data, PayeeRuleInfo rule) {
     final shown = payeeWords(rule.shownAs);
     if (shown.isEmpty) return const [];
+    final rules = [
+      for (final r in data.payeeRules)
+        if (r.id != rule.id) r,
+      rule,
+    ];
     return [
       for (final r in _fitting(data, rule))
-        if (payeeWords(r.txnPayee ?? '') != shown) r,
+        if (payeeWords(r.txnPayee ?? '') != shown &&
+            r.madeHow != MadeHow.typed &&
+            r.madeHow != MadeHow.phone &&
+            PayeeRuleInfo.pick(
+                  rules,
+                  r.accountId,
+                  r.payeeWritten,
+                  r.memo,
+                  amount: r.amount,
+                )?.id ==
+                rule.id)
+          r,
     ];
   }
 
@@ -5005,7 +5025,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final t = context.t;
     final name = rule.shownAs.trim();
     final ids = {for (final r in rows) r.txnId};
-    var previous = <int, ({int? payeeId, String? memo})>{};
+    var previous = <int, PayeeBefore>{};
     Future<void> write() async {
       previous = await db.renamePayeeMany(transactionIds: ids, name: name);
     }
@@ -7711,6 +7731,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   actions: _PayeesActions(
                                     save: _savePayeeRule,
                                     delete: _deletePayeeRule,
+                                    unnamed: (rule) => _unnamedFor(data, rule),
+                                    showName: _showNameOn,
                                     unsaved: () => _showFailure(
                                       context.t.ledgerSaveOrDiscard,
                                     ),
