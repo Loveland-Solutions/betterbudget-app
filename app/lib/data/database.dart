@@ -6887,8 +6887,13 @@ class AppDatabase extends _$AppDatabase {
           ..sort(latestFirst);
     final was = twins.firstOrNull;
     final many = was != null && was.spellings.length > 1;
+    // Every payee has a name (owner, 2026-11-18): one remembered from a
+    // row is called what the row calls it, the person's own words, unless
+    // it has one already.
+    final name = payee.trim();
     if (was != null && was.accountIds.length == 1) {
       final now = was.copyWith(
+        shownAs: was.shownAs.trim().isEmpty ? name : null,
         categoryId: categoryId,
         payId: () => payId,
         spellings: many
@@ -6910,13 +6915,14 @@ class AppDatabase extends _$AppDatabase {
     final now = many
         ? await addPayeeRule(
             spellings: was.spellings,
-            shownAs: was.shownAs,
+            shownAs: was.shownAs.trim().isEmpty ? name : was.shownAs,
             categoryId: categoryId,
             payId: payId,
             accountIds: {accountId},
           )
         : await addPayeeRule(
             name: payee,
+            shownAs: name,
             anywhere: false,
             categoryId: categoryId,
             payId: payId,

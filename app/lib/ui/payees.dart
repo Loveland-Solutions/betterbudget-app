@@ -493,11 +493,16 @@ class _PayeeLine extends StatelessWidget {
                               text: rule.shownAs.trim(),
                               style: onest(14, weight: 600, color: Mid.ink),
                             ),
-                            TextSpan(
-                              text:
-                                  '   ${rule.spellings.map((s) => s.text).join(' · ')}',
-                              style: onest(13, color: Mid.ink3),
-                            ),
+                            // A spelling that is the name again says
+                            // nothing more ("Unitel   Unitel").
+                            if (rule.spellings.any(
+                              (s) => s.words != payeeWords(rule.shownAs),
+                            ))
+                              TextSpan(
+                                text:
+                                    '   ${rule.spellings.map((s) => s.text).join(' · ')}',
+                                style: onest(13, color: Mid.ink3),
+                              ),
                           ],
                         ),
                         maxLines: 1,
@@ -781,7 +786,12 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     if (widget.rule != null && !_d.changed) return widget.onCancel();
     final category = _categoryId;
     final spellings = _typed;
-    if (spellings.isEmpty || category == null || _accounts.isEmpty) {
+    // A payee has a name (owner, 2026-11-18: "I want the name field on the
+    // payees to be mandatory").
+    if (_name.text.trim().isEmpty ||
+        spellings.isEmpty ||
+        category == null ||
+        _accounts.isEmpty) {
       setState(() => _tried = true);
       return;
     }
@@ -911,6 +921,7 @@ class _PayeeEditorState extends State<_PayeeEditor> {
         ? const <RegisterRow>[]
         : widget.unnamed!(saved);
     final missing = <String>[
+      if (_tried && _name.text.trim().isEmpty) t.payeesNeedsName,
       if (_tried && typed.isEmpty) t.payeesNeedsWords,
       if (_tried && _accounts.isEmpty) t.payeesNeedsAccount,
       if (_tried && _categoryId == null) t.payeesNeedsCategory,
@@ -1248,6 +1259,7 @@ class _PayeeEditorState extends State<_PayeeEditor> {
                               onSubmitted: (_) => _save(),
                               decoration: _fieldDecoration(
                                 hint: t.payeesNameHint,
+                                wrong: _tried && _name.text.trim().isEmpty,
                               ).copyWith(hintStyle: onest(19, color: Mid.ink3)),
                             ),
                           ),
