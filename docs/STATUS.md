@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-18** · version 0.103.0 · schema v26 · 1144 tests pass
+**Last updated: 2026-11-18** · version 0.103.1 · schema v26 · 1146 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -33,8 +33,16 @@ a note is a mark after the name (#483). A category can start with an emoji: a sp
 each row's name (a + while pointed at) opens every emoji with a search in English and
 Mongolian, the budget's 48 first; Edit, New category and the phone's New category have a
 square before the name; the emoji is the first thing in the name, and sorting and finding
-go by the words (#486). The budget counts income against what goes out, never the bank (#461): a card's payment counts only for what it owed when the budget began, money exchanged leaves one currency and comes into the other, Settings' Budget card has **Had before the budget**, and the Income tab reads "₮… received · ₮… still to come", the same figure as the sum at the top. What's left of #461 is #499. The owner is combing the Savings page (#487): under the sum, a band shows the Savings step they're on, its progress, and Savings' own Assign for what is really spare (not spoken for by a plan, last month's amount or a debt's payment, and not pay still to come); a full safety net stays done until it is a tenth short. On step 2 the band offers the month's extra to the category that pays the debt extra goes to first; the row's own ask is unchanged. The phone's Budget opens with the same band, step and progress only, counting what the phone has put in the Safety net since the computer's copy. #487's band is done; its review findings wait for the owner to use it. Next: a first-time
-setup walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
+go by the words (#486). The budget counts income against what goes out, never the bank (#461): a card's payment counts only for what it owed when the budget began, money exchanged leaves one currency and comes into the other, Settings' Budget card has **Had before the budget**, and the Income tab reads "₮… received · ₮… still to come", the same figure as the sum at the top. What's left of #461 is #499. The owner is combing the Savings page (#487): under the sum, a band shows the Savings step they're on, its progress, and Savings' own Assign for what is really spare (not spoken for by a plan, last month's amount or a debt's payment, and not pay still to come); a full safety net stays done until it is a tenth short. On step 2 the band offers the month's extra to the category that pays the debt extra goes to first; the row's own ask is unchanged. The phone's Budget opens with the same band, step and progress only, counting what the phone has put in the Safety net since the computer's copy. The owner closed #487.
+
+The owner is combing the Payees page (#488). Tab goes round a payee's Edit and stays in
+it, Delete last, and the box under a row that remembers its category is a Tab stop
+(0.103.1). Of #117's ideas the owner said "do it" to four, built smallest first: the
+offer to remember at the foot of a row's Category list, several spellings on one
+payee line (a schema bump), a "Shown as" name for imported rows with the bank's text
+in the memo (a schema bump), and a payee that is money moved to another account. Money
+in or out only, or an amount floor, is dropped. After those: a first-time setup
+walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 
 ## In the stores
