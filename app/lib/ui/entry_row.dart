@@ -2329,9 +2329,15 @@ class _EntryRowState extends State<EntryRow> {
                                   setState(() => _keepOwedChoice = v),
                             ),
                           if (_canRemember)
-                            _RememberLine(
-                              on: _remember,
-                              onChanged: (v) => setState(() => _remember = v),
+                            FocusTraversalOrder(
+                              // After the amount and account, before
+                              // Cancel and Add.
+                              order: const NumericFocusOrder(5),
+                              child: _RememberLine(
+                                on: _remember,
+                                onChanged: (v) => setState(() => _remember = v),
+                                onSubmit: _submit,
+                              ),
                             ),
                           if (transferLine != null)
                             _TransferLine(
@@ -2379,11 +2385,17 @@ class _EntryRowState extends State<EntryRow> {
 
 /// The box under the row (owner, 2026-10-12): tick it and the category is
 /// remembered for the payee when the row is saved, as the popup's offer
-/// does. Out of Tab order, so Enter still saves.
+/// does. A Tab stop after the amount: Space ticks it, and Enter still
+/// saves the row, as from any field (#284).
 class _RememberLine extends StatelessWidget {
-  const _RememberLine({required this.on, required this.onChanged});
+  const _RememberLine({
+    required this.on,
+    required this.onChanged,
+    required this.onSubmit,
+  });
   final bool on;
   final ValueChanged<bool> onChanged;
+  final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -2392,29 +2404,35 @@ class _RememberLine extends StatelessWidget {
     margin: const EdgeInsets.only(top: 6),
     padding: const EdgeInsets.only(left: 4),
     alignment: Alignment.centerLeft,
-    child: InkWell(
-      key: const ValueKey('remember-line'),
-      canRequestFocus: false,
-      onTap: () => onChanged(!on),
-      borderRadius: BorderRadius.circular(6),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              on
-                  ? Icons.check_box_rounded
-                  : Icons.check_box_outline_blank_rounded,
-              size: 16,
-              color: on ? Mid.blue : Mid.ink3,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              context.t.rowsRemember,
-              style: onest(12.5, color: on ? Mid.ink : Mid.ink2),
-            ),
-          ],
+    child: CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.enter): onSubmit,
+        const SingleActivator(LogicalKeyboardKey.numpadEnter): onSubmit,
+      },
+      child: InkWell(
+        key: const ValueKey('remember-line'),
+        onTap: () => onChanged(!on),
+        focusColor: Mid.blueWash,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                on
+                    ? Icons.check_box_rounded
+                    : Icons.check_box_outline_blank_rounded,
+                size: 16,
+                color: on ? Mid.blue : Mid.ink3,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                context.t.rowsRemember,
+                style: onest(12.5, color: on ? Mid.ink : Mid.ink2),
+              ),
+            ],
+          ),
         ),
       ),
     ),
