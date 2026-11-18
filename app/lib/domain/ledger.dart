@@ -238,12 +238,17 @@ class TxnData {
     this.planCategoryId,
     this.madeHow,
     this.madeOn,
+    this.bankPayee,
   });
 
   /// How it came to be ([MadeHow]) and where: a computer's name, or a
   /// phone's id. Null for a row from before this was kept.
   final String? madeHow;
   final String? madeOn;
+
+  /// What the bank wrote as its payee, on a row that shows a payee's name
+  /// instead (v27); null on every other row.
+  final String? bankPayee;
 
   /// A payday a pay schedule scheduled.
   final int? payScheduleId;
@@ -314,11 +319,21 @@ class RegisterRow {
     this.projected = false,
     this.madeHow,
     this.madeOn,
+    this.bankPayee,
   });
 
   /// Where the transaction came from, as [TxnData] holds it.
   final String? madeHow;
   final String? madeOn;
+
+  /// What the bank wrote as its payee, when the row shows a payee's name
+  /// instead; null otherwise.
+  final String? bankPayee;
+
+  /// What a remembered payee's spellings are looked for in: the bank's own
+  /// words when the row shows a name in their place, so the row stays that
+  /// payee's whatever the name is changed to.
+  String? get payeeWritten => bankPayee ?? txnPayee;
 
   /// Not a row in the ledger: a payday or a plan's bill the forecast
   /// expects after the scheduled one, drawn from it ([copyWith]).
@@ -452,6 +467,7 @@ class RegisterRow {
     otherCurrency: otherCurrency,
     madeHow: madeHow,
     madeOn: madeOn,
+    bankPayee: bankPayee,
   );
 
   /// The same row on another day, or for another amount: a payday or a
@@ -491,6 +507,7 @@ class RegisterRow {
         projected: projected ?? this.projected,
         madeHow: madeHow,
         madeOn: madeOn,
+        bankPayee: bankPayee,
       );
 
   RegisterRow withBalance(int b, {int clearedTotal = 0}) => RegisterRow(
@@ -525,6 +542,7 @@ class RegisterRow {
     otherCurrency: otherCurrency,
     madeHow: madeHow,
     madeOn: madeOn,
+    bankPayee: bankPayee,
   );
 }
 
@@ -1884,6 +1902,7 @@ class LedgerData {
           : t.planCategoryId,
       madeHow: t.madeHow,
       madeOn: t.madeOn,
+      bankPayee: t.bankPayee,
       estimate: switch (_schedulesById[t.payScheduleId]) {
         final p? when p.varies => p.amountOn(t.date),
         _ => null,

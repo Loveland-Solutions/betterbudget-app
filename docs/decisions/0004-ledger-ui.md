@@ -3636,7 +3636,9 @@ great." Then: "We should allow them to apply a payee rule to multiple accounts."
   language puts them in; then its accounts (one by name, "All accounts" with more
   than one, a few by name; the column only with more than one account), its
   category as a row's chip, and **Delete**. A click on the line, or **Add a payee**
-  (green, top right; ⌘N on this page), opens its Edit in place: the words as the
+  (green, top right; ⌘N on this page), opens its Edit in place (redrawn on
+  2026-11-18: "A payee's Edit: the payee's card", below; what follows is how it
+  was): the words as the
   heading field; **Where**, two buttons, "At the start of the payee" and "Anywhere
   in the payee or the bank's description"; **Accounts**, a dropdown of checkboxes
   as Paid from is, nothing ticked on a new payee (owner: no autofill; with one
@@ -3714,6 +3716,79 @@ on the transaction for associating the payee with the category."
   ticked files the row and remembers the payee (and files that payee's rows still
   waiting) in one undo; the popup says "Groceries remembered for next time", not
   "Filed under Groceries" as well. A pay picked so is remembered as that pay's.
+
+### A payee's Edit: the payee's card (owner, 2026-11-18)
+
+Of the Edit that layout B gave (the words as the heading, Where, Category, a
+count, one row): "I don't like the way this screen looks. It looks disorganized. I
+don't think the average user would find this intuitive. We also need to have the
+display name feature where [the bank's words for a shop] can be displayed as [its
+name]." The design committee found one cause under the rest: the loudest thing on
+the panel was the bank's raw text, so the payee had no name, and the first-time
+reader took that box for the name. Three sketches, live
+(<https://claude.ai/artifact/BqkEgEuvBQAZMzLje9nnf4>): A, the payee's card, its
+name first; B, three questions top to bottom; C, the row itself as the form. The
+owner: "Let's go with A". Rejected: B (taller, the right half empty) and C (typing
+into a picture of a row is a new habit, and a new payee has no row to draw).
+
+- **The first sketches drew every spelling as "contains"** and asked about it
+  under them; the owner: "None of those address the 'Starts with', 'contains' or
+  'exact match' question. Are these all 'contains' rules?" The choice stays, on
+  each spelling, in those words: **contains** (anywhere in the payee or the memo),
+  **starts with** (the payee begins with it), **is exactly** (the payee is it and
+  nothing more; new). A new spelling starts as contains: where a bank row has the
+  shop's name is the bank's choice. A payee saved before keeps how it was looked
+  for.
+- **Name**, the heading field, empty until typed ("Give it a name"; no autofill):
+  what the ledger shows for the payee. A row brought in from a bank file that
+  fits takes the name as its payee and keeps the bank's words at the front of its
+  memo. A row whose payee is the name fits the payee too. With no name, rows keep
+  the bank's words, as before.
+- **How the bank writes it**, on the left: a line per spelling, each with its
+  dropdown, its words, how many rows of the chosen accounts it finds as it is
+  typed ("4 rows", "no row yet"), and an x. An empty line is always there after
+  the last, for the next. A spelling another payee on one of the accounts already
+  goes by is marked, "already in the list, with Dining out", and Save says so and
+  keeps the Edit open, as before. Then **Accounts** (with more than one) and
+  **Category**: accounts first, since the categories offered follow from them.
+- **The next one from the bank**, on the right: one real row "As the bank sends
+  it", an arrow, and the same row "As your ledger shows it", with the name, the
+  bank's words under it and the category; under them the count, "6 rows so far
+  are written this way · 2 still in Not categorized · …". "Next", because Save
+  changes no row already in.
+- **Rows already in show the name only when asked.** After Save the popup offers
+  "Show «Nomin Supermarket» on the 6 rows already in", beside "File the 2 still in
+  Not categorized" when both apply (the popup takes a second button for it); its
+  own Undo. Asked of the owner with the sketches and not answered; built as
+  recommended, the choice that changes nothing of theirs unless they click. The
+  same offer is a button in the payee's Edit while there is a row for it, since
+  the popup is gone in seconds. It counts the rows an import would have named:
+  ones brought in from a bank file (a row typed by hand, here or on the phone,
+  says what the person wrote and is left), and this payee's by the test an import
+  makes, so not one a longer payee wins (budget review, 2026-11-18).
+- **A row that shows a name keeps what the bank wrote**, twice: at the front of
+  its memo, for the eye and for search, and apart on the row (`bank_payee`), which
+  is what the payee's spellings and a later bank file are compared with. So the
+  row is still that payee's when the name is changed or taken away, "starts with"
+  and "is exactly" included, and a second file's copy of it is still seen as its
+  repeat (code review, 2026-11-18).
+- **Remember this category, on a row that shows a name**, changes that payee, with
+  every spelling it has, so the next row from the bank follows; a second payee for
+  the name alone would have left the bank's rows where they were (both reviews).
+- **Delete** is quiet, at the left of Cancel and Save's row. **By keys**: Tab goes
+  round the name, each spelling (its dropdown, its words, its x), Accounts,
+  Category, Cancel, Save, Delete.
+- **The closed line** is the name in ink with the spellings quiet after it
+  ("Unitel Mobile   Unitel · Юнител"); with no name, each spelling as a sentence
+  ("starts with «Unitel»", "contains «Номин»", "is exactly «Nomin»"). The list is
+  in order of what each is called.
+- **Kept in the file** (schema v27) as two columns on a payee, its name and its
+  spellings, and one on a row, what the bank wrote; every payee already there
+  reads as its one spelling, looked for as it was, with no name, and no row
+  already there shows one, so nothing is filed or shown differently by the
+  upgrade. A computer still on the build before can change a payee's words
+  afterwards: its change is taken as the first spelling.
+- Still to come from #117: a payee that is money moved to another account.
 
 ### Two computers: the one row both changed (2026-10-12)
 

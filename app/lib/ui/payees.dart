@@ -14,7 +14,16 @@ class _PayeesActions {
     required this.delete,
     required this.unsaved,
     required this.opened,
+    required this.unnamed,
+    required this.showName,
   });
+
+  /// The rows already in that a named payee would give its name to.
+  final List<RegisterRow> Function(PayeeRuleInfo rule) unnamed;
+
+  /// Those rows take the name; one undo.
+  final Future<void> Function(PayeeRuleInfo rule, List<RegisterRow> rows)
+  showName;
 
   /// An Edit opened.
   final VoidCallback opened;
@@ -28,29 +37,14 @@ class _PayeesActions {
   final Future<void> Function(PayeeRuleInfo rule) delete;
 }
 
-/// The posted rows of [accounts] a payee with these [words] fits.
-List<RegisterRow> _fitting(
-  LedgerData data,
-  String words,
-  bool anywhere,
-  Set<int> accounts,
-) {
-  if (words.isEmpty) return const [];
-  final probe = PayeeRuleInfo(
-    id: 0,
-    words: words,
-    name: words,
-    anywhere: anywhere,
-    categoryId: 0,
-    accountIds: accounts,
-  );
-  return [
-    for (final a in data.openAccounts)
-      if (accounts.contains(a.id))
-        for (final r in data.registerFor(a.id).posted)
-          if (r.kind == RowKind.simple && probe.fits(r.txnPayee, r.memo)) r,
-  ];
-}
+/// The posted rows of its accounts that [probe] fits: by any of its
+/// spellings, or by its name.
+List<RegisterRow> _fitting(LedgerData data, PayeeRuleInfo probe) => [
+  for (final a in data.openAccounts)
+    if (probe.accountIds.contains(a.id))
+      for (final r in data.registerFor(a.id).posted)
+        if (r.kind == RowKind.simple && probe.fits(r.payeeWritten, r.memo)) r,
+];
 
 /// Of [rows], the ones still in Not categorized that [rule] would file
 /// now: in this period, the ones the Not categorized tab shows (owner,
@@ -82,7 +76,7 @@ List<RegisterRow> _waitingOf(
           PayeeRuleInfo.pick(
                 rules,
                 r.accountId,
-                r.txnPayee,
+                r.payeeWritten,
                 r.memo,
                 amount: r.amount,
               )?.id ==
@@ -95,12 +89,7 @@ List<RegisterRow> _waitingFor(
   LedgerData data,
   PayeeRuleInfo rule,
   DateTime today,
-) => _waitingOf(
-  data,
-  _fitting(data, rule.words, rule.anywhere, rule.accountIds),
-  rule,
-  today,
-);
+) => _waitingOf(data, _fitting(data, rule), rule, today);
 
 /// The category a payee goes to, as a row's chip names it: a pay by its
 /// name, a category by its own; a deleted one said so.
@@ -140,20 +129,24 @@ class _Quoted extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final a = text.indexOf('«'), b = text.lastIndexOf('»');
     final quiet = onest(size - 1, color: Mid.ink3);
-    if (a < 0 || b < a) return Text(text, style: quiet);
+    final ink = onest(size, weight: 500, color: Mid.ink);
+    // Each «…» in ink, with several spellings too.
+    final spans = <TextSpan>[];
+    var at = 0;
+    for (final m in RegExp('«[^»]*»').allMatches(text)) {
+      if (m.start > at) {
+        spans.add(TextSpan(text: text.substring(at, m.start), style: quiet));
+      }
+      spans.add(TextSpan(text: m.group(0), style: ink));
+      at = m.end;
+    }
+    if (spans.isEmpty) return Text(text, style: quiet);
+    if (at < text.length) {
+      spans.add(TextSpan(text: text.substring(at), style: quiet));
+    }
     return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(text: text.substring(0, a), style: quiet),
-          TextSpan(
-            text: text.substring(a, b + 1),
-            style: onest(size, weight: 500, color: Mid.ink),
-          ),
-          TextSpan(text: text.substring(b + 1), style: quiet),
-        ],
-      ),
+      TextSpan(children: spans),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
@@ -276,12 +269,13 @@ class _PayeesPageState extends State<_PayeesPage> {
   Widget build(BuildContext context) {
     final t = context.t;
     final data = widget.data;
-    // The same order on every reload: two lines with the same words on
-    // different accounts don't swap.
+    // By what each is called. The same order on every reload: two lines
+    // called the same on different accounts don't swap.
+    String called(PayeeRuleInfo r) => payeeWords(r.title);
     final rules = [...data.payeeRules]
       ..sort(
-        (x, y) => x.words != y.words
-            ? x.words.compareTo(y.words)
+        (x, y) => called(x) != called(y)
+            ? called(x).compareTo(called(y))
             : x.id.compareTo(y.id),
       );
     // With one account there is nothing for the column to tell apart.
@@ -398,6 +392,8 @@ class _PayeesPageState extends State<_PayeesPage> {
                                       draft: _keep.of(r, data),
                                       onCancel: closeEdit,
                                       menus: _menus,
+                                      unnamed: widget.actions.unnamed,
+                                      onShowName: widget.actions.showName,
                                       onSave: (after) async {
                                         final saved = await widget.actions.save(
                                           r,
@@ -479,11 +475,38 @@ class _PayeeLine extends StatelessWidget {
               flex: 6,
               child: Padding(
                 padding: const EdgeInsets.only(left: 8, right: 16),
-                child: _Quoted(
-                  rule.anywhere
-                      ? t.payeesHasAnywhere(rule.name)
-                      : t.payeesStartsWith(rule.name),
-                ),
+                // Its name in ink, how the bank writes it quiet after it;
+                // with no name, each spelling as a sentence.
+                child: rule.shownAs.trim().isNotEmpty
+                    ? Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: rule.shownAs.trim(),
+                              style: onest(14, weight: 600, color: Mid.ink),
+                            ),
+                            TextSpan(
+                              text:
+                                  '   ${rule.spellings.map((s) => s.text).join(' · ')}',
+                              style: onest(13, color: Mid.ink3),
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : _Quoted(
+                        [
+                          for (final s in rule.spellings)
+                            switch (s.how) {
+                              PayeeMatch.contains => t.payeesHasAnywhere(
+                                s.text,
+                              ),
+                              PayeeMatch.starts => t.payeesStartsWith(s.text),
+                              PayeeMatch.exactly => t.payeesIsExactly(s.text),
+                            },
+                        ].join(' · '),
+                      ),
               ),
             ),
             if (showAccounts)
@@ -534,10 +557,13 @@ class _PayeeLine extends StatelessWidget {
   }
 }
 
-/// A payee's Edit, in the list where its line was: the words as the
-/// heading, Where, Accounts (with more than one), Category, how many rows
-/// it fits in real numbers, and one of them drawn as it will read. Enter
-/// saves, Esc and Cancel close it.
+/// A payee's Edit, in the list where its line was (the owner's pick,
+/// 2026-11-18, sketch A, "the payee's card"): the name the ledger shows as
+/// the heading; on the left how the bank writes it, a line per spelling
+/// with how it is looked for and how many rows it finds, then Accounts
+/// (with more than one) and Category; on the right one row as the bank
+/// sends it and the same row as the ledger will show it. Enter saves, Esc
+/// and Cancel close it.
 class _PayeeEditor extends StatefulWidget {
   const _PayeeEditor({
     super.key,
@@ -550,7 +576,16 @@ class _PayeeEditor extends StatefulWidget {
     this.rule,
     this.onDelete,
     this.menus,
+    this.unnamed,
+    this.onShowName,
   });
+
+  /// The rows already in that the saved payee would give its name to, and
+  /// the way to do it: offered in the Edit while there are any, since the
+  /// popup's offer after Save is gone in seconds.
+  final List<RegisterRow> Function(PayeeRuleInfo rule)? unnamed;
+  final Future<void> Function(PayeeRuleInfo rule, List<RegisterRow> rows)?
+  onShowName;
 
   /// Told how to close a dropdown open in the Edit, so Esc from anywhere
   /// closes that before the Edit; and when that one is gone ([gone]).
@@ -566,7 +601,7 @@ class _PayeeEditor extends StatefulWidget {
   final PayeeRuleInfo? rule;
   final VoidCallback onCancel;
 
-  /// False when the words are another line's: the field is marked.
+  /// False when a spelling is another line's: its field is marked.
   final Future<bool> Function(PayeeRuleInfo after) onSave;
   final VoidCallback? onDelete;
 
@@ -577,32 +612,41 @@ class _PayeeEditor extends StatefulWidget {
 class _PayeeEditorState extends State<_PayeeEditor> {
   _PayeeDraft get _d => widget.draft;
   TextEditingController get _name => _d.name;
-  bool get _anywhere => _d.anywhere;
-  set _anywhere(bool v) => _d.anywhere = v;
+  List<_SpellingDraft> get _spellings => _d.spellings;
   Set<int> get _accounts => _d.accounts;
   int? get _categoryId => _d.categoryId;
   set _categoryId(int? v) => _d.categoryId = v;
   int? get _payId => _d.payId;
   set _payId(int? v) => _d.payId = v;
 
-  /// Save found the words to be another line's.
+  /// Save found a spelling to be another line's.
   bool get _clash => _d.clash;
   set _clash(bool v) => _d.clash = v;
 
   /// Save was tried: what's missing is said.
   bool get _tried => _d.tried;
   set _tried(bool v) => _d.tried = v;
-  final _nameFocus = FocusNode(debugLabel: 'payee-words');
+  final _nameFocus = FocusNode(debugLabel: 'payee-name');
   final _categoryFocus = FocusNode(debugLabel: 'payee-category');
   final _panelFocus = FocusNode(debugLabel: 'payee-edit', skipTraversal: true);
   final _accountsMenu = MenuController();
   final _categoryMenu = MenuController();
   bool _saving = false;
 
+  /// The spellings with something typed in them.
+  List<PayeeSpelling> get _typed => [
+    for (final s in _spellings)
+      if (s.spelling.words.isNotEmpty) s.spelling,
+  ];
+
+  Set<Currency> get _currencies => {
+    for (final a in widget.data.balanceSheetAccounts)
+      if (_accounts.contains(a.id)) a.currency,
+  };
+
   @override
   void initState() {
     super.initState();
-    _name.addListener(_typed);
     // Opened low in the list: its Cancel and Save come into view.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -633,7 +677,7 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_nameFocus.hasFocus) _categoryFocus.requestFocus();
+        if (mounted && !_inField) _categoryFocus.requestFocus();
       });
       // That second frame comes now, not with the next key: a Tab pressed
       // straight after the pick would otherwise be undone by it.
@@ -641,10 +685,18 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     });
   }
 
+  /// The cursor is in the name or a spelling.
+  bool get _inField =>
+      _nameFocus.hasFocus || _spellings.any((s) => s.focus.hasFocus);
+
   /// Closes a dropdown that's open in the panel: Esc is its own before it
   /// is the panel's.
   bool _closeMenu() {
-    for (final m in [_accountsMenu, _categoryMenu]) {
+    for (final m in [
+      _accountsMenu,
+      _categoryMenu,
+      for (final s in _spellings) s.menu,
+    ]) {
       if (m.isOpen) {
         m.close();
         return true;
@@ -653,25 +705,27 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     return false;
   }
 
-  void _typed() => setState(() => _clash = false);
+  bool get _menuOpen =>
+      _accountsMenu.isOpen ||
+      _categoryMenu.isOpen ||
+      _spellings.any((s) => s.menu.isOpen);
+
+  /// Something typed in the name or a spelling: a line for the next
+  /// spelling is always there, empty, after the last.
+  void _onTyped() => setState(() {
+    _clash = false;
+    _d.tidy();
+  });
 
   @override
   void dispose() {
     // Only its own: a new Edit may have told the page its own already.
     widget.menus?.call(null, _closeMenu);
-    _name.removeListener(_typed);
     _nameFocus.dispose();
     _categoryFocus.dispose();
     _panelFocus.dispose();
     super.dispose();
   }
-
-  String get _words => payeeWords(_name.text);
-
-  Set<Currency> get _currencies => {
-    for (final a in widget.data.balanceSheetAccounts)
-      if (_accounts.contains(a.id)) a.currency,
-  };
 
   /// The categories a payee on these accounts can go to: those every
   /// account's currency takes, so a dollar row never lands in a tugrik
@@ -703,24 +757,23 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     // Nothing changed: nothing to remember again, no popup, no empty undo.
     if (widget.rule != null && !_d.changed) return widget.onCancel();
     final category = _categoryId;
-    if (_words.isEmpty || category == null || _accounts.isEmpty) {
+    final spellings = _typed;
+    if (spellings.isEmpty || category == null || _accounts.isEmpty) {
       setState(() => _tried = true);
       return;
     }
     final after =
         widget.rule?.copyWith(
-          words: _words,
-          name: _name.text.trim(),
-          anywhere: _anywhere,
+          spellings: spellings,
+          shownAs: _name.text.trim(),
           categoryId: category,
           payId: () => _payId,
           accountIds: _accounts,
         ) ??
         PayeeRuleInfo(
           id: 0,
-          words: _words,
-          name: _name.text.trim(),
-          anywhere: _anywhere,
+          spellings: spellings,
+          shownAs: _name.text.trim(),
           categoryId: category,
           payId: _payId,
           accountIds: _accounts,
@@ -734,24 +787,45 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     }
   }
 
+  /// The payee another line already goes by [s] on one of these accounts,
+  /// as its category names it; null when it is free. A twin of this line
+  /// (the same payee remembered on two computers) isn't another's.
+  String? _takenBy(Words t, PayeeSpelling s) {
+    final mine = widget.rule;
+    final probe = PayeeRuleInfo(
+      id: mine?.id ?? -1,
+      spellings: [s],
+      categoryId: 0,
+      accountIds: _accounts,
+    );
+    for (final x in widget.data.payeeRules) {
+      if (x.id == mine?.id || x.deleted) continue;
+      if (mine != null && x.sameSpellings(mine)) continue;
+      if (probe.sharedWith(x) != null) {
+        return _ruleLabel(t, widget.data, x, widget.pays);
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final data = widget.data;
     final open = data.openAccounts;
-    final words = _words;
-    final rows = _fitting(data, words, _anywhere, _accounts);
-    final holding = data.categories.where(isUncategorized).firstOrNull?.id;
+    final typed = _typed;
+    final name = _name.text.trim();
     final probe = PayeeRuleInfo(
       // This line's own id, so it isn't counted as losing to itself.
       id: widget.rule?.id ?? -1,
-      words: words,
-      name: words,
-      anywhere: _anywhere,
+      spellings: typed,
+      shownAs: name,
       categoryId: _categoryId ?? 0,
       payId: _payId,
       accountIds: _accounts,
     );
+    final rows = typed.isEmpty ? const <RegisterRow>[] : _fitting(data, probe);
+    final holding = data.categories.where(isUncategorized).firstOrNull?.id;
     // The ones the button after Save would file: money in only, for a pay.
     final waiting = _waitingOf(data, rows, probe, widget.today);
     final already = rows.where((r) => r.categoryId == _categoryId).length;
@@ -765,33 +839,48 @@ class _PayeeEditorState extends State<_PayeeEditor> {
     final category = data.accounts[_categoryId];
     final categoryLabel =
         pays.where((p) => p.id == _payId).firstOrNull?.label ?? category?.name;
-    // A row still waiting, else one already in the category: never one in
-    // another category drawn as if it were moved (it won't be). The newest.
+    // The row drawn: one still under the bank's own words if there is one;
+    // of those, one still waiting, else one in the category, else the
+    // newest.
+    final plain = rows.where((r) => r.bankPayee == null).toList();
+    final from = plain.isEmpty ? rows : plain;
     final example =
-        waiting.lastOrNull ??
-        rows.where((r) => r.categoryId == _categoryId).lastOrNull;
+        waiting.where(from.contains).lastOrNull ??
+        from.where((r) => r.categoryId == _categoryId).lastOrNull ??
+        from.lastOrNull;
     final exampleAccount = example == null
         ? null
         : data.accounts[example.accountId];
+    // What the bank wrote: the row's payee (kept apart on a row that shows
+    // a name); with no row yet, the first spelling as typed.
+    final bankPayee = example == null
+        ? typed.firstOrNull?.text
+        : example.payeeWritten;
+    final bankMemo = example == null || example.bankPayee != null
+        ? null
+        : example.memo;
+    final ledgerPayee = name.isEmpty ? bankPayee : name;
+    final ledgerMemo = name.isEmpty
+        ? bankMemo
+        : example?.bankPayee != null
+        ? example!.memo
+        : memoKeeping(bankPayee, bankMemo);
+    // Of the payee as saved, while nothing typed here says otherwise.
+    final saved = widget.rule;
+    final toName = saved == null || _d.changed || widget.unnamed == null
+        ? const <RegisterRow>[]
+        : widget.unnamed!(saved);
     final missing = <String>[
-      if (_tried && words.isEmpty) t.payeesNeedsWords,
+      if (_tried && typed.isEmpty) t.payeesNeedsWords,
       if (_tried && _accounts.isEmpty) t.payeesNeedsAccount,
       if (_tried && _categoryId == null) t.payeesNeedsCategory,
     ];
-    // What "at the start" misses that "anywhere" would take: said, so a
-    // name the bank puts in the middle doesn't read as misspelt.
-    final wouldAnywhere = !_anywhere && rows.isEmpty && words.isNotEmpty
-        ? _fitting(data, words, true, _accounts).length
-        : 0;
-    final fits = words.isEmpty
+    final fits = typed.isEmpty
         ? t.payeesNeedsWords
         : _accounts.isEmpty
         ? t.payeesNeedsAccount
         : [
-            _anywhere
-                ? t.payeesFitsAnywhere(rows.length)
-                : t.payeesFitsStarts(rows.length),
-            if (wouldAnywhere > 0) t.payeesAnywhereWould(wouldAnywhere),
+            t.payeesFitsTotal(rows.length),
             if (waiting.isNotEmpty) t.payeesWaiting(waiting.length),
             // In Not categorized but not filed by Save's offer: an earlier
             // period's, or one another line takes.
@@ -803,6 +892,259 @@ class _PayeeEditorState extends State<_PayeeEditor> {
               t.payeesAlreadyIn(already, categoryLabel),
             if (elsewhere > 0) t.payeesElsewhere(elsewhere),
           ].join(' · ');
+
+    String howLabel(PayeeMatch how) => switch (how) {
+      PayeeMatch.contains => t.payeesHowContains,
+      PayeeMatch.starts => t.payeesHowStarts,
+      PayeeMatch.exactly => t.payeesHowExactly,
+    };
+
+    Widget spellingLine(int i) {
+      final s = _spellings[i];
+      final sp = s.spelling;
+      final empty = sp.words.isEmpty;
+      final taken = empty ? null : _takenBy(t, sp);
+      final count = empty || _accounts.isEmpty
+          ? null
+          : _fitting(
+              data,
+              PayeeRuleInfo(
+                id: -1,
+                spellings: [sp],
+                categoryId: 0,
+                accountIds: _accounts,
+              ),
+            ).length;
+      // The first is "payee-words", as the one field was.
+      final suffix = i == 0 ? '' : '-$i';
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          children: [
+            FocusTraversalOrder(
+              order: NumericFocusOrder(2 + i * 0.01),
+              child: MenuAnchor(
+                controller: s.menu,
+                style: _menuStyle,
+                onOpen: () => setState(() {}),
+                onClose: () {
+                  if (mounted) setState(() {});
+                },
+                menuChildren: focusFirstOnKeys([
+                  for (final how in PayeeMatch.values)
+                    MenuItemButton(
+                      key: ValueKey('payee-how$suffix-${how.name}'),
+                      onPressed: () {
+                        setState(() => s.how = how);
+                        s.focus.requestFocus();
+                      },
+                      style: ButtonStyle(
+                        minimumSize: const WidgetStatePropertyAll(
+                          Size(150, 34),
+                        ),
+                        overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+                      ),
+                      trailingIcon: s.how == how
+                          ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
+                          : null,
+                      child: Text(
+                        howLabel(how),
+                        style: onest(
+                          13,
+                          color: s.how == how ? Mid.ink : Mid.ink2,
+                        ),
+                      ),
+                    ),
+                ]),
+                child: SizedBox(
+                  width: 124,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: BarButton(
+                      key: ValueKey('payee-how$suffix'),
+                      label: howLabel(s.how),
+                      color: empty ? Mid.ink3 : null,
+                      trailing: Icons.expand_more_rounded,
+                      active: s.menu.isOpen,
+                      onTap: () =>
+                          s.menu.isOpen ? s.menu.close() : s.menu.open(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: FocusTraversalOrder(
+                order: NumericFocusOrder(2 + i * 0.01 + 0.001),
+                child: TextField(
+                  key: ValueKey('payee-words$suffix'),
+                  controller: s.text,
+                  focusNode: s.focus,
+                  style: onest(14, weight: 500),
+                  onChanged: (_) => _onTyped(),
+                  onSubmitted: (_) => _save(),
+                  decoration: _fieldDecoration(
+                    hint: i == 0 && _spellings.length == 1
+                        ? t.payeesSpellingFirstHint
+                        : t.payeesSpellingHint,
+                    wrong:
+                        taken != null ||
+                        (_clash && !empty) ||
+                        (_tried && typed.isEmpty && i == 0),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 116,
+              child: taken != null
+                  ? Text(
+                      t.payeesSpellingTaken(taken),
+                      key: ValueKey('payee-taken$suffix'),
+                      style: onest(12.5, color: Mid.coral),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : count == null
+                  ? const SizedBox.shrink()
+                  : Text(
+                      t.payeesSpellingRows(count),
+                      key: ValueKey('payee-rows$suffix'),
+                      style: onest(13, color: Mid.ink2),
+                    ),
+            ),
+            SizedBox(
+              width: 32,
+              // The empty line at the foot is the place for the next one:
+              // nothing to remove.
+              child: empty && i == _spellings.length - 1
+                  ? null
+                  : FocusTraversalOrder(
+                      order: NumericFocusOrder(2 + i * 0.01 + 0.002),
+                      child: Tooltip(
+                        message: t.payeesRemoveSpelling,
+                        child: Hoverable(
+                          key: ValueKey('payee-remove$suffix'),
+                          onTap: () => setState(() {
+                            _clash = false;
+                            _d.remove(s);
+                          }),
+                          builder: (hover) => Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: hover ? Mid.raised : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 15,
+                              color: Mid.ink3,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // One row of the preview: as the bank sends it (quiet, no category),
+    // or as the ledger shows it.
+    Widget strip({
+      required String label,
+      required String? payee,
+      required String? memo,
+      required bool ledger,
+      required Key key,
+    }) => Container(
+      key: key,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      decoration: BoxDecoration(
+        color: ledger ? Mid.ground : Mid.ground.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: onest(11.5, color: Mid.ink3)),
+          const SizedBox(height: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 36),
+            child: Row(
+              children: [
+                if (example != null) ...[
+                  SizedBox(
+                    width: 92,
+                    child: Text(
+                      fullDate(example.date),
+                      style: onest(13, color: ledger ? Mid.ink2 : Mid.ink3),
+                    ),
+                  ),
+                ],
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        payee ?? '',
+                        style: onest(
+                          14,
+                          weight: ledger ? 600 : 400,
+                          color: ledger ? Mid.ink : Mid.ink2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if ((memo ?? '').trim().isNotEmpty)
+                        Text(
+                          memo!,
+                          style: onest(12, color: Mid.ink3),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+                if (ledger && (categoryLabel ?? example?.categoryLabel) != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 170),
+                      // A picture of the row: no Tab stop, no pointer, no ▾.
+                      child: ExcludeFocus(
+                        child: IgnorePointer(
+                          child: CategoryChip(
+                            label: categoryLabel ?? example!.categoryLabel,
+                            open: false,
+                            onTap: () {},
+                            arrow: false,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (example != null && exampleAccount != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Money(
+                      example.amount,
+                      size: 14,
+                      currency: exampleAccount.currency,
+                      sign: MoneySign.plusForPositive,
+                      color: ledger ? null : Mid.ink2,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
 
     return Shortcuts(
       shortcuts: const {
@@ -818,10 +1160,7 @@ class _PayeeEditorState extends State<_PayeeEditor> {
             },
           ),
           // With a list open, Enter is its item's (code review, 2026-10-26).
-          _SaveIntent: _WhenNoMenu(
-            () => !_accountsMenu.isOpen && !_categoryMenu.isOpen,
-            _save,
-          ),
+          _SaveIntent: _WhenNoMenu(() => !_menuOpen, _save),
         },
         child: Focus(
           focusNode: _panelFocus,
@@ -835,311 +1174,300 @@ class _PayeeEditorState extends State<_PayeeEditor> {
               child: Container(
                 key: const ValueKey('payee-editor'),
                 margin: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                 decoration: BoxDecoration(
                   color: Mid.blueWash,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Mid.blueEdge),
                 ),
-                // Tab goes round the Edit and stays in it: the words, Where,
-                // Accounts, Category, Cancel, Save, then Delete (#284).
+                // Tab goes round the Edit and stays in it: the name, each
+                // spelling, Accounts, Category, Cancel, Save, then Delete
+                // (#284).
                 child: FocusScope(
                   child: FocusTraversalGroup(
                     policy: OrderedTraversalPolicy(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              t.payeesWordsLabel,
-                              style: onest(12, color: Mid.ink3),
-                            ),
-                            const Spacer(),
-                            if (widget.onDelete case final del?)
-                              BarButton(
-                                key: const ValueKey('payee-edit-delete'),
-                                label: t.payeesDelete,
-                                color: Mid.coral,
-                                onTap: del,
-                              ),
-                          ],
+                        Text(
+                          t.payeesNameLabel,
+                          style: onest(12.5, color: Mid.ink2),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 5),
                         SizedBox(
-                          width: 420,
+                          width: 440,
                           child: FocusTraversalOrder(
                             order: const NumericFocusOrder(1),
                             child: TextField(
-                              key: const ValueKey('payee-words'),
+                              key: const ValueKey('payee-name'),
                               controller: _name,
                               focusNode: _nameFocus,
                               autofocus: true,
                               style: onest(19, weight: 700),
+                              onChanged: (_) => _onTyped(),
                               onSubmitted: (_) => _save(),
                               decoration: _fieldDecoration(
-                                wrong: (_tried && words.isEmpty) || _clash,
-                              ),
+                                hint: t.payeesNameHint,
+                              ).copyWith(hintStyle: onest(19, color: Mid.ink3)),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 14),
-                        _FormLine(
-                          label: t.payeesWhere,
-                          child: Row(
-                            children: [
-                              FocusTraversalOrder(
-                                order: const NumericFocusOrder(2),
-                                child: BarButton(
-                                  key: const ValueKey('payee-where-starts'),
-                                  label: t.payeesAtStart,
-                                  active: !_anywhere,
-                                  color: !_anywhere ? Mid.blue : Mid.ink2,
-                                  onTap: () =>
-                                      setState(() => _anywhere = false),
-                                ),
-                              ),
-                              FocusTraversalOrder(
-                                order: const NumericFocusOrder(3),
-                                child: BarButton(
-                                  key: const ValueKey('payee-where-anywhere'),
-                                  label: t.payeesAnywhere,
-                                  active: _anywhere,
-                                  color: _anywhere ? Mid.blue : Mid.ink2,
-                                  onTap: () => setState(() => _anywhere = true),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (open.length > 1)
-                          _FormLine(
-                            label: t.payeesColumnAccounts,
-                            child: FocusTraversalOrder(
-                              order: const NumericFocusOrder(4),
-                              child: MenuAnchor(
-                                controller: _accountsMenu,
-                                style: _menuStyle,
-                                onOpen: () => setState(() {}),
-                                onClose: () {
-                                  if (mounted) setState(() {});
-                                },
-                                menuChildren: focusFirstOnKeys([
-                                  // An archived one it still holds on is listed,
-                                  // so it can be unticked.
-                                  for (final a in [
-                                    ...open,
-                                    for (final x in data.balanceSheetAccounts)
-                                      if (x.archived &&
-                                          _accounts.contains(x.id))
-                                        x,
-                                  ])
-                                    MenuItemButton(
-                                      key: ValueKey('payee-account-${a.id}'),
-                                      closeOnActivate: false,
-                                      onPressed: () => _tick(a.id),
-                                      style: ButtonStyle(
-                                        minimumSize:
-                                            const WidgetStatePropertyAll(
-                                              Size(320, 34),
+                        const SizedBox(height: 18),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    t.payeesSpellingsLabel,
+                                    style: onest(12.5, color: Mid.ink2),
+                                  ),
+                                  for (var i = 0; i < _spellings.length; i++)
+                                    spellingLine(i),
+                                  const SizedBox(height: 16),
+                                  if (open.length > 1)
+                                    _FormLine(
+                                      label: t.payeesColumnAccounts,
+                                      child: FocusTraversalOrder(
+                                        order: const NumericFocusOrder(4),
+                                        child: MenuAnchor(
+                                          controller: _accountsMenu,
+                                          style: _menuStyle,
+                                          onOpen: () => setState(() {}),
+                                          onClose: () {
+                                            if (mounted) setState(() {});
+                                          },
+                                          menuChildren: focusFirstOnKeys([
+                                            // An archived one it still holds
+                                            // on is listed, so it can be
+                                            // unticked.
+                                            for (final a in [
+                                              ...open,
+                                              for (final x
+                                                  in data.balanceSheetAccounts)
+                                                if (x.archived &&
+                                                    _accounts.contains(x.id))
+                                                  x,
+                                            ])
+                                              MenuItemButton(
+                                                key: ValueKey(
+                                                  'payee-account-${a.id}',
+                                                ),
+                                                closeOnActivate: false,
+                                                onPressed: () => _tick(a.id),
+                                                style: ButtonStyle(
+                                                  minimumSize:
+                                                      const WidgetStatePropertyAll(
+                                                        Size(320, 34),
+                                                      ),
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
+                                                  padding:
+                                                      const WidgetStatePropertyAll(
+                                                        EdgeInsets.symmetric(
+                                                          horizontal: 12,
+                                                          vertical: 8,
+                                                        ),
+                                                      ),
+                                                  overlayColor:
+                                                      WidgetStatePropertyAll(
+                                                        Mid.blueWash,
+                                                      ),
+                                                ),
+                                                leadingIcon: Icon(
+                                                  _accounts.contains(a.id)
+                                                      ? Icons.check_box_rounded
+                                                      : Icons
+                                                            .check_box_outline_blank_rounded,
+                                                  size: 18,
+                                                  color:
+                                                      _accounts.contains(a.id)
+                                                      ? Mid.blue
+                                                      : Mid.ink3,
+                                                ),
+                                                child: Text(
+                                                  a.name,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: onest(
+                                                    13,
+                                                    color:
+                                                        _accounts.contains(a.id)
+                                                        ? Mid.ink
+                                                        : Mid.ink2,
+                                                  ),
+                                                ),
+                                              ),
+                                          ]),
+                                          child: BarButton(
+                                            key: const ValueKey(
+                                              'payee-accounts',
                                             ),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                        padding: const WidgetStatePropertyAll(
-                                          EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 8,
+                                            label: _accounts.isEmpty
+                                                ? t.payeesNeedsAccount
+                                                : _accountsLabel(
+                                                    t,
+                                                    data,
+                                                    _accounts,
+                                                  ),
+                                            color: _tried && _accounts.isEmpty
+                                                ? Mid.coral
+                                                : null,
+                                            trailing: Icons.expand_more_rounded,
+                                            active: _accountsMenu.isOpen,
+                                            onTap: () => _accountsMenu.isOpen
+                                                ? _accountsMenu.close()
+                                                : _accountsMenu.open(),
                                           ),
                                         ),
-                                        overlayColor: WidgetStatePropertyAll(
-                                          Mid.blueWash,
-                                        ),
                                       ),
-                                      leadingIcon: Icon(
-                                        _accounts.contains(a.id)
-                                            ? Icons.check_box_rounded
-                                            : Icons
-                                                  .check_box_outline_blank_rounded,
-                                        size: 18,
-                                        color: _accounts.contains(a.id)
-                                            ? Mid.blue
-                                            : Mid.ink3,
+                                    ),
+                                  _FormLine(
+                                    label: t.payeesColumnFiled,
+                                    child: FocusTraversalOrder(
+                                      order: const NumericFocusOrder(5),
+                                      child: CategoryMenu(
+                                        controller: _categoryMenu,
+                                        consumeOutsideTap: true,
+                                        leading: [
+                                          for (final p in pays)
+                                            (
+                                              label: p.label,
+                                              onTap: () {
+                                                setState(() {
+                                                  _payId = p.id;
+                                                  _categoryId = data.income?.id;
+                                                });
+                                                _takeKeys();
+                                              },
+                                            ),
+                                        ],
+                                        categories: _categories(),
+                                        current: categoryLabel,
+                                        onPicked: (c) {
+                                          setState(() {
+                                            _categoryId = c.id;
+                                            _payId = null;
+                                          });
+                                          _takeKeys();
+                                        },
+                                        builder: (menuOpen, toggle) =>
+                                            CategoryChip(
+                                              key: const ValueKey(
+                                                'payee-category',
+                                              ),
+                                              focusNode: _categoryFocus,
+                                              // Not the label beside it
+                                              // again: what to do.
+                                              label:
+                                                  categoryLabel ??
+                                                  t.payeesNeedsCategory,
+                                              open: menuOpen,
+                                              onTap: toggle,
+                                            ),
                                       ),
-                                      child: Text(
-                                        a.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: onest(
-                                          13,
-                                          color: _accounts.contains(a.id)
-                                              ? Mid.ink
-                                              : Mid.ink2,
+                                    ),
+                                  ),
+                                  if (missing.isNotEmpty)
+                                    Text(
+                                      missing.join(' · '),
+                                      key: const ValueKey('payee-missing'),
+                                      style: onest(13, color: Mid.coral),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 32),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (bankPayee != null) ...[
+                                    Text(
+                                      t.payeesNextFromBank,
+                                      style: onest(12.5, color: Mid.ink2),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    strip(
+                                      key: const ValueKey('payee-bank-row'),
+                                      label: t.payeesAsBankSends,
+                                      payee: bankPayee,
+                                      memo: bankMemo,
+                                      ledger: false,
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 3,
+                                      ),
+                                      child: Icon(
+                                        Icons.arrow_downward_rounded,
+                                        size: 16,
+                                        color: Mid.blue,
+                                      ),
+                                    ),
+                                    strip(
+                                      key: const ValueKey('payee-example'),
+                                      label: t.payeesAsLedgerShows,
+                                      payee: ledgerPayee,
+                                      memo: ledgerMemo,
+                                      ledger: true,
+                                    ),
+                                    const SizedBox(height: 8),
+                                  ],
+                                  // Not when the red line beside it says
+                                  // the same.
+                                  if (!missing.contains(fits))
+                                    Text(
+                                      fits,
+                                      key: const ValueKey('payee-fits'),
+                                      style: onest(
+                                        13,
+                                        color: typed.isEmpty
+                                            ? Mid.ink3
+                                            : Mid.ink2,
+                                      ),
+                                    ),
+                                  if (toName.isNotEmpty && saved != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 10),
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: FocusTraversalOrder(
+                                          order: const NumericFocusOrder(5.5),
+                                          child: BarButton(
+                                            key: const ValueKey(
+                                              'payee-show-name',
+                                            ),
+                                            label: t.payeesShowName(
+                                              toName.length,
+                                              saved.shownAs.trim(),
+                                            ),
+                                            onTap: () => widget.onShowName
+                                                ?.call(saved, toName),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                ]),
-                                child: BarButton(
-                                  key: const ValueKey('payee-accounts'),
-                                  label: _accounts.isEmpty
-                                      ? t.payeesNeedsAccount
-                                      : _accountsLabel(t, data, _accounts),
-                                  color: _tried && _accounts.isEmpty
-                                      ? Mid.coral
-                                      : null,
-                                  trailing: Icons.expand_more_rounded,
-                                  active: _accountsMenu.isOpen,
-                                  onTap: () => _accountsMenu.isOpen
-                                      ? _accountsMenu.close()
-                                      : _accountsMenu.open(),
-                                ),
+                                ],
                               ),
                             ),
-                          ),
-                        _FormLine(
-                          label: t.payeesColumnFiled,
-                          child: FocusTraversalOrder(
-                            order: const NumericFocusOrder(5),
-                            child: CategoryMenu(
-                              controller: _categoryMenu,
-                              consumeOutsideTap: true,
-                              leading: [
-                                for (final p in pays)
-                                  (
-                                    label: p.label,
-                                    onTap: () {
-                                      setState(() {
-                                        _payId = p.id;
-                                        _categoryId = data.income?.id;
-                                      });
-                                      _takeKeys();
-                                    },
-                                  ),
-                              ],
-                              categories: _categories(),
-                              current: categoryLabel,
-                              onPicked: (c) {
-                                setState(() {
-                                  _categoryId = c.id;
-                                  _payId = null;
-                                });
-                                _takeKeys();
-                              },
-                              builder: (menuOpen, toggle) => CategoryChip(
-                                key: const ValueKey('payee-category'),
-                                focusNode: _categoryFocus,
-                                // Not the label beside it again: what to do.
-                                label: categoryLabel ?? t.payeesNeedsCategory,
-                                open: menuOpen,
-                                onTap: toggle,
-                              ),
-                            ),
-                          ),
+                          ],
                         ),
-                        // Not when the red line under it says the same.
-                        if (!missing.contains(fits))
-                          Text(
-                            fits,
-                            key: const ValueKey('payee-fits'),
-                            style: onest(
-                              13,
-                              color: words.isEmpty ? Mid.ink3 : Mid.ink2,
-                            ),
-                          ),
-                        if (missing.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            missing.join(' · '),
-                            key: const ValueKey('payee-missing'),
-                            style: onest(13, color: Mid.coral),
-                          ),
-                        ],
-                        if (example != null && exampleAccount != null) ...[
-                          const SizedBox(height: 14),
-                          Text(
-                            t.payeesHowRowReads,
-                            style: onest(12, color: Mid.ink3),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            key: const ValueKey('payee-example'),
-                            height: 52,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            constraints: const BoxConstraints(maxWidth: 760),
-                            decoration: BoxDecoration(
-                              color: Mid.ground,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 110,
-                                  child: Text(
-                                    fullDate(example.date),
-                                    style: onest(13.5, color: Mid.ink2),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        example.txnPayee ?? '',
-                                        style: onest(14, weight: 500),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      if (example.memo.trim().isNotEmpty)
-                                        Text(
-                                          example.memo,
-                                          style: onest(12, color: Mid.ink3),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                SizedBox(
-                                  width: 160,
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    // A picture of the row: no Tab stop, no
-                                    // pointer, no ▾.
-                                    child: ExcludeFocus(
-                                      child: IgnorePointer(
-                                        child: CategoryChip(
-                                          label:
-                                              categoryLabel ??
-                                              example.categoryLabel,
-                                          open: false,
-                                          onTap: () {},
-                                          arrow: false,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 140,
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Money(
-                                      example.amount,
-                                      size: 14,
-                                      currency: exampleAccount.currency,
-                                      sign: MoneySign.plusForPositive,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                         const SizedBox(height: 14),
                         Row(
                           children: [
+                            // Quiet, beside the other two: Undo puts a
+                            // payee back.
+                            if (widget.onDelete case final del?)
+                              BarButton(
+                                key: const ValueKey('payee-edit-delete'),
+                                label: t.payeesDelete,
+                                onTap: del,
+                              ),
                             const Spacer(),
                             FocusTraversalOrder(
                               order: const NumericFocusOrder(6),
@@ -1195,13 +1523,37 @@ class _WhenNoMenu extends Action<_SaveIntent> {
   }
 }
 
+/// One spelling being typed in a payee's Edit.
+class _SpellingDraft {
+  _SpellingDraft([PayeeSpelling? s])
+    // A new one is looked for anywhere: where a bank row has the shop's
+    // name is the bank's choice, in the middle as often as at the start.
+    : how = s?.how ?? PayeeMatch.contains,
+      text = TextEditingController(text: s?.text ?? '');
+
+  PayeeMatch how;
+  final TextEditingController text;
+  final menu = MenuController();
+  final focus = FocusNode(debugLabel: 'payee-spelling');
+
+  PayeeSpelling get spelling => PayeeSpelling(how, text.text.trim());
+
+  void dispose() {
+    text.dispose();
+    focus.dispose();
+  }
+}
+
 /// What's typed in a payee's Edit: kept by the screen while the page is
 /// left (as Budget keeps its Edit, #272), and compared with how it opened.
 class _PayeeDraft {
   _PayeeDraft(PayeeRuleInfo? rule, LedgerData data)
     : id = rule?.id,
-      name = TextEditingController(text: rule?.name ?? ''),
-      anywhere = rule?.anywhere ?? false,
+      name = TextEditingController(text: rule?.shownAs ?? ''),
+      spellings = [
+        for (final s in rule?.spellings ?? const <PayeeSpelling>[])
+          _SpellingDraft(s),
+      ],
       // Nothing is filled in for them (owner: no autofill); with one
       // account there is no choice to make. A deleted account isn't kept
       // unseen: it couldn't be unticked.
@@ -1213,13 +1565,19 @@ class _PayeeDraft {
       },
       categoryId = rule?.categoryId,
       payId = rule?.payId {
+    tidy();
     _start = _now;
   }
 
   /// The payee's id; null for a new one.
   final int? id;
+
+  /// The name the ledger shows.
   final TextEditingController name;
-  bool anywhere;
+
+  /// Each way it is written; the last is always empty, the place for the
+  /// next.
+  final List<_SpellingDraft> spellings;
   final Set<int> accounts;
   int? categoryId;
   int? payId;
@@ -1227,14 +1585,48 @@ class _PayeeDraft {
   bool tried = false;
   late final String _start;
 
+  /// Keeps one empty line after the last spelling, and only one.
+  void tidy() {
+    bool empty(_SpellingDraft s) => s.text.text.trim().isEmpty;
+    while (spellings.length > 1 &&
+        empty(spellings.last) &&
+        empty(spellings[spellings.length - 2]) &&
+        !spellings.last.focus.hasFocus) {
+      // After the frame: its field is still on screen in this one.
+      final gone = spellings.removeLast();
+      WidgetsBinding.instance.addPostFrameCallback((_) => gone.dispose());
+    }
+    if (spellings.isEmpty || !empty(spellings.last)) {
+      spellings.add(_SpellingDraft());
+    }
+  }
+
+  /// A spelling taken off its line.
+  void remove(_SpellingDraft s) {
+    if (spellings.remove(s)) {
+      // After the frame: its field is still on screen in this one.
+      WidgetsBinding.instance.addPostFrameCallback((_) => s.dispose());
+    }
+    tidy();
+  }
+
   String get _now =>
-      '${name.text}|$anywhere|${(accounts.toList()..sort()).join(',')}|'
+      // A space typed after the name or a spelling isn't a change.
+      '${name.text.trim()}|'
+      '${[for (final s in spellings)
+        if (s.text.text.trim().isNotEmpty) '${s.how.name}:${s.text.text.trim()}'].join('\n')}|'
+      '${(accounts.toList()..sort()).join(',')}|'
       '$categoryId|$payId';
 
   /// Something was changed since it opened.
   bool get changed => _now != _start;
 
-  void dispose() => name.dispose();
+  void dispose() {
+    name.dispose();
+    for (final s in spellings) {
+      s.dispose();
+    }
+  }
 }
 
 /// Which Edit is open on the Payees page and what's typed in it, held by
