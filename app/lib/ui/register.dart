@@ -2158,8 +2158,10 @@ class CategoryMenu extends StatefulWidget {
     this.transfers = const [],
   });
 
-  /// Accounts listed after the categories, "→ Khan Savings": money moved
-  /// to or from them (a payee's list, #117). Picked through [onPicked].
+  /// Accounts listed before the categories, "→ Khan Savings", a line
+  /// under them: money moved to or from them (a payee's list, #117). At
+  /// the top, as a long list of categories would hide them (#516). Picked
+  /// through [onPicked].
   final List<AccountInfo> transfers;
 
   /// A row's list (#117, owner 2026-11-18: "do it"): a box at its foot,
@@ -2292,21 +2294,6 @@ class _CategoryMenuState extends State<CategoryMenu> {
                 ),
               ),
             ),
-          for (final c in w.categories.where((c) => !c.archived))
-            MenuItemButton(
-              onPressed: () => picked(c),
-              style: ButtonStyle(
-                minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
-                overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-              ),
-              trailingIcon: c.name == current
-                  ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
-                  : null,
-              child: Text(
-                c.name,
-                style: onest(13, color: c.name == current ? Mid.ink : Mid.ink2),
-              ),
-            ),
           for (final a in w.transfers.where((a) => !a.archived))
             MenuItemButton(
               onPressed: () => picked(a),
@@ -2323,6 +2310,23 @@ class _CategoryMenuState extends State<CategoryMenu> {
                   13,
                   color: '→ ${a.name}' == current ? Mid.ink : Mid.ink2,
                 ),
+              ),
+            ),
+          if (w.transfers.any((a) => !a.archived))
+            Divider(height: 1, color: Mid.rule),
+          for (final c in w.categories.where((c) => !c.archived))
+            MenuItemButton(
+              onPressed: () => picked(c),
+              style: ButtonStyle(
+                minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
+                overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+              ),
+              trailingIcon: c.name == current
+                  ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
+                  : null,
+              child: Text(
+                c.name,
+                style: onest(13, color: c.name == current ? Mid.ink : Mid.ink2),
               ),
             ),
         ]),

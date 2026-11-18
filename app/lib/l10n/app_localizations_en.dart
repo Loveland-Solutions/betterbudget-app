@@ -6232,6 +6232,38 @@ class WordsEn extends Words {
   }
 
   @override
+  String importJoined(int count, String account) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count are the other side of rows $account already had',
+      one: '1 is the other side of a row $account already had',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importTransferDoubt(
+    String account,
+    String amount,
+    String date,
+    String category,
+  ) {
+    return '$account already has $amount on $date under $category: it may be the same money';
+  }
+
+  @override
+  String importTransferDoubts(int count, String account) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows in $account may be the same money as transfers',
+      one: '1 row in $account may be the same money as a transfer',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String payeesFiledTransfer(int count, String account) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

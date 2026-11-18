@@ -8811,6 +8811,29 @@ abstract class Words {
   /// **'Transfers with {account} remembered for next time'**
   String payeesTransferRemembered(String account);
 
+  /// Clause of the popup after a bank file is brought in, after " · ": rows a payee says are money moved to another account, which became the other side of a row that account's own file had already brought in (instead of a second copy).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 is the other side of a row {account} already had} other{{count} are the other side of rows {account} already had}}'**
+  String importJoined(int count, String account);
+
+  /// Clause of the popup after a bank file is brought in: a transfer to another account was made, and that account already has a row of the same amount near the date filed under a category, which the app doesn't move. The popup's Show button opens that row. date is month.day.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} already has {amount} on {date} under {category}: it may be the same money'**
+  String importTransferDoubt(
+    String account,
+    String amount,
+    String date,
+    String category,
+  );
+
+  /// The same as importTransferDoubt, when more than one such row was found. Show opens the first.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row in {account} may be the same money as a transfer} other{{count} rows in {account} may be the same money as transfers}}'**
+  String importTransferDoubts(int count, String account);
+
   /// Popup card after payeesFileWaiting is clicked for a payee whose rows are money moved to or from another account: the rows that were in Not categorized are now transfers with it. Also what Undo names.
   ///
   /// In en, this message translates to:

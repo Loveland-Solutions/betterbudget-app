@@ -6047,6 +6047,37 @@ class WordsMn extends Words {
   }
 
   @override
+  String importJoined(int count, String account) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count нь $account дансанд аль хэдийн байсан мөрийн нөгөө тал боллоо',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importTransferDoubt(
+    String account,
+    String amount,
+    String date,
+    String category,
+  ) {
+    return '$account дансанд $date-нд $category ангилалд $amount аль хэдийн байна: энэ нь ижил мөнгө байж магадгүй';
+  }
+
+  @override
+  String importTransferDoubts(int count, String account) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$account дансны $count мөр шилжүүлэгтэй ижил мөнгө байж магадгүй',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String payeesFiledTransfer(int count, String account) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

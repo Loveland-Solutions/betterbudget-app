@@ -9064,7 +9064,49 @@
       }
     }
   },
-  "payeesFiledTransfer": "{count, plural, =1{1 row is now a transfer with {account}} other{{count} rows are now transfers with {account}}}",
+    "importJoined": "{count, plural, =1{1 is the other side of a row {account} already had} other{{count} are the other side of rows {account} already had}}",
+  "@importJoined": {
+    "description": "Clause of the popup after a bank file is brought in, after \" · \": rows a payee says are money moved to another account, which became the other side of a row that account's own file had already brought in (instead of a second copy).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "importTransferDoubt": "{account} already has {amount} on {date} under {category}: it may be the same money",
+  "@importTransferDoubt": {
+    "description": "Clause of the popup after a bank file is brought in: a transfer to another account was made, and that account already has a row of the same amount near the date filed under a category, which the app doesn't move. The popup's Show button opens that row. date is month.day.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "importTransferDoubts": "{count, plural, =1{1 row in {account} may be the same money as a transfer} other{{count} rows in {account} may be the same money as transfers}}",
+  "@importTransferDoubts": {
+    "description": "The same as importTransferDoubt, when more than one such row was found. Show opens the first.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+"payeesFiledTransfer": "{count, plural, =1{1 row is now a transfer with {account}} other{{count} rows are now transfers with {account}}}",
   "@payeesFiledTransfer": {
     "description": "Popup card after payeesFileWaiting is clicked for a payee whose rows are money moved to or from another account: the rows that were in Not categorized are now transfers with it. Also what Undo names.",
     "placeholders": {
