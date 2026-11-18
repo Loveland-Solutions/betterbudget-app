@@ -3697,7 +3697,15 @@ on the transaction for associating the payee with the category."
   Tab goes on to Cancel. Enter on a button presses it; from anywhere else it saves.
 - **Latin and Cyrillic spellings stay two lines** (owner, 2026-11-18, of "Nomin"
   and "Номин" each a line of its own, sorted apart: "I don't think this is a
-  bug"). The review finding that would join them is dropped.
+  bug"): the app doesn't join them by itself. But one line may hold several
+  spellings the person types (owner, 2026-11-18, of #117's "a second spelling on
+  one line": "Yes, there should be multiple ways of spelling the same payee").
+
+- **#117, the expert's other ideas, answered** (owner, 2026-11-18): a payee that
+  is money moved to another account, a clean "Shown as" name on import with the
+  bank's text kept in the memo, several spellings on one line, and the offer to
+  remember from a row's Edit and the foot of its Category list: "do it" to each.
+  A payee for money in or out only, or above an amount: "I don't like this idea."
 
 ### Two computers: the one row both changed (2026-10-12)
 
