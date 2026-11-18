@@ -6042,6 +6042,26 @@ class WordsMn extends Words {
   }
 
   @override
+  String payeesTransferRemembered(String account) {
+    return 'Дараа нь $account данстай шилжүүлэг гэж санаж авлаа';
+  }
+
+  @override
+  String payeesFiledTransfer(int count, String account) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөр $account данстай шилжүүлэг боллоо',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesDeletedTransfer(String account) {
+    return 'Устгалаа · $account данстай шилжүүлэг гэдгийг цаашид санахгүй';
+  }
+
+  @override
   String payeesFileWaiting(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

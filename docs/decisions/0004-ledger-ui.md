@@ -3788,7 +3788,51 @@ into a picture of a row is a new habit, and a new payee has no row to draw).
   already there shows one, so nothing is filed or shown differently by the
   upgrade. A computer still on the build before can change a payee's words
   afterwards: its change is taken as the first spelling.
-- Still to come from #117: a payee that is money moved to another account.
+- **A payee that is money moved to another account** (#117, owner, 2026-11-18:
+  "do it"; same currency only). Its Category list has, after every category,
+  the other open accounts in the payee's currency as the entry row's list
+  writes them, "→ Khan Savings"; not an account the payee is on (ticking that
+  one as an account lets the pick go), and none when its accounts are in two
+  currencies (a bank row has one amount; an exchange asks for both). Nothing
+  new to the file: a payee's category is an account already.
+  - **On import** a row it fits comes in as a transfer: cleared on this
+    account, uncleared on the other, whose own bank file then matches it as it
+    matches a typed row. The row names the other account ("To Khan Savings"),
+    as every transfer does, so the bank's words go in its memo (and apart, as
+    `bank_payee`) whether or not the payee has a name.
+  - **The other account's file came in first**: its row of the opposite
+    amount, within ten days, still in Not categorized and not reconciled, *is*
+    that transfer. The import joins the two (that row's Not categorized side
+    moves to this account, cleared, with the bank's key, and this bank's
+    words are added to its memo) instead of making a second copy, which
+    would have put the money in Khan Savings twice. Only when exactly one
+    row fits: with two of one round amount (a relative's ₮500,000 and the
+    move to savings) the app doesn't guess, and the transfer is made apart
+    (budget review). Undo puts it back in Not categorized. A row there
+    already filed in a category is never moved (owner, 2026-10-12: moving
+    filed rows "would be really bad"), so then the transfer is made as
+    usual.
+  - **"File the 3 still in Not categorized" joins the same way** (both
+    reviews): both banks' files are often in before the payee is made, each
+    side waiting in Not categorized. Filing takes Khan Savings' own row as the
+    other side (its bank key and cleared state come over, the second copy
+    goes), else makes the transfer. One Undo puts both rows back as they
+    were. A reconciled row isn't offered or filed as a transfer: a statement
+    holds its accounts, as it does in a row's Edit. Undo leaves a transfer's
+    side once that bank's file has matched it.
+  - **The popups say it as a transfer**: "Transfers with Khan Savings
+    remembered for next time", "3 rows are now transfers with Khan Savings"
+    after File the 3 still in Not categorized (its Undo moves them back), and
+    "Deleted · transfers with Khan Savings no longer remembered for next time".
+  - **The payee's card** draws the next row as the ledger will show it, "To
+    Khan Savings" (or From, by its sign) with the bank's words under it.
+  - A row typed with that payee in the entry row starts at "→ Khan Savings",
+    as a remembered category fills (only remembered payees are filled).
+  - *Not built*: the box under a row, "Remember this category for this
+    payee", still isn't offered on a transfer; a transfer payee is made on the
+    Payees page. The phone doesn't fill a transfer payee in (it fills
+    remembered categories only). No "Show «name»" offer for a transfer payee:
+    its rows name the account.
 
 ### Two computers: the one row both changed (2026-10-12)
 

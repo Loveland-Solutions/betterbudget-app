@@ -923,7 +923,11 @@ class _EntryRowState extends State<EntryRow> {
     final id = await widget.controller.suggestCategory(_payee.text.trim());
     // The category itself, never a pay that's filed under it.
     final match = _listOptions
-        .where((o) => o.account.id == id && o.label == o.account.name)
+        .where(
+          (o) =>
+              o.account.id == id &&
+              (o.label == o.account.name || o.account.isBalanceSheet),
+        )
         .firstOrNull;
     if (match == null || !mounted) return false;
     setState(() => _category.text = match.label);

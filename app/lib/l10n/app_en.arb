@@ -9055,6 +9055,36 @@
       }
     }
   },
+  "payeesTransferRemembered": "Transfers with {account} remembered for next time",
+  "@payeesTransferRemembered": {
+    "description": "Popup card after a payee is saved whose rows are money moved to or from another of the person's accounts (Payees page, Category list: \"→ Khan Savings\"). The payee is on the line under it. Also what Undo names.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesFiledTransfer": "{count, plural, =1{1 row is now a transfer with {account}} other{{count} rows are now transfers with {account}}}",
+  "@payeesFiledTransfer": {
+    "description": "Popup card after payeesFileWaiting is clicked for a payee whose rows are money moved to or from another account: the rows that were in Not categorized are now transfers with it. Also what Undo names.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "payeesDeletedTransfer": "Deleted · transfers with {account} no longer remembered for next time",
+  "@payeesDeletedTransfer": {
+    "description": "Popup card after Delete on the Payees page, for a payee whose rows were money moved to or from another account. Rows already in stay.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
   "payeesFileWaiting": "{count, plural, =1{File the 1 still in Not categorized} other{File the {count} still in Not categorized}}",
   "@payeesFileWaiting": {
     "description": "Button on the popup after a payee is saved on the Payees page, or a row is saved with its Remember box ticked: files this period's rows of the payee still in Not categorized under its category.",

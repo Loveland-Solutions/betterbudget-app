@@ -6227,6 +6227,27 @@ class WordsEn extends Words {
   }
 
   @override
+  String payeesTransferRemembered(String account) {
+    return 'Transfers with $account remembered for next time';
+  }
+
+  @override
+  String payeesFiledTransfer(int count, String account) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows are now transfers with $account',
+      one: '1 row is now a transfer with $account',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String payeesDeletedTransfer(String account) {
+    return 'Deleted · transfers with $account no longer remembered for next time';
+  }
+
+  @override
   String payeesFileWaiting(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
