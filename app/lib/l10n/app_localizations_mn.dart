@@ -6013,6 +6013,9 @@ class WordsMn extends Words {
   }
 
   @override
+  String get payeesNeedsName => 'Нэр бичнэ үү';
+
+  @override
   String get payeesNeedsWords => 'Банк хэрхэн бичдэгийг бичнэ үү';
 
   @override

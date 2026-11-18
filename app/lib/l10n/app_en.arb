@@ -9019,6 +9019,10 @@
       }
     }
   },
+  "payeesNeedsName": "Type a name",
+  "@payeesNeedsName": {
+    "description": "A payee's Edit, in the red line of what is missing when Save is pressed with no name (a payee has to have one)."
+  },
   "payeesNeedsWords": "Type how the bank writes it",
   "@payeesNeedsWords": {
     "description": "Payees page, Edit: in place of the count while the words field is empty, and in red after Save with it empty."

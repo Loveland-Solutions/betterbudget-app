@@ -3740,7 +3740,15 @@ into a picture of a row is a new habit, and a new payee has no row to draw).
   shop's name is the bank's choice. A payee saved before keeps how it was looked
   for.
 - **Name**, the heading field, empty until typed ("Give it a name"; no autofill):
-  what the ledger shows for the payee. A row brought in from a bank file that
+  what the ledger shows for the payee. **Required since 2026-11-18** (owner: "I
+  want the name field on the payees to be mandatory"): Save with it empty says
+  "Type a name" first in the red line, and the field is marked. A payee saved
+  before keeps no name until its Edit is saved with a change (owner: "Okay"). One
+  remembered from a row's box ("Remember this category for this payee", under the
+  row or in its Category list) is named what the row calls it, the person's own
+  words, unless it has a name already (owner: "Yes"); so the bank's next "LOVESOL
+  PAY 0915" shows as "LoveSol", its words kept in the memo. A closed line whose only
+  spelling is its name again shows the name alone ("Unitel", not "Unitel   Unitel"). A row brought in from a bank file that
   fits takes the name as its payee and keeps the bank's words at the front of its
   memo. A row whose payee is the name fits the payee too. With no name, rows keep
   the bank's words, as before.

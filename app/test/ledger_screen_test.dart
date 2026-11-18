@@ -4048,8 +4048,9 @@ void main() {
       await tester.pumpAndSettle();
       Future<Map<String, String>> filed() async => (await tester.runAsync(
         () async => {
+          // By what the bank wrote: a remembered payee has a name now.
           for (final r in (await db.loadLedger()).registerFor(checking).posted)
-            r.payee: r.categoryLabel,
+            r.payeeWritten ?? r.payee: r.categoryLabel,
         },
       ))!;
 
@@ -14019,7 +14020,7 @@ void main() {
     testWidgets('its Edit by keys and mouse: kept across pages, Enter in a '
         'list picks, an unchanged Save just closes', (tester) async {
       final db = await withRule(tester);
-      final line = find.text('starts with «Unitel»', findRichText: true);
+      final line = find.text('Unitel', findRichText: true);
       await tester.tap(line);
       await tester.pumpAndSettle();
       final words = find.byKey(const ValueKey('payee-words'));
@@ -14088,23 +14089,21 @@ void main() {
       await tidy(tester, db);
     });
 
-    testWidgets('a remembered payee is a line that reads as a sentence', (
-      tester,
-    ) async {
+    testWidgets('a remembered payee is a line by its name, the row\'s own '
+        'words', (tester) async {
       final db = await withRule(tester);
       expect(find.byKey(const ValueKey('payees-empty')), findsNothing);
       expect(find.text('Payee'), findsOneWidget);
       expect(find.text('Accounts'), findsOneWidget);
       expect(find.text('Category'), findsOneWidget);
       // As the row wrote it, not as it is kept for matching.
-      expect(
-        find.text('starts with «Unitel»', findRichText: true),
-        findsOneWidget,
-      );
+      expect(find.text('Unitel', findRichText: true), findsOneWidget);
       expect(find.text('Groceries'), findsOneWidget);
       final rule = (await tester.runAsync(db.allPayeeRules))!.single;
       expect(rule.words, 'unitel');
       expect(rule.name, 'Unitel');
+      // Named as the row calls it (owner, 2026-11-18: every payee has one).
+      expect(rule.shownAs, 'Unitel');
       expect(rule.anywhere, isFalse);
       expect(rule.accountIds, {await accountId(tester, db, 'TDB Checking')});
       await expectLater(
@@ -14188,7 +14187,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await tester.pumpAndSettle();
-      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      await tester.tap(find.text('Unitel', findRichText: true));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
       // As it is: one row starts with Unitel, in the category chosen. Its
@@ -14208,6 +14207,8 @@ void main() {
         tester.widget<Text>(find.byKey(const ValueKey('payee-rows'))).data,
         '1 row',
       );
+      // Another name, so rows that show "Unitel" don't fit by their name.
+      await tester.enterText(find.byKey(const ValueKey('payee-name')), 'Uni');
       await tester.enterText(find.byKey(const ValueKey('payee-words')), 'UNI');
       await tester.pumpAndSettle();
       // Last year's UNI SHOP fits, and stays where it is.
@@ -14274,7 +14275,7 @@ void main() {
         find.text('Phone & internet remembered for next time'),
         findsOneWidget,
       );
-      expect(find.text('contains «UNI»', findRichText: true), findsOneWidget);
+      expect(find.text('Uni'), findsWidgets);
       var rule = (await tester.runAsync(db.allPayeeRules))!.single;
       expect(rule.words, 'uni');
       expect(rule.name, 'UNI');
@@ -14337,6 +14338,12 @@ void main() {
           amount: -30000,
           how: MadeHow.imported,
         );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      // A payee saved before names were required has none.
+      await tester.runAsync(() async {
+        final rule = (await db.allPayeeRules()).single;
+        await db.putPayeeRule(rule.copyWith(shownAs: ''));
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await tester.pumpAndSettle();
@@ -14503,9 +14510,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         find.text(
-          'Type how the bank writes it · Pick an account · Pick a category',
+          'Type a name · Type how the bank writes it · Pick an account · '
+          'Pick a category',
         ),
         findsOneWidget,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-name')),
+        'Sakura',
       );
       await tester.enterText(
         find.byKey(const ValueKey('payee-words')),
@@ -14548,10 +14560,8 @@ void main() {
       expect(find.text('Dining out remembered for next time'), findsOneWidget);
       // Nothing waits, so nothing is offered.
       expect(find.byKey(const ValueKey('toast-more')), findsNothing);
-      expect(
-        find.text('contains «Sakura»', findRichText: true),
-        findsOneWidget,
-      );
+      // Listed by its name.
+      expect(find.text('Sakura'), findsWidgets);
       final rules = (await tester.runAsync(db.allPayeeRules))!;
       expect(rules, hasLength(2));
       final sakura = rules.singleWhere((r) => r.words == 'sakura');
@@ -14559,6 +14569,10 @@ void main() {
       // The same words again on that account aren't saved.
       await tester.tap(find.byKey(const ValueKey('payee-add')));
       await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-name')),
+        'Sakura',
+      );
       await tester.enterText(
         find.byKey(const ValueKey('payee-words')),
         'SAKURA',
@@ -14602,6 +14616,10 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('payee-add')));
       await tester.pumpAndSettle();
       await tester.enterText(
+        find.byKey(const ValueKey('payee-name')),
+        'Savings',
+      );
+      await tester.enterText(
         find.byKey(const ValueKey('payee-words')),
         'TO KHAN',
       );
@@ -14642,7 +14660,8 @@ void main() {
           .singleWhere((r) => r.words == 'to khan');
       expect(rule.categoryId, savingsId);
       // Ticking the account it moves to as one it's on lets the pick go.
-      await tester.tap(find.text('contains «TO KHAN»', findRichText: true));
+      expect(rule.shownAs, 'Savings');
+      await tester.tap(find.text('Savings   TO KHAN'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('payee-accounts')));
       await tester.pumpAndSettle();
@@ -14709,7 +14728,7 @@ void main() {
     testWidgets('Enter saves after a dropdown pick; Esc closes the dropdown '
         'first', (tester) async {
       final db = await withRule(tester);
-      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      await tester.tap(find.text('Unitel', findRichText: true));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('payee-category')));
       await tester.pumpAndSettle();
@@ -14727,6 +14746,17 @@ void main() {
       await reveal(tester, household);
       await tester.pumpAndSettle();
       await tester.tap(household);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('payee-name')),
+        'Unitel',
+      );
+      await tester.pumpAndSettle();
+      // Back on the list's chip, as after the pick: Enter there saves.
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.tap(find.byKey(const ValueKey('payee-category')));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await settle(tester);
@@ -14753,7 +14783,7 @@ void main() {
     testWidgets('Tab goes round a payee\'s Edit and stays in it, Delete '
         'last (#284)', (tester) async {
       final db = await withRule(tester);
-      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      await tester.tap(find.text('Unitel', findRichText: true));
       await tester.pumpAndSettle();
       expect(focusedKey(), 'payee-name');
       final seen = <String?>[];
@@ -15163,7 +15193,7 @@ void main() {
       tester,
     ) async {
       final db = await withRule(tester);
-      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      await tester.tap(find.text('Unitel', findRichText: true));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const ValueKey('payee-words')),
@@ -15172,11 +15202,8 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('payee-editor')), findsNothing);
-      expect(
-        find.text('starts with «Unitel»', findRichText: true),
-        findsOneWidget,
-      );
-      await tester.tap(find.text('starts with «Unitel»', findRichText: true));
+      expect(find.text('Unitel', findRichText: true), findsOneWidget);
+      await tester.tap(find.text('Unitel', findRichText: true));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('payee-editor')), findsOneWidget);
       // Below the list, on the page.

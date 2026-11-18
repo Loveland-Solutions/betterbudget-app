@@ -8763,6 +8763,12 @@ abstract class Words {
   /// **'{count, plural, =1{1 in another category} other{{count} in another category}}'**
   String payeesElsewhere(int count);
 
+  /// A payee's Edit, in the red line of what is missing when Save is pressed with no name (a payee has to have one).
+  ///
+  /// In en, this message translates to:
+  /// **'Type a name'**
+  String get payeesNeedsName;
+
   /// Payees page, Edit: in place of the count while the words field is empty, and in red after Save with it empty.
   ///
   /// In en, this message translates to:
