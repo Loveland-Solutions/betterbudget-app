@@ -1,6 +1,8 @@
 # 0005 — Phone apps: a companion for recording and checking, not a second ledger
 
-**Status:** Accepted (not built; comes after the budget)
+**Status:** Accepted; the phone's scope is superseded by "The phone joins as another
+computer" (owner, 2026-11-19, at the end of this record). The phone is becoming a
+whole BetterBudget, not a companion; what follows describes it as built so far.
 **Date:** 2026-09-24
 
 ## Context
@@ -1105,6 +1107,10 @@ look; settling by the rule with three or more computers (today asked, as step
 
 ### What a phone can and can't do
 
+*Superseded 2026-11-19: the phone is to do everything the computer does ("The phone
+joins as another computer", below). The table says what today's build does until each
+piece lands.*
+
 | Can | Can't |
 |---|---|
 | Add a transaction, money out or money in: amount, payee, category, account, date | Edit or delete transactions already in the ledger |
@@ -1186,6 +1192,11 @@ catches mistakes, as it does for any uncleared row.
   Not worth it for a phone used to record purchases and check budgets.
 - **A "From phone" review list on the Mac.** One more place to check. Straight in with
   undo follows "warn, don't block".
+- **The phone sends requests and the computer carries them out** (rejected 2026-11-19,
+  below): an edit, an Assigned amount or a reconcile written into the phone's file for
+  the computer to apply. The person on the phone wouldn't see their own change until a
+  computer ran, two phones wouldn't see each other's, and it is a second way of merging
+  beside the one the two computers already use.
 - **Live updates between phones.** That needs a server. The owner accepts that sync takes
   seconds to a couple of minutes and waits for signal.
 
@@ -1323,3 +1334,58 @@ is saved." across the top. Nothing is read from a folder, the key isn't kept, en
 typed live only until the app closes, and the next launch asks for a key again. A real
 key never holds an O, so it can't be anyone's. The repo is public, so anyone can read
 the key; all it opens is the invented figures.
+
+## The phone joins as another computer (owner, 2026-11-19)
+
+**Decided.** "At some point, I want full parity between the mobile and the desktop
+apps. I'm getting feedback that this is needed" (2026-11-16, #402); then, offered the
+two ways below: "We absolutely need to go this way." The phone does everything the
+computer does. This reverses "not a complete budgeting app" at the top of this record.
+
+**How.** The phone becomes one more member of the folder, the way a second Mac is
+(steps 1 to 4 under "Two computers" above): it keeps a whole ledger of its own, records
+every change it makes in its own `changes` log, writes them to its own change file in
+the folder, and takes in every other member's file with the same fold, combine and
+asking window. No file has two writers, so this is not the shared-file problem this
+record was first written to avoid; that was solved for two computers, and the phone
+uses the same answer. A change made on the phone shows on the phone at once, offline
+too, and reaches the computers and the other phones the next time each looks.
+
+**A phone on its own** (owner, same day, asked whether someone with only a phone and
+no computer should be able to use BetterBudget: "Yes"). A person who installs it from
+Play or the App Store can make a ledger on the phone, get the recovery key there, keep
+daily copies and back up, move the ledger to a folder, and later add a computer or a
+second phone, which joins as a member. No member is the ledger's owner; the first one
+is only where it began. The phone's setup is the computer's first-time setup in the
+phone's form.
+
+**Before beta** (owner, same day: "We need parity now"). Beta waits for it (ROADMAP:
+beta is "a fully functioning, fully featured app"), and so does step 5's compaction,
+which the phone needs first.
+
+**Rejected:** the phone's file carrying requests ("change this row", "assign ₮50,000 to
+Groceries") for a computer to carry out (Rejected, above).
+
+**What it takes, before any new screen:**
+
+- The folder cycle (`CloudFolder`) reads and writes through `dart:io` paths; the phone
+  reaches its folder only through the system's picker (Android's Storage Access
+  Framework, Files on iOS, `PhoneFolder`). The cycle needs one way to the folder that
+  both use.
+- Change files only grow until step 5's compaction (#451). A phone reads every other
+  member's file, often over mobile data, so compaction comes before the phone joins.
+- The switch: phones on the entries file (`Phone <id>.betterbudget-phone`) and
+  computers on builds that know only that file must keep working while some are
+  updated and some aren't. What a phone has waiting when it updates is not lost.
+- The asking window, undo and redo, and the "brought in from another computer" popup
+  need the phone's form.
+
+**Then the screens,** one at a time, each sketched first for a 390-point screen and
+picked by the owner: the register, Budget, accounts with the header and forecast,
+reconcile and counting cash, import, Payees, Savings, Settings and setup. Phone screens
+open on the entry, as now (ADR 0004 "Phone screens: Ledger first").
+
+**Privacy.** Nothing goes anywhere new: the phone already keeps a copy of the ledger on
+the device, encrypted, and writes a file of its own into the folder the person picked.
+`PRIVACY.md` needs no change for the way itself; a phone screen that adds a place (a
+bank file opened on the phone, a backup saved there) is checked against it when built.
