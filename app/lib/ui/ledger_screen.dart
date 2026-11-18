@@ -4331,6 +4331,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 onPoint: _pointTo,
                 onShowRow: (r) => _showIn(r.accountId, r.txnId),
                 onSetCategory: (r, c) => _setCategory(r, c),
+                onSetCategoryRemembering: (r, c) =>
+                    _setCategory(r, c, remember: true),
+                onSetPayRemembering: (r, id) => _setPay(r, id, remember: true),
                 onNewCategory: _newCategoryOnRow,
                 onDelete: _delete,
                 onClearSelection: _clearSelection,
@@ -4404,10 +4407,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// A row's category from its inline menu, in whichever account it's in.
   /// A paycheck stops being one; a payday still scheduled stays its pay's.
-  Future<void> _setCategory(RegisterRow r, AccountInfo c) async {
+  /// With [remember], the box at the foot of the list was ticked: the
+  /// payee is remembered for [c] as well, in the same undo.
+  Future<void> _setCategory(
+    RegisterRow r,
+    AccountInfo c, {
+    bool remember = false,
+  }) async {
     final t = context.t;
     final over = _loaded;
     final which = _rowLine(t, r);
+    final waiting = remember ? _alwaysWaiting(r, c) : null;
     final pay = r.scheduled ? null : r.payScheduleId;
     var previous = const <int, int>{};
     PayLeft? left;
@@ -4433,30 +4443,50 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     final gone = left;
-    if (!mounted || (previous.isEmpty && gone == null)) return;
-    _did(
-      t.ledgerFiledUnder(c.name),
-      detail: which,
-      more: _alwaysOffer(r, c),
-      undo: () => db.transaction(() async {
-        _expect(
-          (await db.restoreCategories(previous, r.accountId)).length ==
-              previous.length,
-        );
-        if (gone != null) await db.undoLeavePay(gone);
-      }),
-      redo: () => db.transaction(() async {
-        _expect(
-          (await db.setCategoryMany(
-                transactionIds: [r.txnId],
-                accountId: r.accountId,
-                categoryId: c.id,
-              )).length ==
-              previous.length,
-        );
-        if (gone != null) await db.redoLeavePay(gone);
-      }),
-    );
+    if (!mounted) return;
+    Future<void> undo() => db.transaction(() async {
+      _expect(
+        (await db.restoreCategories(previous, r.accountId)).length ==
+            previous.length,
+      );
+      if (gone != null) await db.undoLeavePay(gone);
+    });
+    Future<void> redo() => db.transaction(() async {
+      _expect(
+        (await db.setCategoryMany(
+              transactionIds: [r.txnId],
+              accountId: r.accountId,
+              categoryId: c.id,
+            )).length ==
+            previous.length,
+      );
+      if (gone != null) await db.redoLeavePay(gone);
+    });
+    final changed = previous.isNotEmpty || gone != null;
+    if (waiting != null) {
+      // Ticked, and something to remember: the row (if it changed) and
+      // the payee in one undo.
+      await _alwaysFile(
+        accountId: r.accountId,
+        payee: (r.txnPayee ?? '').trim(),
+        category: c,
+        label: c.name,
+        waiting: waiting,
+        row: changed
+            ? (said: t.ledgerFiledUnder(c.name), undo: undo, redo: redo)
+            : null,
+      );
+    } else if (changed) {
+      _did(
+        t.ledgerFiledUnder(c.name),
+        detail: which,
+        more: _alwaysOffer(r, c),
+        undo: undo,
+        redo: redo,
+      );
+    } else {
+      return;
+    }
     // Filed under a bill's category: it pays the bill.
     if (!r.scheduled) _settleTyped({r.txnId}, over);
   }
@@ -4491,12 +4521,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// A pay picked from a row's dropdown: the row is that pay's paycheck
   /// (owner, 2026-10-06). The Income tab counts it as received and the
   /// payday it stands for stops being expected.
-  Future<void> _setPay(RegisterRow r, int payId) async {
+  Future<void> _setPay(
+    RegisterRow r,
+    int payId, {
+    bool remember = false,
+  }) async {
     final t = context.t;
     final data = _data;
     final pay = data?.payScheduleById(payId);
     final income = data?.income;
     if (data == null || pay == null || income == null) return;
+    final waiting = remember ? _alwaysWaiting(r, income, pay: pay) : null;
     final PayTaken taken;
     try {
       taken = await db.takeAsPay(
@@ -4512,6 +4547,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
     if (!mounted) return;
     final label = _payLabel(t, data, pay);
+    if (waiting != null) {
+      await _alwaysFile(
+        accountId: r.accountId,
+        payee: (r.txnPayee ?? '').trim(),
+        category: income,
+        pay: pay,
+        label: label,
+        waiting: waiting,
+        row: (
+          said: t.ledgerFiledUnder(label),
+          undo: () => db.undoTakeAsPay(taken),
+          redo: () => db.redoTakeAsPay(taken),
+        ),
+      );
+      return;
+    }
     _did(
       t.ledgerFiledUnder(label),
       detail: _rowLine(t, r),
@@ -4532,6 +4583,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
     PaySchedule? pay,
     String? label,
   }) {
+    final waiting = _alwaysWaiting(r, c, pay: pay);
+    if (waiting == null) return null;
+    final t = context.t;
+    return (
+      label: t.ledgerAlwaysFile(waiting.length),
+      onTap: () => _alwaysFile(
+        accountId: r.accountId,
+        payee: (r.txnPayee ?? '').trim(),
+        category: c,
+        pay: pay,
+        label: label ?? c.name,
+        waiting: waiting,
+      ),
+    );
+  }
+
+  /// The rows remembering [c] for [r]'s payee would file now, other than
+  /// [r]: null when there's nothing to remember (no payee, the holding
+  /// category, or remembered so already).
+  List<int>? _alwaysWaiting(RegisterRow r, AccountInfo c, {PaySchedule? pay}) {
     final data = _data;
     final name = (r.txnPayee ?? '').trim();
     if (data == null || name.isEmpty || isUncategorized(c)) return null;
@@ -4581,24 +4652,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 -1)
           x.txnId,
     ];
-    final t = context.t;
-    return (
-      label: t.ledgerAlwaysFile(waiting.length),
-      onTap: () => _alwaysFile(
-        accountId: r.accountId,
-        payee: name,
-        category: c,
-        pay: pay,
-        label: label ?? c.name,
-        waiting: waiting,
-      ),
-    );
+    return waiting;
   }
 
   /// The offer taken: the payee is remembered (a rule on this account, by
   /// the start of its name; one already going by these words on this
   /// account is changed, not doubled) and the rows of it still waiting move
-  /// now. One undo.
+  /// now. One undo. With [row], the row's own change (a pick in its
+  /// Category list with the box at its foot ticked) is already written: it
+  /// goes in the same undo.
   Future<void> _alwaysFile({
     required int accountId,
     required String payee,
@@ -4606,6 +4668,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     required String label,
     PaySchedule? pay,
     required List<int> waiting,
+    ({String said, Future<void> Function() undo, Future<void> Function() redo})?
+    row,
   }) async {
     final t = context.t;
     Remembered? remembered;
@@ -4651,6 +4715,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
       await write();
     } catch (e) {
       debugPrint('Remembering a payee failed: $e');
+      // The row's own change was written: it keeps its undo.
+      if (row != null) {
+        _did(row.said, toast: false, undo: row.undo, redo: row.redo);
+      }
       if (mounted) _showFailure(t.ledgerCouldntChangeCategory, error: e);
       return;
     }
@@ -4662,18 +4730,21 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final before = was == null || data == null
         ? null
         : _ruleLabel(t, data, was, _payChoices(data));
+    final said = before == null || before == label
+        ? t.ledgerAlwaysFiled(filed, label)
+        : [
+            t.ledgerAlwaysFiled(0, label),
+            t.ledgerRememberedBefore(before),
+            if (filed > 0) t.ledgerMoreRowsFiled(filed),
+          ].join(' · ');
     _did(
       // The undo's popup doesn't say rows were filed: they're back.
-      t.ledgerAlwaysFiled(0, label),
+      row?.said ?? t.ledgerAlwaysFiled(0, label),
       // What it was before comes first: the rows filed were in Not
       // categorized, not in the old category.
-      message: before == null || before == label
-          ? t.ledgerAlwaysFiled(filed, label)
-          : [
-              t.ledgerAlwaysFiled(0, label),
-              t.ledgerRememberedBefore(before),
-              if (filed > 0) t.ledgerMoreRowsFiled(filed),
-            ].join(' · '),
+      // With the row's own change, not "Filed under Groceries" first:
+      // "Groceries remembered" already says where it went.
+      message: said,
       detail: payee,
       undo: () async {
         for (final p in paychecks.reversed) {
@@ -4681,8 +4752,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
         }
         await db.restoreCategories(previous, accountId);
         await _forgetRemembered(remembered!);
+        if (row != null) await row.undo();
       },
-      redo: write,
+      redo: () async {
+        if (row != null) await row.redo();
+        await write();
+      },
     );
   }
 
@@ -7897,6 +7972,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   onPoint: _pointTo,
                   onShowRow: (r) => _showIn(r.accountId, r.txnId),
                   onSetCategory: _setCategory,
+                  onSetCategoryRemembering: (r, c) =>
+                      _setCategory(r, c, remember: true),
+                  onSetPayRemembering: (r, id) =>
+                      _setPay(r, id, remember: true),
                   onNewCategory: _newCategoryOnRow,
                   onDelete: _delete,
                   onClearSelection: _clearSelection,
