@@ -35,7 +35,18 @@ class BalanceHeader extends StatelessWidget {
     this.budgeted = false,
     this.maybePaid = 0,
     this.onShowMaybePaid,
+    this.onCount,
+    this.lastCount,
   });
+
+  /// A cash account (#119): Count the cash… where Reconcile is on a bank
+  /// account, and the sum says the last count and what came since, in
+  /// place of Cleared and Uncleared, which nothing checks on cash.
+  final VoidCallback? onCount;
+
+  /// The newest count of a cash account: its day and what was counted.
+  /// Null before the first.
+  final ({DateTime date, int counted})? lastCount;
 
   /// No payday ahead: the forecast offers to put pay in.
   final VoidCallback? onAddPay;
@@ -130,6 +141,8 @@ class BalanceHeader extends StatelessWidget {
                 active: activeStatus,
                 onTap: onStatusTap,
                 onReconcile: onReconcile,
+                onCount: onCount,
+                lastCount: lastCount,
               ),
             // No rule between them: the line begins beside the Working
             // figure, and a wall stood exactly where now meets ahead.
@@ -166,8 +179,12 @@ class _Balances extends StatelessWidget {
     required this.onTap,
     required this.onReconcile,
     required this.owed,
+    this.onCount,
+    this.lastCount,
   });
 
+  final VoidCallback? onCount;
+  final ({DateTime date, int counted})? lastCount;
   final AccountSummary s;
   final bool owed;
   final VoidCallback? onReconcile;
@@ -206,6 +223,65 @@ class _Balances extends StatelessWidget {
         ],
       ],
     );
+    if (onCount case final count?) {
+      // Cash: the balance, and the newest count's day and what was counted;
+      // nothing before the first count.
+      final c = lastCount;
+      Widget part(String label, int amount) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1.5),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 140,
+              child: Text(label, style: onest(13, color: Mid.ink3)),
+            ),
+            SizedBox(
+              width: 150,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Money(
+                  amount,
+                  size: 13,
+                  color: Mid.ink,
+                  centsColor: Mid.ink,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _TotalLine(amount: s.working, owed: false),
+              if (c != null) ...[
+                const SizedBox(height: 8),
+                KeyedSubtree(
+                  key: const ValueKey('count-last'),
+                  child: part(
+                    t.countHeaderCounted(sayDate(t, c.date)),
+                    c.counted,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: BarButton(
+              key: const ValueKey('count'),
+              label: t.countButton,
+              onTap: count,
+            ),
+          ),
+        ],
+      );
+    }
     // The answer first and biggest, its two parts hung under it, and
     // Reconcile on the card's foot (owner, 2026-11-10, sketch D). It was a
     // receipt to decode: Cleared, Uncleared, a rule, and the figure people

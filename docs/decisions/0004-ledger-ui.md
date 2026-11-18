@@ -7195,3 +7195,47 @@ more chore).
   locked; Undo this count stays. No tick or clock on a cash row: a row above the last
   count is counted. The header: "Counted on 11.18 ₮151,500 · Since then −₮34,500 · 4
   rows" over what should be in the wallet now. No row already in the ledger changes.
+- **Separate wallets** (owner, 2026-11-18: "This is the benefit of allowing for
+  multiple cash accounts. You can have Jim's wallet and Linda's wallet so they can
+  track them separately in the same app").
+- **The difference is saved once, as on a bank account** (owner, 2026-11-18, of the
+  count's difference following late receipts, which made it ask whether a count was
+  of the end of its day or of the moment: "The count thing is weird. Why are we doing
+  it that way? Just treat it the same way we treat the other accounts"). What sketch
+  A drew as the difference following the rows is gone: the count is measured against
+  what the rows hold through its day when it is saved, and its row is an ordinary row
+  from then on. A receipt for an earlier day that comes in later changes the balance,
+  as on TDB Checking, not the count; nothing changes by itself, and there is no popup
+  for it. The two reviews' points about the moving difference (a count that loops
+  when its row becomes a transfer, the popup's wording, a morning count holding the
+  day's lunch) went with it.
+- **A first count makes the opening balance** (owner, 2026-11-18, of a new wallet's
+  first count going to Not categorized as money in: "this should be opening
+  balance"). A cash account with no opening balance that holds more than its rows
+  say gets the extra as its opening balance, dated at its first row (or the count's
+  day when it has none), and the count's own row is ₮0. That takes in a wallet
+  started at ₮0 with receipts typed since, which is missing its opening balance
+  too. Less than the rows is still missing money to a category: a wallet doesn't
+  start below nothing. The panel: "₮105,000 more than the rows: with no opening
+  balance yet, this becomes it", and "Make ₮105,000 the opening balance and save
+  the count"; one Undo takes both rows.
+- **Built** (0.107.0, schema v28), the computer's half; the phone's comes next:
+  - **A count is its difference row**, which keeps what was counted
+    (`transactions.counted_minor`): no table of its own, so it goes to the other
+    computer, into Undo and through the folder as any row does. Its payee reads
+    "Cash count" and its memo "counted ₮40,000". A count that matched is a row of ₮0,
+    kept in the register so it can be found and deleted.
+  - **On a cash account**: no tick or clock on rows, no Uncleared tab (a filter by
+    cleared state carried over from a bank account shows everything), cash rows not in
+    All accounts' Uncleared, and the header is the balance, "Counted on 09.16
+    ₮40,000" (the newest count), and Count the cash… where Reconcile is. Nothing
+    before the first count.
+  - **The panel**: Counted on (today; no day ahead), Cash counted (empty, the cursor
+    in it), "The rows say ₮86,500. You counted ₮40,000.", "₮46,500 less than the
+    rows" (or more, or "Matches the rows" in green), The difference (Not categorized
+    first, then the categories and Income), Cancel and "Put −₮46,500 in Not
+    categorized and save the count" (or "Save the count"). Enter saves, Esc closes
+    the list then the panel. With nothing typed: "Type how much cash you counted".
+    Saved: "Cash wallet counted · −₮46,500 to Not categorized", one Undo.
+  - **The upgrade adds one empty column**: no row is a count, nothing is shown or
+    counted differently, and a phone needs a build at or after it to read the folder.

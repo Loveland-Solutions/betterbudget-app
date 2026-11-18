@@ -592,6 +592,8 @@ PhoneSnapshot snapshotOf(
       if (payee.isNotEmpty && seen.length < 50 && !seen.contains(payee)) {
         seen.add(payee);
       }
+      // A count of cash says nothing about where a category is paid from.
+      if (t.counted != null) continue;
       for (final other in t.entries) {
         final account = data.accounts[other.accountId];
         if (account != null && account.isBalanceSheet && !account.deleted) {

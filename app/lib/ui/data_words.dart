@@ -58,6 +58,7 @@ String rowPayee(Words t, RegisterRow r) {
     return t.startReconcileAdjustment;
   }
   if (r.deletedOther case final name?) return t.startDeletedAccount(name);
+  if (r.counted != null && (r.txnPayee ?? '').isEmpty) return t.countRowPayee;
   return r.payee;
 }
 

@@ -2615,6 +2615,17 @@ class $TransactionsTable extends Transactions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _countedMinorMeta = const VerificationMeta(
+    'countedMinor',
+  );
+  @override
+  late final GeneratedColumn<int> countedMinor = GeneratedColumn<int>(
+    'counted_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2661,6 +2672,7 @@ class $TransactionsTable extends Transactions
     madeHow,
     madeOn,
     bankPayee,
+    countedMinor,
     createdAt,
     updatedAt,
     deletedAt,
@@ -2748,6 +2760,15 @@ class $TransactionsTable extends Transactions
         bankPayee.isAcceptableOrUnknown(data['bank_payee']!, _bankPayeeMeta),
       );
     }
+    if (data.containsKey('counted_minor')) {
+      context.handle(
+        _countedMinorMeta,
+        countedMinor.isAcceptableOrUnknown(
+          data['counted_minor']!,
+          _countedMinorMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -2823,6 +2844,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.string,
         data['${effectivePrefix}bank_payee'],
       ),
+      countedMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}counted_minor'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -2875,6 +2900,12 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
   /// payee's spellings and a later bank file are compared with. Null on
   /// every other row. The memo holds the same words, for the eye.
   final String? bankPayee;
+
+  /// A count of a cash account (v28, #119): what the person counted in it
+  /// on [date]. The row's own amount is the difference, always this less
+  /// every other row of the account dated up to the count
+  /// ([AppDatabase.settleCounts]). Null on every other row.
+  final int? countedMinor;
   final int createdAt;
   final int updatedAt;
   final int? deletedAt;
@@ -2890,6 +2921,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     this.madeHow,
     this.madeOn,
     this.bankPayee,
+    this.countedMinor,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -2923,6 +2955,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     }
     if (!nullToAbsent || bankPayee != null) {
       map['bank_payee'] = Variable<String>(bankPayee);
+    }
+    if (!nullToAbsent || countedMinor != null) {
+      map['counted_minor'] = Variable<int>(countedMinor);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -2959,6 +2994,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       bankPayee: bankPayee == null && nullToAbsent
           ? const Value.absent()
           : Value(bankPayee),
+      countedMinor: countedMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(countedMinor),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -2984,6 +3022,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       madeHow: serializer.fromJson<String?>(json['madeHow']),
       madeOn: serializer.fromJson<String?>(json['madeOn']),
       bankPayee: serializer.fromJson<String?>(json['bankPayee']),
+      countedMinor: serializer.fromJson<int?>(json['countedMinor']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
       deletedAt: serializer.fromJson<int?>(json['deletedAt']),
@@ -3004,6 +3043,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       'madeHow': serializer.toJson<String?>(madeHow),
       'madeOn': serializer.toJson<String?>(madeOn),
       'bankPayee': serializer.toJson<String?>(bankPayee),
+      'countedMinor': serializer.toJson<int?>(countedMinor),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
       'deletedAt': serializer.toJson<int?>(deletedAt),
@@ -3022,6 +3062,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     Value<String?> madeHow = const Value.absent(),
     Value<String?> madeOn = const Value.absent(),
     Value<String?> bankPayee = const Value.absent(),
+    Value<int?> countedMinor = const Value.absent(),
     int? createdAt,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -3041,6 +3082,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     madeHow: madeHow.present ? madeHow.value : this.madeHow,
     madeOn: madeOn.present ? madeOn.value : this.madeOn,
     bankPayee: bankPayee.present ? bankPayee.value : this.bankPayee,
+    countedMinor: countedMinor.present ? countedMinor.value : this.countedMinor,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -3062,6 +3104,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       madeHow: data.madeHow.present ? data.madeHow.value : this.madeHow,
       madeOn: data.madeOn.present ? data.madeOn.value : this.madeOn,
       bankPayee: data.bankPayee.present ? data.bankPayee.value : this.bankPayee,
+      countedMinor: data.countedMinor.present
+          ? data.countedMinor.value
+          : this.countedMinor,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -3082,6 +3127,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           ..write('madeHow: $madeHow, ')
           ..write('madeOn: $madeOn, ')
           ..write('bankPayee: $bankPayee, ')
+          ..write('countedMinor: $countedMinor, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -3102,6 +3148,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     madeHow,
     madeOn,
     bankPayee,
+    countedMinor,
     createdAt,
     updatedAt,
     deletedAt,
@@ -3121,6 +3168,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           other.madeHow == this.madeHow &&
           other.madeOn == this.madeOn &&
           other.bankPayee == this.bankPayee &&
+          other.countedMinor == this.countedMinor &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -3138,6 +3186,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
   final Value<String?> madeHow;
   final Value<String?> madeOn;
   final Value<String?> bankPayee;
+  final Value<int?> countedMinor;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
@@ -3153,6 +3202,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.madeHow = const Value.absent(),
     this.madeOn = const Value.absent(),
     this.bankPayee = const Value.absent(),
+    this.countedMinor = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -3169,6 +3219,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.madeHow = const Value.absent(),
     this.madeOn = const Value.absent(),
     this.bankPayee = const Value.absent(),
+    this.countedMinor = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.deletedAt = const Value.absent(),
@@ -3187,6 +3238,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Expression<String>? madeHow,
     Expression<String>? madeOn,
     Expression<String>? bankPayee,
+    Expression<int>? countedMinor,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
@@ -3203,6 +3255,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       if (madeHow != null) 'made_how': madeHow,
       if (madeOn != null) 'made_on': madeOn,
       if (bankPayee != null) 'bank_payee': bankPayee,
+      if (countedMinor != null) 'counted_minor': countedMinor,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -3221,6 +3274,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Value<String?>? madeHow,
     Value<String?>? madeOn,
     Value<String?>? bankPayee,
+    Value<int?>? countedMinor,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
@@ -3237,6 +3291,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       madeHow: madeHow ?? this.madeHow,
       madeOn: madeOn ?? this.madeOn,
       bankPayee: bankPayee ?? this.bankPayee,
+      countedMinor: countedMinor ?? this.countedMinor,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -3279,6 +3334,9 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     if (bankPayee.present) {
       map['bank_payee'] = Variable<String>(bankPayee.value);
     }
+    if (countedMinor.present) {
+      map['counted_minor'] = Variable<int>(countedMinor.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -3305,6 +3363,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
           ..write('madeHow: $madeHow, ')
           ..write('madeOn: $madeOn, ')
           ..write('bankPayee: $bankPayee, ')
+          ..write('countedMinor: $countedMinor, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -10231,6 +10290,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       Value<String?> madeHow,
       Value<String?> madeOn,
       Value<String?> bankPayee,
+      Value<int?> countedMinor,
       required int createdAt,
       required int updatedAt,
       Value<int?> deletedAt,
@@ -10248,6 +10308,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<String?> madeHow,
       Value<String?> madeOn,
       Value<String?> bankPayee,
+      Value<int?> countedMinor,
       Value<int> createdAt,
       Value<int> updatedAt,
       Value<int?> deletedAt,
@@ -10375,6 +10436,11 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get bankPayee => $composableBuilder(
     column: $table.bankPayee,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get countedMinor => $composableBuilder(
+    column: $table.countedMinor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10537,6 +10603,11 @@ class $$TransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get countedMinor => $composableBuilder(
+    column: $table.countedMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -10654,6 +10725,11 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<String> get bankPayee =>
       $composableBuilder(column: $table.bankPayee, builder: (column) => column);
+
+  GeneratedColumn<int> get countedMinor => $composableBuilder(
+    column: $table.countedMinor,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -10803,6 +10879,7 @@ class $$TransactionsTableTableManager
                 Value<String?> madeHow = const Value.absent(),
                 Value<String?> madeOn = const Value.absent(),
                 Value<String?> bankPayee = const Value.absent(),
+                Value<int?> countedMinor = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -10818,6 +10895,7 @@ class $$TransactionsTableTableManager
                 madeHow: madeHow,
                 madeOn: madeOn,
                 bankPayee: bankPayee,
+                countedMinor: countedMinor,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -10835,6 +10913,7 @@ class $$TransactionsTableTableManager
                 Value<String?> madeHow = const Value.absent(),
                 Value<String?> madeOn = const Value.absent(),
                 Value<String?> bankPayee = const Value.absent(),
+                Value<int?> countedMinor = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -10850,6 +10929,7 @@ class $$TransactionsTableTableManager
                 madeHow: madeHow,
                 madeOn: madeOn,
                 bankPayee: bankPayee,
+                countedMinor: countedMinor,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,

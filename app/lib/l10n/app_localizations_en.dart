@@ -6232,6 +6232,93 @@ class WordsEn extends Words {
   }
 
   @override
+  String get countButton => 'Count the cash…';
+
+  @override
+  String get countTitle => 'Count the cash';
+
+  @override
+  String get countDate => 'Counted on';
+
+  @override
+  String get countInWallet => 'Cash counted';
+
+  @override
+  String get countTheDifference => 'The difference';
+
+  @override
+  String get countMatches => 'Matches the rows';
+
+  @override
+  String get countSave => 'Save the count';
+
+  @override
+  String get countNeedsAmount => 'Type how much cash you counted';
+
+  @override
+  String get countRowPayee => 'Cash count';
+
+  @override
+  String countRowsSay(String held, String counted) {
+    return 'The rows say $held. You counted $counted.';
+  }
+
+  @override
+  String countRowsSayOnly(String held) {
+    return 'The rows say $held.';
+  }
+
+  @override
+  String countLess(String amount) {
+    return '$amount less than the rows';
+  }
+
+  @override
+  String countMore(String amount) {
+    return '$amount more than the rows';
+  }
+
+  @override
+  String countSaveWith(String amount, String category) {
+    return 'Put $amount in $category and save the count';
+  }
+
+  @override
+  String countHeaderCounted(String date) {
+    return 'Counted on $date';
+  }
+
+  @override
+  String countRowCounted(String amount) {
+    return 'counted $amount';
+  }
+
+  @override
+  String countSaved(String account, String amount, String category) {
+    return '$account counted · $amount to $category';
+  }
+
+  @override
+  String countSavedMatch(String account) {
+    return '$account counted · it matches the rows';
+  }
+
+  @override
+  String countBecomesOpening(String amount) {
+    return '$amount more than the rows: with no opening balance yet, this becomes it';
+  }
+
+  @override
+  String countSaveOpening(String amount) {
+    return 'Make $amount the opening balance and save the count';
+  }
+
+  @override
+  String countSavedOpening(String account, String amount) {
+    return '$account counted · $amount is its opening balance';
+  }
+
+  @override
   String importJoined(int count, String account) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

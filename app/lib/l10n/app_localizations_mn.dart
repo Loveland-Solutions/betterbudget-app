@@ -6047,6 +6047,93 @@ class WordsMn extends Words {
   }
 
   @override
+  String get countButton => 'Бэлэн мөнгө тоолох…';
+
+  @override
+  String get countTitle => 'Бэлэн мөнгө тоолох';
+
+  @override
+  String get countDate => 'Тоолсон өдөр';
+
+  @override
+  String get countInWallet => 'Тоолсон бэлэн мөнгө';
+
+  @override
+  String get countTheDifference => 'Зөрүү';
+
+  @override
+  String get countMatches => 'Мөрүүдтэй таарч байна';
+
+  @override
+  String get countSave => 'Тооллогыг хадгалах';
+
+  @override
+  String get countNeedsAmount => 'Хэдэн төгрөг тоолсноо бичнэ үү';
+
+  @override
+  String get countRowPayee => 'Бэлэн мөнгөний тооллого';
+
+  @override
+  String countRowsSay(String held, String counted) {
+    return 'Мөрүүдээр $held. Та $counted тоолсон.';
+  }
+
+  @override
+  String countRowsSayOnly(String held) {
+    return 'Мөрүүдээр $held.';
+  }
+
+  @override
+  String countLess(String amount) {
+    return 'Мөрүүдээс $amount дутуу';
+  }
+
+  @override
+  String countMore(String amount) {
+    return 'Мөрүүдээс $amount илүү';
+  }
+
+  @override
+  String countSaveWith(String amount, String category) {
+    return '$amount-г $category руу оруулж, тооллогыг хадгалах';
+  }
+
+  @override
+  String countHeaderCounted(String date) {
+    return '$date-нд тоолсон';
+  }
+
+  @override
+  String countRowCounted(String amount) {
+    return '$amount тоолсон';
+  }
+
+  @override
+  String countSaved(String account, String amount, String category) {
+    return '$account тоолсон · $amount $category ангилалд';
+  }
+
+  @override
+  String countSavedMatch(String account) {
+    return '$account тоолсон · мөрүүдтэй таарч байна';
+  }
+
+  @override
+  String countBecomesOpening(String amount) {
+    return 'Мөрүүдээс $amount илүү: эхний үлдэгдэл байхгүй тул энэ нь эхний үлдэгдэл болно';
+  }
+
+  @override
+  String countSaveOpening(String amount) {
+    return '$amount-г эхний үлдэгдэл болгож, тооллогыг хадгалах';
+  }
+
+  @override
+  String countSavedOpening(String account, String amount) {
+    return '$account тоолсон · $amount нь эхний үлдэгдэл';
+  }
+
+  @override
   String importJoined(int count, String account) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

@@ -8811,6 +8811,132 @@ abstract class Words {
   /// **'Transfers with {account} remembered for next time'**
   String payeesTransferRemembered(String account);
 
+  /// Button on a cash account's header, where Reconcile is on a bank account: opens the count (#119).
+  ///
+  /// In en, this message translates to:
+  /// **'Count the cash…'**
+  String get countButton;
+
+  /// Heading of the count panel in a cash account's header.
+  ///
+  /// In en, this message translates to:
+  /// **'Count the cash'**
+  String get countTitle;
+
+  /// Count panel: the label before the day the cash was counted.
+  ///
+  /// In en, this message translates to:
+  /// **'Counted on'**
+  String get countDate;
+
+  /// Count panel: the label before the amount the person counted in the account (a wallet, a jar).
+  ///
+  /// In en, this message translates to:
+  /// **'Cash counted'**
+  String get countInWallet;
+
+  /// Count panel: the label before the category the difference between the count and the rows goes to.
+  ///
+  /// In en, this message translates to:
+  /// **'The difference'**
+  String get countTheDifference;
+
+  /// Count panel: what was counted is what the rows say.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches the rows'**
+  String get countMatches;
+
+  /// Count panel's button when there is no difference (or nothing typed yet).
+  ///
+  /// In en, this message translates to:
+  /// **'Save the count'**
+  String get countSave;
+
+  /// Popup when Save is pressed in the count panel with no amount typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Type how much cash you counted'**
+  String get countNeedsAmount;
+
+  /// Register: the payee of the row a count made (its amount is the difference).
+  ///
+  /// In en, this message translates to:
+  /// **'Cash count'**
+  String get countRowPayee;
+
+  /// Count panel: what the account's rows hold through the day, and what was counted.
+  ///
+  /// In en, this message translates to:
+  /// **'The rows say {held}. You counted {counted}.'**
+  String countRowsSay(String held, String counted);
+
+  /// Count panel, before an amount is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'The rows say {held}.'**
+  String countRowsSayOnly(String held);
+
+  /// Count panel: the wallet holds less than the rows say (spending nobody typed).
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} less than the rows'**
+  String countLess(String amount);
+
+  /// Count panel: the wallet holds more than the rows say (a receipt typed twice, money in not typed).
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more than the rows'**
+  String countMore(String amount);
+
+  /// Count panel's button: the difference, signed, goes to that category (Not categorized unless one was picked).
+  ///
+  /// In en, this message translates to:
+  /// **'Put {amount} in {category} and save the count'**
+  String countSaveWith(String amount, String category);
+
+  /// Cash account header: the day of the last count; its amount is beside it. date is month.day.
+  ///
+  /// In en, this message translates to:
+  /// **'Counted on {date}'**
+  String countHeaderCounted(String date);
+
+  /// Register: under or after a count's row, what was counted that day.
+  ///
+  /// In en, this message translates to:
+  /// **'counted {amount}'**
+  String countRowCounted(String amount);
+
+  /// Popup after a count is saved with a difference; also what Undo names.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} counted · {amount} to {category}'**
+  String countSaved(String account, String amount, String category);
+
+  /// Popup after a count is saved that matches; also what Undo names.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} counted · it matches the rows'**
+  String countSavedMatch(String account);
+
+  /// Count panel, on a cash account with no opening balance, when more was counted than the rows say: the extra becomes the account's opening balance, not a category's.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} more than the rows: with no opening balance yet, this becomes it'**
+  String countBecomesOpening(String amount);
+
+  /// Count panel's button in that case.
+  ///
+  /// In en, this message translates to:
+  /// **'Make {amount} the opening balance and save the count'**
+  String countSaveOpening(String amount);
+
+  /// Popup after such a count is saved; also what Undo names.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} counted · {amount} is its opening balance'**
+  String countSavedOpening(String account, String amount);
+
   /// Clause of the popup after a bank file is brought in, after " · ": rows a payee says are money moved to another account, which became the other side of a row that account's own file had already brought in (instead of a second copy).
   ///
   /// In en, this message translates to:
