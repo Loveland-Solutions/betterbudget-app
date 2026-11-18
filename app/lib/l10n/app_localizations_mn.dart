@@ -6137,6 +6137,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String phoneCountedTitle(String account) {
+    return '$account тоолсон';
+  }
+
+  @override
   String importJoined(int count, String account) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

@@ -77,8 +77,25 @@ void writePhoneInbox(File file, Uint8List? key, PhoneInbox inbox) {
         'CREATE TABLE category_types (category_id TEXT PRIMARY KEY, '
         'type TEXT NOT NULL)',
       );
+      // Cash counted (0.108.0, #119); a computer from before reads none,
+      // and they wait for one that does.
+      db.execute(
+        'CREATE TABLE counts (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, '
+        'counted_minor INTEGER NOT NULL, date TEXT NOT NULL, '
+        'made_at TEXT NOT NULL, category_id TEXT)',
+      );
       db.execute('BEGIN');
       db.execute('INSERT INTO phone VALUES (?)', [inbox.device]);
+      for (final c in inbox.counts) {
+        db.execute('INSERT INTO counts VALUES (?, ?, ?, ?, ?, ?)', [
+          c.id,
+          c.accountId,
+          c.countedMinor,
+          c.date.toIso8601String(),
+          c.madeAt.toIso8601String(),
+          c.categoryId,
+        ]);
+      }
       for (final c in inbox.categories) {
         db.execute('INSERT INTO categories VALUES (?, ?, ?)', [
           c.id,
@@ -155,6 +172,16 @@ String phoneInboxSaying(PhoneInbox inbox) => jsonEncode([
       e.date.toIso8601String(),
       e.madeAt.toIso8601String(),
       for (final l in e.lines) [l.categoryId, l.amountMinor],
+    ],
+  for (final c in inbox.counts)
+    [
+      'count',
+      c.id,
+      c.accountId,
+      c.countedMinor,
+      c.date.toIso8601String(),
+      c.madeAt.toIso8601String(),
+      c.categoryId,
     ],
 ]);
 
@@ -248,6 +275,18 @@ PhoneInbox readPhoneInbox(File file, Uint8List? key) {
               madeAt: DateTime.parse(r['made_at'] as String),
               lines: lines[r['id']] ?? const [],
             ),
+        ],
+        counts: [
+          if (has('counts'))
+            for (final r in db.select('SELECT * FROM counts ORDER BY rowid'))
+              PhoneCount(
+                id: r['id'] as String,
+                accountId: r['account_id'] as String,
+                countedMinor: r['counted_minor'] as int,
+                date: DateTime.parse(r['date'] as String),
+                madeAt: DateTime.parse(r['made_at'] as String),
+                categoryId: r['category_id'] as String?,
+              ),
         ],
       );
     });

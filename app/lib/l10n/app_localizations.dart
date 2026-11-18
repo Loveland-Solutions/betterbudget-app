@@ -8943,6 +8943,12 @@ abstract class Words {
   /// **'{account} counted · {amount} is its opening balance'**
   String countSavedOpening(String account, String amount);
 
+  /// A count of cash made on the phone, in the list of what isn’t on the computer yet.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} counted'**
+  String phoneCountedTitle(String account);
+
   /// Clause of the popup after a bank file is brought in, after " · ": rows a payee says are money moved to another account, which became the other side of a row that account's own file had already brought in (instead of a second copy).
   ///
   /// In en, this message translates to:

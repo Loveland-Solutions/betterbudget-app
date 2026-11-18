@@ -32,7 +32,12 @@ PhoneSnapshot previewSnapshot(DateTime madeAt) => PhoneSnapshot(
   pays: [PhonePay(id: phonePayId(1), accountId: 'tdb', name: 'Salary')],
   accounts: const [
     PhoneAccount(id: 'tdb', name: 'TDB Checking', balanceMinor: 243180000),
-    PhoneAccount(id: 'cash', name: 'Cash wallet', balanceMinor: 8600000),
+    PhoneAccount(
+      id: 'cash',
+      name: 'Cash wallet',
+      balanceMinor: 8600000,
+      cash: true,
+    ),
     PhoneAccount(
       id: 'visa',
       name: 'Golomt Visa',

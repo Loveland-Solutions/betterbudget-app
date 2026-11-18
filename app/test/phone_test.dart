@@ -1707,6 +1707,139 @@ void main() {
     expect(find.text('Owed ₮312,000.00'), findsOneWidget);
   });
 
+  group('counting cash (#119)', () {
+    Future<void> openCount(WidgetTester tester) async {
+      await _toBudget(tester);
+      await tester.tap(find.text('Accounts'));
+      await tester.pumpAndSettle();
+      // Only the cash account is counted.
+      expect(find.byKey(const ValueKey('count-tdb')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('count-cash')));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> type(WidgetTester tester, String digits) async {
+      for (final d in digits.split('')) {
+        await tester.tap(find.byKey(ValueKey('pad-$d')));
+        await tester.pump();
+      }
+    }
+
+    testWidgets('the count says the rows and the difference, and waits', (
+      tester,
+    ) async {
+      final store = await _pump(tester);
+      await openCount(tester);
+      expect(find.text('The rows say ₮86,000.'), findsOneWidget);
+      // Nothing counted, nothing saved: it says what's missing.
+      await tester.tap(find.byKey(const ValueKey('count-save')));
+      await tester.pump();
+      expect(find.text('Type how much cash you counted'), findsOneWidget);
+      expect(store.counts, isEmpty);
+
+      await type(tester, '50000');
+      expect(
+        find.text('The rows say ₮86,000. You counted ₮50,000.'),
+        findsOneWidget,
+      );
+      expect(find.text('₮36,000 less than the rows'), findsOneWidget);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/phone_count.png'),
+      );
+      expect(
+        find.text('Put −₮36,000 in Not categorized and save the count'),
+        findsOneWidget,
+      );
+
+      // The difference can go to a category the person picks.
+      await tester.tap(find.byKey(const ValueKey('count-category')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('new-category')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('menu-groceries')).last);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Put −₮36,000 in Groceries and save the count'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('count-save')));
+      await tester.pumpAndSettle();
+      final count = store.counts.single;
+      expect(count.accountId, 'cash');
+      expect(count.countedMinor, 5000000);
+      expect(count.categoryId, 'groceries');
+      expect(count.date, DateTime(2026, 10, 7));
+      expect(
+        find.text('Cash wallet counted · −₮36,000 to Groceries'),
+        findsOneWidget,
+      );
+      // The wallet holds what was counted now.
+      expect(find.text('₮50,000.00'), findsOneWidget);
+
+      // Undo takes it back.
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(store.counts, isEmpty);
+      expect(find.text('₮86,000.00'), findsOneWidget);
+    });
+
+    testWidgets('a count waits with the entries, and can be deleted', (
+      tester,
+    ) async {
+      final store = await _pump(tester);
+      store.addCount(
+        PhoneCount(
+          id: 'count-1',
+          accountId: 'cash',
+          countedMinor: 8600000,
+          date: DateTime(2026, 10, 7),
+          madeAt: _now,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('1 entry isn’t on your computer yet'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('waiting-link')));
+      await tester.pumpAndSettle();
+      expect(find.text('Cash wallet counted'), findsOneWidget);
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey('waiting-count-1')),
+          matching: find.text('Delete'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(store.counts, isEmpty);
+    });
+
+    test('a balance holds the count, then what was typed after it', () {
+      const wallet = PhoneAccount(
+        id: 'cash',
+        name: 'Cash wallet',
+        balanceMinor: 100,
+        cash: true,
+      );
+      PhoneEntry spent(int minute, int amount) => PhoneEntry(
+        id: 'e$minute',
+        categoryId: 'groceries',
+        accountId: 'cash',
+        payee: 'Market',
+        amountMinor: amount,
+        date: DateTime(2026, 10, 7),
+        madeAt: DateTime(2026, 10, 7, 9, minute),
+      );
+      final count = PhoneCount(
+        id: 'c',
+        accountId: 'cash',
+        countedMinor: 60,
+        date: DateTime(2026, 10, 7),
+        madeAt: DateTime(2026, 10, 7, 9, 30),
+      );
+      expect(balanceNow(wallet, [spent(10, -20)]), 80);
+      expect(balanceNow(wallet, [spent(10, -20), spent(40, -5)], [count]), 55);
+    });
+  });
+
   testWidgets('+/− makes a return money in, and Save puts it back in its '
       'category', (tester) async {
     final store = await _pump(tester);

@@ -9227,6 +9227,11 @@
       }
     }
   },
+  "phoneCountedTitle": "{account} counted",
+  "@phoneCountedTitle": {
+    "description": "A count of cash made on the phone, in the list of what isn’t on the computer yet.",
+    "placeholders": {"account": {"type": "String"}}
+  },
   "importJoined": "{count, plural, =1{1 is the other side of a row {account} already had} other{{count} are the other side of rows {account} already had}}",
   "@importJoined": {
     "description": "Clause of the popup after a bank file is brought in, after \" · \": rows a payee says are money moved to another account, which became the other side of a row that account's own file had already brought in (instead of a second copy).",

@@ -815,6 +815,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       final named = {
         ...take.plans.keys,
         for (final l in take.leftOut) l.categoryId,
+        for (final c in take.counts) c.categoryId,
       };
       while (mounted && named.any((id) => _data?.accounts[id] == null)) {
         try {
@@ -830,9 +831,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
       // The categories it made, and one it had already that took the
       // phone's bill.
       final categories = {...take.categoryIds, ...take.plans.keys}.toList();
-      final notes = _data == null
-          ? const <String>[]
-          : phonePlanNotes(t, take, _data!, today, paid: settled.paid);
+      // Each cash count, as the computer's own Count says it (#119).
+      String countNote(PhoneCountTaken c) {
+        final name = _data?.accounts[c.accountId]?.name ?? '';
+        final money = _accountMoney(c.accountId, c.difference);
+        return c.opening
+            ? t.countSavedOpening(name, money)
+            : c.difference == 0
+            ? t.countSavedMatch(name)
+            : t.countSaved(
+                name,
+                c.difference > 0 ? '+$money' : money,
+                _data?.accounts[c.categoryId]?.name ?? t.importUncategorized,
+              );
+      }
+
+      final notes = [
+        for (final c in take.counts) countNote(c),
+        if (_data != null)
+          ...phonePlanNotes(t, take, _data!, today, paid: settled.paid),
+      ];
       // Nothing came in but what a phone's plan couldn't be: that alone
       // is said.
       final onlyNotes =
@@ -840,12 +858,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
           categories.isEmpty &&
           take.unarchivedIds.isEmpty &&
           notes.isNotEmpty;
-      final label = onlyNotes
+      // A count's rows (its difference, and an opening balance it made)
+      // aren't entries typed: a count alone is said in its own words.
+      final entriesIn =
+          take.transactionIds.length -
+          take.counts.length -
+          take.counts.where((c) => c.opening).length;
+      final countsFirst = entriesIn == 0 && take.counts.isNotEmpty;
+      final label = onlyNotes || countsFirst
           ? notes.first
           : take.transactionIds.isEmpty
           ? t.ledgerCategoryFromPhone(categories.length)
-          : t.ledgerFromPhone(take.transactionIds.length);
-      final under = onlyNotes ? notes.skip(1).toList() : notes;
+          : t.ledgerFromPhone(entriesIn);
+      final under = onlyNotes || countsFirst ? notes.skip(1).toList() : notes;
       // One category to see to: its Edit is where that's done.
       final toEdit = {
         ...categories,

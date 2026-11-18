@@ -293,13 +293,14 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         device: kept.device,
         waiting: kept.entries,
         made: kept.categories,
+        counts: kept.counts,
       )..addListener(_keep);
       // Only while something is waiting: that is all there is to wait
       // for. Coming back to the front always reads.
       _again ??= Timer.periodic(widget.every, (_) {
         final store = _store;
         if (_step != _Step.ready || store == null) return;
-        if (store.waiting.isEmpty && store.made.isEmpty) return;
+        if (store.nothingWaiting) return;
         _load(onlyIfNewer: true);
       });
     } else {

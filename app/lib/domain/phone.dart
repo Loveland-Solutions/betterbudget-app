@@ -152,10 +152,19 @@ class PhoneAccount {
     required this.balanceMinor,
     this.currency = Currency.mnt,
     this.owes = false,
+    this.cash = false,
+    this.opened = true,
   });
 
   final String id;
   final String name;
+
+  /// Cash in hand (#119): counted, not reconciled.
+  final bool cash;
+
+  /// It has an opening balance. A count of one that hasn't, finding more
+  /// than its rows, makes that its opening balance, as on the computer.
+  final bool opened;
 
   /// The working balance; for a card or loan, what is owed, as a positive.
   final int balanceMinor;
@@ -337,6 +346,38 @@ class PhoneEntry {
   final DateTime madeAt;
 }
 
+/// A cash account counted on a phone (#119): what was in it. The computer
+/// saves the difference from its rows as its own Count does, against
+/// [categoryId] (null: Not categorized), in the order the phone's entries
+/// were made, so a purchase typed after the count isn't in it.
+class PhoneCount {
+  const PhoneCount({
+    required this.id,
+    required this.accountId,
+    required this.countedMinor,
+    required this.date,
+    required this.madeAt,
+    this.categoryId,
+  });
+
+  /// Random, as an entry's; the computer keeps it with the entries taken.
+  final String id;
+  final String accountId;
+  final int countedMinor;
+  final DateTime date;
+  final DateTime madeAt;
+  final String? categoryId;
+
+  PhoneCount withCategory(String from, String to) => PhoneCount(
+    id: id,
+    accountId: accountId,
+    countedMinor: countedMinor,
+    date: date,
+    madeAt: madeAt,
+    categoryId: categoryId == from ? to : categoryId,
+  );
+}
+
 /// What one phone has written to the folder for the computer: its entries
 /// and the categories it made, until the computer's ledger says they are in.
 class PhoneInbox {
@@ -344,7 +385,12 @@ class PhoneInbox {
     required this.device,
     this.entries = const [],
     this.categories = const [],
+    this.counts = const [],
   });
+
+  /// Cash counted here (#119). A computer before 0.108.0 doesn't read them,
+  /// and they wait.
+  final List<PhoneCount> counts;
 
   /// Random, made once on the phone: it names the phone's file and its
   /// part of [PhoneTaken].
@@ -701,6 +747,17 @@ PhoneSnapshot snapshotOf(
                 : data.balanceOf(a.id),
             currency: a.currency,
             owes: a.isOwed,
+            cash: a.isCash,
+            opened:
+                !a.isCash ||
+                data
+                    .registerFor(a.id)
+                    .posted
+                    .any(
+                      (r) =>
+                          r.kind == RowKind.opening &&
+                          r.equity == AppEquity.openingBalances,
+                    ),
           ),
     ],
   );
@@ -708,16 +765,33 @@ PhoneSnapshot snapshotOf(
 
 /// [account]'s balance once the [waiting] entries paid from it, and the
 /// transfers into it, are counted. What is owed on a card grows as money
-/// goes out and shrinks as a payment comes in.
-int balanceNow(PhoneAccount account, Iterable<PhoneEntry> waiting) {
+/// goes out and shrinks as a payment comes in. A cash account counted here
+/// ([counts]) holds what was counted, and what was typed after the count.
+int balanceNow(
+  PhoneAccount account,
+  Iterable<PhoneEntry> waiting, [
+  Iterable<PhoneCount> counts = const [],
+]) {
+  int change(PhoneEntry e) => e.accountId == account.id
+      ? e.amountMinor
+      : e.categoryId == account.id
+      ? -e.amountMinor
+      : 0;
+  PhoneCount? last;
+  for (final c in counts) {
+    if (c.accountId != account.id) continue;
+    if (last == null || !c.madeAt.isBefore(last.madeAt)) last = c;
+  }
+  if (last != null) {
+    var balance = last.countedMinor;
+    for (final e in waiting) {
+      if (e.madeAt.isAfter(last.madeAt)) balance += change(e);
+    }
+    return balance;
+  }
   var balance = account.balanceMinor;
   for (final e in waiting) {
-    final change = e.accountId == account.id
-        ? e.amountMinor
-        : e.categoryId == account.id
-        ? -e.amountMinor
-        : 0;
-    balance += account.owes ? -change : change;
+    balance += account.owes ? -change(e) : change(e);
   }
   return balance;
 }

@@ -671,8 +671,12 @@ class PhoneTake {
     this.plans = const {},
     this.leftOut = const [],
     this.paychecks = const [],
+    this.counts = const [],
   ]);
   final List<int> transactionIds;
+
+  /// The cash counted on a phone (#119), for the popup to say.
+  final List<PhoneCountTaken> counts;
 
   /// The entries filed under a pay on the phone, made its paychecks (#187),
   /// and the paydays that took away and scheduled.
@@ -694,6 +698,15 @@ class PhoneTake {
   /// The archived categories it brought back to file an entry in.
   final List<int> unarchivedIds;
 }
+
+/// A phone's count of cash as the computer saved it: the difference from
+/// the rows, the category it went to, or that it made the opening balance.
+typedef PhoneCountTaken = ({
+  int accountId,
+  int difference,
+  int categoryId,
+  bool opening,
+});
 
 /// A plan a phone's category came with that the ledger didn't take, and
 /// the category it was for, by the ledger's name.
@@ -5839,10 +5852,12 @@ class AppDatabase extends _$AppDatabase {
     required int accountId,
     required DateTime date,
     required int balance,
+    SharedKey? shared,
   }) => transaction(
     () async => postTransaction(
       date: dateOnly(date),
       how: MadeHow.opening,
+      shared: shared,
       lines: [
         (accountId: accountId, amount: balance, cleared: Cleared.cleared),
         (
@@ -6196,6 +6211,9 @@ class AppDatabase extends _$AppDatabase {
     required DateTime date,
     required int counted,
     required int categoryId,
+    SharedKey? shared,
+    String how = MadeHow.typed,
+    String? on,
   }) => transaction(() async {
     await _assertLive(accountId);
     await _assertLive(categoryId);
@@ -6211,18 +6229,24 @@ class AppDatabase extends _$AppDatabase {
         readsFrom: {entries, transactions},
       ).getSingle();
       final firstDay = first.read<String?>('first');
-      final on = firstDay == null || parseDateKey(firstDay).isAfter(day)
+      final opensOn = firstDay == null || parseDateKey(firstDay).isAfter(day)
           ? day
           : parseDateKey(firstDay);
       openingId = await postOpeningBalance(
         accountId: accountId,
-        date: on,
+        date: opensOn,
         balance: diff,
+        shared: shared == null
+            ? null
+            : SharedKey('${shared.kind}-opening', shared.key),
       );
     }
     final rest = openingId == null ? diff : 0;
     final id = await postTransaction(
       date: day,
+      shared: shared,
+      how: how,
+      on: on,
       lines: [
         (accountId: accountId, amount: rest, cleared: Cleared.uncleared),
         (accountId: categoryId, amount: -rest, cleared: Cleared.uncleared),
@@ -6297,6 +6321,14 @@ class AppDatabase extends _$AppDatabase {
         if (a.type == AccountType.expense) nameKey(a.name): a.id,
     };
     final currencyOf = {for (final a in live) a.id: a.currency};
+    final cash = {
+      for (final a in live)
+        if (a.type == AccountType.asset &&
+            a.archivedAt == null &&
+            a.sidebarGroup == LedgerGroups.cash)
+          a.id,
+    };
+    final counts = <PhoneCountTaken>[];
     final archived = {
       for (final a in live)
         if (a.archivedAt != null) a.id,
@@ -6462,8 +6494,8 @@ class AppDatabase extends _$AppDatabase {
         return uncategorized = id;
       }
 
-      for (final e in inbox.entries) {
-        if (entries.contains(e.id)) continue;
+      Future<void> takeEntry(PhoneEntry e) async {
+        if (entries.contains(e.id)) return;
         // One receipt over several categories: one split row, or nothing
         // while any of its categories or its account is gone.
         if (e.isSplit) {
@@ -6474,7 +6506,7 @@ class AppDatabase extends _$AppDatabase {
               e.amountMinor == 0 ||
               e.lines.any((l) => l.amountMinor == 0) ||
               e.lines.fold(0, (s, l) => s + l.amountMinor) != e.amountMinor) {
-            continue;
+            return;
           }
           final parts = <SplitPart>[];
           for (final l in e.lines) {
@@ -6503,7 +6535,7 @@ class AppDatabase extends _$AppDatabase {
               !paidFrom.contains(account) ||
               !fits ||
               parts.fold(0, (s, p) => s + p.amount) != e.amountMinor) {
-            continue;
+            return;
           }
           for (final p in parts) {
             if (archived.remove(p.categoryId)) {
@@ -6524,7 +6556,7 @@ class AppDatabase extends _$AppDatabase {
             ),
           );
           entries.add(e.id);
-          continue;
+          return;
         }
         var category = int.tryParse(categories[e.categoryId] ?? e.categoryId);
         // One made for an earlier take and deleted since (its undo) is made
@@ -6560,7 +6592,7 @@ class AppDatabase extends _$AppDatabase {
         // out.
         if (!(toIncome || transfer || spending.contains(category)) ||
             !paidFrom.contains(account)) {
-          continue;
+          return;
         }
         if (toIncome) {
           category = asPay ? pay.categoryId : await incomeCategory();
@@ -6605,6 +6637,68 @@ class AppDatabase extends _$AppDatabase {
         }
         entries.add(e.id);
       }
+
+      // A count of cash (#119): the difference from what the rows hold
+      // through its day, saved once as the computer's own Count saves it,
+      // against the category picked there (or Not categorized: a category
+      // gone since, or in another currency, too).
+      Future<void> takeCount(PhoneCount c) async {
+        if (entries.contains(c.id)) return;
+        final account = int.tryParse(c.accountId);
+        if (!cash.contains(account) || c.countedMinor < 0) return;
+        int? category;
+        if (c.categoryId == phoneIncomeId) {
+          category = await incomeCategory();
+        } else if (c.categoryId case final id?) {
+          category = await lineCategory(id, -1);
+          final now = await (select(
+            accounts,
+          )..where((a) => a.id.equals(category ?? -1))).getSingleOrNull();
+          if (now == null || now.currency != currencyOf[account]) {
+            category = null;
+          }
+        }
+        category ??= await notCategorized();
+        if (archived.remove(category)) {
+          await setArchived(category, false);
+          unarchived.add(category);
+        }
+        final saved = await postCount(
+          accountId: account!,
+          date: c.date.isAfter(today) ? today : c.date,
+          counted: c.countedMinor,
+          categoryId: category,
+          shared: SharedKey('phone', '${inbox.device}|${c.id}'),
+          how: MadeHow.phone,
+          on: inbox.device,
+        );
+        added.add(saved.id);
+        if (saved.openingId case final o?) added.add(o);
+        counts.add((
+          accountId: account,
+          difference: saved.difference,
+          categoryId: category,
+          opening: saved.openingId != null,
+        ));
+        entries.add(c.id);
+      }
+
+      // In the order the phone made them: a purchase typed after a count
+      // isn't in what the count found missing.
+      // Entries first at the same moment, each kind in its file's order.
+      final inOrder =
+          <(DateTime, int, Object)>[
+            for (final (i, e) in inbox.entries.indexed) (e.madeAt, i, e),
+            for (final (i, c) in inbox.counts.indexed)
+              (c.madeAt, inbox.entries.length + i, c),
+          ]..sort((a, b) {
+            final at = a.$1.compareTo(b.$1);
+            return at != 0 ? at : a.$2.compareTo(b.$2);
+          });
+      for (final (_, _, item) in inOrder) {
+        if (item is PhoneEntry) await takeEntry(item);
+        if (item is PhoneCount) await takeCount(item);
+      }
       taken[inbox.device] = PhoneTaken(
         entries: entries,
         categories: categories,
@@ -6623,6 +6717,7 @@ class AppDatabase extends _$AppDatabase {
             plans,
             leftOut,
             paychecks,
+            counts,
           );
   });
 
