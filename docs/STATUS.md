@@ -62,14 +62,14 @@ Uncleared tab; the header says the newest count. The owner's ledger was upgraded
 v28 on 2026-11-18 (`Ledger.before-v28-from-v27-…` beside it). The phone counts too
 (0.108.0): Count the cash under a cash account on Accounts, the count waiting with the
 phone's entries, and the computer saving it as its own Count, in the order the phone
-made things. Next: a first-time setup walkthrough (#475), sketches first. The Mongolian of everything since #90's last pass is a draft until
+made things. Next: phone parity (ADR 0005, #402): two computers' step 5 (#451) first, then the phone joins the folder as another computer (#526), then its screens one by one, sketches at phone size first; the first-time setup walkthrough (#475) after. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 
 ## In the stores
 
 | Store | Has | Waiting |
 | --- | --- | --- |
-| Google Play (`mn.lls.betterbudget`) | 0.107.0 (776) on Internal testing, 2026-11-18 (schema v28: a phone needs it to read the folder's ledger; no phone Count yet) | 0.100.0 on alpha and production, sent to Google's review 2026-11-17 |
+| Google Play (`mn.lls.betterbudget`) | 0.108.0 (784) on Internal testing, 2026-11-19, with the phone's Count (schema v28: a phone needs 0.107.0 or later to read the folder's ledger) | 0.100.0 on alpha and production, sent to Google's review 2026-11-17 |
 | Microsoft Store (`9NH3HJNFJN4G`) | 0.88.1, published at the owner's Publish now (2026-11-14) | 0.100.0 in certification since 2026-11-17, then the owner's Publish now |
 | Mac App Store, "The BetterBudget" | 0.88.1 (679), live; free in 174 countries | 0.100.0 (731) in Apple's review, submitted by the API key 2026-11-17. The EU's 27 until the owner gives the Digital Services Act trader details (#375), which the EU shows publicly |
 | iPhone App Store, same record | Nothing yet; TestFlight has 0.73.1 (604) | 0.73.1 in Apple's review, resubmitted 2026-11-12 with a screen recording and answers in its Review Notes, after a Guideline 2.1 "information needed" rejection. A check with Google Drive on a real iPhone is on #114 |
