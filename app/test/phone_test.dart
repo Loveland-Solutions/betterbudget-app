@@ -1784,6 +1784,42 @@ void main() {
       expect(find.text('₮86,000.00'), findsOneWidget);
     });
 
+    test('a count measures the rows through its day, as the computer\'s '
+        'does: a row dated ahead isn\'t in the wallet yet', () {
+      final wallet = PhoneAccount(
+        id: 'cash',
+        name: 'Cash wallet',
+        balanceMinor: 6000000,
+        cash: true,
+        ahead: [(date: DateTime(2026, 10, 9), amountMinor: -2000000)],
+      );
+      PhoneEntry typed(String id, DateTime date) => PhoneEntry(
+        id: id,
+        categoryId: 'groceries',
+        accountId: 'cash',
+        payee: 'Market',
+        amountMinor: -500000,
+        date: date,
+        madeAt: _now,
+      );
+      final waiting = [
+        typed('today', DateTime(2026, 10, 7)),
+        typed('ahead', DateTime(2026, 10, 12)),
+      ];
+      // The balance shown has every row; the count leaves out the 9th's
+      // and the 12th's.
+      expect(balanceNow(wallet, waiting), 5000000);
+      expect(
+        balanceNow(wallet, waiting, const [], DateTime(2026, 10, 7)),
+        7500000,
+      );
+      // Once the 9th has come, its row is in.
+      expect(
+        balanceNow(wallet, waiting, const [], DateTime(2026, 10, 9)),
+        5500000,
+      );
+    });
+
     testWidgets('a count waits with the entries, and can be deleted', (
       tester,
     ) async {

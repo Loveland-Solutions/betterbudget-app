@@ -9,6 +9,9 @@ import 'package:betterbudget/data/phone_inbox.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/sync.dart' show MadeHow;
+import 'package:betterbudget/l10n/app_localizations.dart';
+import 'package:betterbudget/ui/ledger_screen.dart' show phoneCountNote;
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -206,6 +209,15 @@ void main() {
       expect(take.counts.single.categoryId, holding);
       expect(take.counts.single.opening, isFalse);
       final data = await db.loadLedger();
+      // The computer's popup says it as its own Count does.
+      expect(
+        phoneCountNote(
+          lookupWords(const Locale('en')),
+          take.counts.single,
+          data,
+        ),
+        'Wallet counted · −₮300 to Not categorized',
+      );
       expect(data.balanceOf(wallet), 240000);
       final row = data
           .registerFor(wallet)
@@ -272,7 +284,16 @@ void main() {
       // No rows and no opening balance: the cash found is where it starts.
       expect(picked.counts.single.opening, isTrue);
       expect(picked.counts.single.difference, 50000);
-      expect((await db.loadLedger()).balanceOf(wallet), 50000);
+      final opened = await db.loadLedger();
+      expect(opened.balanceOf(wallet), 50000);
+      expect(
+        phoneCountNote(
+          lookupWords(const Locale('en')),
+          picked.counts.single,
+          opened,
+        ),
+        'Wallet counted · ₮500 is its opening balance',
+      );
 
       final again = (await db.takePhoneEntries([
         PhoneInbox(
@@ -285,7 +306,16 @@ void main() {
       ], today: today))!;
       expect(again.counts.single.categoryId, groceries);
       expect(again.counts.single.difference, -8000);
-      expect((await db.loadLedger()).balanceOf(wallet), 42000);
+      final recounted = await db.loadLedger();
+      expect(recounted.balanceOf(wallet), 42000);
+      expect(
+        phoneCountNote(
+          lookupWords(const Locale('en')),
+          again.counts.single,
+          recounted,
+        ),
+        'Wallet counted · −₮80 to Groceries',
+      );
     });
 
     test('a category gone since goes to Not categorized; a bank account '

@@ -112,6 +112,18 @@ class PhoneStore extends ChangeNotifier {
   /// [account]'s balance with what waits here: entries, and a count.
   int balanceOf(PhoneAccount account) => balanceNow(account, _waiting, _counts);
 
+  /// What [account]'s rows hold through today, with what waits here: what
+  /// a count today measures, as the computer's does.
+  int heldToday(PhoneAccount account) {
+    final n = now();
+    return balanceNow(
+      account,
+      _waiting,
+      _counts,
+      DateTime(n.year, n.month, n.day),
+    );
+  }
+
   /// The phone's clock: the screens set it to theirs, so a page opened
   /// over them (New category) reads the same day.
   DateTime Function() now = DateTime.now;
