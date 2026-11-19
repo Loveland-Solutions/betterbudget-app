@@ -48,11 +48,13 @@ class FoldChange {
 /// and chose over it: then this row is the base). Rows neither touched are
 /// the same in all three, so `combine` passes over them.
 ///
-/// One exception (ADR 0005 step 4): the other's change found the row as it
-/// is here by an answer (`resolve`) that settled it over this computer's
-/// own version, which [mineAll], this computer's whole log, says it made.
-/// Then the base is that version's before, so `combine` sees the two
-/// changes.
+/// An answer (`resolve`) of the other's that found the row as it is here
+/// was made knowing this version, as any change is, and is taken: it
+/// settles the question here too (#540). Answers that crossed (both
+/// answered before either saw the other's) are told apart before the
+/// fold, by `CloudFolder`, which passes over the other's where this
+/// computer's stands. [mineAll], this computer's whole log, says which of
+/// its changes made a row as it is here, and which the other hadn't seen.
 ///
 /// [cut]: where this computer's log was cut (step 5; 0 when never). A row
 /// the other changed before it had this computer's changes up to there
@@ -97,19 +99,6 @@ class FoldChange {
           _same(c.before, here) &&
           (c.knew == null || made == null || c.knew! >= made.seq);
       final sawThis = seq.any(seen);
-      // Settled over this computer's own version by the other.
-      FoldChange? overMine;
-      if (made != null &&
-          // The answer is the other's last word on it: a change it made
-          // after is a change of its own, crossed as any is.
-          seq.last.op == 'resolve' &&
-          !_same(seq.last.after, here) &&
-          seq.any((c) => c.op == 'resolve' && seen(c)) &&
-          // Not when one of the other's own changes found this version: it
-          // was seen, and changed, as any edit is.
-          !seq.any((c) => c.op != 'resolve' && seen(c))) {
-        overMine = made;
-      }
       // This computer's first change of the row the other hadn't seen when
       // it first changed it, where its file says.
       final firstKnew = seq.first.knew;
@@ -126,9 +115,6 @@ class FoldChange {
         // nothing above can be trusted. The base is what the other found,
         // and `combine` sees every column both changed.
         wasBefore = seq.first.before;
-      } else if (overMine != null) {
-        // From before this computer's first change the other hadn't seen.
-        wasBefore = (unseen ?? overMine).before;
       } else if (sawThis) {
         wasBefore = here;
       } else if (unseen != null &&

@@ -1556,7 +1556,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         for (final c in since)
           if (!c.isMarker) _fold(c),
       ],
-      // To know a row the other settled over this computer's own version.
+      // Which of this computer's changes made a row as it is here.
       mineAll: [
         for (final c in all)
           if (c.op != 'restore' && c.op != 'erase')
