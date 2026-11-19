@@ -1981,8 +1981,51 @@ void main() {
         });
       }
 
-      test('a row changed two ways is asked on both and held; answered on one, '
-          'the other takes the answer in without being asked', () async {
+      for (final (pick, kept) in [
+        (Pick.theirs, -700000),
+        (Pick.mine, -900000),
+      ]) {
+        test(
+          'a row changed two ways is asked on both and held; answered on one, '
+          'the other takes the answer in without being asked ($pick)',
+          () async {
+            await mac.spend('Nomin', monday);
+            await agree();
+            await edit(mac, -900000);
+            await edit(laptop, -700000);
+            for (final c in [mac, laptop]) {
+              await c.cloud.check(tuesday, fresh: true);
+            }
+            final standings = [
+              for (final c in [mac, laptop]) await step(c),
+            ];
+            // Asked, and held: the red line, never a quiet ok on two amounts.
+            expect(standings, everyElement(FolderStanding.rows));
+            for (final c in [mac, laptop]) {
+              expect(c.cloud.value.held, isTrue);
+              expect(c.cloud.asks, hasLength(1));
+            }
+            expect(await bank(mac), -900000);
+            expect(await bank(laptop), -700000);
+            // The Mac keeps one amount; the laptop is asked no more (#540).
+            final ask = mac.cloud.asks.single;
+            expect(
+              await mac.cloud.bringIn(tuesday, picks: {ask.id: pick}),
+              isNotNull,
+            );
+            await converge();
+            for (final c in [mac, laptop]) {
+              expect(c.cloud.value.held, isFalse);
+              expect(c.cloud.asks, isEmpty);
+              expect(await bank(c), kept);
+            }
+            await expectSame();
+          },
+        );
+      }
+
+      test('answers that crossed (each kept its own) end on the lower '
+          "computer id's on both, asked no more", () async {
         await mac.spend('Nomin', monday);
         await agree();
         await edit(mac, -900000);
@@ -1990,28 +2033,23 @@ void main() {
         for (final c in [mac, laptop]) {
           await c.cloud.check(tuesday, fresh: true);
         }
-        final standings = [
-          for (final c in [mac, laptop]) await step(c),
-        ];
-        // Asked, and held: the red line, never a quiet ok on two amounts.
-        expect(standings, everyElement(FolderStanding.rows));
         for (final c in [mac, laptop]) {
-          expect(c.cloud.value.held, isTrue);
-          expect(c.cloud.asks, hasLength(1));
+          await step(c);
         }
-        expect(await bank(mac), -900000);
-        expect(await bank(laptop), -700000);
-        // The Mac keeps the laptop's amount; the laptop is asked no more.
-        final ask = mac.cloud.asks.single;
-        expect(
-          await mac.cloud.bringIn(tuesday, picks: {ask.id: Pick.theirs}),
-          isNotNull,
-        );
+        // Both answer before either sees the other's answer.
+        for (final c in [mac, laptop]) {
+          final ask = c.cloud.asks.single;
+          expect(
+            await c.cloud.bringIn(tuesday, picks: {ask.id: Pick.mine}),
+            isNotNull,
+          );
+        }
         await converge();
+        final lower = macIsLower ? -900000 : -700000;
         for (final c in [mac, laptop]) {
           expect(c.cloud.value.held, isFalse);
           expect(c.cloud.asks, isEmpty);
-          expect(await bank(c), -700000);
+          expect(await bank(c), lower);
         }
         await expectSame();
       });

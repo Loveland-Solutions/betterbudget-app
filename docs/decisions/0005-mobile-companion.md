@@ -892,7 +892,11 @@ copy of.
   answered, each choosing over the other's version; known by that shape, not
   by timing): the lower computer id's answer stands on both; the other takes
   it and writes down that it did (a `resolve` of its own), so the winner
-  doesn't take the loser's earlier answer in turn. *A gap in a change file*
+  doesn't take the loser's earlier answer in turn. *An answer only one computer gave*
+  is taken on the other as any change is, whichever version it kept (0.110.1,
+  #540): the fold once read an answer that went against this computer's own
+  version as crossed again, a leftover of the told-after settling, so **Keep
+  this computer's** on one computer was asked again on the other. *A gap in a change file*
   (its first change past what was applied here): passed over when the folder's
   ledger doesn't hold the dropped changes either, else the folder's ledger is
   taken whole. *An empty change file* still moves the reader's vector to the
