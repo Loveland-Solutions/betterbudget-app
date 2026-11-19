@@ -10822,6 +10822,18 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{category} is full: {amount}, {months} months of expenses.'**
   String planBandFullMonths(String category, String amount, int months);
+
+  /// Restore dialog, a line under its note when this ledger is shared in a synced folder. folder is the folder’s last two parts, such as “My Drive/BetterBudget”.
+  ///
+  /// In en, this message translates to:
+  /// **'The other computers and phones that share {folder} get this backup too. What they changed since it was made, and this computer has already brought in, goes back to how the backup has it.'**
+  String ledgerRestoreShared(String folder);
+
+  /// Erase-everything dialog, a line under “You start with no accounts…” when this ledger is shared in a synced folder. folder is the folder’s last two parts, such as “My Drive/BetterBudget”.
+  ///
+  /// In en, this message translates to:
+  /// **'The other computers and phones that share {folder} are erased too. What they changed and haven’t sent yet comes in afterwards.'**
+  String ledgerEraseShared(String folder);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

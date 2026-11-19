@@ -7344,6 +7344,17 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }
     }
     final data = _data;
+    // Shared in a folder, a backup of this ledger reaches the other
+    // computers as ordinary changes (ADR 0005, step 5): said first.
+    final here = data?.prefs[SyncKeys.ledger];
+    final sharedPath = _cloud.value.path;
+    final sharedIn =
+        sharedPath != null &&
+            (here == null ||
+                candidate.ledger == null ||
+                candidate.ledger == here)
+        ? _folderName(sharedPath)
+        : null;
     String? to;
     // The folder chosen in the Mac's dialog is the one the file was picked
     // in: by its path, or (where the sandbox won't resolve a path it wasn't
@@ -7371,6 +7382,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           accountsNow: data?.balanceSheetAccounts.length ?? 0,
           folder: folder == null ? null : _folderName(folder),
           macAsks: _cloud.access.folderMustBePicked,
+          sharedIn: sharedIn,
         ),
       );
       if (answer == null || !mounted) {
@@ -7450,7 +7462,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
             fromFolder: true,
             onlyIfDigest: unchanged,
           );
-          record = (before: record.before, restored: later.restored);
+          record = (
+            before: record.before,
+            restored: later.restored,
+            changes: null,
+          );
           await _cloud.check(widget.clock(), fresh: true);
         } else if (_cloud.value.standing == FolderStanding.combine) {
           // On change files the later changes are in the other computer's
@@ -7503,12 +7519,31 @@ class _LedgerScreenState extends State<LedgerScreen> {
     final label = kept
         ? t.ledgerRestoredOnFolder(_folderName(to!))
         : t.ledgerRestoredFrom(sayFullDate(t, candidate.madeAt));
+    // A restore of this ledger wrote its rows as changes: its undo takes
+    // back those rows only, so what another computer changed since stays
+    // (ADR 0005, step 5), and its redo takes back the undo's.
+    var changes = done.changes;
     _did(
       label,
       // Off the folder first: what was here before is this computer's own,
       // and isn't written over the ledger the other computers share.
       undo: () async {
-        if (to != null) await _cloud.stop();
+        if (to != null) {
+          await _cloud.stop();
+          await _whileRestoring(
+            () => _backups.replaceWith(
+              done.before,
+              widget.clock(),
+              whole: true,
+            ),
+          );
+          return;
+        }
+        final ran = changes;
+        if (ran != null) {
+          changes = await _whileRestoring(() => db.revertChanges(ran));
+          return;
+        }
         await _whileRestoring(
           () => _backups.replaceWith(done.before, widget.clock()),
         );
@@ -7518,6 +7553,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       redo: () async {
         final onFolder = to;
         if (onFolder == null) {
+          final ran = changes;
+          if (ran != null) {
+            changes = await _whileRestoring(() => db.revertChanges(ran));
+            return;
+          }
           await _whileRestoring(
             () => _backups.replaceWith(done.restored, widget.clock()),
           );
@@ -7575,6 +7615,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         reconciles: data.reconciliations.length,
         // Income isn't one of theirs: it stays either way.
         categories: data.categories.where((c) => !c.isIncome).length,
+        sharedIn: _cloud.value.path == null
+            ? null
+            : _folderName(_cloud.value.path!),
       ),
     );
     if (keep == null || !mounted) return;
@@ -7587,12 +7630,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _newAccount = false;
     });
     final now = widget.clock();
-    final File before;
+    OwnChanges erased;
     try {
-      before = await _whileRestoring(() async {
-        final saved = await _backups.saveBeforeNewLedger(now);
-        await db.startNewLedger(now, keepCategories: keep);
-        return saved;
+      erased = await _whileRestoring(() async {
+        await _backups.saveBeforeNewLedger(now);
+        return db.startNewLedger(now, keepCategories: keep);
       });
     } catch (e) {
       debugPrint('New ledger failed: $e');
@@ -7603,13 +7645,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // Earlier actions point at rows that are gone.
     _history.clear();
     _redo.clear();
+    // The erase is rows deleted as this computer's changes: its undo takes
+    // back those rows only, so what another computer changed since stays,
+    // and its redo takes back the undo's (ADR 0005, step 5).
     _did(
       t.ledgerNewLedgerStarted,
-      undo: () =>
-          _whileRestoring(() => _backups.replaceWith(before, widget.clock())),
-      redo: () => _whileRestoring(
-        () => db.startNewLedger(widget.clock(), keepCategories: keep),
-      ),
+      undo: () async =>
+          erased = await _whileRestoring(() => db.revertChanges(erased)),
+      redo: () async =>
+          erased = await _whileRestoring(() => db.revertChanges(erased)),
       message: t.ledgerEverythingErased,
     );
   }
@@ -9531,6 +9575,7 @@ class _RestoreDialog extends StatefulWidget {
     required this.accountsNow,
     this.folder,
     this.macAsks = false,
+    this.sharedIn,
   });
   final RestoreCandidate candidate;
   final int transactionsNow;
@@ -9543,6 +9588,11 @@ class _RestoreDialog extends StatefulWidget {
 
   /// The Mac's own folder dialog follows Restore: the note says so.
   final bool macAsks;
+
+  /// The folder this ledger is shared in, as it's named on screen, when the
+  /// backup is of this ledger: the other computers get it too, and the
+  /// dialog says so.
+  final String? sharedIn;
 
   @override
   State<_RestoreDialog> createState() => _RestoreDialogState();
@@ -9633,6 +9683,14 @@ class _RestoreDialogState extends State<_RestoreDialog> {
                         : t.ledgerBringLedgerNote,
                     style: onest(13, color: Mid.ink2),
                   ),
+                  if (widget.sharedIn case final shared?) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      t.ledgerRestoreShared(shared),
+                      key: const ValueKey('restore-shared'),
+                      style: onest(13, color: Mid.ink, height: 1.4),
+                    ),
+                  ],
                   if (widget.folder case final folder?) ...[
                     const SizedBox(height: 16),
                     Hoverable(
@@ -9723,6 +9781,7 @@ class _NewLedgerDialog extends StatefulWidget {
     required this.pay,
     required this.reconciles,
     required this.categories,
+    this.sharedIn,
   });
   final List<({String name, String balance})> accounts;
   final int transactions;
@@ -9731,6 +9790,10 @@ class _NewLedgerDialog extends StatefulWidget {
   final int pay;
   final int reconciles;
   final int categories;
+
+  /// The folder this ledger is shared in, as it's named on screen: the
+  /// erase reaches the other computers, and the dialog says so.
+  final String? sharedIn;
 
   @override
   State<_NewLedgerDialog> createState() => _NewLedgerDialogState();
@@ -9859,6 +9922,14 @@ class _NewLedgerDialogState extends State<_NewLedgerDialog> {
                 t.ledgerStartWithNothing,
                 style: onest(13.5, color: Mid.ink),
               ),
+              if (widget.sharedIn case final shared?) ...[
+                const SizedBox(height: 8),
+                Text(
+                  t.ledgerEraseShared(shared),
+                  key: const ValueKey('new-ledger-shared'),
+                  style: onest(13.5, weight: 600, color: Mid.ink),
+                ),
+              ],
               if (widget.categories > 0) ...[
                 const SizedBox(height: 18),
                 Text(

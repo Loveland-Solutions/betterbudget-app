@@ -453,6 +453,7 @@ Combined combine({
   Map<String, Pick> picks = const {},
   Set<Object?>? madeHere,
   Set<String> madeUp = const {},
+  bool logged = false,
 }) {
   // A row from a computer before v21 has no `made_how` or `made_on`: it is
   // the same row with them empty.
@@ -465,7 +466,16 @@ Combined combine({
   };
   while (true) {
     try {
-      final run = _Combine(base, mine, theirs, units, picks, madeHere, madeUp);
+      final run = _Combine(
+        base,
+        mine,
+        theirs,
+        units,
+        picks,
+        madeHere,
+        madeUp,
+        logged: logged,
+      );
       final found = run.run();
       if (units.isEmpty) return found;
       final asks = run.asks();
@@ -478,7 +488,7 @@ Combined combine({
         others: found.others,
         alike: found.alike,
         asks: asks,
-        resolutions: run.resolutions,
+        resolutions: [...run.resolutions, ...found.resolutions],
         payee: found.payee,
       );
     } on _Ask catch (a) {
@@ -528,8 +538,9 @@ class _Combine {
     this.units,
     this.picks,
     this.madeHere,
-    this.madeUp,
-  ) : base = {
+    this.madeUp, {
+    this.logged = false,
+  }) : base = {
         for (final e in base.entries) e.key: [...e.value],
       },
       theirs = {
@@ -548,6 +559,12 @@ class _Combine {
   /// Rows, by `table|key`, whose base the fold made up for a column both
   /// changed apart: nothing to offer as it was.
   final Set<String> madeUp;
+
+  /// [theirs] was made from the other computer's own logged changes (a
+  /// change file, folded): a transaction or account it lacks was taken out
+  /// by a change it made (a restore or an erase, ADR 0005 step 5), not by a
+  /// ledger written whole over the folder's.
+  final bool logged;
 
   /// What was already asked about: left out of the comparison (it reads as
   /// unchanged on the other computer) until it is settled.
@@ -592,7 +609,7 @@ class _Combine {
       }
     }
     _oneOfEach();
-    _checkDescends();
+    if (!logged) _checkDescends();
     _freeze();
     for (final t in combineOrder) {
       if (t == 'budget_amounts') {
@@ -617,9 +634,11 @@ class _Combine {
     } finally {
       theirs = frozen;
     }
+    if (logged) _keepNamedParents();
     _checkReferences();
     return Combined(
       ops,
+      resolutions: _keptParents,
       transactions: _arrived.length,
       others: _others + _touched.difference(_arrived).length,
       alike: _alike(),
@@ -815,8 +834,20 @@ class _Combine {
           for (final r in result[table]!.values)
             if (_inUnit(u, table, r)) _keyOf(table, r): r,
         };
-        for (final k in {...theirRows.keys, ...finalRows.keys}) {
-          final any = theirRows[k] ?? finalRows[k]!;
+        // A row this computer had that the answer took out, which the
+        // other took out of its tables (a restore or an erase): written
+        // down too, gone on both, so this computer's earlier change of it
+        // reads as seen.
+        final hadRows = {
+          for (final r in mine[table] ?? const <Row>[])
+            if (_inUnit(u, table, r)) _keyOf(table, r): r,
+        };
+        for (final k in {
+          ...theirRows.keys,
+          ...finalRows.keys,
+          ...hadRows.keys,
+        }) {
+          final any = theirRows[k] ?? finalRows[k] ?? hadRows[k]!;
           resolutions.add(
             Resolution(
               table,
@@ -1812,6 +1843,9 @@ class _Combine {
     for (final k in was.keys) {
       if (gone(was[k])) continue;
       final id = was[k]!['id'];
+      // Taken out of the tables by a logged change (a restore or an
+      // erase): it stays, put back by [_keepNamedParents].
+      if (logged && (here[k] == null || there[k] == null)) continue;
       final deletedHere =
           gone(here[k]) && !gone(there[k]) && usedThere.contains(id);
       if (gone(there[k]) && !gone(here[k]) && usedHere.contains(id) ||
@@ -1871,6 +1905,58 @@ class _Combine {
               was['amount_minor'] != e['amount_minor'] ||
               was['account_id'] != e['account_id']) {
             _stop('a cleared row inside a statement reconciled on the other');
+          }
+        }
+      }
+    }
+  }
+
+  /// A row one computer took out of the tables (a restore or an erase, ADR
+  /// 0005 step 5) while a row that stays still names it: it stays too, as
+  /// an account deleted on one computer and used on the other does, put
+  /// back as the side that still has it holds it. Until nothing more is
+  /// missing: an entry kept may need its transaction, which needs its payee.
+  final _keptParents = <Resolution>[];
+
+  void _keepNamedParents() {
+    final full = _theirsFull ?? theirs;
+    var again = true;
+    while (again) {
+      again = false;
+      for (final (table, column, parent) in _references) {
+        final parents = result[parent]!;
+        for (final r in result[table]!.values.toList()) {
+          final to = r[column];
+          if (to == null || parents.containsKey('$to')) continue;
+          final k = '$to';
+          final here = _index(parent, mine[parent])[k];
+          final there = _index(parent, full[parent])[k];
+          if (here != null) {
+            // Deleted by the other's change: that delete isn't made.
+            ops.removeWhere(
+              (o) =>
+                  o.table == parent &&
+                  o.row == null &&
+                  _keyOf(parent, o.key) == k,
+            );
+            parents[k] = here;
+            // Written down for the other computer, which took it out: as it
+            // has it (gone) and as it stays.
+            _keptParents.add(
+              Resolution(
+                parent,
+                {for (final c in combineKeys[parent]!) c: here[c]},
+                null,
+                here,
+              ),
+            );
+            again = true;
+          } else if ((there ?? _index(parent, base[parent])[k])
+              case final back?) {
+            // Deleted here: the other's row comes back, or, where the
+            // other never changed it, the row as both had it.
+            _insert(parent, back);
+            again = true;
           }
         }
       }

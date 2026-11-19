@@ -7532,4 +7532,14 @@ class WordsMn extends Words {
   String planBandFullMonths(String category, String amount, int months) {
     return '«$category» бүрдлээ: $amount, $months сарын зардал.';
   }
+
+  @override
+  String ledgerRestoreShared(String folder) {
+    return '$folder хавтсыг хуваалцаж буй бусад компьютер, утсанд ч энэ нөөц очно. Нөөц хийснээс хойш тэдний өөрчилсөн бөгөөд энэ компьютерт аль хэдийн ирсэн зүйл нөөцөд байгаагаар нь буцна.';
+  }
+
+  @override
+  String ledgerEraseShared(String folder) {
+    return '$folder хавтсыг хуваалцаж буй бусад компьютер, утсан дээр ч бүгд устна. Тэдний өөрчилсөн ч хараахан илгээгээгүй зүйл дараа нь орж ирнэ.';
+  }
 }
