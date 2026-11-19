@@ -1682,6 +1682,54 @@ class AppDatabase extends _$AppDatabase {
     'SELECT COALESCE(MIN(seq), 0) AS n FROM $changeLogTable',
   ).getSingle()).read<int>('n');
 
+  /// Drops this computer's changes up to [cut] from its log, once every
+  /// computer that reads them, and the folder's ledger, holds them (ADR
+  /// 0005 step 5, compaction): the log, and so the change file, keeps only
+  /// what someone may still need. In their place one row stays at [cut], a
+  /// note of what this computer had applied of the others by then
+  /// ([appliedMarkerOp], the last such note's vector), saying where the
+  /// log was cut ([cutOfNote]): a reader still knows what the writer had
+  /// seen of it, and the file says its changes start after [cut]. Nothing
+  /// of the ledger's rows changes. False when there was nothing to drop.
+  Future<bool> compactChanges(int cut) => transaction(() async {
+    final last = await lastChangeSeq();
+    if (cut > last) cut = last;
+    if (cut <= 0) return false;
+    final dropped = (await customSelect(
+      'SELECT COUNT(*) AS n FROM $changeLogTable WHERE seq < ? '
+      'OR (seq = ? AND NOT (op = ? AND before LIKE ?))',
+      variables: [
+        Variable.withInt(cut),
+        Variable.withInt(cut),
+        Variable.withString(appliedMarkerOp),
+        Variable.withString('{"$cutKey":%'),
+      ],
+    ).getSingle()).read<int>('n');
+    if (dropped == 0) return false;
+    final note = await customSelect(
+      'SELECT after FROM $changeLogTable WHERE op = ? AND seq <= ? '
+      'ORDER BY seq DESC LIMIT 1',
+      variables: [Variable.withString(appliedMarkerOp), Variable.withInt(cut)],
+    ).getSingleOrNull();
+    await customStatement('DELETE FROM $changeLogTable WHERE seq <= ?', [cut]);
+    await customStatement(
+      'INSERT INTO $changeLogTable '
+      '(seq, tbl, pk, op, before, after, at_ms, with_schema) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        cut,
+        appliedMarkerTable,
+        '{}',
+        appliedMarkerOp,
+        jsonEncode({cutKey: cut}),
+        note?.read<String?>('after') ?? '{}',
+        _now,
+        schemaVersion,
+      ],
+    );
+    return true;
+  });
+
   /// v13 (rule 30): every income category becomes the one Income. Their
   /// rows and pay schedules move to it; the names go.
   Future<void> _oneIncome() async {

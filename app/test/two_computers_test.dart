@@ -581,6 +581,9 @@ void main() {
     test('the same rows with different counts settle, and nobody goes on '
         'writing', () async {
       await laptop.cloud.keepIn(drive.path, monday);
+      // The Mac looks once, so its file is in the folder: a computer with
+      // none isn't waited for when the laptop compacts its own (step 5).
+      expect(await mac.cloud.check(monday, fresh: true), FolderStanding.ok);
       // The laptop changes a thing and changes it back: two writes, and
       // the same rows the Mac has.
       await laptop.db.setPreference('budget.view', 'pay');
@@ -1085,6 +1088,182 @@ void main() {
       expect(await mac.payees(), contains('Unitel'));
       expect(await mac.payees(), isNot(contains('Emart')));
       expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    // ---------- compaction (step 5) ----------
+
+    Future<ChangeFile> fileOf(_Computer c) async => readChangeFile(
+      File('${drive.path}/${changeFileName(await c.cloud.computerId())}'),
+      c.backups.dataKey,
+    );
+
+    test('a computer’s file keeps only what the other computer and the '
+        'folder’s ledger don’t hold yet', () async {
+      await agree();
+      final before = await mac.db.lastChangeSeq();
+      await mac.spend('Nomin', tuesday);
+      final spent = await mac.db.lastChangeSeq();
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      // The laptop, seen today, hasn't taken it: it stays in the file.
+      var file = await fileOf(mac);
+      expect(file.header.firstSeq, lessThanOrEqualTo(before + 1));
+      expect(file.changes.map((c) => c.seq), contains(spent));
+
+      expect((await bringIn(laptop)).transactions, 1);
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      file = await fileOf(mac);
+      expect(file.header.firstSeq, greaterThan(spent));
+      expect(file.changes.where((c) => !c.isApplied), isEmpty);
+      expect(await mac.db.changesSince(0), hasLength(1));
+      // The laptop's own file is cut the same way once the Mac has its
+      // changes; and changes go on coming both ways.
+      await laptop.spend('E-Mart', tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect((await bringIn(mac)).transactions, 1);
+      await mac.spend('Shangri-La', tuesday);
+      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect((await bringIn(laptop)).transactions, 1);
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      for (final computer in [mac, laptop]) {
+        expect(
+          await computer.payees(),
+          containsAll(['Nomin', 'E-Mart', 'Shangri-La']),
+        );
+        expect(
+          (await computer.db.changesSince(0))
+              .where((c) => c.op != appliedMarkerOp),
+          isEmpty,
+        );
+      }
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('a computer put away for over six weeks doesn’t hold the other’s file '
+        'back, and takes the folder’s ledger whole when it is back', () async {
+      await agree();
+      final later = tuesday.add(const Duration(days: 50));
+      final older = File('${root.path}/older.betterbudget');
+      await folderLedger().copy(older.path);
+      final had =
+          (await fileOf(laptop)).header.applied[await mac.cloud.computerId()] ??
+          0;
+      await mac.spend('Nomin', later);
+      await mac.spend('Shangri-La', later);
+      final spent = await mac.db.lastChangeSeq();
+      expect(await mac.cloud.check(later, fresh: true), FolderStanding.ok);
+      expect(await mac.cloud.check(later, fresh: true), FolderStanding.ok);
+      final file = await fileOf(mac);
+      expect(file.header.firstSeq, greaterThan(spent));
+      expect(had, lessThan(spent));
+
+      // Back, while the folder's ledger is still an older one (the small
+      // file came first): waited for, not taken.
+      final current = File('${root.path}/current.betterbudget');
+      await folderLedger().copy(current.path);
+      await older.copy(folderLedger().path);
+      expect(
+        await laptop.cloud.check(later, fresh: true),
+        FolderStanding.arriving,
+      );
+      await current.copy(folderLedger().path);
+      // Back: what it missed is only in the folder's ledger.
+      expect(
+        await laptop.cloud.check(later, fresh: true),
+        FolderStanding.newer,
+      );
+      await laptop.open(later);
+      expect(await laptop.payees(), containsAll(['Nomin', 'Shangri-La']));
+      expect(await laptop.cloud.check(later, fresh: true), FolderStanding.ok);
+      expect(await mac.cloud.check(later, fresh: true), FolderStanding.ok);
+      await laptop.spend('E-Mart', later);
+      expect(await laptop.cloud.check(later, fresh: true), FolderStanding.ok);
+      await settle(mac, later);
+      expect(await mac.payees(), contains('E-Mart'));
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('a computer that is only idle writes its file weekly and isn’t '
+        'counted away', () async {
+      await agree();
+      // The laptop is open but nothing changes there for weeks.
+      for (var week = 1; week <= 7; week++) {
+        await laptop.cloud.check(
+          tuesday.add(Duration(days: 7 * week)),
+          fresh: true,
+        );
+      }
+      final later = tuesday.add(const Duration(days: 50));
+      await mac.spend('Nomin', later);
+      final spent = await mac.db.lastChangeSeq();
+      await mac.cloud.check(later, fresh: true);
+      await mac.cloud.check(later, fresh: true);
+      expect((await fileOf(mac)).changes.map((c) => c.seq), contains(spent));
+      await settle(laptop, later);
+      expect(await laptop.payees(), contains('Nomin'));
+    });
+
+    test('what this computer did to a row before its log was cut still '
+        'counts against a late change from a computer that was away', () async {
+      await agree();
+      final later = tuesday.add(const Duration(days: 50));
+      final wallet = await mac.account('Cash wallet');
+      await mac.db.renameAccount(wallet, 'Mac wallet');
+      await mac.cloud.check(later, fresh: true);
+      await mac.cloud.check(later, fresh: true);
+      expect(
+        (await mac.db.changesSince(0)).where((c) => c.op != appliedMarkerOp),
+        isEmpty,
+      );
+      // The laptop, away all along, renames it too, before it looks.
+      await laptop.db.renameAccount(wallet, 'Laptop wallet');
+      expect(
+        await laptop.cloud.check(later, fresh: true),
+        FolderStanding.arriving,
+      );
+      // The Mac changes another part of the same row after the cut.
+      await mac.db.setAccountRole(wallet, AccountRole.paidMonthly);
+      await settle(mac, later);
+      // Renamed on both: this computer's name stays (the rule), never the
+      // other's taken as if only it had changed it.
+      final macs = (await mac.db.loadLedger()).accounts[wallet]!;
+      expect(macs.name, 'Mac wallet');
+      expect(macs.role, AccountRole.paidMonthly);
+    });
+
+    test('a computer whose file isn’t in the folder yet isn’t waited for: '
+        'with a change of its own it waits, then takes the folder’s ledger '
+        'whole, and nothing of either is lost', () async {
+      await laptop.cloud.keepIn(drive.path, monday);
+      await laptop.spend('E-Mart', tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(
+        (await fileOf(laptop)).changes.where((c) => !c.isApplied),
+        isEmpty,
+      );
+      await mac.spend('Nomin', tuesday);
+      expect(
+        await mac.cloud.check(tuesday, fresh: true),
+        FolderStanding.arriving,
+      );
+      await settle(laptop, tuesday);
+      expect(await laptop.payees(), contains('Nomin'));
+      await settle(mac, tuesday);
+      for (final computer in [mac, laptop]) {
+        expect(await computer.payees(), containsAll(['Nomin', 'E-Mart']));
+      }
       expect(
         (await mac.db.sealState()).digest,
         (await laptop.db.sealState()).digest,

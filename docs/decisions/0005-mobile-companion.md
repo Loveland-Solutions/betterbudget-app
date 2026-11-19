@@ -1105,6 +1105,74 @@ cleanup of `(1)` copies; the red line's words for a file waited for (today the
 look; settling by the rule with three or more computers (today asked, as step
 3 did); and a soak on two Mac accounts through Drive, then two machines.
 
+**Built, 2026-11-19: step 5, first part, compaction and the catch-up take
+(0.109.0, #451).** The owner split step 5 into three PRs and took this one first,
+since the phone reads every member's file (above, "The phone joins as another
+computer"). No schema change; the change file's form is the same.
+
+- **How far a computer cuts its own log** (`compactionCut` in
+  `change_file.dart`): to the last of its changes that the folder's ledger holds
+  (its vector) and that every other computer of this ledger, whose change file is
+  in the folder and was written in the last 45 days (`awayAfter`; 45 so a computer used once a month for the bills stays a member), has applied.
+  A new computer starts from the folder's ledger, so it never needs what was cut.
+  A computer whose file isn't in the folder (one that hasn't looked since it
+  joined) is no member, as for three computers above. Not cut while a file can't
+  be read.
+- **What is left at the cut** (`AppDatabase.compactChanges`): every change up to
+  it is dropped from the log, and one row stays at the cut's number: a note of
+  what this computer had applied of the others by then (op `applied`, the last
+  such note's vector), with `{"cut": n}` as its `before` (`cutOfNote`). A reader
+  past the cut still knows what the writer had seen of it (`knewOf`), and the
+  file's `first_seq` says the changes start after the cut (`firstSeqOf`). The
+  log's counter goes on as before. Done at the end of each look, before the file
+  is written.
+- **The catch-up take.** A computer away longer than 45 days, or with no file yet,
+  finds the note at the cut among the changes it hasn't taken: what it missed is
+  only in the folder's ledger, which it takes whole (`newer`, the same path as
+  any newer folder ledger, with a copy in Backups) when that ledger holds every
+  change of its own. When it made changes the folder's ledger lacks, it publishes
+  them and waits ("arriving") until another computer brings them in, then takes
+  the ledger whole. Nothing of either is lost.
+  A folder's ledger that doesn't hold the other's changes up to the cut hasn't
+  finished arriving (the small change file came first): it is waited for, never
+  taken (from the budget review). A known limit, on #451: a computer that comes
+  back with changes of its own waits for another computer to bring them in; if
+  none ever comes back, it waits for good (nothing is lost, and its own changes are
+  in its file and in Backups).
+- **Weighed and left:** waiting for every computer the folder's vector names (an
+  id met there may be a computer long gone, which would hold every file back
+  for ever); a computer away longer than 45 days costs one download of the
+  folder's ledger.
+- **From the code review (2026-11-19), fixed.** *A row changed here before the
+  cut:* this computer's own older changes are gone from its log, so a late change
+  from a computer that was away could have been taken as if only it had changed
+  the row (the Mac renamed an account before the cut, the away laptop renamed it
+  too: the laptop's name won, unasked). Now a row the other changed before it had
+  this computer's changes up to the cut takes what the other found as its base
+  (`foldChanges(cut:)`), and `combine` sees both changes. *Older builds:* a file
+  says it knows a cut (`knows_cuts` in its `computer` table); a computer whose
+  file doesn't, on a build before 0.109.0 that would pass over what was cut, is
+  never counted away. *Idle is not away:* a computer writes its file at least
+  weekly, so one that is open but changes nothing keeps its place; "away" still
+  trusts the writer's clock.
+- **Left, on #451:** "Keep this computer's ledger" chosen while behind another's
+  cut decides only over the changes after it, and the ones before come back with
+  the next whole take (nothing lost); a computer that joined and never looked, on
+  a build before 0.109.0, would pass over a cut.
+- **Tests:** `change_file_test.dart` (the note at the cut, the header, the cut's
+  bounds) and `two_computers_test.dart` "compaction (step 5)": a file keeps only
+  what the other doesn't hold yet, changes go on both ways after; a computer put
+  away 50 days takes the folder's ledger whole, and waits while the folder's
+  ledger is an older one than the cut; one only idle writes weekly and stays;
+  a row renamed here before the cut and by the away one keeps this computer's
+  name and goes on; a computer with no
+  file and a change of its own waits, then takes it whole, nothing lost.
+
+**Left of step 5** (#451): a Restore and an erase as batches; the digest guard at
+equal vectors; cleanup of `(1)` copies; the red line's words for a file waited
+for; the older look's leftovers; settling by the rule with three or more
+computers; the soak.
+
 ### What a phone can and can't do
 
 *Superseded 2026-11-19: the phone is to do everything the computer does ("The phone
@@ -1372,8 +1440,9 @@ Groceries") for a computer to carry out (Rejected, above).
   reaches its folder only through the system's picker (Android's Storage Access
   Framework, Files on iOS, `PhoneFolder`). The cycle needs one way to the folder that
   both use.
-- Change files only grow until step 5's compaction (#451). A phone reads every other
-  member's file, often over mobile data, so compaction comes before the phone joins.
+- Change files are compacted since 0.109.0 (step 5's first part, above): each holds
+  only what some member seen in the last 45 days hasn’t taken yet. A phone reads every
+  other member's file, often over mobile data.
 - The switch: phones on the entries file (`Phone <id>.betterbudget-phone`) and
   computers on builds that know only that file must keep working while some are
   updated and some aren't. What a phone has waiting when it updates is not lost.

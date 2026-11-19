@@ -108,4 +108,112 @@ void main() {
     expect(unreadable, ['e5f6']);
     expect(scratch.listSync(), isEmpty);
   });
+
+  // ---------- compaction (ADR 0005 step 5) ----------
+
+  test('a compacted log keeps a note at the cut: the file starts after it, '
+      'and a reader still knows what the writer had seen of it', () async {
+    // What the writer had applied of the laptop, then a change after it.
+    await db.customStatement(
+      'INSERT INTO changes (tbl, pk, op, before, after, at_ms, with_schema) '
+      "VALUES ('sync', '{}', 'applied', NULL, ?, 0, 1)",
+      ['{"c3d4":7}'],
+    );
+    final cut = await db.lastChangeSeq();
+    final account = (await db.loadLedger()).accounts.values.first;
+    await db.renameAccount(account.id, 'Wallet');
+    final rows = await db.changesSince(0);
+    final last = await db.lastChangeSeq();
+    expect(await db.compactChanges(cut), isTrue);
+    // Once is enough: nothing more to drop at the same cut.
+    expect(await db.compactChanges(cut), isFalse);
+    expect(await db.lastChangeSeq(), last);
+    final kept = await db.changesSince(0);
+    expect(kept.first.seq, cut);
+    expect(kept.skip(1).map((r) => r.seq), [
+      for (final r in rows)
+        if (r.seq > cut) r.seq,
+    ]);
+    expect(firstSeqOf(kept), cut + 1);
+
+    final file = File('${root.path}/${changeFileName('a1b2')}');
+    await writeChangeFile(
+      file,
+      null,
+      header('a1b2', applied: {'a1b2': last}),
+      kept,
+      scratch: Directory('${root.path}/scratch'),
+    );
+    final read = readChangeFile(file, null, afterSeq: cut);
+    expect(read.header.firstSeq, cut + 1);
+    expect(read.header.knowsCuts, isTrue);
+    expect(read.knewBefore, {'c3d4': 7});
+    expect(read.changes.first.seq, cut + 1);
+  });
+
+  test('cut no further than the folder’s ledger and every computer seen in '
+      'the last six weeks hold', () {
+    final now = DateTime(2026, 11, 19);
+    ChangeFileHeader seen(String id, int had, {int daysAgo = 1}) =>
+        ChangeFileHeader(
+          computer: id,
+          name: null,
+          ledger: 'abcd',
+          schema: 1,
+          applied: {'me': had},
+          lastSeq: 1,
+          writtenAt: now.subtract(Duration(days: daysAgo)),
+        );
+    int cut(List<ChangeFileHeader> files, {int folder = 50}) => compactionCut(
+      me: 'me',
+      ledger: 'abcd',
+      folder: {'me': folder},
+      files: files,
+      now: now,
+    );
+    expect(cut([]), 50);
+    expect(cut([seen('mac', 70)]), 50);
+    expect(cut([seen('mac', 70), seen('laptop', 30)]), 30);
+    expect(cut([seen('mac', 70), seen('laptop', 30, daysAgo: 46)]), 50);
+    // A file from a build before compaction is never counted away: that
+    // build would pass over what was cut.
+    final older = seen('laptop', 30, daysAgo: 200);
+    expect(
+      cut([
+        ChangeFileHeader(
+          computer: older.computer,
+          name: null,
+          ledger: older.ledger,
+          schema: 1,
+          applied: older.applied,
+          lastSeq: 1,
+          writtenAt: older.writtenAt,
+          knowsCuts: false,
+        ),
+      ]),
+      30,
+    );
+    expect(cut([seen('mac', 70)], folder: 0), 0);
+    // Another ledger's file holds nothing back.
+    expect(
+      compactionCut(
+        me: 'me',
+        ledger: 'abcd',
+        folder: {'me': 50},
+        files: [
+          ChangeFileHeader(
+            computer: 'old',
+            name: null,
+            ledger: 'ffff',
+            schema: 1,
+            applied: const {},
+            lastSeq: 1,
+            writtenAt: now,
+          ),
+        ],
+        now: now,
+      ),
+      50,
+    );
+  });
 }
