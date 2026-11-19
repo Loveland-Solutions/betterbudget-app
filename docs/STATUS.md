@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-18** · version 0.107.0 · schema v28 · 1169 tests pass
+**Last updated: 2026-11-19** · version 0.109.0 · schema v28 · 1186 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -62,7 +62,7 @@ Uncleared tab; the header says the newest count. The owner's ledger was upgraded
 v28 on 2026-11-18 (`Ledger.before-v28-from-v27-…` beside it). The phone counts too
 (0.108.0): Count the cash under a cash account on Accounts, the count waiting with the
 phone's entries, and the computer saving it as its own Count, in the order the phone
-made things. Next: phone parity (ADR 0005, #402): two computers' step 5 (#451) first, then the phone joins the folder as another computer (#526), then its screens one by one, sketches at phone size first; the first-time setup walkthrough (#475) after. The Mongolian of everything since #90's last pass is a draft until
+made things. Each computer's change file is compacted (0.109.0, the first of #451's three parts, ADR 0005 "step 5, first part"): it holds only what a computer seen in the last 45 days, or the folder's ledger, hasn't taken yet, and a computer away longer takes the folder's ledger whole when it is back. Next: phone parity (ADR 0005, #402): the phone joins the folder as another computer (#526), then its screens one by one, sketches at phone size first; the first-time setup walkthrough (#475) after. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 
 ## In the stores

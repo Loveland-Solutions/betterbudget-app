@@ -371,6 +371,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// its vector, so the file is written again only when either moved.
   int _publishedSeq = -1;
   int _publishedFirst = -1;
+
+  /// When this computer's file was last written in this run: rewritten at
+  /// least weekly, so another computer doesn't count this one as away
+  /// ([awayAfter]) while it is only idle.
+  DateTime? _publishedAt;
   String? _publishedVector;
 
   /// Two ledgers that couldn't be combined after all, by their digests:
@@ -1292,11 +1297,27 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         held = true;
         continue;
       }
+      // Compacted past what is here (step 5): the writer cut its log once
+      // the folder's ledger and every computer seen lately held it, and
+      // this one was away. What it missed is in the folder's ledger, taken
+      // whole below: the catch-up take. Known by the note at the cut, which
+      // a reader gets only when it is behind it.
+      // A folder's ledger that doesn't hold up to the cut yet hasn't
+      // finished arriving (the small file came first): waited for.
+      if (f.changes.first case final c
+          when c.isApplied && c.before?[cutKey] is int) {
+        if ((theirs.applied[h.computer] ?? 0) < (c.before![cutKey] as int)) {
+          held = true;
+        } else {
+          takeWhole = true;
+        }
+        continue;
+      }
       // What came before the file's first change was dropped by its writer
-      // (a ledger taken whole from the folder, or compacted away). When the
-      // folder's ledger doesn't hold those changes either, nobody does, and
-      // they are passed over; when it does, this computer is behind it and
-      // takes it whole below.
+      // (a ledger taken whole from the folder). When the folder's ledger
+      // doesn't hold those changes either, nobody does, and they are passed
+      // over; when it does, this computer is behind it and takes it whole
+      // below.
       final have = applied[h.computer] ?? 0;
       if (have > 0 && have + 1 < h.firstSeq) {
         if ((theirs.applied[h.computer] ?? 0) < h.firstSeq) {
@@ -1355,6 +1376,17 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       return (standing: FolderStanding.combine, replaced: null);
     }
     if (names) await _save();
+    if (unreadable.isEmpty) {
+      await db.compactChanges(
+        compactionCut(
+          me: me,
+          ledger: ledger,
+          folder: theirs.applied,
+          files: [for (final f in files) f.header],
+          now: now,
+        ),
+      );
+    }
     // The folder's ledger is behind this one: written afresh. Ahead on a
     // computer whose file didn't come: waited for, unless it holds every
     // change of this computer's, when it is taken in whole.
@@ -1414,6 +1446,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     if (_publishedSeq == state.lastSeq &&
         _publishedFirst == first &&
         _publishedVector == vector &&
+        _publishedAt != null &&
+        now.difference(_publishedAt!) < const Duration(days: 7) &&
         file.existsSync()) {
       return;
     }
@@ -1435,6 +1469,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     );
     _publishedSeq = state.lastSeq;
     _publishedFirst = first;
+    _publishedAt = now;
     _publishedVector = vector;
     await _save();
   }
@@ -1512,6 +1547,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         '${iStand ? 'this' : 'that'} computer’s stand',
       );
     }
+    final all = await backups.db.changesSince(0);
     final folded = foldChanges(
       rows,
       theirChanges,
@@ -1521,10 +1557,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       ],
       // To know a row the other settled over this computer's own version.
       mineAll: [
-        for (final c in await backups.db.changesSince(0))
+        for (final c in all)
           if (c.op != 'restore' && c.op != 'erase')
             _fold(ChangeRecord.fromRow(c)),
       ],
+      cut: all.isEmpty ? 0 : cutOfNote(all.first.op, all.first.before) ?? 0,
     );
     // Taking the other's answer: written down as this computer's, from
     // its version to the other's.

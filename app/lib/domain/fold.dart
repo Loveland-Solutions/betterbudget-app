@@ -53,11 +53,16 @@ class FoldChange {
 /// own version, which [mineAll], this computer's whole log, says it made.
 /// Then the base is that version's before, so `combine` sees the two
 /// changes.
+///
+/// [cut]: where this computer's log was cut (step 5; 0 when never). A row
+/// the other changed before it had this computer's changes up to there
+/// takes what the other found as its base.
 ({LedgerRows base, LedgerRows theirs, Set<String> madeUp}) foldChanges(
   LedgerRows mine,
   List<FoldChange> changes, {
   List<FoldChange> mineSince = const [],
   List<FoldChange> mineAll = const [],
+  int cut = 0,
 }) {
   final own = _byKey([
     for (final c in mineAll)
@@ -114,7 +119,14 @@ class FoldChange {
                 .where((c) => c.seq > firstKnew)
                 .firstOrNull;
       final Row? wasBefore;
-      if (overMine != null) {
+      if (cut > 0 && (seq.first.knew ?? 0) < cut) {
+        // The other changed it before it had this computer's changes up to
+        // where this log was cut (it was away, step 5): what this computer
+        // did to the row before the cut is no longer in [mineAll], so
+        // nothing above can be trusted. The base is what the other found,
+        // and `combine` sees every column both changed.
+        wasBefore = seq.first.before;
+      } else if (overMine != null) {
         // From before this computer's first change the other hadn't seen.
         wasBefore = (unseen ?? overMine).before;
       } else if (sawThis) {

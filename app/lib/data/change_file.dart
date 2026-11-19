@@ -45,6 +45,7 @@ class ChangeFileHeader {
     this.firstSeq = 0,
     required this.lastSeq,
     required this.writtenAt,
+    this.knowsCuts = true,
   });
 
   final String computer;
@@ -71,8 +72,14 @@ class ChangeFileHeader {
   /// The writer's last change, in the file or compacted away.
   final int lastSeq;
 
-  /// When, by the writer's clock, for the screen only.
+  /// When, by the writer's clock: for the screen, and to tell a computer
+  /// put away from one only idle ([awayAfter]; rewritten at least weekly).
   final DateTime writtenAt;
+
+  /// Written by a build that compacts (ADR 0005 step 5) and so knows a cut
+  /// when it is behind one. A file without it is from an older build, which
+  /// would pass over what was cut: such a computer is never counted away.
+  final bool knowsCuts;
 }
 
 /// One row's change as the file carries it: the key and the whole row
@@ -155,6 +162,47 @@ class ChangeFile {
   }
 }
 
+/// A computer whose change file hasn't been written for this long is away:
+/// it no longer holds the others' change files back from being compacted,
+/// and when it comes back it takes the folder's ledger whole, which holds
+/// everything it missed (ADR 0005 step 5). A computer that's in use writes
+/// its file whenever it takes something in, so six weeks of silence is a
+/// computer put away, not one that is only idle; 45 days leaves room for one
+/// used once a month for the bills.
+const awayAfter = Duration(days: 45);
+
+/// How far computer [me] may cut its log (ADR 0005 step 5): to the last of
+/// its changes that the folder's ledger holds ([folder], its vector) and
+/// that every other computer of [ledger] seen in the last [awayAfter]
+/// ([files], their headers) has applied. A new computer starts from the
+/// folder's ledger, and one away longer takes it whole when it is back.
+int compactionCut({
+  required String me,
+  required String? ledger,
+  required Map<String, int> folder,
+  required List<ChangeFileHeader> files,
+  required DateTime now,
+}) {
+  var cut = folder[me] ?? 0;
+  for (final h in files) {
+    if (h.computer == me) continue;
+    if (h.ledger != null && ledger != null && h.ledger != ledger) continue;
+    if (h.knowsCuts && now.difference(h.writtenAt) > awayAfter) continue;
+    final had = h.applied[me] ?? 0;
+    if (had < cut) cut = had;
+  }
+  return cut;
+}
+
+/// The first change a file of [rows] holds, for its header: the row after
+/// the cut when the log was compacted (its first row only says where it
+/// was cut, [cutOfNote]); 0 when none.
+int firstSeqOf(List<ChangeRow> rows) {
+  if (rows.isEmpty) return 0;
+  final cut = cutOfNote(rows.first.op, rows.first.before);
+  return cut != null ? cut + 1 : rows.first.seq;
+}
+
 /// Writes [rows] with [header] to [target], whole: made beside the app's
 /// own files in [scratch], then written over [target] in place (or made,
 /// the first time), so a sync service sees one file with a new version. A
@@ -177,7 +225,8 @@ Future<void> writeChangeFile(
         'CREATE TABLE computer (id TEXT NOT NULL, name TEXT, ledger TEXT, '
         'schema INTEGER NOT NULL, applied TEXT NOT NULL, '
         'first_seq INTEGER NOT NULL, last_seq INTEGER NOT NULL, '
-        'written_at TEXT NOT NULL, notes_applied INTEGER NOT NULL)',
+        'written_at TEXT NOT NULL, notes_applied INTEGER NOT NULL, '
+        'knows_cuts INTEGER NOT NULL)',
       );
       db.execute(
         'CREATE TABLE changes (seq INTEGER PRIMARY KEY, tbl TEXT NOT NULL, '
@@ -185,17 +234,19 @@ Future<void> writeChangeFile(
         'at_ms INTEGER NOT NULL, with_schema INTEGER NOT NULL)',
       );
       db.execute('BEGIN');
-      db.execute('INSERT INTO computer VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+      db.execute('INSERT INTO computer VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
         header.computer,
         header.name,
         header.ledger,
         header.schema,
         encodeApplied(header.applied),
-        rows.isEmpty ? 0 : rows.first.seq,
+        firstSeqOf(rows),
         header.lastSeq,
         header.writtenAt.toIso8601String(),
         // Its log writes down what it applied ([appliedMarkerOp]): no note
         // before a change means nothing applied, not "unknown".
+        1,
+        // It knows a cut (step 5).
         1,
       ]);
       final insert = db.prepare(
@@ -249,6 +300,7 @@ ChangeFile readChangeFile(File file, Uint8List? key, {int afterSeq = 0}) {
         writtenAt:
             DateTime.tryParse(c['written_at'] as String) ??
             DateTime.fromMillisecondsSinceEpoch(0),
+        knowsCuts: c.containsKey('knows_cuts') && c['knows_cuts'] == 1,
       );
       final changes = [
         for (final r in db.select(

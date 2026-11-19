@@ -60,6 +60,23 @@ const changeLogTable = 'changes';
 const appliedMarkerOp = 'applied';
 const appliedMarkerTable = 'sync';
 
+/// Where a log was cut (ADR 0005 step 5, compaction): the key in the
+/// `before` of the note left at the cut, whose `seq` is the cut. Every
+/// change up to it was dropped, being in every reader's ledger and the
+/// folder's.
+const cutKey = 'cut';
+
+/// The cut a log's row marks, or null when it is no such note.
+int? cutOfNote(String op, String? before) {
+  if (op != appliedMarkerOp || before == null) return null;
+  try {
+    final cut = (jsonDecode(before) as Map)[cutKey];
+    return cut is int ? cut : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /// A new ledger's id: 16 hex characters, random.
 String newLedgerId() {
   final random = Random.secure();
