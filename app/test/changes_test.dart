@@ -9,6 +9,7 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/domain/combine.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/sync.dart';
 import 'package:drift/drift.dart' show DriftSqlType;
 import 'package:drift/native.dart';
@@ -186,37 +187,196 @@ void main() {
     },
   );
 
-  test('a whole ledger put in is one marker, not its rows; the folder’s own '
-      'ledger taken in is nothing', () async {
+  test('a restore of this ledger is its differences, row by row, and keeps '
+      'this computer’s sync settings; the folder’s own ledger taken in is '
+      'nothing', () async {
     final dir = await Directory.systemTemp.createTemp('bb-changes');
     addTearDown(() => dir.delete(recursive: true));
     final copy = '${dir.path}/copy.betterbudget';
     await db.copyTo(copy);
-    final mark = await db.lastChangeSeq();
+    // The same ledger put back with nothing changed: nothing to say.
+    var mark = await db.lastChangeSeq();
     await db.replaceAllFrom(copy);
+    expect(await since(mark), isEmpty);
+
+    // A purchase, a renamed account and this computer's own settings moved
+    // on since the copy.
+    await db.postSimple(
+      accountId: await account('TDB Checking'),
+      date: today,
+      today: today,
+      payee: 'Nomin',
+      counterAccountId: await account('Groceries'),
+      amount: -1250000,
+    );
+    await db.renameAccount(await account('Cash wallet'), 'Wallet');
+    await db.setPreference(SyncKeys.applied, '{"laptop":7}');
+    final id = (await db.loadLedger()).prefs[SyncKeys.ledger];
+    mark = await db.lastChangeSeq();
+    await db.replaceAllFrom(copy);
+    final rows = await since(mark);
+    // Each row put back is a change of its own: the purchase's
+    // transaction and entries (and its payee) go, the account's name goes
+    // back. No marker.
+    expect(rows.map((r) => r.op), isNot(contains('restore')));
+    expect(rows.where((r) => r.tbl == 'transactions').map((r) => r.op), [
+      'delete',
+    ]);
+    expect(rows.where((r) => r.tbl == 'entries').map((r) => r.op).toSet(), {
+      'delete',
+    });
+    final renamed = rows.singleWhere((r) => r.tbl == 'accounts');
+    expect(renamed.op, 'update');
+    expect(json(renamed.before)['name'], 'Wallet');
+    expect(json(renamed.after)['name'], 'Cash wallet');
+    final ledger = await db.loadLedger();
+    expect(ledger.txns.map((t) => t.payee), isNot(contains('Nomin')));
+    // This ledger's own: its id and what it has applied stay.
+    expect(ledger.prefs[SyncKeys.ledger], id);
+    expect(ledger.prefs[SyncKeys.applied], '{"laptop":7}');
+
+    // The folder's own ledger taken in is nothing of this computer's.
+    mark = await db.lastChangeSeq();
+    await db.replaceAllFrom(copy, fromFolder: true);
+    expect(await since(mark), isEmpty);
+  });
+
+  test('a restore and its take-back pass a unique name or bank match moved '
+      'from one row to another', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-changes');
+    addTearDown(() => dir.delete(recursive: true));
+    await db.customStatement(
+      "INSERT INTO payees (id, name) VALUES (900001, 'PA'), (900002, 'PB')",
+    );
+    final copy = '${dir.path}/copy.betterbudget';
+    await db.copyTo(copy);
+    await db.customStatement(
+      "UPDATE payees SET name = 'PA2' WHERE id = 900001",
+    );
+    await db.customStatement("UPDATE payees SET name = 'PA' WHERE id = 900002");
+    final changed = '${dir.path}/changed.betterbudget';
+    await db.copyTo(changed);
+    Future<List<String>> names() async => [
+      for (final r
+          in await db
+              .customSelect(
+                'SELECT name FROM payees WHERE id IN (900001, 900002) ORDER BY id',
+              )
+              .get())
+        r.read<String>('name'),
+    ];
+    final ran = (await db.replaceAllFrom(copy))!;
+    expect(await names(), ['PA', 'PB']);
+    final back = await db.revertChanges(ran);
+    expect(await names(), ['PA2', 'PA']);
+    await db.revertChanges(back);
+    expect(await names(), ['PA', 'PB']);
+    await db.replaceAllFrom(changed);
+    expect(await names(), ['PA2', 'PA']);
+
+    // A bank match moved from one entry to another.
+    final two = (await db.loadLedger()).txns
+        .expand((t) => t.entries)
+        .take(2)
+        .map((e) => e.id)
+        .toList();
+    await db.customStatement(
+      "UPDATE entries SET import_key = 'K' WHERE id = ${two[1]}",
+    );
+    final keyed = '${dir.path}/keyed.betterbudget';
+    await db.copyTo(keyed);
+    await db.customStatement(
+      'UPDATE entries SET import_key = NULL WHERE id = ${two[1]}',
+    );
+    await db.customStatement(
+      "UPDATE entries SET import_key = 'K' WHERE id = ${two[0]}",
+    );
+    final moved = (await db.replaceAllFrom(keyed))!;
+    Future<int?> holder() async =>
+        (await db
+                .customSelect("SELECT id FROM entries WHERE import_key = 'K'")
+                .getSingleOrNull())
+            ?.read<int>('id');
+    expect(await holder(), two[1]);
+    await db.revertChanges(moved);
+    expect(await holder(), two[0]);
+  });
+
+  test('a restore and an erase keep the phones’ names and which of their '
+      'entries were taken in', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-changes');
+    addTearDown(() => dir.delete(recursive: true));
+    final copy = '${dir.path}/copy.betterbudget';
+    await db.copyTo(copy);
+    await db.setPreference(phoneTakenKey, 'taken-now');
+    await db.setPreference('${phoneNamePrefix}pixel', 'Pixel');
+    await db.replaceAllFrom(copy);
+    var prefs = (await db.loadLedger()).prefs;
+    expect(prefs[phoneTakenKey], 'taken-now');
+    expect(prefs['${phoneNamePrefix}pixel'], 'Pixel');
+    await db.startNewLedger(today, keepCategories: true);
+    prefs = (await db.loadLedger()).prefs;
+    expect(prefs[phoneTakenKey], 'taken-now');
+    expect(prefs['${phoneNamePrefix}pixel'], 'Pixel');
+  });
+
+  test('another ledger’s file put in is one marker, with its id', () async {
+    final dir = await Directory.systemTemp.createTemp('bb-changes');
+    addTearDown(() => dir.delete(recursive: true));
+    final other = AppDatabase(
+      NativeDatabase(File('${dir.path}/other.betterbudget')),
+    );
+    await seedDemoIfEmpty(other, today);
+    final theirs = (await other.loadLedger()).prefs[SyncKeys.ledger];
+    await other.close();
+    expect(theirs, isNot((await db.loadLedger()).prefs[SyncKeys.ledger]));
+    final mark = await db.lastChangeSeq();
+    await db.replaceAllFrom('${dir.path}/other.betterbudget');
     final rows = await since(mark);
     expect(rows, hasLength(1));
     expect(rows.single.op, 'restore');
     expect(rows.single.tbl, '');
-    await db.replaceAllFrom(copy, fromFolder: true);
-    expect(await since(rows.single.seq), isEmpty);
+    expect((await db.loadLedger()).prefs[SyncKeys.ledger], theirs);
   });
 
-  test(
-    'erasing is a marker and a new ledger id; the log before it stays',
-    () async {
-      final was = (await db.loadLedger()).prefs[SyncKeys.ledger];
-      final mark = await db.lastChangeSeq();
-      await db.startNewLedger(today, keepCategories: true);
-      final rows = await since(mark);
-      expect(rows, hasLength(1));
-      expect(rows.single.op, 'erase');
-      expect(await since(0), hasLength(mark + 1));
-      final now = (await db.loadLedger()).prefs[SyncKeys.ledger];
-      expect(now, hasLength(16));
-      expect(now, isNot(was));
-    },
-  );
+  test('erasing is every row deleted, as ordinary changes; the ledger keeps '
+      'its id, Income and this computer’s sync settings', () async {
+    await db.setPreference(SyncKeys.applied, '{"laptop":7}');
+    final was = (await db.loadLedger()).prefs[SyncKeys.ledger];
+    final income = (await db.loadLedger()).accounts.values
+        .singleWhere((a) => a.type == AccountType.income)
+        .id;
+    final mark = await db.lastChangeSeq();
+    await db.startNewLedger(today, keepCategories: false);
+    final rows = await since(mark);
+    // Rows deleted; the two settings an erase writes added.
+    expect(rows.map((r) => r.op).toSet(), {'delete', 'insert'});
+    expect(rows.where((r) => r.op == 'insert').map((r) => r.tbl).toSet(), {
+      'preferences',
+    });
+    expect(rows.where((r) => r.tbl == 'transactions'), isNotEmpty);
+    expect(
+      rows.where((r) => r.tbl == 'transactions').map((r) => r.op).toSet(),
+      {'delete'},
+    );
+    // The log before it stays.
+    expect(await since(0), hasLength(greaterThan(mark)));
+    final ledger = await db.loadLedger();
+    expect(ledger.txns, isEmpty);
+    expect(ledger.prefs[SyncKeys.ledger], was);
+    expect(ledger.prefs[SyncKeys.applied], '{"laptop":7}');
+    // Income is the same row, never deleted and made again.
+    expect(
+      ledger.accounts.values
+          .singleWhere((a) => a.type == AccountType.income)
+          .id,
+      income,
+    );
+    expect(
+      rows.where((r) => r.tbl == 'accounts' && r.pk.contains('$income')),
+      isEmpty,
+    );
+  });
 
   test(
     'the log is no part of the ledger’s digest or of what is compared',

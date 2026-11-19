@@ -1149,6 +1149,11 @@ typedef PlanChange = ({
 /// Where a ledger stands on change files ([AppDatabase.syncState]): for
 /// every computer the last change of theirs it holds, which ledger it is,
 /// and this computer's own last change.
+/// What a restore or an erase wrote as this computer's own changes, read
+/// as it ran, for its undo ([AppDatabase.revertChanges]): held here, since
+/// the log itself is cut once the other computers have it.
+typedef OwnChanges = List<ChangeRow>;
+
 typedef SyncState = ({
   Map<String, int> applied,
   String? ledger,
@@ -1641,8 +1646,10 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
-  /// Records a whole-ledger act ([op] `restore` or `erase`) in the log, with
-  /// no rows: step 5 of ADR 0005 makes it a batch of its own.
+  /// Records a whole-ledger act in the log, with no rows: since step 5 of
+  /// ADR 0005 only another ledger's file restored here ([op] `restore`); a
+  /// restore of this ledger and an erase are ordinary changes. A build
+  /// before 0.110 also wrote `erase`, which readers still know.
   Future<void> _logMarker(String op) => into(changes).insert(
     ChangesCompanion.insert(
       tbl: '',
@@ -2216,20 +2223,27 @@ class AppDatabase extends _$AppDatabase {
   /// cipher configured (tests, and any other plain executor).
   ///
   /// The ledger put in is a change a person made here (a restore, or its
-  /// undo), so it keeps the counts this ledger had and loses its seal: where
-  /// the ledger is stored in a folder it is then written there, not taken
-  /// for an older one and replaced by the folder's. [fromFolder] is the one
-  /// case where it isn't: the folder's own ledger taken in as it is.
+  /// undo). When it is this same ledger (the file's `sync.ledger` is this
+  /// one's, or either has none) it goes in as ordinary changes (ADR 0005,
+  /// step 5, second part): each row that differs is deleted, changed or
+  /// added with the change log on, so the other computers take it as they
+  /// take any edit, and every `sync.*` setting here (the ledger's id, what
+  /// this computer has applied, the seal) stays as it is. Another ledger's
+  /// file is put in whole, as before: its rows and id, this ledger's counts,
+  /// no seal, and a `restore` marker in the log, which the other computers
+  /// ask the whole-ledger question about. [fromFolder] is neither: the
+  /// folder's own ledger taken in as it is.
   ///
   /// [onlyIfDigest]: what this ledger held when it was found to have
   /// nothing the folder's lacks. Checked inside the same write: a change
   /// made here since (a click while the folder's was being read) and
   /// nothing is replaced, with a [ChangedSinceException].
-  Future<void> replaceAllFrom(
+  Future<OwnChanges?> replaceAllFrom(
     String path, {
     String? sourceKeyBind,
     bool fromFolder = false,
     String? onlyIfDigest,
+    bool whole = false,
   }) async {
     const parentsFirst = [
       'accounts',
@@ -2270,7 +2284,7 @@ class AppDatabase extends _$AppDatabase {
       );
     }
     try {
-      await transaction(() async {
+      return await transaction(() async {
         if (onlyIfDigest != null &&
             (await sealState()).digest != onlyIfDigest) {
           throw ChangedSinceException();
@@ -2278,6 +2292,21 @@ class AppDatabase extends _$AppDatabase {
         final had = SyncComputers.parse(
           (await _syncPrefs())[SyncKeys.computers],
         );
+        if (!fromFolder && !whole && await _sameLedgerAsSrc()) {
+          final from = await lastChangeSeq() + 1;
+          await _putInAsChanges(parentsFirst);
+          await customStatement('DELETE FROM main.preferences WHERE key = ?', [
+            SyncKeys.told,
+          ]);
+          final unbalanced = await customSelect(unbalancedSql).get();
+          if (unbalanced.isNotEmpty) {
+            throw UnbalancedTransactionException(
+              unbalanced.first.read<int>('transaction_id'),
+              0,
+            );
+          }
+          return changesSince(from - 1);
+        }
         // A whole ledger put in isn't row-by-row changes of this
         // computer's: the log is held, and one marker says what happened
         // (the folder's own ledger taken in is nothing of this computer's,
@@ -2338,6 +2367,7 @@ class AppDatabase extends _$AppDatabase {
             0,
           );
         }
+        return null;
       });
     } finally {
       try {
@@ -2348,6 +2378,186 @@ class AppDatabase extends _$AppDatabase {
         debugPrint('Detach after restore failed: $e');
       }
       markTablesUpdated(allTables);
+    }
+  }
+
+  /// The settings a restore of this ledger and an erase leave as they are
+  /// here, as SQL on `key`: each computer's own (`sync.*`), the phones'
+  /// names, and which phone entries were taken in, so a phone's entries
+  /// neither come in twice nor go missing by when its file arrived.
+  static const _keptThroughReplace =
+      "key LIKE '${SyncKeys.prefix}%' OR key LIKE '$phoneNamePrefix%' "
+      "OR key = '$phoneTakenKey'";
+
+  /// Takes back this computer's own changes [done] (a restore or
+  /// an erase of this ledger, or an earlier take-back of one), newest
+  /// first, as changes of its own that the other computers take in too:
+  /// each row still as that change left it goes back to how it found it.
+  /// A row changed since, by another computer or here, is left as it is:
+  /// an undo takes back only what the person here did. Returns the
+  /// changes this made, which a redo takes back in turn.
+  Future<OwnChanges> revertChanges(OwnChanges done) async {
+    try {
+      return await transaction(() async {
+        await customStatement('PRAGMA defer_foreign_keys = ON');
+        final start = await lastChangeSeq() + 1;
+        final newestFirst = [
+          for (final c in done.reversed)
+            if (const {'insert', 'update', 'delete'}.contains(c.op)) c,
+        ];
+        final columns = <String, Set<String>>{};
+        String q(String name) => '"$name"';
+        Map<String, Object?>? decode(String? text) =>
+            text == null ? null : (jsonDecode(text) as Map).cast();
+        bool same(Map<String, Object?>? a, Map<String, Object?>? b) {
+          if (a == null || b == null) return a == null && b == null;
+          for (final c in {...a.keys, ...b.keys}) {
+            if (c == 'created_at' || c == 'updated_at') continue;
+            final x = a[c], y = b[c];
+            if (x == y || (x is num && y is num && x == y)) continue;
+            return false;
+          }
+          return true;
+        }
+
+        for (final c in newestFirst) {
+          final keys = combineKeys[c.tbl];
+          if (keys == null) continue;
+          final pk = decode(c.pk)!;
+          final where = keys.map((k) => '${q(k)} IS ?').join(' AND ');
+          final at = [for (final k in keys) pk[k]];
+          final now = (await customSelect(
+            'SELECT * FROM ${q(c.tbl)} WHERE $where',
+            variables: [for (final v in at) Variable<Object>(v)],
+          ).getSingleOrNull())?.data;
+          if (!same(now, decode(c.after))) continue;
+          final before = decode(c.before);
+          if (before == null) {
+            await customStatement('DELETE FROM ${q(c.tbl)} WHERE $where', at);
+            continue;
+          }
+          final has = columns[c.tbl] ??= {
+            for (final r in await customSelect(
+              'PRAGMA table_info(${q(c.tbl)})',
+            ).get())
+              r.read<String>('name'),
+          };
+          final row = {
+            for (final e in before.entries)
+              if (has.contains(e.key)) e.key: e.value,
+          };
+          if (now == null) {
+            await customStatement(
+              'INSERT INTO ${q(c.tbl)} (${row.keys.map(q).join(', ')}) '
+              'VALUES (${row.keys.map((_) => '?').join(', ')})',
+              row.values.toList(),
+            );
+          } else {
+            await customStatement(
+              'UPDATE ${q(c.tbl)} SET '
+              '${row.keys.map((k) => '${q(k)} = ?').join(', ')} '
+              'WHERE $where',
+              [...row.values, ...at],
+            );
+          }
+        }
+        final unbalanced = await customSelect(unbalancedSql).get();
+        if (unbalanced.isNotEmpty) {
+          throw UnbalancedTransactionException(
+            unbalanced.first.read<int>('transaction_id'),
+            0,
+          );
+        }
+        return changesSince(start - 1);
+      });
+    } finally {
+      markTablesUpdated(allTables);
+    }
+  }
+
+  /// Whether the attached `src` is this ledger, by `sync.ledger`: the same
+  /// id, or no id on either side (a ledger from before ids, or one never
+  /// shared).
+  Future<bool> _sameLedgerAsSrc() async {
+    Future<String?> idIn(String schema) async => (await customSelect(
+      'SELECT value FROM $schema.preferences WHERE key = ?',
+      variables: [Variable.withString(SyncKeys.ledger)],
+    ).getSingleOrNull())?.read<String?>('value');
+    final here = await idIn('main'), there = await idIn('src');
+    return here == null || there == null || here == there;
+  }
+
+  /// Makes this ledger's rows the attached `src`'s, one row at a time and
+  /// with the change log on, so what is written is the difference and
+  /// nothing more: rows only here are deleted, rows that differ are
+  /// changed, rows only there are added. Children go before parents for
+  /// deletes and after them for adds; references are checked at commit,
+  /// which a broken one refuses whole.
+  /// The `sync.*` settings are each computer's own and aren't touched, nor
+  /// are the phones' names and which of their entries were taken in
+  /// ([_keptThroughReplace]).
+  Future<void> _putInAsChanges(List<String> parentsFirst) async {
+    await customStatement('PRAGMA defer_foreign_keys = ON');
+    String q(String name) => '"$name"';
+    final keysOf = <String, List<String>>{};
+    final columnsOf = <String, List<String>>{};
+    for (final t in parentsFirst) {
+      final info = await customSelect('PRAGMA main.table_info($t)').get();
+      columnsOf[t] = [for (final r in info) r.read<String>('name')];
+      final pk = [
+        for (final r
+            in info.where((r) => r.read<int>('pk') > 0).toList()
+              ..sort((a, b) => a.read<int>('pk').compareTo(b.read<int>('pk'))))
+          r.read<String>('name'),
+      ];
+      keysOf[t] = pk.isNotEmpty ? pk : combineKeys[t]!;
+    }
+    String match(String t, String a, String b) =>
+        keysOf[t]!.map((k) => '$a.${q(k)} IS $b.${q(k)}').join(' AND ');
+    String own(String t, String a) => t == 'preferences'
+        ? ' AND NOT ($_keptThroughReplace)'.replaceAll('key', '$a.key')
+        : '';
+    for (final t in parentsFirst.reversed) {
+      await customStatement(
+        'DELETE FROM main.$t WHERE NOT EXISTS '
+        '(SELECT 1 FROM src.$t s WHERE ${match(t, 's', 'main.$t')})'
+        '${own(t, 'main.$t')}',
+      );
+    }
+    // A unique value moving from one row to another would clash halfway
+    // through the changes below: cleared first in the rows that change it,
+    // as a change of its own, then set.
+    await customStatement(
+      'UPDATE main.payees SET name = char(0) || id WHERE EXISTS '
+      '(SELECT 1 FROM src.payees s WHERE s.id IS main.payees.id '
+      'AND s.name IS NOT main.payees.name)',
+    );
+    await customStatement(
+      'UPDATE main.entries SET import_key = NULL '
+      'WHERE import_key IS NOT NULL AND EXISTS '
+      '(SELECT 1 FROM src.entries s WHERE s.id IS main.entries.id '
+      'AND s.import_key IS NOT main.entries.import_key)',
+    );
+    for (final t in parentsFirst) {
+      final keys = keysOf[t]!;
+      final rest = columnsOf[t]!.where((c) => !keys.contains(c)).toList();
+      if (rest.isNotEmpty) {
+        final cols = rest.map(q).join(', ');
+        await customStatement(
+          'UPDATE main.$t SET ($cols) = '
+          '(SELECT $cols FROM src.$t s WHERE ${match(t, 's', 'main.$t')}) '
+          'WHERE EXISTS (SELECT 1 FROM src.$t s WHERE '
+          '${match(t, 's', 'main.$t')} AND NOT '
+          '(${rest.map((c) => 's.${q(c)} IS main.$t.${q(c)}').join(' AND ')}))'
+          '${own(t, 'main.$t')}',
+        );
+      }
+      final all = columnsOf[t]!.map(q).join(', ');
+      await customStatement(
+        'INSERT INTO main.$t ($all) SELECT $all FROM src.$t s '
+        'WHERE NOT EXISTS (SELECT 1 FROM main.$t m WHERE ${match(t, 'm', 's')})'
+        '${own(t, 's')}',
+      );
     }
   }
 
@@ -4808,51 +5018,54 @@ class AppDatabase extends _$AppDatabase {
 
   /// A clean start: every account, transaction, reconcile, pay schedule,
   /// payee and setting goes, in one write. With [keepCategories] the open
-  /// categories stay, with no rows in them. The caller saves a copy first.
-  Future<void> startNewLedger(DateTime today, {required bool keepCategories}) =>
-      transaction(
-        () => _withoutChangeLog(() async {
-          // A new ledger, with an id of its own (ADR 0005, "the way chosen":
-          // computers never merge across ids). The log keeps what came
-          // before the marker: an undo of this puts the rows back, and step 3
-          // may still owe the other computer a change made just before.
-          await _logMarker('erase');
-          await delete(budgetAmounts).go();
-          await delete(categoryPlans).go();
-          await delete(categoryAccountsOff).go();
-          await delete(categoryPaidFrom).go();
-          await delete(payeeRuleAccounts).go();
-          await delete(payeeRules).go();
-          await delete(entries).go();
-          await delete(reconciliations).go();
-          await delete(transactions).go();
-          await delete(paySchedules).go();
-          await delete(payees).go();
-          // The computers' counts stay: where the ledger is stored in a
-          // folder, the new one is this ledger changed, and is written there.
-          await (delete(
-            preferences,
-          )..where((p) => p.key.equals(SyncKeys.computers).not())).go();
-          await (delete(accounts)..where(
-                (a) => keepCategories
-                    ? (a.type.isIn([
-                                AccountType.income.name,
-                                AccountType.expense.name,
-                              ]) &
-                              a.archivedAt.isNull() &
-                              a.deletedAt.isNull())
-                          .not()
-                    : const Constant(true),
-              ))
-              .go();
-          await incomeCategory();
-          await setPreference(SyncKeys.ledger, newLedgerId());
-          await setPreference(startedKey, dateKey(dateOnly(today)));
-          // Starting clean was the choice: a backup isn't offered at the next
-          // launch.
-          await setPreference(SetupKeys.backupOffer, SetupKeys.backupOfferNo);
-        }),
-      );
+  /// categories stay, with no rows in them; Income stays either way. The
+  /// caller saves a copy first.
+  ///
+  /// It is this ledger changed, not a new one (ADR 0005, step 5, second
+  /// part): every row goes with the change log on, so a computer sharing the
+  /// ledger takes the erase as it takes any delete, and the `sync.*`
+  /// settings (the ledger's id, what this computer has applied) stay, with
+  /// the phones' names and which of their entries were taken in. Returns
+  /// the changes it made, for its undo ([revertChanges]).
+  Future<OwnChanges> startNewLedger(
+    DateTime today, {
+    required bool keepCategories,
+  }) => transaction(() async {
+    final from = await lastChangeSeq() + 1;
+    await delete(budgetAmounts).go();
+    await delete(categoryPlans).go();
+    await delete(categoryAccountsOff).go();
+    await delete(categoryPaidFrom).go();
+    await delete(payeeRuleAccounts).go();
+    await delete(payeeRules).go();
+    await delete(entries).go();
+    await delete(reconciliations).go();
+    await delete(transactions).go();
+    await delete(paySchedules).go();
+    await delete(payees).go();
+    await customStatement(
+      'DELETE FROM preferences WHERE NOT ($_keptThroughReplace) '
+      'OR key = ?',
+      [SyncKeys.told],
+    );
+    await (delete(accounts)..where(
+          (a) =>
+              a.type.equalsValue(AccountType.income).not() &
+              (keepCategories
+                  ? (a.type.equalsValue(AccountType.expense) &
+                            a.archivedAt.isNull() &
+                            a.deletedAt.isNull())
+                        .not()
+                  : const Constant(true)),
+        ))
+        .go();
+    await incomeCategory();
+    await setPreference(startedKey, dateKey(dateOnly(today)));
+    // Starting clean was the choice: a backup isn't offered at the next
+    // launch.
+    await setPreference(SetupKeys.backupOffer, SetupKeys.backupOfferNo);
+    return changesSince(from - 1);
+  });
 
   Future<void> renameAccount(int accountId, String name) async {
     await _refuseIncome(accountId);

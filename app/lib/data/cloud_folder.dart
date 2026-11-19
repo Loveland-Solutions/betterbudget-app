@@ -1328,8 +1328,9 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
           continue;
         }
       }
-      // A whole ledger put in or cleared there: step 5 makes it a batch of
-      // its own; until then the whole-ledger question.
+      // A whole ledger put in there by a build before 0.110, or another
+      // ledger's file restored (step 5 makes a restore of this ledger and
+      // an erase ordinary changes): the whole-ledger question.
       if (f.changes.any((c) => c.isMarker)) {
         return (standing: FolderStanding.apart, replaced: null);
       }
@@ -1593,6 +1594,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       madeHere: madeHere,
       madeUp: folded.madeUp,
       picks: _picks[key] ?? const {},
+      logged: true,
     );
     if (found.conflict case final why?) {
       debugPrint('${f.header.computer}’s changes can’t be brought in: $why');

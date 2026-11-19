@@ -1168,10 +1168,84 @@ computer"). No schema change; the change file's form is the same.
   name and goes on; a computer with no
   file and a change of its own waits, then takes it whole, nothing lost.
 
-**Left of step 5** (#451): a Restore and an erase as batches; the digest guard at
-equal vectors; cleanup of `(1)` copies; the red line's words for a file waited
-for; the older look's leftovers; settling by the rule with three or more
-computers; the soak.
+**Built, 2026-11-19: step 5, second part, a Restore and an erase as ordinary
+changes (0.110.0, #451).** The owner took the second of the three PRs: "a
+Restore and an 'Erase everything' each reach the other computers as ordinary
+changes." No schema change; every row in a ledger file stays as it is.
+
+- **A restore of this ledger** (`replaceAllFrom`, `_putInAsChanges` in
+  `database.dart`): with the backup attached, every row only here is deleted,
+  every row that differs is changed, every row only there is added, with the
+  change log on, so the log holds exactly the difference and the other
+  computers take it as they take any edit. "This ledger" is by `sync.ledger`:
+  the same id, or none on either side (a backup from before ids). The `sync.*`
+  settings here stay as they are (the ledger's id, what this computer has
+  applied of the others, the seal), and so do the phones' names and which
+  phone entries were taken in (`phone.name.*`, `phone.taken`), so a phone's
+  entries neither come in twice nor go missing by when its file arrived. A
+  unique value moving from one row to another (a payee's name, a bank match)
+  is cleared first in the rows that change it, as a change of its own, so
+  the changes never clash halfway. A backup with no id counts as this ledger
+  (the owner's backups from before ids are); the dialog's line says so.
+- **Undo and redo take back only the person's own rows** (`revertChanges`):
+  the changes a restore or an erase wrote are held with its undo (the log
+  itself is cut once the others have them), and its undo puts back, newest
+  first, each row still as that change left it; a row another computer
+  changed since stays as it is. The undo's own changes are what its redo
+  takes back. Undo of "Bring this ledger here" (taken off the folder first)
+  puts the old ledger in whole, its own `sync.*` settings with it
+  (`replaceWith(whole:)`), so it never reaches the shared ledger as changes
+  if the computer joins again.
+- **Another ledger's file** (a different `sync.ledger`) is put in whole as
+  before, with its id and a `restore` marker, and the other computers ask the
+  whole-ledger question about it. A computer on a build before 0.110 still
+  writes the marker for every restore and erase; that is asked about too.
+- **An erase** (`startNewLedger`) deletes every row with the log on, keeps
+  the ledger's id, this computer's `sync.*` settings and the phones' as for
+  a restore, and keeps Income
+  (the same row, never deleted and made again). This reverses "an erase gives
+  a new `ledger.id`" in the design of 2026-10-12: one ledger, emptied on
+  every computer, with no whole-ledger question.
+- **Warned first** (warn, don't block): shared in a folder, the restore
+  dialog says "The other computers and phones that share My Drive/BetterBudget
+  get this backup too. What they changed since it was made, and this computer
+  has already brought in, goes back to how the backup has it," and the erase
+  dialog "… are erased too. What they changed and haven’t sent yet comes in
+  afterwards." The restore's line shows only
+  for a backup of this ledger. This replaces the old rule that putting back a
+  copy "takes back nothing another computer did" (step 3, above): the copy
+  Backups keeps before another computer's changes come in, put back, now takes
+  those changes out on every computer, as the dialog says.
+- **In `combine`** (`logged`, true for a change file folded): a transaction
+  or account the other's ledger lacks was taken out by a change it logged,
+  so `_checkDescends`, which took that for a ledger written whole, isn't run.
+  A row one computer took out of the tables while a row that stays still
+  names it (a payee, an account, a transaction) stays too, as an account
+  deleted on one computer and used on the other does
+  (`_keepNamedParents`): put back from this computer's rows, the other's, or
+  the common ground, and written down as a `resolve` (gone there, here now)
+  so the computer that took it out puts it back too. A row taken out on one
+  and changed on the other is asked about in the window, as any row changed
+  two ways; an answer that keeps the other's delete writes down the rows it
+  took out (gone on both), so the other computer isn't asked again. Still the
+  whole-ledger question: an erase or restore that takes out a reconcile while
+  the other computer reconciled that account meanwhile, and a computer on a
+  build before 0.110 meeting a row taken out of the tables (its
+  `_checkDescends`), as both were before.
+- **Tests:** `changes_test.dart` (a restore is its differences, row by row,
+  and keeps the `sync.*` settings; another ledger's file is one marker; an
+  erase is every row deleted, same id, Income kept), `two_computers_test.dart`
+  "a restore and an erase, as ordinary changes" (an erase and its undo reach
+  the other computer; a change made meanwhile comes in on top; a purchase in
+  an account an erase took out keeps the account; a restore put back reaches
+  the other; a row a restore took out and the other changed is asked, kept or
+  gone on both; another ledger's file is still asked about), and
+  `cloud_folder_test.dart` through the real screen (both dialogs' lines,
+  golden `erase_shared.png`).
+
+**Left of step 5** (#451): the digest guard at equal vectors; cleanup of `(1)`
+copies; the red line's words for a file waited for; the older look's
+leftovers; settling by the rule with three or more computers; the soak.
 
 ### What a phone can and can't do
 

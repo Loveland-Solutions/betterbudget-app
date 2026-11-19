@@ -1414,6 +1414,42 @@ void main() {
         findsNothing,
       );
 
+      // Shared now: a backup of this ledger, and the erase, each say first
+      // that the other computers get it too (ADR 0005, step 5).
+      await tester.runAsync(() async {
+        await copy().copy('${dir.path}/Shared copy.betterbudget');
+      });
+      dialogs.openPath = '${dir.path}/Shared copy.betterbudget';
+      await press(find.byKey(const ValueKey('restore')));
+      expect(find.text('Restore this backup?'), findsOneWidget);
+      expect(
+        find.text(
+          'The other computers and phones that share My Drive/BetterBudget '
+          'get this backup too. What they changed since it was made, and '
+          'this computer has already brought in, goes back to how the '
+          'backup has it.',
+        ),
+        findsOneWidget,
+      );
+      await press(find.byKey(const ValueKey('restore-cancel')));
+      await tester.ensureVisible(find.byKey(const ValueKey('new-ledger')));
+      await tester.pump();
+      await press(find.byKey(const ValueKey('new-ledger')));
+      expect(
+        find.text(
+          'The other computers and phones that share My Drive/BetterBudget '
+          'are erased too. What they changed and haven’t sent yet comes in '
+          'afterwards.',
+        ),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/erase_shared.png'),
+      );
+      await press(find.byKey(const ValueKey('new-ledger-cancel')));
+      expect(find.byType(Dialog), findsNothing);
+
       // From here the two are two computers on one ledger: what the first
       // spends next arrives here.
       await tester.runAsync(() async {

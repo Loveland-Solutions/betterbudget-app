@@ -1,6 +1,6 @@
 # Where things stand
 
-**Last updated: 2026-11-19** · version 0.109.0 · schema v28 · 1186 tests pass
+**Last updated: 2026-11-19** · version 0.110.0 · schema v28 · 1197 tests pass
 
 **This file holds the current state, nothing else.** What's left to do (features, bugs,
 questions for the owner) is on the [BetterBudget board](https://github.com/orgs/Loveland-Solutions/projects/1), one issue each. No log of PRs:
@@ -62,7 +62,7 @@ Uncleared tab; the header says the newest count. The owner's ledger was upgraded
 v28 on 2026-11-18 (`Ledger.before-v28-from-v27-…` beside it). The phone counts too
 (0.108.0): Count the cash under a cash account on Accounts, the count waiting with the
 phone's entries, and the computer saving it as its own Count, in the order the phone
-made things. Each computer's change file is compacted (0.109.0, the first of #451's three parts, ADR 0005 "step 5, first part"): it holds only what a computer seen in the last 45 days, or the folder's ledger, hasn't taken yet, and a computer away longer takes the folder's ledger whole when it is back. Next: phone parity (ADR 0005, #402): the phone joins the folder as another computer (#526), then its screens one by one, sketches at phone size first; the first-time setup walkthrough (#475) after. The Mongolian of everything since #90's last pass is a draft until
+made things. Each computer's change file is compacted (0.109.0, the first of #451's three parts, ADR 0005 "step 5, first part"): it holds only what a computer seen in the last 45 days, or the folder's ledger, hasn't taken yet, and a computer away longer takes the folder's ledger whole when it is back. A Restore of this ledger and Erase everything reach the other computers as ordinary changes (0.110.0, the second of #451's three parts, ADR 0005 "step 5, second part"): each dialog says so first while the ledger is shared, and a row one took out and the other changed is asked about in the window. Next: phone parity (ADR 0005, #402): the phone joins the folder as another computer (#526), then its screens one by one, sketches at phone size first; the first-time setup walkthrough (#475) after. The Mongolian of everything since #90's last pass is a draft until
 Tanan checks it (#90).
 
 ## In the stores
@@ -108,7 +108,7 @@ phone (Android, iPhone), from [`app/`](../app/). The owner uses it with real mon
 refines it by what they hit; their wife enters receipts on her Android phone. The road
 to beta and after is in [ROADMAP.md](ROADMAP.md). The repo is public under GPL-3.0 or
 later (owner, 2026-10-16); anything pushed is published. Two computers on one ledger
-are built through step 4; step 5 is after beta (#451).
+are built through step 4 and two of step 5's three parts; the third is on #451.
 
 **The owner's ledger is production data** (since 2026-10-06; rules in
 [CLAUDE.md](../CLAUDE.md)). It holds one tugrik account and lives in their Google Drive
@@ -146,7 +146,7 @@ re-ask; bring one up when its screen comes up again.
 | Import | `.xls`, `.xlsx`, CSV and OFX, told apart by contents; the column choice is saved per account. Two counts, to import and skipped. A typed row the file has is cleared, not added; one at another amount is offered ("Same purchase: take the bank’s ₮…"). A check of the bank's running balance; a warning when rows overlap an earlier import. Remembered payees file the rows; one in a bill's category pays it. One undo |
 | Currencies | 155, each with its own decimals and symbol ([currencies.md](currencies.md)). A transfer between two takes both amounts and shows the rate, through a hidden exchange account. Net worth has a line per currency |
 | Two computers | The folder holds the whole ledger and one change file per computer, written only by it. Each looks at launch, on coming to the front and every 15 seconds, and brings in the others' changes ("4 transactions from Tom’s MacBook Air", no Undo; what was here is in Backups). A row or Assigned amount changed two ways is asked first, one window: Keep this computer's, Keep the other's, Neither: as it was; answered on one, the others aren't asked. Only a ledger that can't be put together asks which whole ledger to keep. A second computer joins by Open ledger, or Restore from… with "Share the ledger in My Drive/BetterBudget". Open the app from Applications, never from inside the Drive folder |
-| Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… ("Last backup 41 days ago" after 30 days, unless in a folder). Restore from… and "Erase everything and start over…" save what was there first, and undo. "Move my ledger to a folder…" keeps it, encrypted, as `Ledger.betterbudget` in a Drive, OneDrive, Box or Dropbox folder, written 5 seconds after a change; "Stored in" says where |
+| Backups | A copy a day, keeping the newest 14 and the first of each of 12 months. Back up to… ("Last backup 41 days ago" after 30 days, unless in a folder). Restore from… and "Erase everything and start over…" save what was there first, and undo; shared in a folder, both reach the other computers and phones as ordinary changes, which their dialogs say first. "Move my ledger to a folder…" keeps it, encrypted, as `Ledger.betterbudget` in a Drive, OneDrive, Box or Dropbox folder, written 5 seconds after a change; "Stored in" says where |
 | Security | A recovery key shown once at setup (the clipboard cleared a minute after a copy); a key from before 11:50 on 2026-09-29 ends in an older check character, and the app takes both (the owner's is one). A screen asks for it when this device has none. Settings → Security, "Check my recovery key…" ([ADR 0001](decisions/0001-database.md)) |
 | Appearance | Same as this Mac, Light or Dark; 101 color schemes, the app's own first: the logo's navy sidebar, a cool white page by day and blue-black at night, green main buttons, blue for what you click, the coins' gold for what was saved. In every scheme money in is green, money out ordinary ink, coral a shortfall or failure, gold reconciled |
 | Language | Same as this Mac, English or Монгол; 1,662 messages, the same keys in both files |

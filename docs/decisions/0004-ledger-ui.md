@@ -4027,6 +4027,33 @@ before" above.
 - Rejected: sketch A, told after (2026-10-17), now that the owner has seen
   both.
 
+### Two computers: a Restore and an erase reach the others (2026-11-19)
+
+The owner chose step 5's second part as worded: "a Restore and an 'Erase
+everything' each reach the other computers as ordinary changes" (ADR 0005,
+"step 5, second part"). Warn, don't block: each dialog says so before the
+click, in a line of its own, only while the ledger is shared in a folder.
+
+- **Restore this backup?** under its note, in ink: "The other computers and
+  phones that share My Drive/BetterBudget get this backup too. What they
+  changed since it was made, and this computer has already brought in, goes
+  back to how the backup has it." Only for a backup of
+  this ledger; another ledger's file is still put in whole, and the other
+  computers are asked about it.
+- **Erase everything and start over?** under "You start with no accounts and
+  no money in the app.", in ink and bold: "The other computers and phones that
+  share My Drive/BetterBudget are erased too. What they changed and haven’t
+  sent yet comes in afterwards."
+- The popups on the other computers are the ordinary ones for another
+  computer's changes, with no Undo (only what the person at that computer did
+  or decided); what was there is in Backups. The Undo on the computer that
+  restored or erased is that person's own: it takes back only the rows the
+  restore or erase changed, on every computer, and leaves what another
+  computer or phone added since.
+- This replaces "putting a copy back takes back nothing another computer
+  did": the copy Backups keeps before another computer's changes come in, put
+  back, takes those changes out everywhere, as the dialog says.
+
 ## Where a row came from: a Source column (2026-10-13)
 
 Owner, watching the first run on two Mac accounts, after the popup went away before

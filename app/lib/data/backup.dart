@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import '../domain/sync.dart' show SyncKeys;
 import 'database.dart';
 import 'encryption.dart';
 import 'keys.dart';
@@ -68,6 +69,7 @@ class RestoreCandidate {
     required this.transactions,
     required this.accounts,
     required this.sourceKeyBind,
+    this.ledger,
   });
 
   /// The working copy in `Backups/`. The picked file itself is never changed.
@@ -75,6 +77,11 @@ class RestoreCandidate {
   final DateTime madeAt;
   final int transactions;
   final int accounts;
+
+  /// Which ledger it is (`sync.ledger`), when it says. A backup of the
+  /// ledger here goes in as ordinary changes, which a computer sharing it
+  /// takes too; another ledger's file is put in whole.
+  final String? ledger;
 
   /// What [AppDatabase.replaceAllFrom] should bind to `ATTACH ... KEY ?`
   /// when this candidate is restored: the raw-key literal when [file] is
@@ -84,7 +91,11 @@ class RestoreCandidate {
 }
 
 /// What a restore replaced and with what, so it can be undone and redone.
-typedef RestoreRecord = ({File before, File restored});
+///
+/// [changes]: for a restore of this ledger, what it wrote as this
+/// computer's own changes, which its undo takes back row by row
+/// ([AppDatabase.revertChanges]); null when the ledger was put in whole.
+typedef RestoreRecord = ({File before, File restored, OwnChanges? changes});
 
 /// Why a file can't be restored. The UI words it (`restoreProblem` in
 /// ui/data_words.dart).
@@ -500,6 +511,7 @@ class Backups {
           transactions: ledger.txns.length,
           accounts: ledger.balanceSheetAccounts.length,
           sourceKeyBind: sourceKeyBind,
+          ledger: ledger.prefs[SyncKeys.ledger],
         );
       } on RestoreException {
         rethrow;
@@ -584,8 +596,9 @@ class Backups {
     final dir = (await folder())!;
     final before = _unused(dir, 'before-restore-', now);
     await db.copyTo(before.path);
+    final OwnChanges? changes;
     try {
-      await db.replaceAllFrom(
+      changes = await db.replaceAllFrom(
         c.file.path,
         sourceKeyBind: c.sourceKeyBind,
         fromFolder: fromFolder,
@@ -599,7 +612,7 @@ class Backups {
     await _deleteIncoming(dir, c.file);
     final restored = _unused(dir, 'restored-', now);
     await db.copyTo(restored.path);
-    return (before: before, restored: restored);
+    return (before: before, restored: restored, changes: changes);
   }
 
   /// Saves what's here as `before-restore-….betterbudget`, before another
@@ -658,12 +671,22 @@ class Backups {
   /// always one of this app's own snapshots (`before-restore-…` or
   /// `restored-…`, both written by [AppDatabase.copyTo] on this connection),
   /// so it's encrypted with [dataKey] whenever that's set, never plain.
-  Future<void> replaceWith(File file, DateTime now) async {
+  ///
+  /// [whole]: put in whole, with its own `sync.*` settings, as another
+  /// ledger's file is, even when it is this ledger: a computer taken off
+  /// the folder getting back what it had before it shared the ledger,
+  /// which mustn't later reach the ledger the others share as changes.
+  Future<OwnChanges?> replaceWith(
+    File file,
+    DateTime now, {
+    bool whole = false,
+  }) async {
     final dir = (await folder())!;
     await db.copyTo(_unused(dir, 'before-restore-', now).path);
-    await db.replaceAllFrom(
+    return db.replaceAllFrom(
       file.path,
       sourceKeyBind: dataKey == null ? null : rawKeyLiteral(dataKey!),
+      whole: whole,
     );
   }
 

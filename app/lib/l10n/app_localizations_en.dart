@@ -7784,4 +7784,14 @@ class WordsEn extends Words {
   String planBandFullMonths(String category, String amount, int months) {
     return '$category is full: $amount, $months months of expenses.';
   }
+
+  @override
+  String ledgerRestoreShared(String folder) {
+    return 'The other computers and phones that share $folder get this backup too. What they changed since it was made, and this computer has already brought in, goes back to how the backup has it.';
+  }
+
+  @override
+  String ledgerEraseShared(String folder) {
+    return 'The other computers and phones that share $folder are erased too. What they changed and haven’t sent yet comes in afterwards.';
+  }
 }

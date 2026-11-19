@@ -308,38 +308,6 @@ void main() {
       expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
     });
 
-    test('the one put back after the folder’s was taken in is written, not '
-        'taken for an old one', () async {
-      await laptop.cloud.keepIn(drive.path, monday);
-      await mac.spend('Nomin', monday);
-      await mac.cloud.check(monday);
-      await laptop.cloud.check(tuesday);
-      final candidate = await laptop.backups.inspect(
-        laptop.cloud.theirs!.copy.path,
-        tuesday,
-      );
-      final done = await laptop.backups.restore(
-        candidate,
-        tuesday,
-        fromFolder: true,
-      );
-      // Undo.
-      await laptop.backups.replaceWith(done.before, tuesday);
-      // Not taken for an old one: the Mac's change comes in on top of it,
-      // and the laptop writes the folder's ledger.
-      expect(
-        await laptop.cloud.check(tuesday, fresh: true),
-        FolderStanding.combine,
-      );
-      expect(await laptop.payees(), isNot(contains('Nomin')));
-      await laptop.cloud.bringIn(tuesday);
-      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
-      expect(await laptop.payees(), contains('Nomin'));
-      // A ledger put back whole is a whole-ledger act: until step 5 makes
-      // it a batch of its own, the Mac is asked.
-      expect(await mac.cloud.check(tuesday), FolderStanding.apart);
-    });
-
     test(
       'a backup restored on one computer is written to the folder',
       () async {
@@ -475,51 +443,30 @@ void main() {
       expect(await folderLedger().readAsBytes(), mondays);
     });
 
-    test('an erase here starts another ledger: written to the folder as '
-        'before, and the other computer is asked, never folded', () async {
-      await mac.spend('Nomin', monday);
-      await mac.cloud.check(monday);
-      await laptop.cloud.keepIn(drive.path, monday);
-      if (await laptop.cloud.check(monday, fresh: true) ==
-          FolderStanding.combine) {
-        await laptop.cloud.bringIn(monday);
-      }
-      expect(await laptop.cloud.check(monday, fresh: true), FolderStanding.ok);
-      final id = (await laptop.db.syncState()).ledger;
-      // A new ledger here: its own id, nothing in common.
-      await laptop.db.startNewLedger(tuesday, keepCategories: false);
-      expect((await laptop.db.syncState()).ledger, isNot(id));
-      // An erase falls back to the older look, whose counts the Mac's
-      // writes moved on since: asked, and "keep this computer's" writes
-      // the new ledger there (step 5 writes it without the question).
-      expect(
-        await laptop.cloud.check(tuesday, fresh: true),
-        FolderStanding.apart,
-      );
-      await laptop.cloud.keepMine(tuesday);
-      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
-      expect((await lookAtLedger(folderLedger(), null)).ledger, isNot(id));
-      final written = await folderLedger().readAsBytes();
-      // Two ledgers: the Mac is asked, and nothing of either is folded
-      // into the other.
-      expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.apart);
-      expect(await mac.payees(), contains('Nomin'));
-      expect(await folderLedger().readAsBytes(), written);
-    });
-
     test(
       '“Use this computer’s” keeps the folder’s first, and undoes',
       () async {
         await laptop.cloud.keepIn(drive.path, monday);
-        // A transaction taken out of the tables on the Mac, which no
-        // ordinary change does (a ledger replaced whole): the laptop can't
-        // bring that in row by row, and is asked which ledger to keep.
+        // A ledger replaced whole on the Mac, as a build before 0.110
+        // restored one: rows taken out with the log held, and a `restore`
+        // marker. The laptop can't bring that in row by row, and is asked
+        // which ledger to keep.
         final gone = (await mac.db.loadLedger()).txns.first.id;
+        await mac.db.customStatement(
+          'INSERT INTO temp.bb_applying (flag) VALUES (-1)',
+        );
         await mac.db.customStatement(
           'DELETE FROM entries WHERE transaction_id = $gone',
         );
         await mac.db.customStatement(
           'DELETE FROM transactions WHERE id = $gone',
+        );
+        await mac.db.customStatement(
+          'DELETE FROM temp.bb_applying WHERE flag = -1',
+        );
+        await mac.db.customStatement(
+          'INSERT INTO changes (tbl, pk, op, at_ms, with_schema) '
+          "VALUES ('', '{}', 'restore', 0, ${mac.db.schemaVersion})",
         );
         await mac.cloud.check(monday);
         await laptop.db.renameAccount(
@@ -745,6 +692,100 @@ void main() {
 
     Future<TxnData> bought(_Computer on, String payee) async =>
         (await on.db.loadLedger()).txns.singleWhere((t) => t.payee == payee);
+
+    // ---------- a restore and an erase, as ordinary changes (step 5) ----------
+
+    test('the one put back after the folder’s was taken in is written, and '
+        'reaches the other computer as ordinary changes', () async {
+      await laptop.cloud.keepIn(drive.path, monday);
+      await mac.spend('Nomin', monday);
+      await mac.cloud.check(monday);
+      await laptop.cloud.check(tuesday);
+      final candidate = await laptop.backups.inspect(
+        laptop.cloud.theirs!.copy.path,
+        tuesday,
+      );
+      final done = await laptop.backups.restore(
+        candidate,
+        tuesday,
+        fromFolder: true,
+      );
+      expect(await laptop.payees(), contains('Nomin'));
+      // Undo, still on the folder: putting the ledger back is this
+      // computer's own change (ADR 0005, step 5), written, not taken for an
+      // old one.
+      await laptop.backups.replaceWith(done.before, tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await laptop.payees(), isNot(contains('Nomin')));
+      // The Mac takes it as it takes any change: nothing asked.
+      await bringIn(mac);
+      expect(await mac.payees(), isNot(contains('Nomin')));
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('an erase here reaches the other computer as ordinary changes: one '
+        'ledger, emptied on both, nothing asked; its undo comes back on '
+        'both', () async {
+      await mac.spend('Nomin', monday);
+      await mac.cloud.check(monday);
+      await laptop.cloud.keepIn(drive.path, monday);
+      if (await laptop.cloud.check(monday, fresh: true) ==
+          FolderStanding.combine) {
+        await laptop.cloud.bringIn(monday);
+      }
+      expect(await laptop.cloud.check(monday, fresh: true), FolderStanding.ok);
+      final id = (await laptop.db.syncState()).ledger;
+      final before = await laptop.backups.saveBeforeNewLedger(tuesday);
+      await laptop.db.startNewLedger(tuesday, keepCategories: false);
+      // The same ledger, emptied: written to the folder with no question.
+      expect((await laptop.db.syncState()).ledger, id);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect((await lookAtLedger(folderLedger(), null)).ledger, id);
+      await bringIn(mac);
+      final macs = await mac.db.loadLedger();
+      expect(macs.txns, isEmpty);
+      expect(macs.balanceSheetAccounts, isEmpty);
+      expect((await mac.db.syncState()).ledger, id);
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+
+      // Undo, as the popup does: what was there is put back, on both.
+      await laptop.backups.replaceWith(before, tuesday);
+      expect(await laptop.payees(), contains('Nomin'));
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      await bringIn(mac);
+      expect(await mac.payees(), contains('Nomin'));
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('a change the other computer made meanwhile comes in on top of an '
+        'erase', () async {
+      await agree();
+      await laptop.db.startNewLedger(tuesday, keepCategories: true);
+      await laptop.cloud.check(tuesday, fresh: true);
+      // The Mac hasn't seen the erase: a new account and a purchase.
+      await mac.db.addAccount(name: 'Khan Savings', type: AccountType.asset);
+      await mac.cloud.check(tuesday, fresh: true);
+      await settle(laptop, tuesday);
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      for (final c in [mac, laptop]) {
+        final l = await c.db.loadLedger();
+        expect(l.balanceSheetAccounts.map((a) => a.name), ['Khan Savings']);
+      }
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
 
     // ---------- where an older build kept the popup that stayed (step 4) ----------
 
@@ -1299,31 +1340,27 @@ void main() {
       );
     });
 
-    test(
-      'this computer’s ledger as it was is kept; putting it back is a '
-      'change made here, and takes back nothing the other computer did',
-      () async {
-        await agree();
-        await mac.spend('Nomin', tuesday);
-        await mac.cloud.check(tuesday, fresh: true);
-        await laptop.spend('E-Mart', tuesday);
-        final done = await bringIn(laptop);
-        expect(await laptop.payees(), containsAll(['Nomin', 'E-Mart']));
+    test('this computer’s ledger as it was is kept; putting it back is a '
+        'change made here, which reaches the other computer too', () async {
+      await agree();
+      await mac.spend('Nomin', tuesday);
+      await mac.cloud.check(tuesday, fresh: true);
+      await laptop.spend('E-Mart', tuesday);
+      final done = await bringIn(laptop);
+      expect(await laptop.payees(), containsAll(['Nomin', 'E-Mart']));
 
-        // As Restore from… does with the file.
-        await laptop.backups.replaceWith(done.before, tuesday);
-        expect(await laptop.payees(), isNot(contains('Nomin')));
-        expect(await laptop.payees(), contains('E-Mart'));
-        // The Mac's purchase is the Mac's doing, still in the Mac's file: it
-        // comes back in (ADR 0004: undo only what the person here did).
-        expect(
-          await laptop.cloud.check(tuesday, fresh: true),
-          FolderStanding.combine,
-        );
-        await laptop.cloud.bringIn(tuesday);
-        expect(await laptop.payees(), containsAll(['Nomin', 'E-Mart']));
-      },
-    );
+      // As Restore from… does with the file: the person here chose the
+      // ledger as it was, and the restore dialog said the other computers
+      // get it too (ADR 0005, step 5).
+      await laptop.backups.replaceWith(done.before, tuesday);
+      expect(await laptop.payees(), isNot(contains('Nomin')));
+      expect(await laptop.payees(), contains('E-Mart'));
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await laptop.payees(), isNot(contains('Nomin')));
+      await bringIn(mac);
+      expect(await mac.payees(), isNot(contains('Nomin')));
+      expect(await mac.payees(), contains('E-Mart'));
+    });
 
     test('a purchase typed here and brought in from there is in twice, and '
         'said to look the same', () async {
@@ -1341,22 +1378,224 @@ void main() {
       expect(await laptop.payees(), containsAll(['Nomin', 'NOMIN UB']));
     });
 
-    test('after a restore here the other’s changes still come in; the other '
-        'computer is asked about the restore (until step 5)', () async {
+    test('after a restore here the other’s changes made meanwhile still come '
+        'in, and the restore reaches the other computer', () async {
       await agree();
       final old = await laptop.backups.keepBefore(monday);
       await laptop.spend('E-Mart', tuesday);
+      await laptop.cloud.check(tuesday, fresh: true);
+      await bringIn(mac);
+      expect(await mac.payees(), contains('E-Mart'));
       await laptop.backups.replaceWith(old, tuesday);
       await mac.spend('Nomin', tuesday);
       await mac.cloud.check(tuesday, fresh: true);
-      expect(
-        await laptop.cloud.check(tuesday, fresh: true),
-        FolderStanding.combine,
-      );
-      await laptop.cloud.bringIn(tuesday);
+      await bringIn(laptop);
       expect(await laptop.payees(), contains('Nomin'));
       expect(await laptop.payees(), isNot(contains('E-Mart')));
-      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      await bringIn(mac);
+      expect(await mac.payees(), contains('Nomin'));
+      expect(await mac.payees(), isNot(contains('E-Mart')));
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    for (final keep in [true, false]) {
+      test(
+        'a row a restore takes out and the other computer changed '
+        'meanwhile is asked about, as any row changed two ways; '
+        '${keep ? 'kept, it stays on both, with its payee' : 'gone on both'}',
+        () async {
+          await agree();
+          final old = await laptop.backups.keepBefore(monday);
+          await mac.spend('Nomin', tuesday);
+          await mac.cloud.check(tuesday, fresh: true);
+          await bringIn(laptop);
+          // The laptop puts back the ledger from before Nomin; the Mac, not
+          // yet having seen that, files Nomin elsewhere.
+          await laptop.backups.replaceWith(old, tuesday);
+          await laptop.cloud.check(tuesday, fresh: true);
+          final nomin = await bought(mac, 'Nomin');
+          final checking = await mac.account('TDB Checking');
+          final other = (await mac.db.loadLedger()).accounts.values.firstWhere(
+            (a) => a.type == AccountType.expense && a.name != 'Groceries',
+          );
+          await mac.db.setCategory(
+            transactionId: nomin.id,
+            accountId: checking,
+            categoryId: other.id,
+          );
+          await mac.cloud.check(tuesday, fresh: true);
+          expect(
+            await mac.cloud.check(tuesday, fresh: true),
+            FolderStanding.rows,
+          );
+          expect(
+            await laptop.cloud.check(tuesday, fresh: true),
+            FolderStanding.rows,
+          );
+          // Answered on one, as the other's way: the other is asked no more.
+          final (answers, other_) = keep ? (laptop, mac) : (mac, laptop);
+          final ask = answers.cloud.asks.single;
+          expect(
+            await answers.cloud.bringIn(tuesday, picks: {ask.id: Pick.theirs}),
+            isNotNull,
+          );
+          for (var i = 0; i < 2; i++) {
+            await settle(answers, tuesday);
+            await settle(other_, tuesday);
+          }
+          for (final c in [mac, laptop]) {
+            expect(c.cloud.asks, isEmpty);
+            if (keep) {
+              expect(
+                (await bought(c, 'Nomin')).entries.map((e) => e.accountId),
+                contains(other.id),
+              );
+            } else {
+              expect(await c.payees(), isNot(contains('Nomin')));
+            }
+          }
+          expect(
+            (await mac.db.sealState()).digest,
+            (await laptop.db.sealState()).digest,
+          );
+        },
+      );
+    }
+
+    test('a purchase made meanwhile in an account an erase took out keeps '
+        'the account, on both', () async {
+      await agree();
+      await laptop.db.startNewLedger(tuesday, keepCategories: true);
+      await laptop.cloud.check(tuesday, fresh: true);
+      await mac.spend('Nomin', tuesday);
+      await mac.cloud.check(tuesday, fresh: true);
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      await settle(mac, tuesday);
+      for (final c in [mac, laptop]) {
+        final l = await c.db.loadLedger();
+        expect(l.txns.map((t) => t.payee), ['Nomin']);
+        expect(l.balanceSheetAccounts.map((a) => a.name), ['TDB Checking']);
+      }
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('undoing a restore takes back only its own rows: what the other '
+        'computer added since stays, on both', () async {
+      await agree();
+      final old = await laptop.backups.keepBefore(monday);
+      await laptop.spend('E-Mart', tuesday);
+      final done = await laptop.backups.restore(
+        await laptop.backups.inspect(old.path, tuesday),
+        tuesday,
+      );
+      expect(done.changes, isNotNull);
+      expect(await laptop.payees(), isNot(contains('E-Mart')));
+      await laptop.cloud.check(tuesday, fresh: true);
+      await mac.spend('Nomin', tuesday);
+      await mac.cloud.check(tuesday, fresh: true);
+      await settle(laptop, tuesday);
+      expect(await laptop.payees(), contains('Nomin'));
+      // Undo: E-Mart is back, and Nomin, which came after, stays.
+      final undone = await laptop.db.revertChanges(done.changes!);
+      expect(await laptop.payees(), containsAll(['E-Mart', 'Nomin']));
+      for (var i = 0; i < 2; i++) {
+        await settle(laptop, tuesday);
+        await settle(mac, tuesday);
+      }
+      expect(await mac.payees(), containsAll(['E-Mart', 'Nomin']));
+      // Redo takes the undo back: E-Mart goes again, Nomin stays.
+      await laptop.db.revertChanges(undone);
+      expect(await laptop.payees(), isNot(contains('E-Mart')));
+      expect(await laptop.payees(), contains('Nomin'));
+      for (var i = 0; i < 2; i++) {
+        await settle(laptop, tuesday);
+        await settle(mac, tuesday);
+      }
+      expect(await mac.payees(), isNot(contains('E-Mart')));
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('undoing an erase takes back only its own rows: a purchase the '
+        'other computer made since stays, on both', () async {
+      await agree();
+      final count = (await laptop.db.loadLedger()).txns.length;
+      final erased = await laptop.db.startNewLedger(
+        tuesday,
+        keepCategories: true,
+      );
+      await laptop.cloud.check(tuesday, fresh: true);
+      await settle(mac, tuesday);
+      await mac.db.addAccount(name: 'Khan Savings', type: AccountType.asset);
+      await mac.cloud.check(tuesday, fresh: true);
+      await settle(laptop, tuesday);
+      await laptop.db.revertChanges(erased);
+      for (var i = 0; i < 2; i++) {
+        await settle(laptop, tuesday);
+        await settle(mac, tuesday);
+      }
+      for (final c in [mac, laptop]) {
+        final l = await c.db.loadLedger();
+        expect(l.txns, hasLength(count));
+        expect(
+          l.balanceSheetAccounts.map((a) => a.name),
+          contains('Khan Savings'),
+        );
+      }
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('undoing “Bring this ledger here” off the folder puts the old '
+        'ledger in whole: rejoining later asks, and takes nothing out of '
+        'the other computer', () async {
+      await agree();
+      await laptop.cloud.stop();
+      await mac.spend('Nomin', tuesday);
+      await mac.cloud.check(tuesday, fresh: true);
+      final done = await laptop.backups.restore(
+        await laptop.backups.inspect(folderLedger().path, tuesday),
+        tuesday,
+        fromFolder: true,
+      );
+      await laptop.cloud.keepIn(drive.path, tuesday);
+      await settle(laptop, tuesday);
+      // Undo, as the screen does: off the folder, then put back whole.
+      await laptop.cloud.stop();
+      await laptop.backups.replaceWith(done.before, tuesday, whole: true);
+      expect(await laptop.payees(), isNot(contains('Nomin')));
+      await laptop.cloud.keepIn(drive.path, tuesday);
+      for (var i = 0; i < 3; i++) {
+        await settle(laptop, tuesday);
+        await settle(mac, tuesday);
+      }
+      expect(await mac.payees(), contains('Nomin'));
+    });
+
+    test('another ledger’s file restored here is still the whole-ledger '
+        'question on the other computer', () async {
+      await agree();
+      final other = _Computer(
+        await Directory('${root.path}/other').create(),
+        'Another',
+      );
+      await seedDemoIfEmpty(other.db, monday);
+      final file = File('${root.path}/Other.betterbudget');
+      await other.db.copyTo(file.path);
+      await other.close();
+      await laptop.db.replaceAllFrom(file.path);
+      await laptop.cloud.check(tuesday, fresh: true);
       expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.apart);
     });
 
