@@ -1,7 +1,6 @@
 // The two ways into the shared folder (ADR 0005, "The phone joins as another
 // computer"): by path on a computer, through the system's picker on a phone.
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:betterbudget/data/folder_io.dart';
 import 'package:betterbudget/data/phone_ledger.dart';
