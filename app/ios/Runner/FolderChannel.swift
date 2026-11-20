@@ -46,16 +46,27 @@ class FolderChannel: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationC
         DispatchQueue.main.async { self.held = url }
         return url?.absoluteString
       }
-    case "read", "changed", "write":
-      guard let address = args["folder"] as? String, let name = args["name"] as? String else {
-        return result(badArguments(call))
+    case "read", "changed", "stat", "list", "delete", "write":
+      guard let address = args["folder"] as? String else { return result(badArguments(call)) }
+      // The names of the files in the folder, not its sub-folders.
+      if call.method == "list" {
+        return inFolder(address, result) { try self.list($0) }
       }
+      guard let name = args["name"] as? String else { return result(badArguments(call)) }
       switch call.method {
       case "read":
         inFolder(address, result) { try self.read($0, name) }
       // When the file was last changed, without fetching it.
       case "changed":
         inFolder(address, result) { try self.find($0, name) }
+      // When and how big, for a look that compares one with the next.
+      case "stat":
+        inFolder(address, result) { try self.stat($0, name) }
+      case "delete":
+        inFolder(address, result) {
+          try self.remove($0, name)
+          return nil
+        }
       default:
         guard let bytes = args["bytes"] as? FlutterStandardTypedData else {
           return result(badArguments(call))
@@ -231,6 +242,68 @@ class FolderChannel: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationC
       }
       if let failure { throw failure }
       return try out.get()
+    }
+  }
+
+  // [find]'s answer with the size: nil when it isn't there.
+  private func stat(_ folder: URL, _ name: String) throws -> [String: Any]? {
+    try scoped(folder) {
+      var out: Result<[String: Any]?, Error> = .success(nil)
+      var failure: NSError?
+      NSFileCoordinator(filePresenter: nil).coordinate(
+        readingItemAt: folder, options: .immediatelyAvailableMetadataOnly, error: &failure
+      ) { dir in
+        out = Result {
+          var file = dir.appendingPathComponent(name)
+          guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+          file.removeAllCachedResourceValues()
+          let values = try file.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+          return [
+            "changed": values.contentModificationDate.map(milliseconds) ?? NSNull(),
+            "size": values.fileSize ?? NSNull(),
+          ]
+        }
+      }
+      if let failure { throw failure }
+      return try out.get()
+    }
+  }
+
+  // The files in the folder by name; a sub-folder is not one.
+  private func list(_ folder: URL) throws -> [String] {
+    try scoped(folder) {
+      var out: Result<[String], Error> = .success([])
+      var failure: NSError?
+      NSFileCoordinator(filePresenter: nil).coordinate(
+        readingItemAt: folder, options: .immediatelyAvailableMetadataOnly, error: &failure
+      ) { dir in
+        out = Result {
+          try FileManager.default.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: [.isDirectoryKey], options: []
+          ).filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true }
+            .map { $0.lastPathComponent }
+        }
+      }
+      if let failure { throw failure }
+      return try out.get()
+    }
+  }
+
+  // The file taken out of the folder; nothing when there is none.
+  private func remove(_ folder: URL, _ name: String) throws {
+    let file = folder.appendingPathComponent(name)
+    try scoped(folder) {
+      var out: Result<Void, Error> = .success(())
+      var failure: NSError?
+      NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: file, options: .forDeleting, error: &failure) { url in
+        out = Result { try FileManager.default.removeItem(at: url) }
+      }
+      do {
+        if let failure { throw failure }
+        try out.get()
+      } catch where isMissing(error) {
+        return
+      }
     }
   }
 

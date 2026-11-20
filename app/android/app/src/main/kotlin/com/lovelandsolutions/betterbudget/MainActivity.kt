@@ -49,21 +49,26 @@ class MainActivity : FlutterActivity() {
             // When the file was last changed, without fetching it.
             "changed" -> background(result) {
                 val folder = Uri.parse(call.argument<String>("folder")!!)
-                // Drive answers from a listing it keeps, which can be minutes
-                // old: ask it to look again first.
-                try {
-                    contentResolver.refresh(
-                        DocumentsContract.buildChildDocumentsUriUsingTree(
-                            folder,
-                            DocumentsContract.getTreeDocumentId(folder),
-                        ),
-                        null,
-                        null,
-                    )
-                } catch (e: Exception) {
-                    // A provider that can't refresh still answers below.
+                refresh(folder)
+                find(folder, call.argument("name")!!)?.changed
+            }
+            // When and how big, for a look that compares one with the next.
+            "stat" -> background(result) {
+                val folder = Uri.parse(call.argument<String>("folder")!!)
+                refresh(folder)
+                find(folder, call.argument("name")!!)?.let {
+                    mapOf("changed" to it.changed, "size" to it.size)
                 }
-                find(folder, call.argument("name")!!)?.second
+            }
+            // The names of the files in the folder, not its sub-folders.
+            "list" -> background(result) {
+                val folder = Uri.parse(call.argument<String>("folder")!!)
+                refresh(folder)
+                list(folder)
+            }
+            "delete" -> background(result) {
+                delete(Uri.parse(call.argument("folder")!!), call.argument("name")!!)
+                null
             }
             "write" -> background(result) {
                 write(
@@ -123,16 +128,16 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun read(folder: Uri, name: String): Map<String, Any?>? {
-        val (found, changed) = find(folder, name) ?: return null
-        val doc = DocumentsContract.buildDocumentUriUsingTree(folder, found)
+        val found = find(folder, name) ?: return null
+        val doc = DocumentsContract.buildDocumentUriUsingTree(folder, found.id)
         val bytes = contentResolver.openInputStream(doc)!!.use { it.readBytes() }
-        return mapOf("bytes" to bytes, "changed" to changed)
+        return mapOf("bytes" to bytes, "changed" to found.changed)
     }
 
     // The phone's own entries, for the computer: written over the file of
     // that name, or as a new file the first time.
     private fun write(folder: Uri, name: String, bytes: ByteArray) {
-        val found = find(folder, name)?.first
+        val found = find(folder, name)?.id
         val doc = if (found != null) {
             DocumentsContract.buildDocumentUriUsingTree(folder, found)
         } else {
@@ -155,35 +160,82 @@ class MainActivity : FlutterActivity() {
         out!!.use { it.write(bytes) }
     }
 
+    // Drive answers from a listing it keeps, which can be minutes old: ask it
+    // to look again first.
+    private fun refresh(folder: Uri) {
+        try {
+            contentResolver.refresh(
+                DocumentsContract.buildChildDocumentsUriUsingTree(
+                    folder,
+                    DocumentsContract.getTreeDocumentId(folder),
+                ),
+                null,
+                null,
+            )
+        } catch (e: Exception) {
+            // A provider that can't refresh still answers.
+        }
+    }
+
+    private class Found(val id: String, val changed: Long?, val size: Long?)
+
+    private fun children(folder: Uri) = DocumentsContract.buildChildDocumentsUriUsingTree(
+        folder,
+        DocumentsContract.getTreeDocumentId(folder),
+    )
+
+    private val columns = arrayOf(
+        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+        DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+        DocumentsContract.Document.COLUMN_SIZE,
+        DocumentsContract.Document.COLUMN_MIME_TYPE,
+    )
+
+    // The names of the files in the folder (a sub-folder is not one).
+    private fun list(folder: Uri): List<String> {
+        val names = mutableListOf<String>()
+        contentResolver.query(children(folder), columns, null, null, null)?.use { c ->
+            while (c.moveToNext()) {
+                if (c.getString(4) != DocumentsContract.Document.MIME_TYPE_DIR) names.add(c.getString(1))
+            }
+        }
+        return names
+    }
+
+    // Every file called [name]: Drive allows two of one name.
+    private fun delete(folder: Uri, name: String) {
+        val ids = mutableListOf<String>()
+        contentResolver.query(children(folder), columns, null, null, null)?.use { c ->
+            while (c.moveToNext()) {
+                if (c.getString(1) == name) ids.add(c.getString(0))
+            }
+        }
+        for (id in ids) {
+            DocumentsContract.deleteDocument(
+                contentResolver,
+                DocumentsContract.buildDocumentUriUsingTree(folder, id),
+            )
+        }
+    }
+
     // The newest file called [name] in the folder, and when it was changed.
-    private fun find(folder: Uri, name: String): Pair<String, Long?>? {
-        val children = DocumentsContract.buildChildDocumentsUriUsingTree(
-            folder,
-            DocumentsContract.getTreeDocumentId(folder),
-        )
+    private fun find(folder: Uri, name: String): Found? {
         var id: String? = null
         var changed: Long? = null
-        contentResolver.query(
-            children,
-            arrayOf(
-                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                DocumentsContract.Document.COLUMN_LAST_MODIFIED,
-            ),
-            null,
-            null,
-            null,
-        )?.use { c ->
+        var size: Long? = null
+        contentResolver.query(children(folder), columns, null, null, null)?.use { c ->
             while (c.moveToNext()) {
                 // Drive allows two files of one name: the newest is the ledger.
                 val at = if (c.isNull(2)) null else c.getLong(2)
                 if (c.getString(1) == name && (id == null || (at ?: 0) > (changed ?: 0))) {
                     id = c.getString(0)
                     changed = at
+                    size = if (c.isNull(3)) null else c.getLong(3)
                 }
             }
         }
         val found = id ?: return null
-        return Pair(found, changed)
+        return Found(found, changed, size)
     }
 }

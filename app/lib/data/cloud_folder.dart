@@ -33,6 +33,7 @@ import 'backup.dart';
 import 'change_file.dart';
 import 'database.dart'
     show CantCombineException, ChangedSinceException, fileStamp, SyncState;
+import 'folder_io.dart';
 import 'ledger_file.dart';
 import 'ledger_seal.dart';
 
@@ -277,6 +278,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   CloudFolder(
     this.backups, {
     this.access = const FolderAccess(),
+    this.io = const DirectoryFolderIo(),
     this.wait = const Duration(seconds: 5),
   }) : super(const CloudFolderState()) {
     // Any write to the ledger, the app's own scheduling included: what was
@@ -292,6 +294,10 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
 
   final Backups backups;
   final FolderAccess access;
+
+  /// How the folder's files are reached: by path on a computer, through the
+  /// system's picker on a phone.
+  final FolderIo io;
 
   /// How long after the last change the ledger is written: a run of edits
   /// makes one write, not one each.
@@ -767,7 +773,6 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// the app's backups first. Throws when it can't be written.
   Future<KeptMine> keepMine(DateTime now) => _queued(() async {
     final path = value.path!;
-    final file = File('$path/$fileName');
     // On change files, "keep this computer's" is a choice over everything
     // the others changed that isn't here: each of their rows is written
     // down as changed from their version to this computer's, so they take
@@ -778,7 +783,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       final db = backups.db;
       final me = await _computerId();
       final files = await readChangeFiles(
-        Directory(path),
+        io,
+        path,
         backups.dataKey,
         scratch: await _scratch(),
         butComputer: me,
@@ -833,14 +839,17 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     }
     File? kept;
     var over = const <String, int>{};
-    FileStat? expected;
-    if (file.existsSync()) {
-      expected = file.statSync();
-      final found = await _read(file);
-      kept = await backups.keepFromFolder(found?.copy ?? file, now);
+    FolderStat? expected;
+    expected = await io.stat(path, fileName);
+    if (expected != null) {
+      final found = await _read(path);
+      kept = await backups.keepFromFolder(
+        found?.copy ?? await _copyOut(path),
+        now,
+      );
       over = found?.look.computers.counters ?? over;
     }
-    final there = await _read(file);
+    final there = await _read(path);
     final theirsDigest = there?.look.digest;
     _askAbout = null;
     // Whole only on the older look: on change files the choice went out as
@@ -878,15 +887,16 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       if ((await backups.db.syncState()).applied.isNotEmpty) {
         throw FolderMovedOn();
       }
-      final file = File('$path/$fileName');
       _seen = null;
-      final there = file.existsSync() ? await _read(file) : null;
+      final there = await io.stat(path, fileName) == null
+          ? null
+          : await _read(path);
       if (there == null || there.look.digest != kept.wrote) {
         throw FolderMovedOn();
       }
       _askAbout = kept.theirsDigest;
       await _save();
-      await _replace(file, await theirs.readAsBytes());
+      await io.write(path, fileName, await theirs.readAsBytes());
       _seen = null;
     });
     await check(now);
@@ -900,16 +910,15 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     bool replaceUnreadable = false,
   }) async {
     final path = value.path!;
-    final file = File('$path/$fileName');
     // Twice at most: the second time when the file changed between being
     // read and being written over.
     for (var tries = 0; ; tries++) {
-      if (!file.existsSync()) {
+      final stat = await io.stat(path, fileName);
+      if (stat == null) {
         await _put(path, now, over: const {}, whole: true);
         return (standing: FolderStanding.ok, replaced: null);
       }
-      final stat = file.statSync();
-      final found = await _read(file);
+      final found = await _read(path);
       try {
         if (found == null) {
           // Unreadable. This computer's own write cut short is written
@@ -918,7 +927,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
             return (standing: FolderStanding.arriving, replaced: null);
           }
           final kept = replaceUnreadable
-              ? await backups.keepFromFolder(file, now)
+              ? await backups.keepFromFolder(await _copyOut(path), now)
               : null;
           await _put(path, now, over: const {}, expected: stat, whole: true);
           return (standing: FolderStanding.ok, replaced: kept);
@@ -1210,7 +1219,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     FolderTheirs found,
     ({String digest, String? seal, SyncComputers computers}) mineAtFirst,
     SyncState state,
-    FileStat stat,
+    FolderStat stat,
   ) async {
     var mine = mineAtFirst;
     final db = backups.db;
@@ -1252,7 +1261,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     await _publish(path, me, state, now);
     final unreadable = <String>[];
     final files = await readChangeFiles(
-      Directory(path),
+      io,
+      path,
       backups.dataKey,
       scratch: await _scratch(),
       butComputer: me,
@@ -1441,7 +1451,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     DateTime now,
   ) async {
     final vector = encodeApplied({...state.applied, me: state.lastSeq});
-    final file = File('$path/${changeFileName(me)}');
+    final name = changeFileName(me);
     final db = backups.db;
     final first = await db.firstChangeSeq();
     if (_publishedSeq == state.lastSeq &&
@@ -1449,12 +1459,14 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         _publishedVector == vector &&
         _publishedAt != null &&
         now.difference(_publishedAt!) < const Duration(days: 7) &&
-        file.existsSync()) {
+        await io.stat(path, name) != null) {
       return;
     }
     _name ??= await access.computerName();
     await writeChangeFile(
-      file,
+      io,
+      path,
+      name,
       backups.dataKey,
       ChangeFileHeader(
         computer: me,
@@ -1620,19 +1632,17 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
 
   /// The folder's file, copied out and read; null when it can't be read.
   /// Read again only when the file has changed.
-  Future<FolderTheirs?> _read(File file) async {
-    final stat = file.statSync();
+  Future<FolderTheirs?> _read(String path) async {
+    final stat = await io.stat(path, fileName);
+    if (stat == null) return null;
     if (_seen case final seen?
         when seen.modified == stat.modified && seen.size == stat.size) {
       return seen.theirs;
     }
     _seen = null;
-    final scratch = await _scratch();
     FolderTheirs? theirs;
     try {
-      if (scratch.existsSync()) await scratch.delete(recursive: true);
-      await scratch.create(recursive: true);
-      final copy = await file.copy('${scratch.path}/$fileName');
+      final copy = await _copyOut(path);
       theirs = (
         copy: copy,
         look: await lookAtLedger(copy, backups.dataKey),
@@ -1644,13 +1654,28 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     // One that couldn't be read is never remembered: it is tried again at
     // the next look, since the folder may only have been away. Nor is one
     // that changed while it was being copied.
-    final after = file.statSync();
+    final after = await io.stat(path, fileName);
     if (theirs != null &&
+        after != null &&
         after.modified == stat.modified &&
         after.size == stat.size) {
       _seen = (modified: stat.modified, size: stat.size, theirs: theirs);
     }
     return theirs;
+  }
+
+  /// The folder's ledger, byte for byte, as a file of this computer's own
+  /// in the scratch folder (the old copy there is cleared), so nothing is
+  /// opened inside the folder a sync app is watching.
+  Future<File> _copyOut(String path) async {
+    final bytes = await io.read(path, fileName);
+    if (bytes == null) {
+      throw FileSystemException('No ledger in the folder', path);
+    }
+    final scratch = await _scratch();
+    if (scratch.existsSync()) await scratch.delete(recursive: true);
+    await scratch.create(recursive: true);
+    return File('${scratch.path}/$fileName').writeAsBytes(bytes, flush: true);
   }
 
   /// Writes this computer's ledger to the folder, sealed and ahead of the
@@ -1667,7 +1692,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     String path,
     DateTime now, {
     required Counters over,
-    FileStat? expected,
+    FolderStat? expected,
     LedgerLook? theirs,
     bool whole = false,
   }) async {
@@ -1704,28 +1729,26 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         wrote = look.digest;
       }
       if (!sealed) throw StateError('The ledger changed while it was copied');
-      final file = File('$path/$fileName');
       if (expected != null) {
-        final stat = file.statSync();
-        if (stat.type == FileSystemEntityType.notFound ||
+        final stat = await io.stat(path, fileName);
+        if (stat == null ||
             stat.modified != expected.modified ||
             stat.size != expected.size) {
           throw _FolderFileMoved();
         }
       }
       final bytes = await made.readAsBytes();
-      final untouched = file.statSync();
+      final untouched = await io.stat(path, fileName);
       _writingMark = true;
       await _save();
       try {
-        await _replace(file, bytes);
+        await io.write(path, fileName, bytes);
       } catch (_) {
         // Not a byte went in: there is no write of this computer's cut
         // short there.
-        final now = file.statSync();
-        if (now.type == untouched.type &&
-            now.modified == untouched.modified &&
-            now.size == untouched.size) {
+        final now = await io.stat(path, fileName);
+        if (now?.modified == untouched?.modified &&
+            now?.size == untouched?.size) {
           _writingMark = false;
           await _save();
         }
@@ -1734,8 +1757,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       _writingMark = false;
       _seen = null;
       await _keepAgreed(made, wrote!);
-      final earlier = File('$path/$earlierFileName');
-      if (earlier.existsSync()) await earlier.delete();
+      await io.delete(path, earlierFileName);
       if (value.path == path) {
         value = CloudFolderState(path: path, copiedAt: now);
       }
@@ -1743,17 +1765,6 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       return wrote;
     } finally {
       if (made.existsSync()) await made.delete();
-    }
-  }
-
-  /// [bytes] written over [file] where it is, not beside it and renamed.
-  static Future<void> _replace(File file, List<int> bytes) async {
-    final out = await file.open(mode: FileMode.write);
-    try {
-      await out.writeFrom(bytes);
-      await out.flush();
-    } finally {
-      await out.close();
     }
   }
 
