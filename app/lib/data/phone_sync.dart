@@ -40,6 +40,15 @@ abstract class PhoneLedgerSource {
   /// is shown while the folder doesn't answer.
   Future<PhoneSnapshot> asItStands(DateTime now);
 
+  /// Takes what the person made on this phone, [inbox], into the phone's
+  /// own ledger, as the computer takes a phone's file in (#526 piece 4):
+  /// each entry becomes a row, a category made here is made, a count is
+  /// saved. Returns the ledger as it stands after, in which what was taken
+  /// is listed under this phone ([PhoneSnapshot.taken]) for the store to
+  /// let go of. Null when this source keeps no ledger of its own to take
+  /// them into: the entries then wait for the computer in the folder.
+  Future<PhoneSnapshot?> take(PhoneInbox inbox, DateTime now) async => null;
+
   Future<void> close();
 
   /// Gives this phone's own ledger up, before another folder's is taken.
@@ -196,6 +205,18 @@ class PhoneSync implements PhoneLedgerSource {
       today: now,
       madeAt: await _looked() ?? now,
     );
+  }
+
+  @override
+  Future<PhoneSnapshot?> take(PhoneInbox inbox, DateTime now) async {
+    if (_closed) throw StateError('The phone’s ledger was closed');
+    _db ??= await _own.open(device);
+    final db = _db;
+    if (db == null) return null;
+    // Each is a row of this phone's own, written to its log: the folder
+    // cycle's next look puts it in the phone's change file.
+    await db.takePhoneEntries([inbox], today: now);
+    return asItStands(now);
   }
 
   /// The folder's ledger has everything this phone's has and more, and

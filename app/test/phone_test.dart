@@ -289,6 +289,11 @@ Directory _phoneDir() {
 /// the folder as the real one would and shows the figures as of the last
 /// look that went through.
 class _FakeSource implements PhoneLedgerSource {
+  /// This stand-in has no ledger to take entries into: they wait for the
+  /// computer in the folder, as before the phone's own ledger.
+  @override
+  Future<PhoneSnapshot?> take(PhoneInbox inbox, DateTime now) async => null;
+
   _FakeSource({
     required this.dir,
     required this.key,

@@ -1584,3 +1584,22 @@ folder whose change files were cut past what the phone had (away over 45 days) i
 whole, as a computer does. Choosing another folder gives up the phone's ledger, which
 holds nothing of the phone's own until the pieces after this. The private copy and the
 fallback copy of earlier versions are removed once the phone's own ledger is up.
+
+**Built, 2026-11-20 (0.115.0): #526 piece 4, part 1: what the phone makes goes into its own
+ledger.** (Owner, 2026-11-20, "do it your way", to piece 4 read as three parts: the phone's
+work into its ledger, then undo and redo, then the asking window.) Undo has nothing to undo
+while an entry only waits in a file, so an entry, a category made here and a count are now
+taken into the phone's own ledger at once, by the same `takePhoneEntries` a computer runs
+on a phone's file (`PhoneLedgerSource.take`, called from `_keep` in `phone_start.dart`).
+Each becomes an ordinary row of this phone's, in its `changes` log, so the phone's change
+file carries it to the computers by the next look; the ledger lists it as taken under this
+phone, which is how the store lets go of it. What is kept on the phone at once (the outbox)
+is unchanged, so a launch cut short between the keep and the take takes it next time, once.
+The phone's own file of entries in the folder is no longer written and is deleted after a
+take, or a computer would bring in again an entry the person has since taken back.
+A source with no ledger of its own (a test's stand-in) returns null and the file is
+written as before. **What this costs for now:** an entry is in the ledger the moment it is
+saved, so the Waiting list is empty and a mistake is fixed by undo, which is part 2; the
+line "isn't on your computer yet" will say what the change file hasn't carried yet, in
+part 2 as well.
+

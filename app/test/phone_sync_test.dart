@@ -13,6 +13,7 @@ import 'package:betterbudget/data/folder_io.dart';
 import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_sync.dart';
+import 'package:betterbudget/domain/phone.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,9 +57,8 @@ void main() {
 
   setUp(() async {
     root = await Directory.systemTemp.createTemp('bb-phone-sync');
-    drive = await Directory('${root.path}/My Drive/BetterBudget').create(
-      recursive: true,
-    );
+    drive = await Directory('${root.path}/My Drive/BetterBudget')
+        .create(recursive: true);
     final file = File('${root.path}/mac/$ledgerFileName')
       ..createSync(recursive: true);
     macDb = AppDatabase(
@@ -66,10 +66,7 @@ void main() {
     );
     macDb.thisComputer = 'aaaa';
     await seedDemoIfEmpty(macDb, monday);
-    mac = CloudFolder(
-      Backups(macDb, dataKey: key),
-      access: const _MacAccess(),
-    );
+    mac = CloudFolder(Backups(macDb, dataKey: key), access: const _MacAccess());
     await mac.keepIn(drive.path, monday);
     phone = PhoneSync(
       dir: await Directory('${root.path}/phone').create(),
@@ -91,17 +88,20 @@ void main() {
     for (final t in (await phone.db!.loadLedger()).txns) t.payee,
   ];
 
-  test('a phone with a ledger of its own is joined, and one without is not', () {
-    expect(phone.joined, isTrue);
-    expect(
-      PhoneSync(
-        dir: Directory('${root.path}/other'),
-        dataKey: key,
-        device: 'cccc',
-      ).joined,
-      isFalse,
-    );
-  });
+  test(
+    'a phone with a ledger of its own is joined, and one without is not',
+    () {
+      expect(phone.joined, isTrue);
+      expect(
+        PhoneSync(
+          dir: Directory('${root.path}/other'),
+          dataKey: key,
+          device: 'cccc',
+        ).joined,
+        isFalse,
+      );
+    },
+  );
 
   test('a look brings in what a computer did, and writes the phone’s own '
       'change file, never the folder’s ledger', () async {
@@ -198,6 +198,41 @@ void main() {
     );
     final snapshot = await phone.look(drive.path, tuesday);
     expect(snapshot.madeAt, monday);
+  });
+
+  test('an entry made on the phone is taken into its own ledger, and a '
+      'computer gets it through the phone’s change file', () async {
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    int id(String name) =>
+        ledger.accounts.values.singleWhere((a) => a.name == name).id;
+    final entry = PhoneEntry(
+      id: 'e1',
+      categoryId: '${id('Groceries')}',
+      accountId: '${id('TDB Checking')}',
+      payee: 'Nomin',
+      amountMinor: -1250000,
+      date: tuesday,
+      madeAt: tuesday,
+    );
+    final after = await phone.take(
+      PhoneInbox(device: 'bbbb', entries: [entry]),
+      tuesday,
+    );
+    // The ledger lists it as taken, which is how the store lets go of it.
+    expect(after!.taken['bbbb']!.entries, contains('e1'));
+    expect(await payees(), contains('Nomin'));
+    // Taking the same inbox again adds nothing.
+    await phone.take(PhoneInbox(device: 'bbbb', entries: [entry]), tuesday);
+    expect((await payees()).where((p) => p == 'Nomin'), hasLength(1));
+
+    await phone.look(drive.path, tuesday);
+    expect(await mac.check(tuesday), FolderStanding.combine);
+    await mac.bringIn(tuesday);
+    final macPayees = [
+      for (final t in (await macDb.loadLedger()).txns) t.payee,
+    ];
+    expect(macPayees.where((p) => p == 'Nomin'), hasLength(1));
   });
 
   test('giving the ledger up leaves nothing, and nothing reopens it', () async {
