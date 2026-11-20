@@ -17,7 +17,7 @@ import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/combine.dart'
     show Ask, AskKind, AskLine, AskSide, Pick;
 import 'package:betterbudget/domain/ledger.dart'
-    show AccountType, CategoryPlan, LedgerData, PlanKind, RowKind;
+    show AccountType, CategoryPlan, LedgerData, PlanKind, RegisterRow, RowKind;
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart' show PayRule;
 import 'package:betterbudget/domain/phone.dart';
@@ -299,6 +299,14 @@ class _FakeSource implements PhoneLedgerSource {
 
   @override
   Future<PhoneSnapshot> undoTake(PhoneTake take, DateTime now) =>
+      throw UnsupportedError('no ledger');
+
+  @override
+  Future<PhoneEdited> editRow(PhoneRowEdit edit, DateTime now) =>
+      throw UnsupportedError('no ledger');
+
+  @override
+  Future<PhoneSnapshot> restoreRow(TxnSnapshot row, DateTime now) =>
       throw UnsupportedError('no ledger');
 
   @override
@@ -622,6 +630,77 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('pad-back')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('register-list')), findsOneWidget);
+  });
+
+  testWidgets('a row opened in the register is saved into the ledger and '
+      'taken back by Undo (#527)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    store.editRowIn = (edit) async => await (() async {
+      final before = await db.snapshot(edit.txn);
+      await db.editTransaction(
+        transactionId: edit.txn,
+        accountId: edit.account,
+        date: edit.date,
+        today: _now,
+        payee: edit.payee,
+        memo: edit.memo,
+        counterAccountId: edit.counter,
+        amount: edit.amount,
+      );
+      final after = await db.snapshot(edit.txn);
+      data = await db.loadLedger();
+      return (
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+        before: before,
+        after: after,
+      );
+    })();
+    store.restoreRowIn = (row) async => await (() async {
+      await db.restoreSnapshot(row);
+      data = await db.loadLedger();
+      return snapshotOf(data, today: _now, madeAt: _now);
+    })();
+    // The first row that is a plain one and not locked.
+    final all = data.registerAll().posted.reversed.where(
+      (r) => r.kind == RowKind.simple && !r.locked,
+    );
+    final row = all.first;
+    final key = '${row.txnId}-${row.entryId}';
+    await tester.tap(find.byKey(ValueKey('register-row-$key')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('row-memo')), 'Gift');
+    await tester.ensureVisible(find.byKey(const ValueKey('row-save')));
+    await tester.tap(find.byKey(const ValueKey('row-save')));
+    await tester.pump();
+    // The ledger is a real file's worth of work: let it finish.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('row-save')), findsNothing);
+    expect(find.byKey(const ValueKey('row-saved')), findsOneWidget);
+    RegisterRow now() => data.registerAll().posted.firstWhere(
+      (r) => r.txnId == row.txnId && r.entryId == row.entryId,
+    );
+    expect(now().memo, 'Gift');
+    await tester.tap(find.text('Undo'));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pumpAndSettle();
+    expect(now().memo, row.memo);
   });
 
   testWidgets('Budget opens with the Savings step and its progress, and no '

@@ -334,6 +334,21 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         if (source == null) throw StateError('The phone has no ledger open');
         return source.undoTake(take, widget.now());
       };
+      _store!.editRowIn = (edit) async {
+        final source = _source;
+        if (source == null) throw StateError('The phone has no ledger open');
+        final done = await source.editRow(edit, widget.now());
+        // The next look puts the change in the phone's change file.
+        unawaited(_load());
+        return done;
+      };
+      _store!.restoreRowIn = (row) async {
+        final source = _source;
+        if (source == null) throw StateError('The phone has no ledger open');
+        final snapshot = await source.restoreRow(row, widget.now());
+        unawaited(_load());
+        return snapshot;
+      };
       // Only while something is waiting: that is all there is to wait
       // for. Coming back to the front always reads.
       _again ??= Timer.periodic(widget.every, (_) {

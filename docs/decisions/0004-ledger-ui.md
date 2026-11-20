@@ -7339,11 +7339,14 @@ is. The owner chose **C**. A (recommended) and B are not built.
   category and amount. Day headings are Today or the date.
 - **Add a transaction** opens the amount pad on its own page with a back arrow; the
   Budget page's categories open it too. Everything the pad did stays.
-- **A tapped row opens where it is**, showing account, date, category, memo and its
-  cleared state; a second tap closes it. In this piece the open row only reads. What
-  it will offer (Save and Cancel in place, a ⋯ with Mark cleared, Move to another
-  account and Delete, a split's lines, Confirm on a scheduled row, a bill's "Paid
-  on…?", locked reconciled rows) comes in the next pieces of #527, each with its undo
-  and the memo field (#386) and the payee's category (#403).
+- **A tapped row opens where it is** (0.119.0, second piece), as its fields: Payee,
+  Amount with the pad's +/− button, Category (a list of the ledger's categories in the
+  row's currency), Date and Memo, then Save and Cancel; a second tap on the row closes
+  it. Save writes into the phone's own ledger, as a change the computers see, and says
+  "Name edited" with Undo in the bottom bar. A refusal is said in the ledger's own words
+  under the fields. A reconciled row's date and amount are locked and say so. A split, a
+  transfer or an opening balance shows its Date and Memo only. Still to come in #527:
+  a ⋯ with Mark cleared, Move to another account and Delete, a split's lines, Confirm
+  on a scheduled row, a bill's "Paid on…?", the payee's category remembered (#403).
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.

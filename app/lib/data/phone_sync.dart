@@ -19,7 +19,8 @@ import '../domain/phone.dart';
 import '../domain/sync.dart' show appliedMarkerOp;
 import 'backup.dart';
 import 'cloud_folder.dart';
-import 'database.dart' show AppDatabase, ChangedSinceException, PhoneTake;
+import 'database.dart'
+    show AppDatabase, ChangedSinceException, PhoneTake, TxnSnapshot;
 import 'folder_io.dart';
 import 'phone_ledger.dart';
 import 'phone_own_ledger.dart';
@@ -61,6 +62,28 @@ typedef PhoneAsking = ({
 /// saved again, or something was entered here): the person is asked again.
 typedef PhoneAnswered = ({PhoneSnapshot snapshot, bool done});
 
+/// What the person changed on a row of the register (#527), as the
+/// computer's edit takes it: [amount] is signed from [account]'s side and
+/// [counter] is the category (or the other account); null leaves them as
+/// they are.
+typedef PhoneRowEdit = ({
+  int txn,
+  int account,
+  DateTime date,
+  String? payee,
+  String? memo,
+  int? counter,
+  int? amount,
+});
+
+/// An edit done: the ledger as it stands after, and the row as it was and
+/// as it is, which undo and redo put back.
+typedef PhoneEdited = ({
+  PhoneSnapshot snapshot,
+  TxnSnapshot before,
+  TxnSnapshot after,
+});
+
 abstract class PhoneLedgerSource {
   /// Whether this phone already has a ledger of its own.
   bool get joined;
@@ -93,6 +116,15 @@ abstract class PhoneLedgerSource {
   /// made. Returns the ledger as it stands after.
   Future<PhoneSnapshot> undoTake(PhoneTake take, DateTime now) =>
       throw UnsupportedError('This source keeps no ledger to take back from');
+
+  /// Edits a row of the phone's own ledger, as a change the computers see
+  /// (#527). Throws what the ledger refuses (a reconciled row's amount).
+  Future<PhoneEdited> editRow(PhoneRowEdit edit, DateTime now) =>
+      throw UnsupportedError('This source keeps no ledger to edit');
+
+  /// Puts a row back as [row] was, for Undo and Redo of an edit.
+  Future<PhoneSnapshot> restoreRow(TxnSnapshot row, DateTime now) =>
+      throw UnsupportedError('This source keeps no ledger to edit');
 
   /// What the looks since the last call brought in from the other
   /// computers, said once: the phone shows it, with no Undo, as a computer's
@@ -423,6 +455,39 @@ class PhoneSync implements PhoneLedgerSource {
     if (db == null) throw StateError('The phone has no ledger of its own yet');
     await db.undoPhoneTake(take);
     return asItStands(now);
+  }
+
+  @override
+  Future<PhoneEdited> editRow(PhoneRowEdit edit, DateTime now) async {
+    final db = await _ledger();
+    final before = await db.snapshot(edit.txn);
+    await db.editTransaction(
+      transactionId: edit.txn,
+      accountId: edit.account,
+      date: edit.date,
+      today: now,
+      payee: edit.payee,
+      memo: edit.memo,
+      counterAccountId: edit.counter,
+      amount: edit.amount,
+    );
+    final after = await db.snapshot(edit.txn);
+    return (snapshot: await asItStands(now), before: before, after: after);
+  }
+
+  @override
+  Future<PhoneSnapshot> restoreRow(TxnSnapshot row, DateTime now) async {
+    final db = await _ledger();
+    await db.restoreSnapshot(row);
+    return asItStands(now);
+  }
+
+  Future<AppDatabase> _ledger() async {
+    if (_closed) throw StateError('The phone’s ledger was closed');
+    _db ??= await _own.open(device);
+    final db = _db;
+    if (db == null) throw StateError('The phone has no ledger of its own yet');
+    return db;
   }
 
   /// The folder's ledger has everything this phone's has and more, and
