@@ -7407,5 +7407,12 @@ is. The owner chose **C**. A (recommended) and B are not built.
   phone and not in the ledger yet has none of them. The row's own, not the whole
   page's: the computer's page-wide Assign what's planned and Clear stay on the
   computer for now.
+  Move money's piece (0.128.0): the open row's **Move money** opens a page, the
+  computer's box phone-sized: this category on one side, a list of the other (Not
+  assigned first, then the categories in its currency, each with what it has left),
+  Swap, an amount (what it is short, when it is), and Move. What would be overspent is
+  said in coral before Move, which goes ahead anyway; one change with Undo. The page
+  has no section headings in its list (the computer's groups by type): a phone's list
+  is short enough, and it is cheap to add.
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.

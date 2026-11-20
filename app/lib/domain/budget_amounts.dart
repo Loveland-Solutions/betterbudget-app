@@ -190,3 +190,52 @@ List<BudgetBegan> beganBy(
           ),
   ];
 }
+
+/// What moving [amount] from [from] to [to] (a null side is Not assigned)
+/// writes in [period]: each side's rows, by category id (#99, #528).
+Map<int, List<({DateTime date, int amount})>> moveRows(
+  LedgerData data,
+  Budget b,
+  BudgetSpan period, {
+  required AccountInfo? from,
+  required AccountInfo? to,
+  required int amount,
+  required DateTime today,
+}) {
+  final start = period.start, end = period.end;
+  int assigned(AccountInfo c) => b.lines[c.id]?.assigned ?? 0;
+  // A category whose own period isn't the page's (a pay seen by month)
+  // takes the whole move in one of its own periods, not spread over
+  // every pay in the month (budget review): the one today is in, or the
+  // last one that starts in the span.
+  List<({DateTime date, int amount})> rows(AccountInfo c, int delta) {
+    final plan = data.plans[c.id];
+    final own = plan?.kind == PlanKind.each
+        ? data.payScheduleById(plan!.payScheduleId)
+        : data.periodSchedule;
+    if (own?.id == data.periodSchedule?.id ||
+        !budgetPeriod(start, own).end.isBefore(end)) {
+      return budgetRows(data, b, c, period, assigned(c) + delta, today: today);
+    }
+    final now = !today.isBefore(start) && !today.isAfter(end);
+    var day = budgetPeriod(now ? today : end, own).start;
+    if (day.isBefore(start)) day = dateOnly(start);
+    final byDay = <DateTime, int>{};
+    for (final a in data.budgetAmounts) {
+      if (a.categoryId != c.id) continue;
+      final d = dateOnly(a.date);
+      if (d.isBefore(start) || d.isAfter(end)) continue;
+      byDay[d] = (byDay[d] ?? 0) + a.amount;
+    }
+    byDay[day] = (byDay[day] ?? 0) + delta;
+    return [
+      for (final e in byDay.entries)
+        if (e.value != 0) (date: e.key, amount: e.value),
+    ];
+  }
+
+  return {
+    if (from != null) from.id: rows(from, -amount),
+    if (to != null) to.id: rows(to, amount),
+  };
+}

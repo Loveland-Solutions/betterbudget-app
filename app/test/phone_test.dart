@@ -20,6 +20,7 @@ import 'package:betterbudget/domain/combine.dart'
 import 'package:betterbudget/domain/ledger.dart'
     show
         AccountType,
+        BudgetAmount,
         Cleared,
         CategoryPlan,
         LedgerData,
@@ -374,6 +375,32 @@ class _ActingSource {
               amount,
               rows: rows,
             );
+            return _after();
+          },
+        );
+      case PhoneMove(:final from, :final to, :final amount):
+        final data = await db.loadLedger();
+        final today = dateOnly(now());
+        final period = budgetPeriod(today, data.periodSchedule);
+        final byId = moveRows(
+          data,
+          Budget.of(data, start: period.start, end: period.end, today: today),
+          period,
+          from: from == null ? null : data.accounts[from],
+          to: to == null ? null : data.accounts[to],
+          amount: amount,
+          today: today,
+        );
+        late Map<int, List<BudgetAmount>> before;
+        before = await db.setBudgetAmounts(byId, period.start, period.end);
+        return (
+          snapshot: await _after(),
+          undo: () async {
+            await db.restoreBudgetAmountsOf(before, period.start, period.end);
+            return _after();
+          },
+          redo: () async {
+            before = await db.setBudgetAmounts(byId, period.start, period.end);
             return _after();
           },
         );
@@ -2257,6 +2284,89 @@ void main() {
     await tester.tap(find.text('Undo'));
     await settle();
     expect(assigned(), 12345600);
+  });
+
+  testWidgets('Move money on a Budget row moves between two categories or '
+      'back to Not assigned, warns past what is there, and Undo takes it back '
+      '(#528)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int groceries, other;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      final cats = data.accounts.values.where((a) => a.isCategory).toList();
+      groceries = cats.firstWhere((a) => a.name == 'Groceries').id;
+      other = cats.firstWhere((a) => a.id != groceries && !a.isIncome).id;
+      await db.setBudgetAmount(
+        groceries,
+        DateTime(2026, 10),
+        DateTime(2026, 10, 31),
+        30000000,
+      );
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    int assigned(int id) => snapshotOf(
+      data,
+      today: _now,
+      madeAt: _now,
+    ).categories.firstWhere((c) => c.id == '$id').assignedMinor;
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await _toBudget(tester);
+    await tester.scrollUntilVisible(
+      find.text('Groceries'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Groceries'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('open-move-$groceries')));
+    await tester.pumpAndSettle();
+    // Out of Groceries into another category.
+    await tester.tap(find.byKey(ValueKey('move-choice-$other')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('move-amount')), '1000');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('move-warning')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('move-go')));
+    await settle();
+    expect(assigned(groceries), 29900000);
+    expect(assigned(other), 100000);
+    expect(find.byKey(const ValueKey('move-done')), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(assigned(groceries), 30000000);
+    expect(assigned(other), 0);
+    // More than it has: said first, and Move still goes ahead.
+    await tester.tap(find.byKey(ValueKey('open-move-$groceries')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('move-choice-none')));
+    await tester.enterText(
+      find.byKey(const ValueKey('move-amount')),
+      '999999999',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('move-warning')), findsOneWidget);
+    // No category picked is said, and nothing moves.
+    await tester.tap(find.byKey(const ValueKey('move-cancel')));
+    await tester.pumpAndSettle();
+    expect(assigned(groceries), 30000000);
   });
 
   testWidgets('a category on Budget starts an entry in it, and what was '
