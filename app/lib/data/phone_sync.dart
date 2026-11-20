@@ -14,14 +14,18 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
-import '../domain/budget.dart' show Budget, BudgetKeys;
+import '../domain/budget.dart' show Budget, BudgetKeys, CategoryType;
 import '../domain/budget_amounts.dart';
 import '../domain/combine.dart' show Ask, Pick;
 import '../domain/ledger.dart'
     show
         BudgetAmount,
+        CategoryPlan,
         Cleared,
+        PlanKind,
         RegisterRow,
+        splitEmoji,
+        withEmoji,
         dateOnly,
         RowKind,
         billNotIt,
@@ -33,13 +37,16 @@ import '../domain/ledger.dart'
 import '../domain/pay.dart' show budgetPeriod;
 import '../domain/payee_rules.dart' show Remembered;
 import '../domain/phone.dart';
+import '../domain/readiness.dart' show ReadyKeys;
 import '../domain/sync.dart' show appliedMarkerOp;
 import 'backup.dart';
 import 'cloud_folder.dart';
 import 'database.dart'
     show
         AppDatabase,
+        CategoryMoney,
         ChangedSinceException,
+        PlanChange,
         DbProblem,
         LockedException,
         NotFoundException,
@@ -198,6 +205,27 @@ class PhoneMove extends PhoneRowAct {
   final int? from;
   final int? to;
   final int amount;
+}
+
+/// A category of the ledger edited on Budget (#528): its name (with its
+/// emoji), its plan and type as the four cards make them, and, when it was
+/// changed, the account it is paid from. Written as the computer's Edit
+/// writes it, in one change.
+class PhoneEditCategory extends PhoneRowAct {
+  const PhoneEditCategory(
+    this.category, {
+    required this.name,
+    required this.plan,
+    required this.type,
+    this.paidFrom,
+  });
+  final int category;
+  final String name;
+  final CategoryPlan? plan;
+  final CategoryType type;
+
+  /// Null when Paid from wasn't changed.
+  final int? paidFrom;
 }
 
 class PhoneDeleteRow extends PhoneRowAct {
@@ -889,6 +917,92 @@ class PhoneSync implements PhoneLedgerSource {
           undo: () async {
             await db.restoreBudgetAmountsOf(before, start, end);
             await _writeBegan(db, began, back: true);
+            return again();
+          },
+          redo: () async {
+            await write();
+            return again();
+          },
+        );
+      case PhoneEditCategory(
+        :final category,
+        :final name,
+        :final plan,
+        :final type,
+        :final paidFrom,
+      ):
+        final data = await db.loadLedger();
+        final c = data.accounts[category];
+        if (c == null) throw NotFoundException(DbProblem.notCategory);
+        final today = dateOnly(now);
+        // Edit writes a name with an emoji as "🛒 Groceries"; one stored as
+        // "🛒Groceries" that wasn't touched isn't renamed by a Save.
+        final asEdit = withEmoji(
+          splitEmoji(c.name).emoji,
+          splitEmoji(c.name).rest,
+        );
+        final renamed = name != c.name && name != asEdit;
+        final newPlan = plan?.forCategory(category);
+        final planned = newPlan != data.plans[category];
+        final money = paidFrom != null && paidFrom != data.paidFrom[category];
+        final goalKey = ReadyKeys.goal(category);
+        final goalWas = data.prefs[goalKey];
+        final wantsGoal =
+            type == CategoryType.goal && newPlan?.kind == PlanKind.byDate;
+        final goal = wantsGoal != (goalWas == 'yes');
+        // A late goal's choice goes with the mark, so it can't come back on
+        // its own.
+        final lateKey = ReadyKeys.goalLate(category);
+        final lateWas = data.prefs[lateKey];
+        final fundKey = BudgetKeys.fund(category);
+        final fundWas = data.prefs[fundKey];
+        final fund =
+            (type == CategoryType.fund && newPlan == null) !=
+            (fundWas == 'yes');
+        late CategoryMoney moneyBefore;
+        PlanChange? planChange;
+        Future<void> write() => db.transaction(() async {
+          if (renamed) await db.renameAccount(category, name);
+          if (money) {
+            moneyBefore = await db.setCategoryMoney(
+              category,
+              currency: c.currency,
+              paidFrom: paidFrom,
+            );
+          }
+          if (planned) {
+            planChange = await db.changeCategoryPlan(category, newPlan, today);
+          }
+          if (goal) {
+            await db.setPreference(goalKey, wantsGoal ? 'yes' : null);
+            await db.setPreference(lateKey, null);
+          }
+          if (fund) {
+            await db.setPreference(
+              fundKey,
+              type == CategoryType.fund && newPlan == null ? 'yes' : null,
+            );
+          }
+        });
+
+        await write();
+        return (
+          snapshot: await again(),
+          undo: () async {
+            await db.transaction(() async {
+              if (fund) await db.setPreference(fundKey, fundWas);
+              if (goal) {
+                await db.setPreference(goalKey, goalWas);
+                await db.setPreference(lateKey, lateWas);
+              }
+              if (planned) await db.undoPlanChange(category, planChange!);
+              if (money) {
+                await db.restoreCategoryMoney(category, moneyBefore);
+                // A plan a change of Paid from took away comes back.
+                await db.ensurePlanBills(today, only: category);
+              }
+              if (renamed) await db.renameAccount(category, c.name);
+            });
             return again();
           },
           redo: () async {

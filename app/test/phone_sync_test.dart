@@ -14,7 +14,7 @@ import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_sync.dart';
 import 'package:betterbudget/domain/budget.dart'
-    show BillFit, BillPayment, BudgetKeys, billPayments;
+    show BillFit, BillPayment, BudgetKeys, CategoryType, billPayments, typeOf;
 import 'package:betterbudget/domain/combine.dart' show Pick;
 import 'package:betterbudget/domain/ledger.dart'
     show CategoryPlan, Cleared, PlanKind, RegisterRow;
@@ -407,6 +407,50 @@ void main() {
     expect(await there(macDb), isNull);
     await deleted.undo();
     expect(await there(phone.db!), isNotNull);
+  });
+
+  test('a category edited on the phone gets its name, plan and type as the '
+      'computer\'s Edit writes them, reaches the computer, and Undo takes it '
+      'back (#528)', () async {
+    await spend('Nomin');
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    final food = ledger.accounts.values.firstWhere((a) => a.isCategory);
+    final plan = CategoryPlan(
+      categoryId: -1,
+      kind: PlanKind.byDate,
+      amount: 5000000,
+      start: tuesday,
+      due: DateTime(2026, 12, 20),
+    );
+    final edited = await phone.actOnRow(
+      PhoneEditCategory(
+        food.id,
+        name: 'Trips',
+        plan: plan,
+        type: CategoryType.goal,
+      ),
+      tuesday,
+    );
+    var data = await phone.db!.loadLedger();
+    expect(data.accounts[food.id]!.name, 'Trips');
+    expect(data.plans[food.id]?.kind, PlanKind.byDate);
+    expect(data.plans[food.id]?.amount, 5000000);
+    expect(typeOf(data, food.id), CategoryType.goal);
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect((await macDb.loadLedger()).accounts[food.id]!.name, 'Trips');
+    await edited.undo();
+    data = await phone.db!.loadLedger();
+    expect(data.accounts[food.id]!.name, food.name);
+    expect(data.plans[food.id], ledger.plans[food.id]);
+    expect(typeOf(data, food.id), typeOf(ledger, food.id));
+    await edited.redo();
+    data = await phone.db!.loadLedger();
+    expect(data.accounts[food.id]!.name, 'Trips');
+    expect(typeOf(data, food.id), CategoryType.goal);
   });
 
   test(

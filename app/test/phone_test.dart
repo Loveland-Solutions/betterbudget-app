@@ -40,6 +40,7 @@ import 'package:betterbudget/ui/ledger_screen.dart' show phonePlanNotes;
 import 'package:betterbudget/ui/phone/phone_app.dart';
 import 'package:betterbudget/ui/phone/phone_asking.dart' show PhoneAnswer;
 import 'package:betterbudget/ui/phone/phone_start.dart';
+import 'package:betterbudget/ui/category_types.dart' show TypeCards;
 import 'package:betterbudget/ui/schemes.dart';
 import 'package:betterbudget/ui/theme.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -401,6 +402,22 @@ class _ActingSource {
           },
           redo: () async {
             before = await db.setBudgetAmounts(byId, period.start, period.end);
+            return _after();
+          },
+        );
+      case PhoneEditCategory(:final category, :final name):
+        // Only the name: the plan and Paid from are PhoneSync's, tested in
+        // phone_sync_test.dart.
+        final was = (await db.loadLedger()).accounts[category]!.name;
+        await db.renameAccount(category, name);
+        return (
+          snapshot: await _after(),
+          undo: () async {
+            await db.renameAccount(category, was);
+            return _after();
+          },
+          redo: () async {
+            await db.renameAccount(category, name);
             return _after();
           },
         );
@@ -2367,6 +2384,64 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('move-cancel')));
     await tester.pumpAndSettle();
     expect(assigned(groceries), 30000000);
+  });
+
+  testWidgets('Edit on a Budget row opens the category on its type cards, '
+      'saves a new name into the ledger, and Undo takes it back (#528)', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int groceries;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      groceries = data.accounts.values
+          .firstWhere((a) => a.isCategory && a.name == 'Groceries')
+          .id;
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    String nameOf() => data.accounts[groceries]!.name;
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await _toBudget(tester);
+    await tester.scrollUntilVisible(
+      find.text('Groceries'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Groceries'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('open-edit-$groceries')));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit Groceries'), findsOneWidget);
+    expect(find.byType(TypeCards), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'Food',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await settle();
+    expect(nameOf(), 'Food');
+    expect(find.byKey(const ValueKey('edit-done')), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(nameOf(), 'Groceries');
   });
 
   testWidgets('a category on Budget starts an entry in it, and what was '

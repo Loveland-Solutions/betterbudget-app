@@ -24,19 +24,65 @@ Future<PhoneCategory?> _openNewCategory(
 }) {
   final now = store.now();
   final today = DateTime(now.year, now.month, now.day);
-  return Navigator.of(context).push(
-    MaterialPageRoute<PhoneCategory>(
-      fullscreenDialog: true,
-      builder: (_) => _NewCategoryPage(
-        store: store,
-        today: today,
-        currency: currency,
-        name: editing?.name ?? name,
-        forEntry: forEntry,
-        editing: editing,
-      ),
-    ),
-  );
+  return Navigator.of(context)
+      .push(
+        MaterialPageRoute<Object>(
+          fullscreenDialog: true,
+          builder: (_) => _NewCategoryPage(
+            store: store,
+            today: today,
+            currency: currency,
+            name: editing?.name ?? name,
+            forEntry: forEntry,
+            editing: editing,
+          ),
+        ),
+      )
+      .then((made) => made is PhoneCategory ? made : null);
+}
+
+/// Opens Edit on [category] of the ledger (#528): the same page, filled in
+/// from its plan and type, saved into the ledger as one change. Comes back
+/// with the change, for the snack bar's Undo, or null when nothing was
+/// saved.
+Future<PhoneActed?> _openEditCategory(
+  BuildContext context, {
+  required PhoneStore store,
+  required PhoneCategory category,
+}) {
+  final now = store.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final data = store.snapshot.data;
+  final id = int.tryParse(category.id);
+  // Its plan and type are the ledger's own, which the row doesn't carry.
+  final editing = data == null || id == null
+      ? category
+      : PhoneCategory(
+          id: category.id,
+          name: category.name,
+          leftMinor: category.leftMinor,
+          currency: category.currency,
+          paidFromId:
+              (data.paidFrom[id] ?? int.tryParse(category.paidFromId ?? ''))
+                  ?.toString(),
+          plan: data.plans[id],
+          type: typeOf(data, id),
+        );
+  return Navigator.of(context)
+      .push(
+        MaterialPageRoute<Object>(
+          fullscreenDialog: true,
+          builder: (_) => _NewCategoryPage(
+            store: store,
+            today: today,
+            currency: editing.currency,
+            name: editing.name,
+            forEntry: false,
+            editing: editing,
+          ),
+        ),
+      )
+      .then((done) => done is PhoneActed ? done : null);
 }
 
 class _NewCategoryPage extends StatefulWidget {
@@ -107,7 +153,12 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   /// open: there's nothing left here to change.
   bool get _takenMeanwhile =>
       widget.editing != null &&
+      widget.editing!.madeHere &&
       !widget.store.made.any((c) => c.id == widget.editing!.id);
+
+  /// A category of the ledger, opened by Budget's Edit (#528): saved into
+  /// the ledger itself, in its own currency.
+  bool get _inLedger => widget.editing != null && !widget.editing!.madeHere;
 
   /// The ledger's categories and the ones made here, but for the one
   /// being changed: its own name isn't taken.
@@ -329,7 +380,11 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       return;
     }
     if (widget.editing case final c?) {
-      _save(c, name);
+      if (_inLedger) {
+        unawaited(_saveLedger(c));
+      } else {
+        _save(c, name);
+      }
       return;
     }
     final made = widget.store.categoryCalled(
@@ -359,6 +414,41 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       _round++;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+  }
+
+  /// Save, for a category of the ledger: one change the computers see,
+  /// handed back to Budget for its snack bar and Undo.
+  Future<void> _saveLedger(PhoneCategory c) async {
+    final picked = _paidFromId;
+    final PhoneActed done;
+    try {
+      done = await widget.store.actRow(
+        PhoneEditCategory(
+          int.parse(c.id),
+          name: _fullName,
+          plan: _draft,
+          type: _type,
+          paidFrom: picked != null && '$picked' != c.paidFromId ? picked : null,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Editing a category on the phone failed: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            key: const ValueKey('edit-category-refused'),
+            backgroundColor: Mid.raised,
+            content: Text(
+              context.t.ledgerCouldntSave,
+              style: onest(15, color: Mid.ink),
+            ),
+          ),
+        );
+      return;
+    }
+    if (mounted) Navigator.of(context).pop(done);
   }
 
   /// Save, for a category still waiting: in place, or, when the computer
@@ -1098,6 +1188,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         // account's currency.
         final offerCurrency =
             !widget.forEntry &&
+            !_inLedger &&
             !(widget.editing != null &&
                 widget.store.hasEntriesIn(widget.editing!.id)) &&
             (_currencies.length > 1 || !_currencies.contains(_currency));

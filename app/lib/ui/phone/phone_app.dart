@@ -25,6 +25,7 @@ import '../../data/phone_sync.dart'
         PhoneAsking,
         PhoneBillPaid,
         PhoneDeleteRow,
+        PhoneEditCategory,
         PhoneEdited,
         PhoneMarkCleared,
         PhoneMove,
@@ -1147,6 +1148,36 @@ class _BudgetScreenState extends State<_BudgetScreen> {
       );
   }
 
+  /// Opens [category]'s Edit; what it saved is said in a snack bar with
+  /// Undo, as the other changes on Budget are.
+  Future<void> _edit(PhoneCategory category) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final t = context.t;
+    final done = await _openEditCategory(
+      context,
+      store: store,
+      category: category,
+    );
+    if (done == null) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const ValueKey('edit-done'),
+          backgroundColor: Mid.raised,
+          content: Text(
+            t.planEditedUndo(category.name),
+            style: onest(15, color: Mid.ink),
+          ),
+          action: SnackBarAction(
+            label: t.ledgerUndo,
+            textColor: Mid.blue,
+            onPressed: () => unawaited(store.replay(done.undo)),
+          ),
+        ),
+      );
+  }
+
   Future<void> _newCategory(BuildContext context) => _openNewCategory(
     context,
     store: store,
@@ -1281,6 +1312,7 @@ class _BudgetScreenState extends State<_BudgetScreen> {
                               ),
                               onAssign: (amount, {cleared = false}) =>
                                   _assign(category, amount, cleared: cleared),
+                              onEdit: () => _edit(category),
                             )
                           : null,
                     );
@@ -1948,6 +1980,7 @@ class _OpenBudgetRow extends StatefulWidget {
     required this.onAdd,
     required this.onAssign,
     required this.onMove,
+    required this.onEdit,
   });
   final PhoneCategory category;
   final int left;
@@ -1956,6 +1989,9 @@ class _OpenBudgetRow extends StatefulWidget {
 
   /// Opens Move money.
   final VoidCallback onMove;
+
+  /// Opens Edit.
+  final VoidCallback onEdit;
 
   /// Sets Assigned to this amount; [cleared] when it is Clear Assigned.
   final Future<void> Function(int amount, {bool cleared}) onAssign;
@@ -2118,6 +2154,13 @@ class _OpenBudgetRowState extends State<_OpenBudgetRow> {
                   onPressed: widget.onMove,
                   style: style(),
                   child: Text(t.planMoveMoney),
+                ),
+              if (_inLedger)
+                TextButton(
+                  key: ValueKey('open-edit-${c.id}'),
+                  onPressed: widget.onEdit,
+                  style: style(),
+                  child: Text(t.planEdit),
                 ),
               TextButton(
                 key: ValueKey('open-add-${c.id}'),
