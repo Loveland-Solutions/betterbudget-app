@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../../data/database.dart' show PhoneTake;
-import '../../data/phone_sync.dart' show PhoneNews;
+import '../../data/phone_sync.dart' show PhoneAsking, PhoneNews;
 import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
 import '../../domain/budget.dart';
@@ -30,6 +30,7 @@ import '../category_types.dart';
 import '../emoji_chooser.dart';
 import '../savings_steps.dart';
 import '../theme.dart';
+import 'phone_asking.dart';
 
 part 'phone_count.dart';
 part 'phone_new_category.dart';
@@ -88,6 +89,10 @@ class PhoneStore extends ChangeNotifier {
   /// What the last look brought in from the other computers, to be said
   /// once by the screen it is on.
   final news = ValueNotifier<List<PhoneNews>>(const []);
+
+  /// What waits for an answer, or null: things changed here and on a
+  /// computer both, or two ledgers that can't be put together.
+  final asking = ValueNotifier<PhoneAsking?>(null);
 
   /// Counts what the person does here (an entry, a count, a category), not a
   /// new look at the ledger: the screens tell the two apart, so a take
@@ -360,8 +365,15 @@ class PhoneFrame extends StatelessWidget {
 /// The phone's screens on a [store] that is already filled: tests, and the
 /// preview on invented figures.
 class PhoneApp extends StatelessWidget {
-  const PhoneApp({super.key, required this.store, this.now, this.problems});
+  const PhoneApp({
+    super.key,
+    required this.store,
+    this.now,
+    this.problems,
+    this.onAnswer,
+  });
   final PhoneStore store;
+  final Future<bool> Function(PhoneAnswer answer)? onAnswer;
 
   /// The clock, so a test can hold it still.
   final DateTime Function()? now;
@@ -373,6 +385,7 @@ class PhoneApp extends StatelessWidget {
       store: store,
       now: now ?? DateTime.now,
       problems: problems,
+      onAnswer: onAnswer,
     ),
   );
 }
@@ -662,11 +675,16 @@ class PhoneHome extends StatefulWidget {
     required this.store,
     required this.now,
     this.onRefresh,
+    this.onAnswer,
     this.problems,
     this.note,
   });
   final PhoneStore store;
   final DateTime Function() now;
+
+  /// Makes the answer to what [PhoneStore.asking] holds; null in the
+  /// preview, which asks nothing.
+  final Future<bool> Function(PhoneAnswer answer)? onAnswer;
 
   /// A line across the top: the demo says its figures are made up.
   final String? note;
@@ -692,8 +710,40 @@ class _PhoneHomeState extends State<PhoneHome> {
     super.initState();
     widget.store.now = widget.now;
     widget.store.news.addListener(_brought);
+    widget.store.asking.addListener(_asked);
     // What the first look brought in was set before this screen was up.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _brought());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _brought();
+      _asked();
+    });
+  }
+
+  /// What was last opened by itself, so a question is put once and the line
+  /// at the top is what opens it again.
+  String? _openedFor;
+  var _opening = false;
+
+  void _asked() {
+    final asking = widget.store.asking.value;
+    if (asking == null || !mounted) return;
+    if (asking.digest == _openedFor) return;
+    _openedFor = asking.digest;
+    _openAsking();
+  }
+
+  Future<void> _openAsking() async {
+    final asking = widget.store.asking.value;
+    final onAnswer = widget.onAnswer;
+    if (asking == null || onAnswer == null || _opening || !mounted) return;
+    _opening = true;
+    try {
+      final answer = await showPhoneAsking(context, asking);
+      // An answer that wasn't made, for what was asked changed meanwhile, is
+      // asked again: the next look puts the question up as new.
+      if (answer != null && !await onAnswer(answer)) _openedFor = null;
+    } finally {
+      _opening = false;
+    }
   }
 
   @override
@@ -705,6 +755,7 @@ class _PhoneHomeState extends State<PhoneHome> {
   @override
   void dispose() {
     widget.store.news.removeListener(_brought);
+    widget.store.asking.removeListener(_asked);
     _draft.dispose();
     super.dispose();
   }
@@ -758,6 +809,13 @@ class _PhoneHomeState extends State<PhoneHome> {
                   ),
                   child: Text(note, style: onest(13, color: Mid.ink2)),
                 ),
+              ValueListenableBuilder<PhoneAsking?>(
+                valueListenable: widget.store.asking,
+                builder: (context, asking, _) =>
+                    asking == null || widget.onAnswer == null
+                    ? const SizedBox.shrink()
+                    : PhoneAskingLine(asking: asking, onTap: _openAsking),
+              ),
               Expanded(
                 child: IndexedStack(
                   index: _budget ? 1 : 0,

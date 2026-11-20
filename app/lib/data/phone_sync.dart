@@ -4,16 +4,19 @@
 // change file is written when its log has grown, and the other computers'
 // change files are folded in and brought in. What differs from a computer:
 // the phone never writes the folder's whole ledger (too much to send over
-// mobile data; the computers keep it), and it asks nothing yet: a row changed
-// two ways, or two ledgers that can't be combined, wait for the phone's
-// asking window (piece 4), the figures staying as they were.
+// mobile data; the computers keep it), and what it asks is asked in its own
+// window (piece 4, part 3): a row changed two ways ([PhoneSync.asks]), and
+// two ledgers that can't be combined ([PhoneSync.apart]), the figures staying
+// as they were until it is answered.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
+import '../domain/combine.dart' show Ask, Pick;
 import '../domain/phone.dart';
+import '../domain/sync.dart' show appliedMarkerOp;
 import 'backup.dart';
 import 'cloud_folder.dart';
 import 'database.dart' show AppDatabase, ChangedSinceException, PhoneTake;
@@ -37,6 +40,26 @@ typedef PhoneNews = ({
   String? payee,
   String? from,
 });
+
+/// What waits for an answer on the phone: [asks] are things changed on this
+/// phone and on the computer called [from] both; with [apart] set the two
+/// ledgers can't be put together at all, and [notOnComputer] is how many of
+/// this phone's entries no computer has applied, which taking the folder's
+/// ledger would lose.
+typedef PhoneAsking = ({
+  List<Ask> asks,
+  String? from,
+  bool apart,
+  int notOnComputer,
+  int otherChanges,
+  String digest,
+  String? mineDigest,
+});
+
+/// What an answer did: [done] when it was made, and the ledger as it stands
+/// after. Not done when what was asked about changed since (a computer
+/// saved again, or something was entered here): the person is asked again.
+typedef PhoneAnswered = ({PhoneSnapshot snapshot, bool done});
 
 abstract class PhoneLedgerSource {
   /// Whether this phone already has a ledger of its own.
@@ -75,6 +98,22 @@ abstract class PhoneLedgerSource {
   /// computers, said once: the phone shows it, with no Undo, as a computer's
   /// popup has none (undo is for what the person here did).
   List<PhoneNews> takeNews() => const [];
+
+  /// What the last look found changed on this phone and on another computer
+  /// both, and waits to be asked about (#526 piece 4, part 3): nothing comes
+  /// in until it is answered.
+  PhoneAsking? get asking => null;
+
+  /// Answers [PhoneAsking.asks] with [picks], one for each: the rest comes
+  /// in with them. Returns the ledger as it stands after.
+  Future<PhoneAnswered> answer(Map<String, Pick> picks, DateTime now) =>
+      throw UnsupportedError('This source asks nothing');
+
+  /// Takes the folder's whole ledger as this phone's own, for two ledgers
+  /// that can't be put together ([PhoneAsking.apart]). What this phone had
+  /// is gone, and the computers hold their own.
+  Future<PhoneAnswered> takeFoldersLedger(DateTime now) =>
+      throw UnsupportedError('This source asks nothing');
 
   Future<void> close();
 
@@ -130,6 +169,10 @@ class PhoneSync implements PhoneLedgerSource {
   AppDatabase? _db;
   CloudFolder? _cloud;
   final _news = <PhoneNews>[];
+  PhoneAsking? _asking;
+
+  @override
+  PhoneAsking? get asking => _asking;
 
   @override
   List<PhoneNews> takeNews() {
@@ -199,6 +242,7 @@ class PhoneSync implements PhoneLedgerSource {
     final db = _db;
     if (db == null) throw StateError('The phone has no ledger of its own yet');
     var whole = false;
+    _asking = null;
     try {
       final cloud = await _cycle(folder, now);
       if (cloud == null) throw StateError('The phone isn’t on the folder yet');
@@ -229,12 +273,114 @@ class PhoneSync implements PhoneLedgerSource {
         break;
       }
       whole = standing == FolderStanding.ok;
+      _asking = await _askingNow(cloud, standing);
     } catch (e) {
       // Offline, or the folder gone: the ledger the phone has stands.
       debugPrint('The phone’s look at the folder failed: $e');
     }
     if (whole && !_closed) await _keepLooked(now);
     return asItStands(now);
+  }
+
+  /// What the standing after a look asks, if anything.
+  Future<PhoneAsking?> _askingNow(CloudFolder cloud, FolderStanding st) async {
+    final digest = cloud.theirs?.look.digest;
+    if (digest == null) return null;
+    if (st == FolderStanding.rows) {
+      final asks = cloud.asks;
+      if (asks.isEmpty) return null;
+      return (
+        asks: asks,
+        from: cloud.theirs?.look.savedByName,
+        apart: false,
+        notOnComputer: 0,
+        otherChanges: 0,
+        digest: digest,
+        mineDigest: cloud.mineDigest,
+      );
+    }
+    if (st == FolderStanding.apart) {
+      final db = _db;
+      final lost = db == null
+          ? (entries: <int>{}, others: 0)
+          : await _unapplied(db, cloud.seenOfMine ?? 0);
+      return (
+        asks: const <Ask>[],
+        from: cloud.theirs?.look.savedByName,
+        apart: true,
+        notOnComputer: lost.entries.length,
+        otherChanges: lost.others,
+        digest: digest,
+        mineDigest: cloud.mineDigest,
+      );
+    }
+    return null;
+  }
+
+  /// What this phone changed that no computer has applied: its entries by
+  /// id, and how many changes besides (assigned amounts, categories,
+  /// payees). The lines of an entry go with it.
+  Future<({Set<int> entries, int others})> _unapplied(
+    AppDatabase db,
+    int seen,
+  ) async {
+    final ids = <int>{};
+    var others = 0;
+    for (final c in await db.changesSince(seen)) {
+      if (c.op == appliedMarkerOp) continue;
+      if (c.tbl == 'entries') continue;
+      if (c.tbl != 'transactions') {
+        others++;
+        continue;
+      }
+      if (c.op == 'delete') continue;
+      final id = (jsonDecode(c.pk) as Map<String, dynamic>)['id'];
+      if (id is int) ids.add(id);
+    }
+    return (entries: ids, others: others);
+  }
+
+  @override
+  Future<PhoneAnswered> answer(Map<String, Pick> picks, DateTime now) async {
+    if (_closed) throw StateError('The phone’s ledger was closed');
+    final cloud = _cloud;
+    if (cloud == null) throw StateError('The phone isn’t on the folder yet');
+    final done = await cloud.bringIn(now, picks: picks);
+    if (done == null) {
+      // What was asked about changed meanwhile: the choices were not made.
+      return (snapshot: await asItStands(now), done: false);
+    }
+    if (done.before.existsSync()) await done.before.delete();
+    if (!done.quiet) {
+      _news.add((
+        transactions: done.transactions,
+        others: done.others,
+        payee: done.payee,
+        from: done.from.savedByName,
+      ));
+    }
+    _asking = null;
+    return (snapshot: await asItStands(now), done: true);
+  }
+
+  @override
+  Future<PhoneAnswered> takeFoldersLedger(DateTime now) async {
+    if (_closed) throw StateError('The phone’s ledger was closed');
+    final cloud = _cloud;
+    final asked = _asking;
+    if (cloud == null || asked == null || !asked.apart) {
+      return (snapshot: await asItStands(now), done: false);
+    }
+    // Worked out afresh: what is replaced is what the page said, or nothing.
+    final standing = await cloud.check(now, fresh: true);
+    if (standing != FolderStanding.apart ||
+        cloud.mineDigest != asked.mineDigest ||
+        cloud.theirs?.look.digest != asked.digest) {
+      return (snapshot: await asItStands(now), done: false);
+    }
+    await _takeFolderLedger(cloud, now);
+    _asking = null;
+    return (snapshot: await asItStands(now), done: true);
   }
 
   @override
@@ -247,12 +393,7 @@ class PhoneSync implements PhoneLedgerSource {
     // changes since the last one all of them have seen. With no other
     // computer heard from, all of them.
     final seen = _cloud?.seenOfMine ?? 0;
-    final ids = <int>{};
-    for (final c in await db.changesSince(seen)) {
-      if (c.tbl != 'transactions' || c.op == 'delete') continue;
-      final id = (jsonDecode(c.pk) as Map<String, dynamic>)['id'];
-      if (id is int) ids.add(id);
-    }
+    final ids = (await _unapplied(db, seen)).entries;
     return snapshotOf(
       await db.loadLedger(),
       today: now,

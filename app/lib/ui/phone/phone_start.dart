@@ -20,6 +20,7 @@ import '../data_words.dart';
 import '../language.dart';
 import '../theme.dart';
 import 'phone_app.dart';
+import 'phone_asking.dart' show PhoneAnswer;
 import 'phone_demo.dart';
 
 /// The phone's own ledger and the way it is kept up with the folder; swapped
@@ -147,8 +148,10 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   Future<void>? _reading;
   var _looks = 0;
 
-  Future<void> _load() =>
-      _reading ??= _read().whenComplete(() => _reading = null);
+  Future<void> _load() {
+    if (_answering) return Future.value();
+    return _reading ??= _read().whenComplete(() => _reading = null);
+  }
 
   /// Looks at the folder: the first time the ledger in it becomes this
   /// phone's own, and from then on the other computers' changes are brought
@@ -256,6 +259,43 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     }
   }
 
+  /// The person's answer to what waits: the choices made and the rest
+  /// brought in, or the folder's whole ledger taken. The look that follows
+  /// finds what is still to be asked.
+  Future<bool> _answer(PhoneAnswer answer) async {
+    final source = _source, store = _store;
+    if (source == null || store == null) return true;
+    // No look runs over the answer, and none still running shows figures
+    // from before it.
+    _answering = true;
+    _looks++;
+    var done = false;
+    try {
+      await _reading;
+      final picks = answer.picks;
+      final answered = picks != null
+          ? await source.answer(picks, widget.now())
+          : await source.takeFoldersLedger(widget.now());
+      done = answered.done;
+      if (identical(_source, source) && mounted) {
+        store.snapshot = answered.snapshot;
+        if (done) store.asking.value = null;
+        final news = source.takeNews();
+        if (news.isNotEmpty) store.news.value = news;
+      }
+    } catch (e) {
+      debugPrint('Answering what changed on two computers failed: $e');
+      _record((t) => t.phoneProblemAnswer, e);
+      done = true;
+    } finally {
+      _answering = false;
+    }
+    unawaited(_load());
+    return done;
+  }
+
+  var _answering = false;
+
   /// The two whole copies of the folder's ledger an earlier version of the
   /// app kept apart from the phone's own ledger (the private copy it read,
   /// and the one it fell back on): nothing reads them now, and each is a
@@ -308,6 +348,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     }
     final news = _source?.takeNews() ?? const <PhoneNews>[];
     if (news.isNotEmpty) _store?.news.value = news;
+    _store?.asking.value = _source?.asking;
     _keep();
     setState(() => _step = _Step.ready);
   }
@@ -478,6 +519,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         store: _store!,
         now: widget.now,
         onRefresh: _demo ? null : _load,
+        onAnswer: _demo ? null : _answer,
         problems: _problems,
         note: _demo ? t.phoneDemoNote : null,
       ),

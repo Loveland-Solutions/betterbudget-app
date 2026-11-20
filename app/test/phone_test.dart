@@ -14,6 +14,8 @@ import 'package:betterbudget/data/phone_ledger.dart';
 import 'package:betterbudget/data/phone_sync.dart';
 import 'package:betterbudget/data/problem_log.dart';
 import 'package:betterbudget/domain/budget.dart';
+import 'package:betterbudget/domain/combine.dart'
+    show Ask, AskKind, AskLine, AskSide, Pick;
 import 'package:betterbudget/domain/ledger.dart'
     show AccountType, CategoryPlan, LedgerData, PlanKind, RowKind;
 import 'package:betterbudget/domain/money.dart';
@@ -25,6 +27,7 @@ import 'package:betterbudget/l10n/app_localizations.dart';
 import 'package:betterbudget/phone_preview.dart';
 import 'package:betterbudget/ui/ledger_screen.dart' show phonePlanNotes;
 import 'package:betterbudget/ui/phone/phone_app.dart';
+import 'package:betterbudget/ui/phone/phone_asking.dart' show PhoneAnswer;
 import 'package:betterbudget/ui/phone/phone_start.dart';
 import 'package:betterbudget/ui/schemes.dart';
 import 'package:betterbudget/ui/theme.dart';
@@ -300,6 +303,17 @@ class _FakeSource implements PhoneLedgerSource {
 
   @override
   List<PhoneNews> takeNews() => const [];
+
+  @override
+  PhoneAsking? get asking => null;
+
+  @override
+  Future<PhoneAnswered> answer(Map<String, Pick> picks, DateTime now) =>
+      throw UnsupportedError('asks nothing');
+
+  @override
+  Future<PhoneAnswered> takeFoldersLedger(DateTime now) =>
+      throw UnsupportedError('asks nothing');
 
   _FakeSource({
     required this.dir,
@@ -1501,6 +1515,147 @@ void main() {
     expect(find.byKey(const ValueKey('brought-in')), findsOneWidget);
     expect(find.textContaining('Tom’s MacBook Air'), findsOneWidget);
     expect(find.text('Undo'), findsNothing);
+  });
+
+  testWidgets('what changed here and on a computer both is asked once: this '
+      'phone’s kept unless changed, one Save', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const line = AskLine(
+      account: 'Groceries',
+      amountMinor: 0,
+      currency: 'MNT',
+      isCategory: true,
+    );
+    AskSide side(int amount) => AskSide(
+      date: '2026-11-12',
+      payee: 'Corner shop',
+      lines: [
+        AskLine(
+          account: 'Checking',
+          amountMinor: -amount,
+          currency: 'MNT',
+          isCategory: false,
+        ),
+        line,
+      ],
+    );
+    const bus = AskLine(
+      account: 'Transport',
+      amountMinor: 300000,
+      currency: 'MNT',
+      isCategory: true,
+    );
+    final asks = [
+      Ask(
+        id: 'a',
+        kind: AskKind.transaction,
+        mine: side(1200000),
+        theirs: side(1500000),
+        neither: side(1000000),
+      ),
+      Ask(
+        id: 'b',
+        kind: AskKind.transaction,
+        mine: AskSide(date: '2026-11-16', payee: 'Bus pass', lines: [bus]),
+        theirs: AskSide(deleted: true, payee: 'Bus pass'),
+        neither: AskSide(date: '2026-11-16', payee: 'Bus pass', lines: [bus]),
+      ),
+    ];
+    final store = PhoneStore(previewSnapshot(DateTime(2026, 11, 20)));
+    final answers = <PhoneAnswer>[];
+    await tester.pumpWidget(
+      PhoneApp(
+        store: store,
+        now: () => _now,
+        onAnswer: (a) async {
+          answers.add(a);
+          return true;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('phone-asking-line')), findsNothing);
+    store.asking.value = (
+      asks: asks,
+      from: 'Tom’s Mac',
+      apart: false,
+      notOnComputer: 0,
+      otherChanges: 0,
+      mineDigest: null,
+      digest: 'd1',
+    );
+    await tester.pumpAndSettle();
+    // Put once, by itself.
+    expect(
+      find.text('2 things were changed here and on a computer'),
+      findsOneWidget,
+    );
+    expect(find.text('Keeping this phone’s'), findsNWidgets(2));
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/phone_asking.png'),
+    );
+    // The second was deleted on the computer: change it to that.
+    await tester.tap(find.byKey(const ValueKey('ask-b-change')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('ask-b-theirs')));
+    await tester.pumpAndSettle();
+    expect(find.text('Keeping it deleted (Tom’s Mac’s)'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ask-save')));
+    await tester.pumpAndSettle();
+    expect(answers.single.picks, {'a': Pick.mine, 'b': Pick.theirs});
+    // Not now leaves the line, which opens it again.
+    store.asking.value = (
+      asks: asks,
+      from: 'Tom’s Mac',
+      apart: false,
+      notOnComputer: 0,
+      otherChanges: 0,
+      mineDigest: null,
+      digest: 'd2',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('ask-not-now')));
+    await tester.pumpAndSettle();
+    expect(answers, hasLength(1));
+    await tester.tap(find.byKey(const ValueKey('phone-asking-line')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ask-save')), findsOneWidget);
+  });
+
+  testWidgets('two ledgers that can’t be put together say what would be '
+      'lost, and Not now loses nothing', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final store = PhoneStore(previewSnapshot(DateTime(2026, 11, 20)));
+    final answers = <PhoneAnswer>[];
+    await tester.pumpWidget(
+      PhoneApp(
+        store: store,
+        now: () => _now,
+        onAnswer: (a) async {
+          answers.add(a);
+          return true;
+        },
+      ),
+    );
+    store.asking.value = (
+      asks: const <Ask>[],
+      from: null,
+      apart: true,
+      notOnComputer: 3,
+      otherChanges: 0,
+      mineDigest: null,
+      digest: 'd',
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('3 entries made on this phone'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('apart-keep-folder')));
+    await tester.pumpAndSettle();
+    expect(answers.single.keepFolder, isTrue);
   });
 
   testWidgets('a waiting entry opens on the entry screen, and Save puts '

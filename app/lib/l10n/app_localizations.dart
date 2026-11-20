@@ -10840,6 +10840,126 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'The other computers and phones that share {folder} are erased too. What they changed and haven’t sent yet comes in afterwards.'**
   String ledgerEraseShared(String folder);
+
+  /// Phone app, title of the page that asks about things changed on this phone and on another computer both.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 thing was changed here and on a computer} other{{count} things were changed here and on a computer}}'**
+  String phoneAskTitle(int count);
+
+  /// Phone app, under phoneAskTitle: nothing is lost, and the default is the phone’s version.
+  ///
+  /// In en, this message translates to:
+  /// **'For these, this phone’s version is kept unless you change it. Everything else comes in when you save.'**
+  String get phoneAskBody;
+
+  /// Phone app, one line under a thing asked about: what one version says. {who} is “This phone” or the other computer’s name.
+  ///
+  /// In en, this message translates to:
+  /// **'{who}: {what}'**
+  String phoneAskVersion(String who, String what);
+
+  /// Phone app, the label of this phone’s version of a thing asked about.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone'**
+  String get phoneAskThisPhone;
+
+  /// Phone app, under a thing asked about: the choice now.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeping this phone’s'**
+  String get phoneAskKeepingMine;
+
+  /// Phone app, as phoneAskKeepingMine when this phone deleted it.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeping it deleted (this phone’s)'**
+  String get phoneAskKeepingMineDeleted;
+
+  /// Phone app, under a thing asked about: the choice now is the other computer’s. {computer} is its name.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeping {computer}’s'**
+  String phoneAskKeepingTheirs(String computer);
+
+  /// Phone app, as phoneAskKeepingTheirs when the other computer deleted it.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeping it deleted ({computer}’s)'**
+  String phoneAskKeepingTheirsDeleted(String computer);
+
+  /// Phone app, under a thing asked about: neither version, as it was before either changed it.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeping it as it was'**
+  String get phoneAskKeepingNeither;
+
+  /// Phone app, button on a thing asked about: opens the ways to settle it.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get phoneAskChange;
+
+  /// Phone app, a way to settle a thing changed on both: this phone’s version.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this phone’s'**
+  String get phoneAskKeepMine;
+
+  /// Phone app, as phoneAskKeepMine when this phone deleted it.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it deleted (this phone’s)'**
+  String get phoneAskKeepMineDeleted;
+
+  /// Phone app, button at the foot of the page that asks: makes the choices and brings in everything else.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get phoneAskSave;
+
+  /// Phone app, a line across the top while things changed on both wait for an answer. Tapping it opens phoneAskTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 thing was changed here and on a computer. Choose which to keep.} other{{count} things were changed here and on a computer. Choose which to keep.}}'**
+  String phoneAskLine(int count);
+
+  /// Phone app, title of the question when the two ledgers can’t be combined.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone’s ledger and the one in the folder can’t be put together'**
+  String get phoneApartTitle;
+
+  /// Phone app, under phoneApartTitle. {count} is how many entries made on this phone no computer has taken in.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{The folder’s ledger can be kept. Nothing made on this phone is lost.} =1{The folder’s ledger can be kept. 1 entry made on this phone isn’t on a computer yet and would be lost.} other{The folder’s ledger can be kept. {count} entries made on this phone aren’t on a computer yet and would be lost.}}'**
+  String phoneApartBody(int count);
+
+  /// Phone app, button of the question phoneApartTitle: this phone takes the folder’s ledger as its own.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the folder’s ledger'**
+  String get phoneApartKeepFolder;
+
+  /// Kept in the phone's Recent problems when the answers to the question phoneAskTitle couldn't be made.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t save the choices about what was changed on two computers'**
+  String get phoneProblemAnswer;
+
+  /// Phone app, under phoneApartTitle when only changes besides entries are unapplied.
+  ///
+  /// In en, this message translates to:
+  /// **'The folder’s ledger can be kept. Changes made on this phone that no computer has taken in yet, such as assigned amounts, would be lost.'**
+  String get phoneApartBodyOther;
+
+  /// Phone app, under phoneApartTitle when entries and other changes are unapplied.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{The folder’s ledger can be kept. 1 entry and other changes made on this phone aren’t on a computer yet and would be lost.} other{The folder’s ledger can be kept. {count} entries and other changes made on this phone aren’t on a computer yet and would be lost.}}'**
+  String phoneApartBodyMore(int count);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

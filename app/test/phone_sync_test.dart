@@ -13,6 +13,7 @@ import 'package:betterbudget/data/folder_io.dart';
 import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_sync.dart';
+import 'package:betterbudget/domain/combine.dart' show Pick;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -364,5 +365,90 @@ void main() {
     expect(Directory('${root.path}/phone/own').existsSync(), isFalse);
     await expectLater(phone.look(drive.path, tuesday), throwsStateError);
     expect(Directory('${root.path}/phone/own').existsSync(), isFalse);
+  });
+
+  group('a thing changed on the phone and on a computer both', () {
+    Future<void> assign(AppDatabase db, int amount) async {
+      final ledger = await db.loadLedger();
+      final groceries = ledger.accounts.values
+          .singleWhere((a) => a.name == 'Groceries')
+          .id;
+      await db.setBudgetAmount(
+        groceries,
+        DateTime(2026, 10),
+        DateTime(2026, 10, 31),
+        amount,
+      );
+    }
+
+    Future<int> assigned() async {
+      final ledger = await phone.db!.loadLedger();
+      final groceries = ledger.accounts.values
+          .singleWhere((a) => a.name == 'Groceries')
+          .id;
+      return ledger.budgetAmounts
+          .where((b) => b.categoryId == groceries)
+          .fold<int>(0, (s, b) => s + b.amount);
+    }
+
+    Future<void> cross() async {
+      await phone.look(drive.path, monday);
+      await assign(macDb, 3000000);
+      await assign(phone.db!, 2000000);
+      await mac.check(tuesday);
+    }
+
+    test('is asked about, and nothing comes in until it is answered', () async {
+      await cross();
+      await phone.look(drive.path, tuesday);
+      final asking = phone.asking!;
+      expect(asking.apart, isFalse);
+      expect(asking.asks, hasLength(1));
+      expect(asking.from, 'The desk Mac');
+      // The phone's amount stands as it was.
+      expect(await assigned(), 2000000);
+      // A look with nothing answered is asked again, and still holds.
+      await phone.look(drive.path, tuesday);
+      expect(phone.asking!.asks, hasLength(1));
+      expect(await assigned(), 2000000);
+    });
+
+    test('the phone’s own is kept, and the Mac’s is saved', () async {
+      await cross();
+      await phone.look(drive.path, tuesday);
+      final ask = phone.asking!.asks.single;
+      expect((await phone.answer({ask.id: Pick.mine}, tuesday)).done, isTrue);
+      expect(phone.asking, isNull);
+      expect(await assigned(), 2000000);
+      await phone.look(drive.path, tuesday);
+      expect(phone.asking, isNull);
+    });
+
+    test('the computer’s is chosen', () async {
+      await cross();
+      await phone.look(drive.path, tuesday);
+      final ask = phone.asking!.asks.single;
+      expect((await phone.answer({ask.id: Pick.theirs}, tuesday)).done, isTrue);
+      expect(phone.asking, isNull);
+      expect(await assigned(), 3000000);
+      await phone.look(drive.path, tuesday);
+      expect(phone.asking, isNull);
+      expect(await assigned(), 3000000);
+    });
+    test('an answer to what has changed since the look is not made, and the '
+        'what the phone changed since stands', () async {
+      await cross();
+      await phone.look(drive.path, tuesday);
+      final ask = phone.asking!.asks.single;
+      // Something is changed on the phone before the answer is made.
+      await assign(phone.db!, 2500000);
+      final answered = await phone.answer({ask.id: Pick.theirs}, tuesday);
+      expect(answered.done, isFalse);
+      expect(await assigned(), 2500000);
+      await phone.look(drive.path, tuesday);
+      // What the phone changed since stands, and the choices not made are
+      // not made later without asking.
+      expect(await assigned(), 2500000);
+    });
   });
 }

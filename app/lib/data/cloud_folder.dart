@@ -1183,6 +1183,9 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
           }
         } on ChangedSinceException {
           if (before.existsSync()) await before.delete();
+          // The choices were for a ledger that is no longer this one: not
+          // kept to be made by the next look without asking.
+          if (picks != null) _picks.remove(plan.theirs);
           return null;
         } on CantCombineException {
           if (before.existsSync()) await before.delete();

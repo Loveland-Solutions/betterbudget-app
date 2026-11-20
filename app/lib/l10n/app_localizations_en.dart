@@ -7797,4 +7797,110 @@ class WordsEn extends Words {
   String ledgerEraseShared(String folder) {
     return 'The other computers and phones that share $folder are erased too. What they changed and haven’t sent yet comes in afterwards.';
   }
+
+  @override
+  String phoneAskTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count things were changed here and on a computer',
+      one: '1 thing was changed here and on a computer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneAskBody =>
+      'For these, this phone’s version is kept unless you change it. Everything else comes in when you save.';
+
+  @override
+  String phoneAskVersion(String who, String what) {
+    return '$who: $what';
+  }
+
+  @override
+  String get phoneAskThisPhone => 'This phone';
+
+  @override
+  String get phoneAskKeepingMine => 'Keeping this phone’s';
+
+  @override
+  String get phoneAskKeepingMineDeleted => 'Keeping it deleted (this phone’s)';
+
+  @override
+  String phoneAskKeepingTheirs(String computer) {
+    return 'Keeping $computer’s';
+  }
+
+  @override
+  String phoneAskKeepingTheirsDeleted(String computer) {
+    return 'Keeping it deleted ($computer’s)';
+  }
+
+  @override
+  String get phoneAskKeepingNeither => 'Keeping it as it was';
+
+  @override
+  String get phoneAskChange => 'Change';
+
+  @override
+  String get phoneAskKeepMine => 'Keep this phone’s';
+
+  @override
+  String get phoneAskKeepMineDeleted => 'Keep it deleted (this phone’s)';
+
+  @override
+  String get phoneAskSave => 'Save';
+
+  @override
+  String phoneAskLine(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count things were changed here and on a computer. Choose which to keep.',
+      one: '1 thing was changed here and on a computer. Choose which to keep.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneApartTitle =>
+      'This phone’s ledger and the one in the folder can’t be put together';
+
+  @override
+  String phoneApartBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'The folder’s ledger can be kept. $count entries made on this phone aren’t on a computer yet and would be lost.',
+      one: 'The folder’s ledger can be kept. 1 entry made on this phone isn’t on a computer yet and would be lost.',
+      zero: 'The folder’s ledger can be kept. Nothing made on this phone is lost.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneApartKeepFolder => 'Keep the folder’s ledger';
+
+  @override
+  String get phoneProblemAnswer =>
+      'Couldn’t save the choices about what was changed on two computers';
+
+  @override
+  String get phoneApartBodyOther =>
+      'The folder’s ledger can be kept. Changes made on this phone that no computer has taken in yet, such as assigned amounts, would be lost.';
+
+  @override
+  String phoneApartBodyMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'The folder’s ledger can be kept. $count entries and other changes made on this phone aren’t on a computer yet and would be lost.',
+      one: 'The folder’s ledger can be kept. 1 entry and other changes made on this phone aren’t on a computer yet and would be lost.',
+    );
+    return '$_temp0';
+  }
 }
