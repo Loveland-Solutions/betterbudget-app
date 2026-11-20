@@ -1448,6 +1448,10 @@ class WordsMn extends Words {
   }
 
   @override
+  String get phoneEditUnsaved =>
+      'Архивлах эсвэл устгавал энэ хуудсанд хийсэн өөрчлөлт хадгалагдахгүй.';
+
+  @override
   String get planShowInMenus => 'Цэсэнд харуулах';
 
   @override

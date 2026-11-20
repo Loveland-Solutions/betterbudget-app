@@ -407,19 +407,57 @@ class _ActingSource {
             return _after();
           },
         );
-      case PhoneEditCategory(:final category, :final name):
-        // Only the name: the plan and Paid from are PhoneSync's, tested in
-        // phone_sync_test.dart.
-        final was = (await db.loadLedger()).accounts[category]!.name;
+      case PhoneEditCategory(
+        :final category,
+        :final name,
+        :final group,
+        :final note,
+      ):
+        // The name, group and note: the plan and Paid from are PhoneSync's,
+        // tested in phone_sync_test.dart.
+        final was = (await db.loadLedger()).accounts[category]!;
         await db.renameAccount(category, name);
+        await db.setCategoryDetails(category, group: group, note: note);
         return (
           snapshot: await _after(),
           undo: () async {
-            await db.renameAccount(category, was);
+            await db.renameAccount(category, was.name);
+            await db.setCategoryDetails(
+              category,
+              group: was.budgetGroup,
+              note: was.note,
+            );
             return _after();
           },
           redo: () async {
             await db.renameAccount(category, name);
+            await db.setCategoryDetails(category, group: group, note: note);
+            return _after();
+          },
+        );
+      case PhoneArchiveCategory(:final category, :final archived):
+        await db.setArchived(category, archived);
+        return (
+          snapshot: await _after(),
+          undo: () async {
+            await db.setArchived(category, !archived);
+            return _after();
+          },
+          redo: () async {
+            await db.setArchived(category, archived);
+            return _after();
+          },
+        );
+      case PhoneDeleteCategory(:final category, :final into):
+        var done = await db.deleteCategory(category, into: into);
+        return (
+          snapshot: await _after(),
+          undo: () async {
+            await db.undeleteCategory(done);
+            return _after();
+          },
+          redo: () async {
+            done = await db.deleteCategory(category, into: into);
             return _after();
           },
         );
@@ -444,6 +482,9 @@ class _ActingSource {
 }
 
 class _FakeSource implements PhoneLedgerSource {
+  @override
+  Future<int> categoryRows(int id) => throw UnsupportedError('no ledger');
+
   /// This stand-in has no ledger to take entries into: they wait for the
   /// computer in the folder, as before the phone's own ledger.
   @override
@@ -2444,6 +2485,353 @@ void main() {
     await tester.tap(find.text('Undo'));
     await settle();
     expect(nameOf(), 'Groceries');
+  });
+
+  testWidgets('Edit has a Note and a Group saved with Save, and Archive and '
+      'Delete…, each with Undo (#528)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int groceries;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      groceries = data.accounts.values
+          .firstWhere((a) => a.isCategory && a.name == 'Groceries')
+          .id;
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    store.categoryRowsIn = db.categoryEntryCount;
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    var onBudget = false;
+    Future<void> openEdit() async {
+      if (!onBudget) await _toBudget(tester);
+      onBudget = true;
+      final edit = find.byKey(ValueKey('open-edit-$groceries'));
+      if (edit.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          find.text('Groceries'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Groceries'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(edit);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> see(String key) async {
+      await tester.scrollUntilVisible(
+        find.byKey(ValueKey(key)),
+        200,
+        scrollable: find
+            .byWidgetPredicate(
+              (w) => w is Scrollable && w.axis == Axis.vertical,
+            )
+            .last,
+      );
+      await tester.ensureVisible(find.byKey(ValueKey(key)));
+      await tester.pumpAndSettle();
+    }
+
+    await openEdit();
+    await see('category-note');
+    await tester.enterText(
+      find.byKey(const ValueKey('category-note')),
+      'Weekly shop',
+    );
+    // Typed here and not kept by Archive or Delete: said, not stopped.
+    await see('edit-archive');
+    expect(find.byKey(const ValueKey('edit-unsaved')), findsOneWidget);
+    await see('category-group');
+    await tester.tap(find.byKey(const ValueKey('category-group')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New group…'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('category-new-group')),
+      'Home',
+    );
+    await tester.tap(find.byKey(const ValueKey('category-new-group-ok')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await settle();
+    expect(data.accounts[groceries]!.note, 'Weekly shop');
+    expect(data.accounts[groceries]!.budgetGroup, 'Home');
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.accounts[groceries]!.note, isNull);
+    expect(data.accounts[groceries]!.budgetGroup, isNull);
+
+    // Archive asks nothing.
+    await openEdit();
+    await see('edit-archive');
+    await tester.tap(find.byKey(const ValueKey('edit-archive')));
+    await settle();
+    expect(data.accounts[groceries]!.archived, isTrue);
+    expect(find.textContaining('Groceries archived'), findsOneWidget);
+    // It is brought back from Budget's Show archived, with Undo.
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('budget-archived')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('budget-archived')));
+    await tester.pumpAndSettle();
+    expect(find.text('Groceries'), findsOneWidget);
+    await tester.tap(find.byKey(ValueKey('unarchive-category-$groceries')));
+    await settle();
+    expect(data.accounts[groceries]!.archived, isFalse);
+    expect(find.text('Groceries'), findsNothing);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.accounts[groceries]!.archived, isTrue);
+    await tester.tap(find.byKey(ValueKey('unarchive-category-$groceries')));
+    await settle();
+    expect(data.accounts[groceries]!.archived, isFalse);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // Delete asks where its rows go (the demo has no Not categorized to
+    // start with, so one is picked).
+    await openEdit();
+    await see('category-delete');
+    await tester.tap(find.byKey(const ValueKey('category-delete')));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete Groceries?'), findsOneWidget);
+    expect(find.byKey(const ValueKey('delete-category-into')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('warning-cancel')));
+    await tester.pumpAndSettle();
+    expect(data.categories.any((a) => a.id == groceries), isTrue);
+    await tester.tap(find.byKey(const ValueKey('category-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('delete-category-into')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('delete-into-0')));
+    await tester.pumpAndSettle();
+    // Moved into a category of its own currency, its money moves with the
+    // rows: nothing goes back to Not assigned.
+    expect(find.byKey(const ValueKey('delete-money-back')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('warning-confirm')));
+    await settle();
+    expect(data.categories.any((a) => a.id == groceries), isFalse);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.categories.any((a) => a.id == groceries), isTrue);
+  });
+
+  testWidgets('Delete says its money going back before it goes, a category '
+      'with nothing in it just goes, and a refusal is said (#528)', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int groceries;
+    late int empty;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      await db.incomeCategory();
+      data = await db.loadLedger();
+      groceries = data.accounts.values
+          .firstWhere((a) => a.isCategory && a.name == 'Groceries')
+          .id;
+      empty = data.accounts.values
+          .firstWhere((a) => a.isCategory && a.name == 'Tuition')
+          .id;
+      // Money assigned to it, which Delete gives back.
+      await _ActingSource(
+        db,
+        () => _now,
+        (d) => data = d,
+      ).act(PhoneAssign(groceries, 20000000));
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    var refuse = false;
+    store.actRowIn = (act) =>
+        refuse ? throw StateError('refused') : source.act(act);
+    store.categoryRowsIn = db.categoryEntryCount;
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> openEdit(String name, int id) async {
+      final edit = find.byKey(ValueKey('open-edit-$id'));
+      if (edit.evaluate().isEmpty) {
+        // From the top: the list builds its rows as it scrolls.
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, 5000));
+        await tester.pumpAndSettle();
+        for (var i = 0; i < 12 && find.text(name).evaluate().isEmpty; i++) {
+          await tester.drag(
+            find.byType(Scrollable).first,
+            const Offset(0, -300),
+          );
+          await tester.pumpAndSettle();
+        }
+        await tester.ensureVisible(find.text(name));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(name));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(edit);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> see(String key) async {
+      // The page builds its rows as it scrolls.
+      final page = find
+          .byWidgetPredicate((w) => w is Scrollable && w.axis == Axis.vertical)
+          .last;
+      for (
+        var i = 0;
+        i < 12 && find.byKey(ValueKey(key)).evaluate().isEmpty;
+        i++
+      ) {
+        await tester.drag(page, const Offset(0, -300));
+        await tester.pumpAndSettle();
+      }
+      await tester.ensureVisible(find.byKey(ValueKey(key)));
+      await tester.pumpAndSettle();
+    }
+
+    await _toBudget(tester);
+    // Its rows into Income: its money goes back, and the dialog says so.
+    await openEdit('Groceries', groceries);
+    await see('category-delete');
+    await tester.tap(find.byKey(const ValueKey('category-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('delete-category-into')));
+    await tester.pumpAndSettle();
+    final incomeAt = data.categories
+        .where((a) => a.id != groceries)
+        .toList()
+        .indexWhere((a) => a.isIncome);
+    final income = find.byKey(ValueKey('delete-into-$incomeAt'));
+    // The list builds its rows as it scrolls.
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.tap(income);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('delete-money-back')), findsOneWidget);
+    await expectLater(
+      find.byType(AlertDialog),
+      matchesGoldenFile('goldens/phone_delete_money.png'),
+    );
+    await tester.tap(find.byKey(const ValueKey('warning-cancel')));
+    await tester.pumpAndSettle();
+    expect(data.categories.any((a) => a.id == groceries), isTrue);
+
+    // A refusal from the ledger is said, and nothing changes.
+    refuse = true;
+    await tester.tap(find.byKey(const ValueKey('edit-archive')));
+    await settle();
+    expect(find.byKey(const ValueKey('edit-category-refused')), findsOneWidget);
+    expect(data.accounts[groceries]!.archived, isFalse);
+    refuse = false;
+    await tester.tap(find.byKey(const ValueKey('new-category-cancel')));
+    await tester.pumpAndSettle();
+
+    // Nothing filed, nothing assigned: no question, it goes, with Undo.
+    await openEdit('Tuition', empty);
+    await see('category-delete');
+    await tester.tap(find.byKey(const ValueKey('category-delete')));
+    await settle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(data.categories.any((a) => a.id == empty), isFalse);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.categories.any((a) => a.id == empty), isTrue);
+  });
+
+  testWidgets('Delete counts the rows when it is tapped: one filed after the '
+      'page was drawn is asked about, never refused (#528)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int empty;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      empty = data.accounts.values
+          .firstWhere((a) => a.isCategory && a.name == 'Tuition')
+          .id;
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    store.categoryRowsIn = db.categoryEntryCount;
+    await _toBudget(tester);
+    for (var i = 0; i < 12 && find.text('Tuition').evaluate().isEmpty; i++) {
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
+    await tester.ensureVisible(find.text('Tuition'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tuition'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('open-edit-$empty')));
+    await tester.pumpAndSettle();
+    final page = find
+        .byWidgetPredicate((w) => w is Scrollable && w.axis == Axis.vertical)
+        .last;
+    for (
+      var i = 0;
+      i < 12 &&
+          find.byKey(const ValueKey('category-delete')).evaluate().isEmpty;
+      i++
+    ) {
+      await tester.drag(page, const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
+    await tester.ensureVisible(find.byKey(const ValueKey('category-delete')));
+    await tester.pumpAndSettle();
+    // A row another computer filed since the page was drawn.
+    await tester.runAsync(() async {
+      final bank = data.accounts.values
+          .firstWhere((a) => a.isBalanceSheet && !a.archived)
+          .id;
+      await db.postSimple(
+        accountId: bank,
+        date: _now,
+        today: _now,
+        payee: 'School',
+        counterAccountId: empty,
+        amount: -100000,
+      );
+    });
+    await tester.tap(find.byKey(const ValueKey('category-delete')));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete Tuition?'), findsOneWidget);
+    expect(find.byKey(const ValueKey('delete-category-into')), findsOneWidget);
+    expect(find.byKey(const ValueKey('edit-category-refused')), findsNothing);
   });
 
   testWidgets('Edit on a bill has a switch for this period\'s bill, and Save '

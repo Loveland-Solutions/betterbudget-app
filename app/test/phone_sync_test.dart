@@ -455,6 +455,79 @@ void main() {
   });
 
   test(
+    'a category\'s group and note, its archive and its delete on the phone '
+    'are changes with Undo and Redo, and reach the computer (#528)',
+    () async {
+      await spend('Nomin');
+      await mac.check(monday);
+      await phone.look(drive.path, monday);
+      final ledger = await phone.db!.loadLedger();
+      final food = ledger.accounts.values.lastWhere((a) => a.isCategory);
+      final edited = await phone.actOnRow(
+        PhoneEditCategory(
+          food.id,
+          name: food.name,
+          plan: ledger.plans[food.id],
+          type: typeOf(ledger, food.id),
+          group: ' Home ',
+          note: 'Weekly shop',
+        ),
+        tuesday,
+      );
+      var data = await phone.db!.loadLedger();
+      expect(data.accounts[food.id]!.budgetGroup, 'Home');
+      expect(data.accounts[food.id]!.note, 'Weekly shop');
+      await edited.undo();
+      data = await phone.db!.loadLedger();
+      expect(data.accounts[food.id]!.budgetGroup, food.budgetGroup);
+      expect(data.accounts[food.id]!.note, food.note);
+      await edited.redo();
+      data = await phone.db!.loadLedger();
+      expect(data.accounts[food.id]!.budgetGroup, 'Home');
+
+      final archived = await phone.actOnRow(
+        PhoneArchiveCategory(food.id, true),
+        tuesday,
+      );
+      data = await phone.db!.loadLedger();
+      expect(data.accounts[food.id]!.archived, isTrue);
+      await archived.undo();
+      data = await phone.db!.loadLedger();
+      expect(data.accounts[food.id]!.archived, isFalse);
+
+      final other = ledger.categories.firstWhere((a) => a.id != food.id);
+      final rows = data.categoryUsage[food.id]?.rows ?? 0;
+      final deleted = await phone.actOnRow(
+        PhoneDeleteCategory(food.id, other.id),
+        tuesday,
+      );
+      data = await phone.db!.loadLedger();
+      expect(data.categories.any((a) => a.id == food.id), isFalse);
+      expect(
+        data.categoryUsage[other.id]?.rows ?? 0,
+        greaterThanOrEqualTo(rows),
+      );
+      await deleted.undo();
+      data = await phone.db!.loadLedger();
+      expect(data.categories.any((a) => a.id == food.id), isTrue);
+      expect(data.categoryUsage[food.id]?.rows ?? 0, rows);
+      await deleted.redo();
+      data = await phone.db!.loadLedger();
+      expect(data.categories.any((a) => a.id == food.id), isFalse);
+      // The computer sees it: the category gone, its rows in the other.
+      await phone.look(drive.path, tuesday);
+      await mac.check(tuesday);
+      await mac.bringIn(tuesday);
+      final there = await macDb.loadLedger();
+      expect(there.categories.any((a) => a.id == food.id), isFalse);
+      expect(
+        there.categoryUsage[other.id]?.rows ?? 0,
+        greaterThanOrEqualTo(rows),
+      );
+    },
+  );
+
+  test(
     'a bill skipped in a category\'s Edit on the phone stops being '
     'expected, and brought back it is again; Undo and Redo hold (#365)',
     () async {

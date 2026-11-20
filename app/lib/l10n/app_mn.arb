@@ -322,6 +322,7 @@
   "planSpending": "Зарлага",
   "planShowArchived": "Архивласныг харуулах ({count})",
   "planHideArchived": "Архивласныг нуух ({count})",
+  "phoneEditUnsaved": "Архивлах эсвэл устгавал энэ хуудсанд хийсэн өөрчлөлт хадгалагдахгүй.",
   "planShowInMenus": "Цэсэнд харуулах",
   "planPaydayNoRegular": "Тогтмол орлогогүй",
   "planPaydayNotSetUp": "Тогтмол орлого тохируулаагүй",

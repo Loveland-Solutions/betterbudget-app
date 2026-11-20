@@ -7421,12 +7421,29 @@ is. The owner chose **C**. A (recommended) and B are not built.
   currency for a category already in the ledger (the computer's change of currency takes
   Assigned back and removes the plan; it stays on the computer for now). A name another
   category has is refused on the page as it is for a new one, not merged. The group,
-  note, In a month of expenses?, Archive and Delete are the next piece.
+  note, Archive and Delete are the next piece (In a month of expenses? stays).
   Skipping a bill (0.130.0): as on the computer (owner, 2026-11-03: skipping is the
   category's Edit's, saved with Save), a bill category's Edit has, under its plan, "Bills
   in this period" (Payments for a card or loan) with a switch for each bill that can be
   skipped and each already skipped ("Bill on 10.11"); a flipped switch is acted on by
   **Save**, in the same one change and Undo as the rest of the Edit. No sketch was drawn:
   the owner's computer design is carried over unchanged, in the page's own card.
+  Group, note, Archive and Delete… (0.131.0): under the bills, a card with **Group**
+  (a list from the bottom: No group, New group…, the groups there are; only for a
+  Day-to-day category that isn't the Safety net, as on the computer) and **Note**, both
+  saved by Save in the Edit's one change and Undo; then a card with **Archive** and
+  **Delete…** (neither for the Safety net). Archive asks nothing and says the computer's
+  sentence, with Undo. Delete with rows filed under it asks where they move, **Not
+  categorized** to start with (a default, not a required choice) and the computer's
+  sentences, then goes ahead; with none it just goes; each has a snack bar's Undo. No
+  sketch: the computer's design carried over, as the owner's skipping bills was. Left for
+  later: In a month of expenses?, which stays on the computer for now. After the two
+  review passes (owner, 2026-11-20): Delete asks whenever there are rows to move or money
+  to go back, and the dialog says that money ("₮… assigned to X goes back to not
+  assigned") before anything is done, not only afterwards; while the page holds changes
+  Save would keep, a line under Archive and Delete says they aren't kept (said, not
+  stopped); **Show archived (n)** on Budget, above Recent problems, opens the archived
+  categories, each with **Show in menus** and a snack bar's Undo, as the computer's
+  Budget has it.
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.

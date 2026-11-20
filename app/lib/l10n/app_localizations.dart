@@ -2087,6 +2087,12 @@ abstract class Words {
   /// **'Hide archived ({count})'**
   String planHideArchived(int count);
 
+  /// Said on the phone's category Edit, under Archive and Delete, while the page holds changes Save would keep
+  ///
+  /// In en, this message translates to:
+  /// **'Changes made on this page aren’t kept if you archive or delete.'**
+  String get phoneEditUnsaved;
+
   /// Budget page: button on an archived category, un-archives it
   ///
   /// In en, this message translates to:
