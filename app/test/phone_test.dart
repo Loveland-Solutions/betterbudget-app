@@ -1243,6 +1243,48 @@ void main() {
     expect(find.byKey(const ValueKey('remember-line')), findsNothing);
   });
 
+  testWidgets('Budget opens with the sum, the computer\'s terms with their '
+      'signs, above the step and the categories (#528)', (tester) async {
+    final (data, _) = await _stepLedger(tester);
+    final snapshot = snapshotOf(data, today: _now, madeAt: _now);
+    await _pump(tester, snapshot: snapshot);
+    await _toBudget(tester);
+    final sum = find.byKey(const ValueKey('budget-sum'));
+    expect(sum, findsOneWidget);
+    expect(
+      tester.getTopLeft(sum).dy,
+      lessThan(tester.getTopLeft(find.byKey(const ValueKey('step-band'))).dy),
+    );
+    expect(find.text('Income'), findsWidgets);
+    final pool = snapshot.sums.first.pool;
+    final terms = snapshot.sums.first;
+    expect(
+      pool.income +
+          pool.toCome +
+          pool.fromBefore +
+          pool.hadBefore +
+          pool.exchanged -
+          terms.given -
+          terms.aside -
+          terms.overspent -
+          pool.loose,
+      pool.notAssigned,
+    );
+    expect(
+      find.descendant(
+        of: sum,
+        matching: find.byKey(
+          ValueKey(terms.over ? 'assigned-over' : 'not-assigned'),
+        ),
+      ),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_budget_sum.png'),
+    );
+  });
+
   testWidgets('Budget opens with the Savings step and its progress, and no '
       'button (#487)', (tester) async {
     final (data, _) = await _stepLedger(tester);
@@ -1253,11 +1295,9 @@ void main() {
     await _toBudget(tester);
     final band = find.byKey(const ValueKey('step-band'));
     expect(band, findsOneWidget);
-    // First in the list, above the categories.
-    expect(
-      tester.getTopLeft(band).dy,
-      lessThan(tester.getTopLeft(find.text('Groceries')).dy),
-    );
+    // First in the list after the sum, above the categories (the sum is
+    // tall enough that the first category is below the fold).
+    expect(find.text('Groceries'), findsNothing);
     expect(
       find.descendant(of: band, matching: find.text('Build a safety net')),
       findsOneWidget,

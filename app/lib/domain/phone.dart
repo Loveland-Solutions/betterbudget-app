@@ -8,7 +8,7 @@ import 'ledger.dart';
 import 'money.dart';
 import 'pay.dart';
 import 'payee_rules.dart';
-import 'readiness.dart' show isSafetyNet;
+import 'readiness.dart' show fundCategoryIds, isSafetyNet, savingsCurrency;
 import 'sync.dart' show MadeHow;
 
 /// What a phone files money in under when it is the app's one Income (rule
@@ -207,7 +207,20 @@ class PhoneSnapshot {
     this.taken = const {},
     this.data,
     this.mine = const [],
+    this.sums = const [],
+    this.beforeMonth,
+    this.budgetCurrency,
   });
+
+  /// The Budget page's sum for each currency worth showing, worked out as
+  /// the computer's is so the phone's adds up the same (#528).
+  final List<BudgetSum> sums;
+
+  /// The month the period before this one began in, for "From October".
+  final int? beforeMonth;
+
+  /// The budget's own currency: its sum shows even when it holds nothing.
+  final Currency? budgetCurrency;
 
   /// What this phone entered that the computers haven't applied yet: rows of
   /// its own ledger, each named `row:<id>` ([phoneRowPrefix]), so one can be
@@ -776,9 +789,33 @@ PhoneSnapshot snapshotOf(
     return line.had;
   }
 
+  final spending = [for (final id in budget.lines.keys) ?data.accounts[id]];
+  final aheadBy = spentAhead(data, budget, periodEnd: period.end, today: today);
+  final saved = fundCategoryIds(data, savingsCurrency(data));
   return PhoneSnapshot(
     madeAt: madeAt,
     data: data,
+    sums: [
+      for (final p in budget.pools)
+        if (p.currency == budget.currency ||
+            p.income != 0 ||
+            p.toCome != 0 ||
+            p.fromBefore != 0 ||
+            p.hadBefore != 0 ||
+            p.exchanged != 0 ||
+            p.assigned != 0 ||
+            p.overspent != 0 ||
+            p.loose != 0)
+          BudgetSum.of(
+            p,
+            budget: budget,
+            spending: spending,
+            saved: saved,
+            aheadBy: aheadBy,
+          ),
+    ],
+    beforeMonth: previousBudgetPeriod(period, by).start.month,
+    budgetCurrency: budget.currency,
     mine: device == null ? const [] : ownEntriesOf(data, mineIds, device),
     taken: PhoneTaken.decode(data.prefs[phoneTakenKey]),
     periodEnd: by == null ? null : period.end,

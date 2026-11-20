@@ -1119,35 +1119,13 @@ class _BudgetPageState extends State<_BudgetPage> {
         // Below zero, the result is named by what made it (#470): giving
         // out more than there is, spending past it, or both.
         final cause = terms.cause;
-        // One cause, named by its box; more than one, Short, with each
-        // part under it by its box's name.
-        // Spending alone, overspent or not categorized or both, is Over
-        // budget (owner's pick, 2026-11-16).
-        final overLabel = switch (cause) {
-          ShortBy(exchanged: > 0) => t.planKeyOverMixed,
-          ShortBy(carried: 0, assigned: 0) => t.planKeyOverSpent,
-          _ when cause.causes > 1 => t.planKeyOverMixed,
-          ShortBy(carried: > 0) when byPay => t.planKeyOverCarriedPay,
-          ShortBy(carried: > 0) => t.planKeyOverCarriedMonth(beforeMonth),
-          _ => t.planKeyOver,
-        };
-        final overParts = cause.causes < 2 && cause.exchanged == 0
-            ? null
-            : [
-                if (cause.carried > 0)
-                  byPay
-                      ? t.planKeyOverCarriedPayPart(short(cause.carried))
-                      : t.planKeyOverCarriedMonthPart(
-                          short(cause.carried),
-                          beforeMonth,
-                        ),
-                if (cause.exchanged > 0)
-                  t.planKeyOverExchangedPart(short(cause.exchanged)),
-                if (cause.assigned > 0)
-                  t.planKeyOverAssignedPart(short(cause.assigned)),
-                if (cause.spent > 0) t.planKeyOverSpentPart(short(cause.spent)),
-                if (cause.loose > 0) t.planKeyOverLoosePart(short(cause.loose)),
-              ].join(' · ');
+        final (label: overLabel, parts: overParts) = overWords(
+          t,
+          cause,
+          byPay: byPay,
+          beforeMonth: beforeMonth,
+          short: short,
+        );
         Widget after(String sign, Widget child) => Row(
           mainAxisSize: MainAxisSize.min,
           children: [
