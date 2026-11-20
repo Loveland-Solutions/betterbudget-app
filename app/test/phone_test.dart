@@ -27,6 +27,7 @@ import 'package:betterbudget/domain/ledger.dart'
         RowKind;
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart' show PayRule;
+import 'package:betterbudget/domain/payee_rules.dart' show Remembered;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/readiness.dart' show ReadyKeys, isGoal;
 import 'package:betterbudget/domain/sync.dart' show MadeHow;
@@ -358,8 +359,11 @@ class _FakeSource implements PhoneLedgerSource {
       throw UnsupportedError('no ledger');
 
   @override
-  Future<PhoneSnapshot> restoreRow(TxnSnapshot row, DateTime now) =>
-      throw UnsupportedError('no ledger');
+  Future<PhoneSnapshot> restoreRow(
+    TxnSnapshot row,
+    DateTime now, {
+    Remembered? remembered,
+  }) => throw UnsupportedError('no ledger');
 
   @override
   Future<PhoneActed> actOnRow(PhoneRowAct act, DateTime now) =>
@@ -724,9 +728,10 @@ void main() {
         snapshot: snapshotOf(data, today: _now, madeAt: _now),
         before: before,
         after: after,
+        remembered: null,
       );
     })();
-    store.restoreRowIn = (row) async => await (() async {
+    store.restoreRowIn = (row, _) async => await (() async {
       await db.restoreSnapshot(row);
       data = await db.loadLedger();
       return snapshotOf(data, today: _now, madeAt: _now);
@@ -817,6 +822,7 @@ void main() {
         snapshot: snapshotOf(data, today: _now, madeAt: _now),
         before: before,
         after: after,
+        remembered: null,
       );
     })();
     final row = data.registerAll().posted.firstWhere((r) => r.txnId == txn);
@@ -1079,6 +1085,162 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
     expect(asked, isA<PhoneNotIt>());
+  });
+
+  testWidgets('a payday confirmed for less offers Still owed or Paid in full, '
+      'and the box under a row remembers its category (#527, #403)', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      final bank = data.accounts.values
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      final income = data.accounts.values
+          .firstWhere((a) => a.type == AccountType.income)
+          .id;
+      await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 10, 9),
+        today: _now,
+        payee: 'Employer',
+        counterAccountId: income,
+        amount: 100000000,
+      );
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    PhoneRowConfirm? confirmed;
+    store.confirmRowIn = (c) async {
+      confirmed = c;
+      return (
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+        undo: () async => snapshotOf(data, today: _now, madeAt: _now),
+        redo: () async => snapshotOf(data, today: _now, madeAt: _now),
+      );
+    };
+    final pay = data.registerAll().scheduled.firstWhere(
+      (r) => r.payee == 'Employer',
+    );
+    await tester.tap(find.byKey(const ValueKey('register-tab-scheduled')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(ValueKey('register-row-${pay.txnId}-${pay.entryId}')),
+    );
+    await tester.pumpAndSettle();
+    // At the planned amount: nothing is owed.
+    expect(find.byKey(const ValueKey('owed-line')), findsNothing);
+    await tester.enterText(find.byKey(const ValueKey('row-amount')), '600,000');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('owed-line')), findsOneWidget);
+    expect(find.textContaining('less than planned'), findsOneWidget);
+    // More than a tenth is missing: the rest is still owed, as on the computer.
+    await tester.ensureVisible(find.byKey(const ValueKey('owed-paid')));
+    await tester.tap(find.byKey(const ValueKey('owed-paid')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('row-save')));
+    await tester.tap(find.byKey(const ValueKey('row-save')));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pumpAndSettle();
+    expect(confirmed, isNotNull);
+    expect(confirmed!.keepOwed, isFalse);
+  });
+
+  testWidgets('a row whose category isn’t remembered for its payee has the '
+      'box, off until ticked, and Save carries it (#403)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      final bank = data.accounts.values
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      final food = data.accounts.values
+          .firstWhere((a) => a.name == 'Groceries')
+          .id;
+      await db.postSimple(
+        accountId: bank,
+        date: _now,
+        today: _now,
+        payee: 'Nomin Supermarket',
+        counterAccountId: food,
+        amount: -1250000,
+      );
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    PhoneRowEdit? saved;
+    store.editRowIn = (edit) async {
+      saved = edit;
+      final before = await db.snapshot(edit.txn);
+      return (
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+        before: before,
+        after: before,
+        remembered: null,
+      );
+    };
+    final row = data.registerAll().posted.firstWhere(
+      (r) => r.payee == 'Nomin Supermarket',
+    );
+    await tester.tap(
+      find.byKey(ValueKey('register-row-${row.txnId}-${row.entryId}')),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('remember-line')));
+    expect(find.byKey(const ValueKey('remember-line')), findsOneWidget);
+    expect(find.byIcon(Icons.check_box_outline_blank_rounded), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('remember-line')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('row-save')));
+    await tester.tap(find.byKey(const ValueKey('row-save')));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pumpAndSettle();
+    expect(saved?.remember, row.categoryId);
+  });
+
+  testWidgets('on the amount screen the box to remember the category shows '
+      'once there is a payee, a category and an account, off until ticked, '
+      'and Save carries it (#403)', (tester) async {
+    final store = await _pump(tester);
+    expect(find.byKey(const ValueKey('remember-line')), findsNothing);
+    await _payee(tester, 'Nomin');
+    await _category(tester, 'Groceries');
+    await tester.tap(find.byKey(const ValueKey('account-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('TDB Checking').last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('remember-line')), findsOneWidget);
+    expect(find.byIcon(Icons.check_box_outline_blank_rounded), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('remember-line')));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.check_box_rounded), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('pad-5')));
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(store.waiting.single.remember, isTrue);
+    // The next entry starts with the box off.
+    expect(find.byKey(const ValueKey('remember-line')), findsNothing);
   });
 
   testWidgets('Budget opens with the Savings step and its progress, and no '

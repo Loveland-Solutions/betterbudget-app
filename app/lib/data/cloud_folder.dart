@@ -1567,6 +1567,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       }
       return out;
     }
+
     String rowText(Map<String, Object?>? r) => r == null
         ? ''
         : jsonEncode([

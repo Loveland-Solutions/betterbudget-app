@@ -356,10 +356,14 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         unawaited(_load());
         return done;
       };
-      _store!.restoreRowIn = (row) async {
+      _store!.restoreRowIn = (row, remembered) async {
         final source = _source;
         if (source == null) throw StateError('The phone has no ledger open');
-        final snapshot = await source.restoreRow(row, widget.now());
+        final snapshot = await source.restoreRow(
+          row,
+          widget.now(),
+          remembered: remembered,
+        );
         unawaited(_load());
         return snapshot;
       };
