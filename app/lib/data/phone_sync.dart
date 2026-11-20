@@ -191,6 +191,15 @@ class PhoneAssign extends PhoneRowAct {
   final int amount;
 }
 
+/// Money moved between two categories' Assigned this period (#528); a
+/// null side is Not assigned. Written as the computer's Move money is.
+class PhoneMove extends PhoneRowAct {
+  const PhoneMove(this.from, this.to, this.amount);
+  final int? from;
+  final int? to;
+  final int amount;
+}
+
 class PhoneDeleteRow extends PhoneRowAct {
   const PhoneDeleteRow(this.txn);
   final int txn;
@@ -842,6 +851,48 @@ class PhoneSync implements PhoneLedgerSource {
           },
           redo: () async {
             before = await write();
+            return again();
+          },
+        );
+      case PhoneMove(:final from, :final to, :final amount):
+        final data = await db.loadLedger();
+        final f = from == null ? null : data.accounts[from];
+        final c = to == null ? null : data.accounts[to];
+        if (amount <= 0 ||
+            (f == null && c == null) ||
+            (from != null && f == null) ||
+            (to != null && c == null)) {
+          throw NotFoundException(DbProblem.notCategory);
+        }
+        final today = dateOnly(now);
+        final period = budgetPeriod(today, data.periodSchedule);
+        final start = period.start, end = period.end;
+        final began = beganBy(data, start, [?f?.currency, ?c?.currency]);
+        final byId = moveRows(
+          data,
+          Budget.of(data, start: start, end: end, today: today),
+          period,
+          from: f,
+          to: c,
+          amount: amount,
+          today: today,
+        );
+        late Map<int, List<BudgetAmount>> before;
+        Future<void> write() async {
+          before = await db.setBudgetAmounts(byId, start, end);
+          await _writeBegan(db, began);
+        }
+
+        await write();
+        return (
+          snapshot: await again(),
+          undo: () async {
+            await db.restoreBudgetAmountsOf(before, start, end);
+            await _writeBegan(db, began, back: true);
+            return again();
+          },
+          redo: () async {
+            await write();
             return again();
           },
         );

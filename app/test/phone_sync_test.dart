@@ -449,6 +449,40 @@ void main() {
     },
   );
 
+  test(
+    'Move money on the phone moves Assigned between two categories and '
+    'to Not assigned, reaches the computer, and Undo takes it back (#528)',
+    () async {
+      await spend('Nomin');
+      await mac.check(monday);
+      await phone.look(drive.path, monday);
+      final cats = (await phone.db!.loadLedger()).accounts.values
+          .where((a) => a.isCategory && !a.isIncome)
+          .toList();
+      final a = cats[0].id, b = cats[1].id;
+      Future<int> assignedIn(AppDatabase db, int id) async =>
+          (await db.loadLedger()).budgetAmounts
+              .where((x) => x.categoryId == id)
+              .fold<int>(0, (sum, x) => sum + x.amount);
+
+      await phone.actOnRow(PhoneAssign(a, 25000000), tuesday);
+      final moved = await phone.actOnRow(PhoneMove(a, b, 10000000), tuesday);
+      expect(await assignedIn(phone.db!, a), 15000000);
+      expect(await assignedIn(phone.db!, b), 10000000);
+      await phone.look(drive.path, tuesday);
+      await mac.check(tuesday);
+      await mac.bringIn(tuesday);
+      expect(await assignedIn(macDb, b), 10000000);
+      await moved.undo();
+      expect(await assignedIn(phone.db!, a), 25000000);
+      expect(await assignedIn(phone.db!, b), 0);
+      await moved.redo();
+      // Back to Not assigned: only the one side changes.
+      await phone.actOnRow(PhoneMove(b, null, 4000000), tuesday);
+      expect(await assignedIn(phone.db!, b), 6000000);
+    },
+  );
+
   /// A rent bill due on the 6th each month, scheduled on the computer.
   Future<int> rentBill() async {
     final ledger = await macDb.loadLedger();

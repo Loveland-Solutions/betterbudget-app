@@ -27,6 +27,7 @@ import '../../data/phone_sync.dart'
         PhoneDeleteRow,
         PhoneEdited,
         PhoneMarkCleared,
+        PhoneMove,
         PhoneMoveRow,
         PhoneNews,
         PhoneNoBill,
@@ -60,6 +61,7 @@ import 'phone_asking.dart';
 
 part 'phone_bill_ask.dart';
 part 'phone_count.dart';
+part 'phone_move.dart';
 part 'phone_new_category.dart';
 part 'phone_register.dart';
 
@@ -1272,6 +1274,11 @@ class _BudgetScreenState extends State<_BudgetScreen> {
                               left: leftNow(category, store.waiting),
                               spent: spentNow(category, store.waiting),
                               onAdd: () => widget.onCategory(category),
+                              onMove: () => _openMove(
+                                context,
+                                store: store,
+                                category: category,
+                              ),
                               onAssign: (amount, {cleared = false}) =>
                                   _assign(category, amount, cleared: cleared),
                             )
@@ -1940,11 +1947,15 @@ class _OpenBudgetRow extends StatefulWidget {
     required this.spent,
     required this.onAdd,
     required this.onAssign,
+    required this.onMove,
   });
   final PhoneCategory category;
   final int left;
   final int spent;
   final VoidCallback onAdd;
+
+  /// Opens Move money.
+  final VoidCallback onMove;
 
   /// Sets Assigned to this amount; [cleared] when it is Clear Assigned.
   final Future<void> Function(int amount, {bool cleared}) onAssign;
@@ -2100,6 +2111,13 @@ class _OpenBudgetRowState extends State<_OpenBudgetRow> {
                   onPressed: () => unawaited(widget.onAssign(0, cleared: true)),
                   style: style(),
                   child: Text(t.phoneClearAssigned),
+                ),
+              if (_inLedger)
+                TextButton(
+                  key: ValueKey('open-move-${c.id}'),
+                  onPressed: widget.onMove,
+                  style: style(),
+                  child: Text(t.planMoveMoney),
                 ),
               TextButton(
                 key: ValueKey('open-add-${c.id}'),
