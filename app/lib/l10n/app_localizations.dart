@@ -10984,6 +10984,24 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Add a transaction'**
   String get phoneBudgetAddTransaction;
+
+  /// Phone Budget, a category's open row: sets its Assigned to what its plan asks this period. {amount} is that amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign what’s planned · {amount}'**
+  String phoneAssignPlanned(String amount);
+
+  /// Phone Budget, a category's open row: takes its Assigned this period back to Not assigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Assigned'**
+  String get phoneClearAssigned;
+
+  /// Phone Budget: the snack bar, with Undo, after Clear Assigned on a category's open row.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared {category}’s Assigned'**
+  String phoneAssignedCleared(String category);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -7670,4 +7670,17 @@ class WordsMn extends Words {
 
   @override
   String get phoneBudgetAddTransaction => 'Гүйлгээ нэмэх';
+
+  @override
+  String phoneAssignPlanned(String amount) {
+    return 'Төлөвлөснийг хуваарилах · $amount';
+  }
+
+  @override
+  String get phoneClearAssigned => 'Хуваарилсныг цэвэрлэх';
+
+  @override
+  String phoneAssignedCleared(String category) {
+    return '$category ангиллын хуваарилсныг цэвэрлэсэн';
+  }
 }

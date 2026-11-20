@@ -14,12 +14,15 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
-import '../domain/budget.dart' show Budget;
+import '../domain/budget.dart' show Budget, BudgetKeys;
+import '../domain/budget_amounts.dart';
 import '../domain/combine.dart' show Ask, Pick;
 import '../domain/ledger.dart'
     show
+        BudgetAmount,
         Cleared,
         RegisterRow,
+        dateOnly,
         RowKind,
         billNotIt,
         billNotItKey,
@@ -27,6 +30,7 @@ import '../domain/ledger.dart'
         billSkippedKey,
         billSkippedValue,
         decodeBillPaid;
+import '../domain/pay.dart' show budgetPeriod;
 import '../domain/payee_rules.dart' show Remembered;
 import '../domain/phone.dart';
 import '../domain/sync.dart' show appliedMarkerOp;
@@ -176,6 +180,15 @@ class PhoneNotIt extends PhoneRowAct {
 class PhoneNotTheBill extends PhoneRowAct {
   const PhoneNotTheBill(this.row);
   final RegisterRow row;
+}
+
+/// A category's Assigned for this period set to [amount] on Budget
+/// (#528): a typed amount, Assign what's planned (the plan's) or Clear
+/// (0), written the way the computer writes it.
+class PhoneAssign extends PhoneRowAct {
+  const PhoneAssign(this.category, this.amount);
+  final int category;
+  final int amount;
 }
 
 class PhoneDeleteRow extends PhoneRowAct {
@@ -791,6 +804,47 @@ class PhoneSync implements PhoneLedgerSource {
         );
       case PhoneNotTheBill(:final row):
         return _notTheBill(db, row, now);
+      case PhoneAssign(:final category, :final amount):
+        final data = await db.loadLedger();
+        final c = data.accounts[category];
+        if (c == null) throw NotFoundException(DbProblem.notCategory);
+        final today = dateOnly(now);
+        final period = budgetPeriod(today, data.periodSchedule);
+        final start = period.start, end = period.end;
+        final began = beganBy(data, start, [c.currency]);
+        final rows = budgetRows(
+          data,
+          Budget.of(data, start: start, end: end, today: today),
+          c,
+          period,
+          amount,
+          today: today,
+        );
+        Future<List<BudgetAmount>> write() async {
+          final before = await db.setBudgetAmount(
+            category,
+            start,
+            end,
+            amount,
+            rows: rows,
+          );
+          await _writeBegan(db, began);
+          return before;
+        }
+
+        var before = await write();
+        return (
+          snapshot: await again(),
+          undo: () async {
+            await db.restoreBudgetAmounts(category, start, end, before);
+            await _writeBegan(db, began, back: true);
+            return again();
+          },
+          redo: () async {
+            before = await write();
+            return again();
+          },
+        );
       case PhoneDeleteRow(:final txn):
         final deleted = await db.softDeleteMany([txn]);
         if (deleted.isEmpty) throw LockedException(DbProblem.reconciled);
@@ -805,6 +859,21 @@ class PhoneSync implements PhoneLedgerSource {
             return again();
           },
         );
+    }
+  }
+
+  /// The day the budget began, and its currency, written or put back, as
+  /// the computer's `_writeBegan` does.
+  Future<void> _writeBegan(
+    AppDatabase db,
+    List<BudgetBegan> began, {
+    bool back = false,
+  }) async {
+    for (final b in began) {
+      await db.setPreference(b.key, back ? b.was : b.now);
+      if (b.currency != null) {
+        await db.setPreference(BudgetKeys.currency, back ? null : b.currency);
+      }
     }
   }
 

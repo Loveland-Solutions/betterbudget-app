@@ -21,6 +21,7 @@ import '../../data/database.dart'
 import '../../data/phone_sync.dart'
     show
         PhoneActed,
+        PhoneAssign,
         PhoneAsking,
         PhoneBillPaid,
         PhoneDeleteRow,
@@ -1092,6 +1093,58 @@ class _BudgetScreenState extends State<_BudgetScreen> {
   /// The category whose row is open where it is (#528), one at a time.
   String? _open;
 
+  /// Sets [category]'s Assigned and offers Undo in a snack bar, as the
+  /// register's actions do; says why when the ledger refuses.
+  Future<void> _assign(
+    PhoneCategory category,
+    int amount, {
+    bool cleared = false,
+  }) async {
+    final t = context.t;
+    final messenger = ScaffoldMessenger.of(context);
+    final PhoneActed done;
+    try {
+      done = await store.actRow(PhoneAssign(int.parse(category.id), amount));
+    } catch (e) {
+      debugPrint('Assigning on the phone failed: $e');
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            key: const ValueKey('assign-refused'),
+            backgroundColor: Mid.raised,
+            content: Text(
+              t.ledgerCouldntSave,
+              style: onest(15, color: Mid.ink),
+            ),
+          ),
+        );
+      return;
+    }
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const ValueKey('assign-done'),
+          backgroundColor: Mid.raised,
+          content: Text(
+            cleared
+                ? t.phoneAssignedCleared(category.name)
+                : t.planAssignedTo(
+                    formatShort(amount, currency: category.currency),
+                    category.name,
+                  ),
+            style: onest(15, color: Mid.ink),
+          ),
+          action: SnackBarAction(
+            label: t.ledgerUndo,
+            textColor: Mid.blue,
+            onPressed: () => unawaited(store.replay(done.undo)),
+          ),
+        ),
+      );
+  }
+
   Future<void> _newCategory(BuildContext context) => _openNewCategory(
     context,
     store: store,
@@ -1219,6 +1272,8 @@ class _BudgetScreenState extends State<_BudgetScreen> {
                               left: leftNow(category, store.waiting),
                               spent: spentNow(category, store.waiting),
                               onAdd: () => widget.onCategory(category),
+                              onAssign: (amount, {cleared = false}) =>
+                                  _assign(category, amount, cleared: cleared),
                             )
                           : null,
                     );
@@ -1873,59 +1928,186 @@ class _CategoryRow extends StatelessWidget {
 }
 
 /// A Budget row opened where it is (#528, owner's pick of sketch A):
-/// this period's Assigned, Spent and Left, and Add a transaction, which
-/// starts an entry in the category.
-class _OpenBudgetRow extends StatelessWidget {
+/// this period's Assigned, in a field that takes what is typed, Spent and
+/// Left, then Assign what's planned and Clear Assigned while there is
+/// something for each, and Add a transaction, which starts an entry in the
+/// category. A category made on this phone and not in the ledger yet has
+/// nothing to assign.
+class _OpenBudgetRow extends StatefulWidget {
   const _OpenBudgetRow({
     required this.category,
     required this.left,
     required this.spent,
     required this.onAdd,
+    required this.onAssign,
   });
   final PhoneCategory category;
   final int left;
   final int spent;
   final VoidCallback onAdd;
 
+  /// Sets Assigned to this amount; [cleared] when it is Clear Assigned.
+  final Future<void> Function(int amount, {bool cleared}) onAssign;
+
+  @override
+  State<_OpenBudgetRow> createState() => _OpenBudgetRowState();
+}
+
+class _OpenBudgetRowState extends State<_OpenBudgetRow> {
+  late final TextEditingController _assigned;
+  final _focus = FocusNode();
+
+  /// The amount on its way to the ledger.
+  int? _sent;
+
+  PhoneCategory get _c => widget.category;
+  bool get _inLedger => !_c.madeHere && int.tryParse(_c.id) != null;
+
+  String get _assignedText =>
+      groupTyped(typedOfMinor(_c.assignedMinor, _c.currency), const []).text;
+
+  @override
+  void initState() {
+    super.initState();
+    _assigned = TextEditingController(text: _assignedText);
+    _focus.addListener(() {
+      if (!_focus.hasFocus) unawaited(_commit());
+    });
+  }
+
+  @override
+  void didUpdateWidget(_OpenBudgetRow old) {
+    super.didUpdateWidget(old);
+    // What the ledger now holds, unless the person is in the middle of typing.
+    if (old.category.assignedMinor != _c.assignedMinor && !_focus.hasFocus) {
+      _assigned.text = _assignedText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _assigned.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  /// What was typed, when it is an amount that differs from Assigned; else
+  /// the field goes back to what Assigned is.
+  Future<void> _commit() async {
+    final typed = parseAmount(_assigned.text, _c.currency);
+    if (typed == null || typed < 0) {
+      _assigned.text = _assignedText;
+      return;
+    }
+    // Done and then leaving the field both ask; the amount goes once.
+    if (typed == _c.assignedMinor || typed == _sent) {
+      if (typed == _c.assignedMinor) _assigned.text = _assignedText;
+      return;
+    }
+    _sent = typed;
+    try {
+      await widget.onAssign(typed);
+    } finally {
+      _sent = null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final c = _c;
     Widget figure(String key, String label, int minor, {Color? color}) => Row(
       children: [
         Expanded(
           child: Text(label, style: onest(15, color: Mid.ink2)),
         ),
         Text(
-          formatMoney(minor, currency: category.currency),
-          key: ValueKey('open-$key-${category.id}'),
+          formatMoney(minor, currency: c.currency),
+          key: ValueKey('open-$key-${c.id}'),
           style: onest(16, weight: 600, tabular: true, color: color),
         ),
       ],
     );
+    ButtonStyle style() => TextButton.styleFrom(
+      minimumSize: const Size(44, 44),
+      foregroundColor: Mid.blue,
+      textStyle: onest(16),
+    );
+    final planned = c.plannedMinor;
     return Padding(
-      key: ValueKey('open-row-${category.id}'),
+      key: ValueKey('open-row-${c.id}'),
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          figure('assigned', t.planAssigned, category.assignedMinor),
+          if (_inLedger)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    t.planAssigned,
+                    style: onest(15, color: Mid.ink2),
+                  ),
+                ),
+                SizedBox(
+                  width: 168,
+                  child: TextField(
+                    key: ValueKey('open-assigned-field-${c.id}'),
+                    controller: _assigned,
+                    focusNode: _focus,
+                    textAlign: TextAlign.end,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => unawaited(_commit()),
+                    style: onest(16, weight: 600, tabular: true),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      prefixText: c.currency.prefix,
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 8,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            figure('assigned', t.planAssigned, c.assignedMinor),
           const SizedBox(height: 6),
-          figure('spent', t.planSpent, spent),
+          figure('spent', t.planSpent, widget.spent),
           const SizedBox(height: 6),
-          figure('left', t.planLeft, left),
+          figure('left', t.planLeft, widget.left),
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              key: ValueKey('open-add-${category.id}'),
-              onPressed: onAdd,
-              style: TextButton.styleFrom(
-                minimumSize: const Size(44, 44),
-                foregroundColor: Mid.blue,
-                textStyle: onest(16),
+          Wrap(
+            children: [
+              if (_inLedger && planned != null)
+                TextButton(
+                  key: ValueKey('open-planned-${c.id}'),
+                  onPressed: () => unawaited(widget.onAssign(planned)),
+                  style: style(),
+                  child: Text(
+                    t.phoneAssignPlanned(
+                      formatShort(planned, currency: c.currency),
+                    ),
+                  ),
+                ),
+              if (_inLedger && c.assignedMinor != 0)
+                TextButton(
+                  key: ValueKey('open-clear-${c.id}'),
+                  onPressed: () => unawaited(widget.onAssign(0, cleared: true)),
+                  style: style(),
+                  child: Text(t.phoneClearAssigned),
+                ),
+              TextButton(
+                key: ValueKey('open-add-${c.id}'),
+                onPressed: widget.onAdd,
+                style: style(),
+                child: Text(t.phoneBudgetAddTransaction),
               ),
-              child: Text(t.phoneBudgetAddTransaction),
-            ),
+            ],
           ),
         ],
       ),

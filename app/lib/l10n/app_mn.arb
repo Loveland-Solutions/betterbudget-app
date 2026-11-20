@@ -1799,5 +1799,8 @@
   "phoneAskChoose": "Нэгийг сонгоно уу:",
   "phoneAskChanged": "Өөрчилсөн: {when}",
   "phoneAskSummary": "Энэ утасных: {mine} · {computer} дээрх: {theirs} · Урьдынх: {neither}",
-  "phoneBudgetAddTransaction": "Гүйлгээ нэмэх"
+  "phoneBudgetAddTransaction": "Гүйлгээ нэмэх",
+  "phoneAssignPlanned": "Төлөвлөснийг хуваарилах · {amount}",
+  "phoneClearAssigned": "Хуваарилсныг цэвэрлэх",
+  "phoneAssignedCleared": "{category} ангиллын хуваарилсныг цэвэрлэсэн"
 }

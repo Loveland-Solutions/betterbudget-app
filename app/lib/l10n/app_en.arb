@@ -11840,5 +11840,27 @@
   "phoneBudgetAddTransaction": "Add a transaction",
   "@phoneBudgetAddTransaction": {
     "description": "Phone Budget: button in a category's open row; starts an entry in that category."
+  },
+  "phoneAssignPlanned": "Assign what’s planned · {amount}",
+  "@phoneAssignPlanned": {
+    "description": "Phone Budget, a category's open row: sets its Assigned to what its plan asks this period. {amount} is that amount.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneClearAssigned": "Clear Assigned",
+  "@phoneClearAssigned": {
+    "description": "Phone Budget, a category's open row: takes its Assigned this period back to Not assigned."
+  },
+  "phoneAssignedCleared": "Cleared {category}’s Assigned",
+  "@phoneAssignedCleared": {
+    "description": "Phone Budget: the snack bar, with Undo, after Clear Assigned on a category's open row.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
   }
 }

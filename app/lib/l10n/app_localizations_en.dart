@@ -7925,4 +7925,17 @@ class WordsEn extends Words {
 
   @override
   String get phoneBudgetAddTransaction => 'Add a transaction';
+
+  @override
+  String phoneAssignPlanned(String amount) {
+    return 'Assign what’s planned · $amount';
+  }
+
+  @override
+  String get phoneClearAssigned => 'Clear Assigned';
+
+  @override
+  String phoneAssignedCleared(String category) {
+    return 'Cleared $category’s Assigned';
+  }
 }
