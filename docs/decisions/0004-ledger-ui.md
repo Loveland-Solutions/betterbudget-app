@@ -7386,5 +7386,18 @@ is. The owner chose **C**. A (recommended) and B are not built.
   reaches the computers as the payee's rule, a change like any other. Rejected: a button
   on the saved row's bar (a missed bar is a missed chance) and remembering on its own (a
   guess filled in, which one wrong one-off shop would carry to every later row).
+- **Budget on the phone** (owner, 2026-11-20, #528; picked A of three): the sum at the
+  top, then the categories as rows showing the name, Left and the bar; a tap opens the
+  row where it is, as the register's rows do, with Assigned, Spent and Left, an
+  Assigned field, **Assign what's planned**, **Move money**, **Edit**, **Add a
+  transaction** (what a tap does today), and a ⋯ with Skip this bill, Archive and
+  Delete. Rejected: a page for each category (every change a page from the list) and
+  the computer's two tabs with a bottom sheet (a pattern nothing else on the phone
+  uses). Cut into pieces, each its own change: the sum at the top (the computer's terms,
+  all of them, so it adds up: its model is lifted out of `ui/budget.dart` first), the row
+  opening in place with its figures, Assigned and Assign what's planned and Clear
+  (`_beganBy` and `_budgetRows` lifted out of `ui/ledger_screen.dart` so the phone writes
+  amounts as the computer does), Move money, Edit with the four type cards, skipping a
+  bill, groups, archive and delete, the Income tab. The Savings step band stays.
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.
