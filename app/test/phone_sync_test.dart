@@ -13,6 +13,7 @@ import 'package:betterbudget/data/folder_io.dart';
 import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_sync.dart';
+import 'package:betterbudget/domain/budget.dart' show BillFit, BillPayment, billPayments;
 import 'package:betterbudget/domain/combine.dart' show Pick;
 import 'package:betterbudget/domain/ledger.dart'
     show CategoryPlan, Cleared, PlanKind, RegisterRow;
@@ -518,6 +519,89 @@ void main() {
     expect(after.single.date, DateTime(2026, 11, 6));
     await done.undo();
     expect((await billsOn(phone.db!, rent)).single.txnId, bill.txnId);
+  });
+
+  /// The rent bill, and a payment for it saved on the phone on the 6th.
+  Future<({int rent, BillPayment p})> paidRent() async {
+    final rent = await rentBill();
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    final bank = ledger.accounts.values
+        .singleWhere((a) => a.name == 'TDB Checking')
+        .id;
+    await phone.db!.postSimple(
+      accountId: bank,
+      date: tuesday,
+      today: tuesday,
+      payee: 'Landlord',
+      counterAccountId: rent,
+      amount: -79000000,
+    );
+    final p = billPayments(await phone.db!.loadLedger(), tuesday).values.single;
+    expect(p.fit, BillFit.paid);
+    return (rent: rent, p: p);
+  }
+
+  test('a payment in a bill’s category is asked about, Yes pays the bill and '
+      'schedules the next, and Undo takes it back (#527)', () async {
+    final (:rent, :p) = await paidRent();
+    final done = await phone.actOnRow(PhoneBillPaid(p.bill, p.row), tuesday);
+    var bills = await billsOn(phone.db!, rent);
+    expect(bills.map((r) => r.txnId), isNot(contains(p.bill.txnId)));
+    expect(bills.single.date, DateTime(2026, 11, 6));
+    // Taken as the bill paid, so it can be said not to be.
+    expect(
+      (await phone.db!.loadLedger()).prefs.keys.any(
+        (k) => k.startsWith('bill.paid.'),
+      ),
+      isTrue,
+    );
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect(
+      (await billsOn(macDb, rent)).map((r) => r.txnId),
+      isNot(contains(p.bill.txnId)),
+    );
+    await done.undo();
+    bills = await billsOn(phone.db!, rent);
+    expect(bills.single.txnId, p.bill.txnId);
+    await done.redo();
+    expect((await billsOn(phone.db!, rent)).single.date, DateTime(2026, 11, 6));
+  });
+
+  test(
+    'Not this bill puts the bill back, and Undo ties it again (#527)',
+    () async {
+      final (:rent, :p) = await paidRent();
+      await phone.actOnRow(PhoneBillPaid(p.bill, p.row), tuesday);
+      final ledger = await phone.db!.loadLedger();
+      final row = ledger.registerAll().posted.singleWhere(
+        (r) => r.txnId == p.row.txnId,
+      );
+      final done = await phone.actOnRow(PhoneNotTheBill(row), tuesday);
+      var bills = await billsOn(phone.db!, rent);
+      expect(bills.map((r) => r.txnId), contains(p.bill.txnId));
+      // It doesn't ask about that row again.
+      expect(billPayments(await phone.db!.loadLedger(), tuesday), isEmpty);
+      await done.undo();
+      bills = await billsOn(phone.db!, rent);
+      expect(bills.map((r) => r.txnId), isNot(contains(p.bill.txnId)));
+    },
+  );
+
+  test('No on a bill’s question keeps the bill and stops asking, with Undo '
+      '(#527)', () async {
+    final (:rent, :p) = await paidRent();
+    final done = await phone.actOnRow(
+      PhoneNotIt(p.bill.txnId, p.row.txnId),
+      tuesday,
+    );
+    expect(billPayments(await phone.db!.loadLedger(), tuesday), isEmpty);
+    expect((await billsOn(phone.db!, rent)).single.txnId, p.bill.txnId);
+    await done.undo();
+    expect(billPayments(await phone.db!.loadLedger(), tuesday), isNotEmpty);
   });
 
   test('a row of the phone’s own is taken back from its id alone, as after '

@@ -32,6 +32,11 @@ class _RegisterState extends State<_RegisterScreen> {
   var _searching = false;
   final _search = TextEditingController();
 
+  /// The rows that may have paid a bill, by the row's transaction, and the
+  /// bills they may have paid, by the bill's.
+  final _paidBy = <int, BillPayment>{};
+  Map<int, BillPayment> _paymentOf = const {};
+
   /// The row opened in place, by its entry.
   ({int txn, int entry})? _open;
 
@@ -265,6 +270,16 @@ class _RegisterState extends State<_RegisterScreen> {
     if (rows.isEmpty) return const SizedBox.shrink();
     final today = widget.now();
     final children = <Widget>[];
+    // The rows already in that may have paid a bill, by bill and by row.
+    final payments = billPayments(
+      _data,
+      today,
+      uncategorizedId: _uncategorizedId,
+    );
+    _paidBy
+      ..clear()
+      ..addAll({for (final p in payments.values) p.row.txnId: p});
+    _paymentOf = payments;
     DateTime? day;
     for (final r in rows) {
       final d = DateTime(r.date.year, r.date.month, r.date.day);
@@ -379,8 +394,151 @@ class _RegisterState extends State<_RegisterScreen> {
               onConfirm: (edit) => _confirm(r, edit),
               more: _more(t, r),
             ),
+          ?_paidLine(t, r),
         ],
       ),
+    );
+  }
+
+  /// Under a scheduled bill a row already in may have paid, or under that
+  /// row: asked, Yes or No (#527).
+  Widget? _paidLine(Words t, RegisterRow r) {
+    final data = _data;
+    final asBill = r.scheduled ? _paymentOf[r.txnId] : null;
+    final asRow = r.scheduled ? null : _paidBy[r.txnId];
+    final p = asBill ?? asRow;
+    if (p == null) return null;
+    final found = p.row;
+    final String text;
+    if (asBill != null) {
+      final amount = formatMoney(found.amount, currency: found.currency);
+      text = found.accountId == r.accountId
+          ? t.rowsPaidOnAsk(sayDate(t, found.date), rowPayee(t, found), amount)
+          : t.rowsPaidOnAskFrom(
+              sayDate(t, found.date),
+              rowPayee(t, found),
+              amount,
+              data.accounts[found.accountId]?.name ?? '',
+            );
+    } else {
+      text = t.billAskTitle(rowPayee(t, p.bill));
+    }
+    return _PaidAsk(
+      key: ValueKey('looks-paid-${p.bill.txnId}-${found.txnId}'),
+      text: text,
+      onYes: () => unawaited(_answerPaid(p)),
+      onNo: () => unawaited(_notIt(p)),
+    );
+  }
+
+  /// Yes: a row near its bill paid it; one that isn't is asked about first.
+  Future<void> _answerPaid(BillPayment p) async {
+    if (p.fit == BillFit.paid) return _tie(p);
+    final data = _data;
+    final answer = await Navigator.of(context).push<_BillAnswer>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _BillAskPage(
+          payment: p,
+          account: p.row.accountId == p.bill.accountId
+              ? null
+              : data.accounts[p.row.accountId]?.name,
+          category: switch (p.bill.planCategoryId ?? p.bill.categoryId) {
+            final id? => data.accounts[id]?.name,
+            null => null,
+          },
+          dues: _billDates(data, p.bill, p.bills),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    switch (answer) {
+      case _BillAnswer.paid:
+        await _tie(p);
+      case _BillAnswer.rest:
+        await _tie(p, keepRest: true);
+      case _BillAnswer.several:
+        await _tie(p, bills: p.bills);
+      case _BillAnswer.notIt:
+        await _notIt(p);
+      case null:
+        break;
+    }
+  }
+
+  Future<void> _tie(BillPayment p, {bool keepRest = false, int bills = 1}) {
+    final t = context.t;
+    final bill = p.bill;
+    final name = rowPayee(t, bill);
+    final rest = keepRest && bill.kind == RowKind.simple
+        ? (bill.amount - p.row.amount).abs()
+        : null;
+    return _act(
+      p.row,
+      PhoneBillPaid(bill, p.row, keepRest: keepRest, bills: bills),
+      '',
+      said: (e) => t.ledgerCouldntSaveBecause(dbProblem(t, e as DbException)),
+      // The next bill's date is known once it is scheduled: said after.
+      then: (after) {
+        final next = _nextBill(after, bill.planCategoryId);
+        if (rest != null) {
+          return t.ledgerBillRest(
+            name,
+            formatShort(rest, currency: bill.currency),
+            sayDate(t, bill.date),
+          );
+        }
+        if (bills > 1 && next != null) {
+          return t.ledgerBillsPaidNext(bills, name, sayDate(t, next));
+        }
+        return next != null
+            ? t.ledgerBillPaidNext(name, sayDate(t, next))
+            : t.ledgerBillPaidOnly(name);
+      },
+    );
+  }
+
+  /// The soonest bill of [category]'s plan still scheduled, or null.
+  DateTime? _nextBill(PhoneSnapshot after, int? category) {
+    final data = after.data;
+    if (data == null || category == null) return null;
+    DateTime? next;
+    for (final r in data.registerAll().scheduled) {
+      if (r.planCategoryId == category &&
+          (next == null || r.date.isBefore(next))) {
+        next = r.date;
+      }
+    }
+    return next;
+  }
+
+  /// No: that row isn't this bill, which stops asking about it.
+  Future<void> _notIt(BillPayment p) {
+    final t = context.t;
+    return _act(
+      p.bill,
+      PhoneNotIt(p.bill.txnId, p.row.txnId),
+      t.ledgerNotTheBill(rowPayee(t, p.bill), sayDate(t, p.bill.date)),
+      said: (_) => t.ledgerCouldntSave,
+    );
+  }
+
+  /// "Not this bill" on a row that was taken as a bill paid.
+  Future<void> _notThisBill(RegisterRow r) {
+    final t = context.t;
+    final record = decodeBillPaid(_data.prefs[billPaidKey(r.txnId)]);
+    final name = switch (r.planCategoryId) {
+      final id? => _data.accounts[id]?.name,
+      null => null,
+    };
+    return _act(
+      r,
+      PhoneNotTheBill(r),
+      t.ledgerNotTheBill(
+        name ?? rowPayee(t, r),
+        sayDate(t, record?.date ?? r.date),
+      ),
+      said: (_) => t.ledgerCouldntSave,
     );
   }
 
@@ -400,6 +558,8 @@ class _RegisterState extends State<_RegisterScreen> {
             unawaited(_move(r));
           case 'nobill':
             unawaited(_noBill(r));
+          case 'notthis':
+            unawaited(_notThisBill(r));
           case 'delete':
             unawaited(_delete(r));
         }
@@ -417,6 +577,12 @@ class _RegisterState extends State<_RegisterScreen> {
           value: 'move',
           child: Text(t.rowsMoveTo, style: onest(16, color: Mid.ink)),
         ),
+        // Taken as a bill paid: it may not have been.
+        if (!r.scheduled && _data.prefs.containsKey(billPaidKey(r.txnId)))
+          PopupMenuItem<String>(
+            value: 'notthis',
+            child: Text(t.rowsNotThisBill, style: onest(16, color: Mid.ink)),
+          ),
         // A category's bill: deleting it was always skipping it, so the
         // item says so (as on the computer).
         if (r.scheduled && r.planCategoryId != null && r.amount < 0)
@@ -440,6 +606,7 @@ class _RegisterState extends State<_RegisterScreen> {
     PhoneRowAct act,
     String label, {
     required String Function(Object e) said,
+    String Function(PhoneSnapshot after)? then,
   }) async {
     final t = context.t;
     final store = widget.store;
@@ -462,7 +629,10 @@ class _RegisterState extends State<_RegisterScreen> {
         SnackBar(
           key: const ValueKey('row-acted'),
           backgroundColor: Mid.raised,
-          content: Text(label, style: onest(15, color: Mid.ink)),
+          content: Text(
+            then == null ? label : then(done.snapshot),
+            style: onest(15, color: Mid.ink),
+          ),
           action: SnackBarAction(
             label: t.ledgerUndo,
             textColor: Mid.blue,

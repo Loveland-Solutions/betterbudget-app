@@ -333,7 +333,11 @@ class _ActingSource {
           },
           redo: () async => _after(),
         );
-      case PhoneMoveRow() || PhoneNoBill():
+      case PhoneMoveRow() ||
+          PhoneNoBill() ||
+          PhoneBillPaid() ||
+          PhoneNotIt() ||
+          PhoneNotTheBill():
         throw UnimplementedError();
     }
   }
@@ -1014,6 +1018,67 @@ void main() {
       data.registerAll().scheduled.any((r) => r.txnId == bill.txnId),
       isTrue,
     );
+  });
+
+  testWidgets('a payment in a bill’s category is asked about under the bill '
+      'and under the payment, and No stops asking (#527)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int rent;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      final bank = (await db.loadLedger()).accounts.values
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      rent = await db.createCategory('Rent');
+      await db.setCategoryPlan(
+        rent,
+        CategoryPlan(
+          categoryId: rent,
+          kind: PlanKind.byDate,
+          amount: 80000000,
+          start: _now,
+          due: DateTime(2026, 10, 7),
+          everyMonths: 1,
+          paidFrom: bank,
+        ),
+      );
+      await db.ensurePlanBills(_now);
+      await db.postSimple(
+        accountId: bank,
+        date: _now,
+        today: _now,
+        payee: 'Landlord',
+        counterAccountId: rent,
+        amount: -79000000,
+      );
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    PhoneRowAct? asked;
+    store.actRowIn = (act) async {
+      asked = act;
+      return (
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+        undo: () async => snapshotOf(data, today: _now, madeAt: _now),
+        redo: () async => snapshotOf(data, today: _now, madeAt: _now),
+      );
+    };
+    // Under the row that may have paid it, on the All tab.
+    expect(find.text('Did this pay the Rent bill?'), findsOneWidget);
+    // Under the bill, on the Scheduled tab.
+    await tester.tap(find.byKey(const ValueKey('register-tab-scheduled')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Paid on'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('paid-no')));
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(asked, isA<PhoneNotIt>());
   });
 
   testWidgets('Budget opens with the Savings step and its progress, and no '
