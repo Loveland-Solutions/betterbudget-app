@@ -374,9 +374,167 @@ class _RegisterState extends State<_RegisterScreen> {
               ],
               onCancel: () => setState(() => _open = null),
               onSave: (edit) => _save(r, edit),
+              more: _more(t, r),
             ),
         ],
       ),
+    );
+  }
+
+  /// The ⋯ beside Save and Cancel: Mark cleared or uncleared, Move to,
+  /// Delete (#527).
+  Widget _more(Words t, RegisterRow r) {
+    final cleared = r.cleared == Cleared.uncleared;
+    return PopupMenuButton<String>(
+      key: const ValueKey('row-more'),
+      color: Mid.raised,
+      icon: Icon(Icons.more_horiz_rounded, color: Mid.ink2),
+      onSelected: (what) {
+        switch (what) {
+          case 'cleared':
+            unawaited(_markCleared(r));
+          case 'move':
+            unawaited(_move(r));
+          case 'delete':
+            unawaited(_delete(r));
+        }
+      },
+      itemBuilder: (_) => [
+        if (!r.scheduled)
+          PopupMenuItem<String>(
+            value: 'cleared',
+            child: Text(
+              cleared ? t.rowsMarkCleared : t.rowsMarkUncleared,
+              style: onest(16, color: Mid.ink),
+            ),
+          ),
+        PopupMenuItem<String>(
+          value: 'move',
+          child: Text(t.rowsMoveTo, style: onest(16, color: Mid.ink)),
+        ),
+        PopupMenuItem<String>(
+          value: 'delete',
+          child: Text(t.rowsDelete, style: onest(16, color: Mid.ink)),
+        ),
+      ],
+    );
+  }
+
+  /// Does [act]; says why when the ledger refuses. [name] and [label] word
+  /// the snack bar that offers Undo, [lock] the refusal of a locked row.
+  Future<void> _act(
+    RegisterRow r,
+    PhoneRowAct act,
+    String label, {
+    required String Function(Object e) said,
+  }) async {
+    final t = context.t;
+    final store = widget.store;
+    final PhoneActed done;
+    try {
+      done = await store.actRow(act);
+    } on DbException catch (e) {
+      _say(said(e));
+      return;
+    } catch (e) {
+      debugPrint('A row action on the phone failed: $e');
+      _say(t.ledgerCouldntSave);
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _open = null);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const ValueKey('row-acted'),
+          backgroundColor: Mid.raised,
+          content: Text(label, style: onest(15, color: Mid.ink)),
+          action: SnackBarAction(
+            label: t.ledgerUndo,
+            textColor: Mid.blue,
+            onPressed: () => unawaited(store.replay(done.undo)),
+          ),
+        ),
+      );
+  }
+
+  void _say(String words) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const ValueKey('row-refused'),
+          backgroundColor: Mid.raised,
+          content: Text(words, style: onest(15, color: Mid.ink)),
+        ),
+      );
+  }
+
+  Future<void> _markCleared(RegisterRow r) {
+    final t = context.t;
+    final to = r.cleared == Cleared.uncleared
+        ? Cleared.cleared
+        : Cleared.uncleared;
+    return _act(
+      r,
+      PhoneMarkCleared(r.entryId, to),
+      to == Cleared.cleared
+          ? t.ledgerMarkedCleared(rowPayee(t, r))
+          : t.ledgerMarkedUncleared(rowPayee(t, r)),
+      said: (_) => t.ledgerCantUnclearReconciled,
+    );
+  }
+
+  Future<void> _delete(RegisterRow r) {
+    final t = context.t;
+    return _act(
+      r,
+      PhoneDeleteRow(r.txnId),
+      t.ledgerDeleted(rowPayee(t, r)),
+      said: (_) => r.lockedIn != null
+          ? t.ledgerCantDeleteTransfer(r.lockedIn!)
+          : t.ledgerCantDeleteReconciled,
+    );
+  }
+
+  /// Move to: the accounts this row could be in, in its currency.
+  Future<void> _move(RegisterRow r) async {
+    final t = context.t;
+    final to = await showModalBottomSheet<AccountInfo>(
+      context: context,
+      backgroundColor: Mid.raised,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final a in _data.accounts.values)
+              if (a.id != r.accountId &&
+                  !a.deleted &&
+                  !a.archived &&
+                  (a.type == AccountType.asset ||
+                      a.type == AccountType.liability) &&
+                  a.currency == r.currency)
+                ListTile(
+                  key: ValueKey('row-move-${a.id}'),
+                  minTileHeight: 48,
+                  title: Text(a.name, style: onest(16, color: Mid.ink)),
+                  onTap: () => Navigator.pop(context, a),
+                ),
+          ],
+        ),
+      ),
+    );
+    if (to == null || !mounted) return;
+    final payee = rowPayee(t, r);
+    await _act(
+      r,
+      PhoneMoveRow(r.txnId, r.accountId, to.id),
+      t.ledgerMovedTo(payee, to.name),
+      said: (e) => e is LockedException || e is NotFoundException
+          ? t.ledgerCantMove(dbProblem(t, e as DbException))
+          : t.ledgerCouldntMove,
     );
   }
 
@@ -427,8 +585,12 @@ class _RowEdit extends StatefulWidget {
     required this.categories,
     required this.onCancel,
     required this.onSave,
+    required this.more,
   });
   final RegisterRow row;
+
+  /// The ⋯ button.
+  final Widget more;
   final List<AccountInfo> categories;
   final VoidCallback onCancel;
 
@@ -661,6 +823,7 @@ class _RowEditState extends State<_RowEdit> {
                 onPressed: widget.onCancel,
                 child: Text(t.rowsCancel, style: onest(15)),
               ),
+              widget.more,
             ],
           ),
         ],

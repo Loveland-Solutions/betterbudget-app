@@ -17,7 +17,14 @@ import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/combine.dart'
     show Ask, AskKind, AskLine, AskSide, Pick;
 import 'package:betterbudget/domain/ledger.dart'
-    show AccountType, CategoryPlan, LedgerData, PlanKind, RegisterRow, RowKind;
+    show
+        AccountType,
+        Cleared,
+        CategoryPlan,
+        LedgerData,
+        PlanKind,
+        RegisterRow,
+        RowKind;
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart' show PayRule;
 import 'package:betterbudget/domain/phone.dart';
@@ -291,6 +298,47 @@ Directory _phoneDir() {
 /// (kept between launches by a file in the phone's folder), then a look asks
 /// the folder as the real one would and shows the figures as of the last
 /// look that went through.
+/// What `PhoneSync.actOnRow` does, on a ledger the test holds.
+class _ActingSource {
+  _ActingSource(this.db, this.now, this.onLedger);
+  final AppDatabase db;
+  final DateTime Function() now;
+  final void Function(LedgerData) onLedger;
+
+  Future<PhoneSnapshot> _after() async {
+    final data = await db.loadLedger();
+    onLedger(data);
+    return snapshotOf(data, today: now(), madeAt: now());
+  }
+
+  Future<PhoneActed> act(PhoneRowAct act) async {
+    switch (act) {
+      case PhoneMarkCleared(:final entry, :final to):
+        final before = await db.setClearedMany({entry: to});
+        return (
+          snapshot: await _after(),
+          undo: () async {
+            await db.setClearedMany(before);
+            return _after();
+          },
+          redo: () async => _after(),
+        );
+      case PhoneDeleteRow(:final txn):
+        final ids = await db.softDeleteMany([txn]);
+        return (
+          snapshot: await _after(),
+          undo: () async {
+            await db.restoreMany(ids);
+            return _after();
+          },
+          redo: () async => _after(),
+        );
+      case PhoneMoveRow():
+        throw UnimplementedError();
+    }
+  }
+}
+
 class _FakeSource implements PhoneLedgerSource {
   /// This stand-in has no ledger to take entries into: they wait for the
   /// computer in the folder, as before the phone's own ledger.
@@ -307,6 +355,10 @@ class _FakeSource implements PhoneLedgerSource {
 
   @override
   Future<PhoneSnapshot> restoreRow(TxnSnapshot row, DateTime now) =>
+      throw UnsupportedError('no ledger');
+
+  @override
+  Future<PhoneActed> actOnRow(PhoneRowAct act, DateTime now) =>
       throw UnsupportedError('no ledger');
 
   @override
@@ -701,6 +753,70 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(now().memo, row.memo);
+  });
+
+  testWidgets('a row’s ⋯ marks it cleared, moves it and deletes it, each with '
+      'Undo (#527)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    final row = data.registerAll().posted.reversed.firstWhere(
+      (r) => r.kind == RowKind.simple && !r.locked && !r.scheduled,
+    );
+    RegisterRow? now() => data
+        .registerAll()
+        .posted
+        .where((r) => r.txnId == row.txnId && r.entryId == row.entryId)
+        .firstOrNull;
+    final key = '${row.txnId}-${row.entryId}';
+    Future<void> menu(String item) async {
+      await tester.drag(
+        find.byKey(const ValueKey('register-list')),
+        const Offset(0, 2000),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('register-row-$key')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('row-more')));
+      await tester.tap(find.byKey(const ValueKey('row-more')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(item));
+      await settle();
+    }
+
+    await menu(
+      row.cleared == Cleared.uncleared ? 'Mark cleared' : 'Mark uncleared',
+    );
+    expect(now()!.cleared, isNot(row.cleared));
+    expect(find.byKey(const ValueKey('row-acted')), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(now()!.cleared, row.cleared);
+
+    await menu('Delete');
+    expect(now(), isNull);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(now(), isNotNull);
   });
 
   testWidgets('Budget opens with the Savings step and its progress, and no '
