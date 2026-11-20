@@ -1592,14 +1592,20 @@ void main() {
       find.text('2 things were changed here and on a computer'),
       findsOneWidget,
     );
-    expect(find.text('Keeping this phone’s'), findsNWidgets(2));
+    expect(find.text('Keeping this phone’s'), findsOneWidget);
+    // One computer deleted the other's, so nothing is chosen: asked.
+    expect(find.text('Choose one:'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const ValueKey('ask-save')))
+          .onPressed,
+      isNull,
+    );
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/phone_asking.png'),
     );
-    // The second was deleted on the computer: change it to that.
-    await tester.tap(find.byKey(const ValueKey('ask-b-change')));
-    await tester.pumpAndSettle();
+    // The second was deleted on the computer: chosen as that.
     await tester.tap(find.byKey(const ValueKey('ask-b-theirs')));
     await tester.pumpAndSettle();
     expect(find.text('Keeping it deleted (Tom’s Mac’s)'), findsOneWidget);

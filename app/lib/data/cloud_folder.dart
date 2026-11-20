@@ -1558,6 +1558,15 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     // it, so the other doesn't take this one's earlier answer in turn.
     String keyOf(ChangeRecord c) =>
         '${c.tbl}|${(combineKeys[c.tbl] ?? const <String>[]).map((k) => c.pk[k]).join('|')}';
+    // When each row was last changed, for what a question says.
+    Map<String, int> lastChanged(List<ChangeRecord> changes) {
+      final out = <String, int>{};
+      for (final c in changes) {
+        final k = keyOf(c);
+        if (c.atMs > (out[k] ?? 0)) out[k] = c.atMs;
+      }
+      return out;
+    }
     String rowText(Map<String, Object?>? r) => r == null
         ? ''
         : jsonEncode([
@@ -1644,6 +1653,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       madeUp: folded.madeUp,
       picks: _picks[key] ?? const {},
       logged: true,
+      mineAt: lastChanged(since),
+      theirsAt: lastChanged(f.changes),
     );
     if (found.conflict case final why?) {
       debugPrint('${f.header.computer}’s changes can’t be brought in: $why');

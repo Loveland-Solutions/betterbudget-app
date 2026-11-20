@@ -7562,11 +7562,6 @@ class WordsMn extends Words {
       'Эдгээрийн хувьд өөрчлөхгүй бол энэ утасны хувилбар үлдэнэ. Бусад нь хадгалахад орж ирнэ.';
 
   @override
-  String phoneAskVersion(String who, String what) {
-    return '$who: $what';
-  }
-
-  @override
   String get phoneAskThisPhone => 'Энэ утас';
 
   @override
@@ -7648,5 +7643,18 @@ class WordsMn extends Words {
           'Хавтсан дахь дэвтрийг үлдээж болно. Энэ утсан дээр хийсэн $count гүйлгээ болон бусад өөрчлөлт компьютерт хараахан ороогүй тул алдагдана.',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get phoneAskChoose => 'Нэгийг сонгоно уу:';
+
+  @override
+  String phoneAskChanged(String when) {
+    return 'Өөрчилсөн: $when';
+  }
+
+  @override
+  String phoneAskSummary(int mine, String computer, int theirs, int neither) {
+    return 'Энэ утасных: $mine · $computer дээрх: $theirs · Урьдынх: $neither';
   }
 }

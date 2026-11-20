@@ -11704,18 +11704,6 @@
   "@phoneAskBody": {
     "description": "Phone app, under phoneAskTitle: nothing is lost, and the default is the phone’s version."
   },
-  "phoneAskVersion": "{who}: {what}",
-  "@phoneAskVersion": {
-    "description": "Phone app, one line under a thing asked about: what one version says. {who} is “This phone” or the other computer’s name.",
-    "placeholders": {
-      "who": {
-        "type": "String"
-      },
-      "what": {
-        "type": "String"
-      }
-    }
-  },
   "phoneAskThisPhone": "This phone",
   "@phoneAskThisPhone": {
     "description": "Phone app, the label of this phone’s version of a thing asked about."
@@ -11805,6 +11793,37 @@
     "description": "Phone app, under phoneApartTitle when entries and other changes are unapplied.",
     "placeholders": {
       "count": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneAskChoose": "Choose one:",
+  "@phoneAskChoose": {
+    "description": "Phone app, under a thing asked about when nothing is chosen yet (one computer deleted it and the other changed it)."
+  },
+  "phoneAskChanged": "Changed {when}",
+  "@phoneAskChanged": {
+    "description": "Phone app, under one version of a thing asked about: when it was last changed. {when} reads “2026.11.20 14:30”.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneAskSummary": "This phone’s: {mine} · {computer}’s: {theirs} · As it was: {neither}",
+  "@phoneAskSummary": {
+    "description": "Phone app, one line above Save: how many things are kept each way. {computer} is the other computer’s name.",
+    "placeholders": {
+      "mine": {
+        "type": "int"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "theirs": {
+        "type": "int"
+      },
+      "neither": {
         "type": "int"
       }
     }

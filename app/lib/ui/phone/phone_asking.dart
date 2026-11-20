@@ -76,10 +76,15 @@ class _AsksPage extends StatefulWidget {
 }
 
 class _AsksPageState extends State<_AsksPage> {
-  // This phone's, until another is picked: it changes nothing here.
-  late final Map<String, Pick> _picks = {
-    for (final a in widget.asking.asks) a.id: Pick.mine,
+  // This phone's, until another is picked: it changes nothing here. Not for
+  // a thing one computer deleted and the other changed (owner, 2026-11-20:
+  // "when in doubt have BetterBudget ask"): it waits for an answer.
+  late final Map<String, Pick?> _picks = {
+    for (final a in widget.asking.asks)
+      if (!_doubtful(a)) a.id: Pick.mine,
   };
+
+  bool get _answered => widget.asking.asks.every((a) => _picks[a.id] != null);
   // The thing whose ways are open.
   String? _open;
 
@@ -124,8 +129,8 @@ class _AsksPageState extends State<_AsksPage> {
                     _AskCard(
                       ask: a,
                       computer: computer,
-                      pick: _picks[a.id] ?? Pick.mine,
-                      open: _open == a.id,
+                      pick: _picks[a.id],
+                      open: _open == a.id || _picks[a.id] == null,
                       onOpen: () => setState(() => _open = a.id),
                       onPick: (p) => setState(() {
                         _picks[a.id] = p;
@@ -140,20 +145,43 @@ class _AsksPageState extends State<_AsksPage> {
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: Mid.rule)),
               ),
-              child: FilledButton(
-                key: const ValueKey('ask-save'),
-                onPressed: () =>
-                    Navigator.of(context).pop(PhoneAnswer.picks({..._picks})),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                  backgroundColor: Mid.fill,
-                  foregroundColor: Mid.onFill,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(
+                      key: const ValueKey('ask-summary'),
+                      t.phoneAskSummary(
+                        _picks.values.where((p) => p == Pick.mine).length,
+                        computer,
+                        _picks.values.where((p) => p == Pick.theirs).length,
+                        _picks.values.where((p) => p == Pick.neither).length,
+                      ),
+                      style: onest(13.5, color: Mid.ink2, tabular: true),
+                    ),
                   ),
-                  textStyle: onest(17, weight: 600),
-                ),
-                child: Text(t.phoneAskSave),
+                  FilledButton(
+                    key: const ValueKey('ask-save'),
+                    onPressed: !_answered
+                        ? null
+                        : () => Navigator.of(context).pop(
+                            PhoneAnswer.picks({
+                              for (final e in _picks.entries) e.key: e.value!,
+                            }),
+                          ),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      backgroundColor: Mid.fill,
+                      foregroundColor: Mid.onFill,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      textStyle: onest(17, weight: 600),
+                    ),
+                    child: Text(t.phoneAskSave),
+                  ),
+                ],
               ),
             ),
           ],
@@ -162,6 +190,10 @@ class _AsksPageState extends State<_AsksPage> {
     );
   }
 }
+
+/// One computer deleted it and the other changed it: no way to say which is
+/// meant, so it is asked with nothing chosen.
+bool _doubtful(Ask ask) => ask.mine.deleted != ask.theirs.deleted;
 
 class _AskCard extends StatelessWidget {
   const _AskCard({
@@ -176,29 +208,60 @@ class _AskCard extends StatelessWidget {
 
   /// The other computer's name, for the middle of a sentence.
   final String computer;
-  final Pick pick;
+  final Pick? pick;
   final bool open;
   final VoidCallback onOpen;
   final ValueChanged<Pick> onPick;
 
-  /// What a version says, on a line: the amount and the category, or what
-  /// was assigned.
-  String _say(BuildContext context, AskSide side) {
+  /// The lines of one version, as the person reads them: every account and
+  /// its amount, and what differs from the other versions in the date and
+  /// payee (what all say alike is in the heading).
+  List<String> _say(BuildContext context, AskSide side) {
     final t = context.t;
     if (ask.kind == AskKind.assigned) {
-      return formatShort(
-        side.assignedMinor ?? 0,
-        currency: _currencyOf(ask.currency),
-      );
+      return [
+        formatShort(
+          side.assignedMinor ?? 0,
+          currency: _currencyOf(ask.currency),
+        ),
+      ];
     }
-    if (side.deleted) return t.ledgerRowsDeleted;
-    final real = side.lines.where((l) => !l.isCategory).firstOrNull;
-    final category = side.lines.where((l) => l.isCategory).firstOrNull;
+    if (side.deleted) return [t.ledgerRowsDeleted];
+    bool differs(String? Function(AskSide) of) =>
+        {of(ask.mine), of(ask.theirs), of(ask.neither)}.length > 1;
     return [
-      if (real != null)
-        formatShort(real.amountMinor, currency: _currencyOf(real.currency)),
-      if (category != null) category.account,
-    ].join(' · ');
+      if (side.date != null && differs((s) => s.date))
+        fullDate(DateTime.parse(side.date!)),
+      if (side.payee != null && differs((s) => s.payee)) side.payee!,
+      if (side.memo != null) side.memo!,
+      for (final l in side.lines)
+        '${l.account}  ${formatShort(l.amountMinor, currency: _currencyOf(l.currency))}',
+    ];
+  }
+
+  Widget _version(BuildContext context, String who, AskSide side) {
+    final t = context.t;
+    final at = side.changedAtMs == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(side.changedAtMs!);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(who, style: onest(12, color: Mid.ink3)),
+          for (final line in _say(context, side))
+            Text(line, style: onest(14, color: Mid.ink2, tabular: true)),
+          if (at != null)
+            Text(
+              t.phoneAskChanged(
+                '${fullDate(at)} ${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}',
+              ),
+              style: onest(12, color: Mid.ink3, tabular: true),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -219,6 +282,7 @@ class _AskCard extends StatelessWidget {
       under = date == null ? null : fullDate(DateTime.parse(date));
     }
     final keeping = switch (pick) {
+      null => t.phoneAskChoose,
       Pick.mine =>
         ask.mine.deleted ? t.phoneAskKeepingMineDeleted : t.phoneAskKeepingMine,
       Pick.theirs =>
@@ -273,19 +337,15 @@ class _AskCard extends StatelessWidget {
                         style: onest(12.5, color: Mid.ink3, tabular: true),
                       ),
                     const SizedBox(height: 2),
-                    for (final (who, side) in [
-                      (t.phoneAskThisPhone, ask.mine),
-                      (computer, ask.theirs),
-                    ])
-                      Text(
-                        t.phoneAskVersion(who, _say(context, side)),
-                        style: onest(14, color: Mid.ink2, tabular: true),
-                      ),
+                    _version(context, t.phoneAskThisPhone, ask.mine),
+                    _version(context, computer, ask.theirs),
                     const SizedBox(height: 6),
                     Text(keeping, style: onest(14, weight: 600)),
                     if (ask.hasBase)
                       Text(
-                        t.ledgerRowsAsItWas(_say(context, ask.neither)),
+                        t.ledgerRowsAsItWas(
+                          _say(context, ask.neither).join(' · '),
+                        ),
                         style: onest(12.5, color: Mid.ink3, tabular: true),
                       ),
                   ],
@@ -366,30 +426,18 @@ class _ApartPage extends StatelessWidget {
                 style: onest(16, color: Mid.ink2, height: 1.4),
               ),
               const SizedBox(height: 28),
-              FilledButton(
+              OutlinedButton(
                 key: const ValueKey('apart-keep-folder'),
                 onPressed: () =>
                     Navigator.of(context).pop(const PhoneAnswer.keepFolder()),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                  backgroundColor: Mid.fill,
-                  foregroundColor: Mid.onFill,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  textStyle: onest(17, weight: 600),
-                ),
+                style: _equalWay,
                 child: Text(t.phoneApartKeepFolder),
               ),
-              const SizedBox(height: 8),
-              TextButton(
+              const SizedBox(height: 10),
+              OutlinedButton(
                 key: const ValueKey('apart-not-now'),
                 onPressed: () => Navigator.of(context).pop(),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  foregroundColor: Mid.blue,
-                  textStyle: onest(16),
-                ),
+                style: _equalWay,
                 child: Text(t.ledgerTwoNotNow),
               ),
             ],
@@ -399,3 +447,13 @@ class _ApartPage extends StatelessWidget {
     );
   }
 }
+
+/// The computer's question of two ledgers gives its buttons the same weight,
+/// none filled (owner, 2026-11-20: "What do the desktop versions do?").
+final _equalWay = OutlinedButton.styleFrom(
+  minimumSize: const Size.fromHeight(52),
+  foregroundColor: Mid.ink,
+  side: BorderSide(color: Mid.rule),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+  textStyle: onest(16),
+);

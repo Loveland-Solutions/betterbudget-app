@@ -7814,11 +7814,6 @@ class WordsEn extends Words {
       'For these, this phone’s version is kept unless you change it. Everything else comes in when you save.';
 
   @override
-  String phoneAskVersion(String who, String what) {
-    return '$who: $what';
-  }
-
-  @override
   String get phoneAskThisPhone => 'This phone';
 
   @override
@@ -7902,5 +7897,18 @@ class WordsEn extends Words {
       one: 'The folder’s ledger can be kept. 1 entry and other changes made on this phone aren’t on a computer yet and would be lost.',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get phoneAskChoose => 'Choose one:';
+
+  @override
+  String phoneAskChanged(String when) {
+    return 'Changed $when';
+  }
+
+  @override
+  String phoneAskSummary(int mine, String computer, int theirs, int neither) {
+    return 'This phone’s: $mine · $computer’s: $theirs · As it was: $neither';
   }
 }

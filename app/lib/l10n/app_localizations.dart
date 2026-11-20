@@ -10853,12 +10853,6 @@ abstract class Words {
   /// **'For these, this phone’s version is kept unless you change it. Everything else comes in when you save.'**
   String get phoneAskBody;
 
-  /// Phone app, one line under a thing asked about: what one version says. {who} is “This phone” or the other computer’s name.
-  ///
-  /// In en, this message translates to:
-  /// **'{who}: {what}'**
-  String phoneAskVersion(String who, String what);
-
   /// Phone app, the label of this phone’s version of a thing asked about.
   ///
   /// In en, this message translates to:
@@ -10960,6 +10954,24 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count, plural, =1{The folder’s ledger can be kept. 1 entry and other changes made on this phone aren’t on a computer yet and would be lost.} other{The folder’s ledger can be kept. {count} entries and other changes made on this phone aren’t on a computer yet and would be lost.}}'**
   String phoneApartBodyMore(int count);
+
+  /// Phone app, under a thing asked about when nothing is chosen yet (one computer deleted it and the other changed it).
+  ///
+  /// In en, this message translates to:
+  /// **'Choose one:'**
+  String get phoneAskChoose;
+
+  /// Phone app, under one version of a thing asked about: when it was last changed. {when} reads “2026.11.20 14:30”.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed {when}'**
+  String phoneAskChanged(String when);
+
+  /// Phone app, one line above Save: how many things are kept each way. {computer} is the other computer’s name.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone’s: {mine} · {computer}’s: {theirs} · As it was: {neither}'**
+  String phoneAskSummary(int mine, String computer, int theirs, int neither);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

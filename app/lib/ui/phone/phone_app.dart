@@ -1864,9 +1864,7 @@ class _EntryState extends State<_EntryScreen> {
   /// fix in as a new entry, so a computer that hadn't seen it never does;
   /// Undo then brings the old one back as an entry of its own. Null when the
   /// ledger couldn't take the old row out: nothing was changed.
-  Future<
-    ({Future<bool> Function() takeBack, bool asNew, String? editing})?
-  >
+  Future<({Future<bool> Function() takeBack, bool asNew, String? editing})?>
   _put(PhoneEntry entry) async {
     final fixing = _draft.editing;
     final old = fixing == null || phoneRowOf(fixing) == null

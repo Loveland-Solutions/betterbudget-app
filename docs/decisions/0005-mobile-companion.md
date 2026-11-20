@@ -1655,3 +1655,14 @@ on the same page: the phone never writes the folder's whole ledger, so the one c
 phone no computer has taken in and would be lost, and Not now loses nothing. (The owner
 was told this and given the chance to say otherwise; I read their pick of C as "go ahead".)
 The words are `phoneAsk…` and `phoneApart…` in both `.arb` files; the Mongolian is a draft.
+
+**Owner's answers to the review of the asking window (2026-11-20).** (1) "When in doubt have
+BetterBudget ask the user. Conflicts like these will be relatively rare in a home budget, so
+just ask": a thing one computer deleted and the other changed has no default; its card says
+"Choose one:" with the ways open, and Save waits until it is answered. (2) For the two-ledgers
+question, "What do the desktop versions do?": the computer's dialog gives Not now, Keep this
+computer's and Keep the folder's the same weight, none filled, so the phone's two buttons
+are the same. (3) A line above Save counts what is kept each way. (4) Every card shows each
+version's accounts and amounts, split lines too, with the date and payee where the versions
+differ. (5) Each version says when it was last changed (`AskSide.changedAtMs`, from the
+change log's `at_ms` of the two computers' changes, through `combine(mineAt:, theirsAt:)`).

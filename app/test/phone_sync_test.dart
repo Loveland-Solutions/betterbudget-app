@@ -404,6 +404,9 @@ void main() {
       final asking = phone.asking!;
       expect(asking.apart, isFalse);
       expect(asking.asks, hasLength(1));
+      // Each version says when it was changed.
+      expect(asking.asks.single.mine.changedAtMs, isNotNull);
+      expect(asking.asks.single.theirs.changedAtMs, isNotNull);
       expect(asking.from, 'The desk Mac');
       // The phone's amount stands as it was.
       expect(await assigned(), 2000000);
