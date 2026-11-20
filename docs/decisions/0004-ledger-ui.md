@@ -7348,5 +7348,12 @@ is. The owner chose **C**. A (recommended) and B are not built.
   transfer or an opening balance shows its Date and Memo only. Still to come in #527:
   a ⋯ with Mark cleared, Move to another account and Delete, a split's lines, Confirm
   on a scheduled row, a bill's "Paid on…?", the payee's category remembered (#403).
+- **A split's lines** (owner, 2026-11-20, 0.121.0; picked A of three): an open split row's
+  Category box reads "Split · 3 categories" and opens the entry's own split page on the
+  row's lines, with the total fixed at the row's; Done returns to the row, and Save says
+  what is left or too much before writing anything. The lines go to the ledger with the
+  row, one change, one Undo. A reconciled split keeps its total and date locked; its
+  lines' categories can change. Rejected: lines as fields inline (crowded past three
+  lines) and a bottom sheet (a pattern nothing else on the phone uses).
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.

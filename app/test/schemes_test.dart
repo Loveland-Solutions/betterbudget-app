@@ -58,6 +58,9 @@ void main() {
       // A part of phone_app.dart: the count's "what's missing" line is the
       // entry screen's, in its color.
       'phone_count.dart',
+      // A part of phone_app.dart: the register's reconciled mark, gold as on
+      // the computer's (done and safe).
+      'phone_register.dart',
       // The version in the ledger now, of a thing both computers changed:
       // settled, done and safe.
       'rows_dialog.dart',

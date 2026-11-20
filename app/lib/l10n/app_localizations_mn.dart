@@ -2373,6 +2373,16 @@ class WordsMn extends Words {
       'Мөрүүд хоорондоо тэнцэж байгаа тул дансны үлдэгдэл өөрчлөгдөхгүй.';
 
   @override
+  String rowsSplitSummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Хуваасан · $count ангилал',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get rowsSplitAnother => '+ Өөр ангилал';
 
   @override

@@ -16,6 +16,7 @@ import '../../data/database.dart'
         LockedException,
         NotFoundException,
         PhoneTake,
+        SplitPart,
         TxnSnapshot;
 import '../../data/phone_sync.dart'
     show

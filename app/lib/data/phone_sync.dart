@@ -27,6 +27,7 @@ import 'database.dart'
         DbProblem,
         LockedException,
         PhoneTake,
+        SplitPart,
         TxnSnapshot;
 import 'folder_io.dart';
 import 'phone_ledger.dart';
@@ -72,7 +73,8 @@ typedef PhoneAnswered = ({PhoneSnapshot snapshot, bool done});
 /// What the person changed on a row of the register (#527), as the
 /// computer's edit takes it: [amount] is signed from [account]'s side and
 /// [counter] is the category (or the other account); null leaves them as
-/// they are.
+/// they are. [splits] are a split's lines, in the account's sign, null to
+/// leave them.
 typedef PhoneRowEdit = ({
   int txn,
   int account,
@@ -81,6 +83,7 @@ typedef PhoneRowEdit = ({
   String? memo,
   int? counter,
   int? amount,
+  List<SplitPart>? splits,
 });
 
 /// An edit done: the ledger as it stands after, and the row as it was and
@@ -514,6 +517,7 @@ class PhoneSync implements PhoneLedgerSource {
       memo: edit.memo,
       counterAccountId: edit.counter,
       amount: edit.amount,
+      splits: edit.splits,
     );
     final after = await db.snapshot(edit.txn);
     return (snapshot: await asItStands(now), before: before, after: after);

@@ -3389,6 +3389,12 @@ abstract class Words {
   /// **'The lines even out, so the account’s balance doesn’t change.'**
   String get rowsSplitEven;
 
+  /// The phone's open split row, in the Category box: how many categories it is shared over. Tapping opens its lines.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Split · 1 category} other{Split · {count} categories}}'**
+  String rowsSplitSummary(int count);
+
   /// Split card: adds a line for one more category.
   ///
   /// In en, this message translates to:

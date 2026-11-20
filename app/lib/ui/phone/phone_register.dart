@@ -368,6 +368,7 @@ class _RegisterState extends State<_RegisterScreen> {
             _RowEdit(
               key: ValueKey('register-open-${r.txnId}-${r.entryId}'),
               row: r,
+              store: widget.store,
               categories: [
                 for (final c in _data.knownCategories)
                   if (c.currency == r.currency) c,
@@ -582,12 +583,14 @@ class _RowEdit extends StatefulWidget {
   const _RowEdit({
     super.key,
     required this.row,
+    required this.store,
     required this.categories,
     required this.onCancel,
     required this.onSave,
     required this.more,
   });
   final RegisterRow row;
+  final PhoneStore store;
 
   /// The ⋯ button.
   final Widget more;
@@ -611,6 +614,11 @@ class _RowEditState extends State<_RowEdit> {
   String? _said;
   var _saving = false;
 
+  /// A split's lines as the split page has them, or as changed there; null
+  /// for a row of one category.
+  List<_Line>? _lines;
+  var _linesChanged = false;
+
   RegisterRow get _r => widget.row;
   bool get _simple => _r.kind == RowKind.simple;
 
@@ -628,6 +636,86 @@ class _RowEditState extends State<_RowEdit> {
     _date = DateTime(_r.date.year, _r.date.month, _r.date.day);
     _category = _r.categoryId;
     _moneyIn = _r.amount > 0;
+    if (_r.kind == RowKind.split) {
+      final data = widget.store.snapshot.data!;
+      _lines = [
+        for (final l in _r.splitLines)
+          (
+            categoryId: data.accounts[l.accountId]?.type == AccountType.income
+                ? phoneIncomeId
+                : '${l.accountId}',
+            typed: typedOfMinor(l.amount, _r.currency),
+            back: (l.amount > 0) != (_r.amount > 0),
+          ),
+      ];
+    }
+  }
+
+  /// The split page, on this row's lines. Its total is the row's.
+  Future<void> _openLines() async {
+    final t = context.t;
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute<List<_Line>>(
+        fullscreenDialog: true,
+        builder: (_) => _SplitPage(
+          store: widget.store,
+          currency: _r.currency,
+          moneyIn: _r.amount > 0,
+          payee: _r.txnPayee,
+          total: _r.amount.abs(),
+          start: _lines!,
+          income: _r.amount > 0
+              ? PhoneCategory(
+                  id: phoneIncomeId,
+                  name: t.ledgerIncome,
+                  leftMinor: 0,
+                  currency: _r.currency,
+                )
+              : null,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _lines = result;
+      _linesChanged = true;
+      _said = null;
+    });
+  }
+
+  /// The lines as the ledger takes them, or what to say when they aren't
+  /// ready: the sum, a category gone.
+  ({List<SplitPart>? parts, String? said}) _linePartsOf() {
+    final t = context.t;
+    final data = widget.store.snapshot.data!;
+    final lines = _lines!;
+    final currency = _r.currency;
+    final shares = [for (final l in lines) _share(l, currency)];
+    final sum = shares.fold(0, (s, v) => s + v);
+    final total = _r.amount.abs();
+    String money(int v) => formatMoney(v.abs(), currency: currency);
+    if (sum < total) {
+      return (parts: null, said: t.rowsErrorSplitLeft(money(total - sum)));
+    }
+    if (sum > total) {
+      return (parts: null, said: t.rowsErrorSplitTooMuch(money(sum - total)));
+    }
+    final income = data.accounts.values
+        .where((a) => a.type == AccountType.income)
+        .firstOrNull
+        ?.id;
+    final parts = <SplitPart>[];
+    for (final (i, l) in lines.indexed) {
+      final id = l.categoryId == phoneIncomeId
+          ? income
+          : int.tryParse(l.categoryId);
+      if (id == null) return (parts: null, said: t.phoneChooseCategory);
+      parts.add((
+        categoryId: id,
+        amount: _r.amount > 0 ? shares[i] : -shares[i],
+      ));
+    }
+    return (parts: parts, said: null);
   }
 
   @override
@@ -657,6 +745,15 @@ class _RowEditState extends State<_RowEdit> {
       setState(() => _said = t.rowsColumnAmount);
       return;
     }
+    List<SplitPart>? splits;
+    if (_lines != null && _linesChanged) {
+      final made = _linePartsOf();
+      if (made.said != null) {
+        setState(() => _said = made.said);
+        return;
+      }
+      splits = made.parts;
+    }
     setState(() {
       _saving = true;
       _said = null;
@@ -670,6 +767,7 @@ class _RowEditState extends State<_RowEdit> {
       memo: _memo.text,
       counter: _simple && _category != _r.categoryId ? _category : null,
       amount: amount != null && amount != _r.amount ? amount : null,
+      splits: splits,
     ));
     if (mounted && said != null) {
       setState(() {
@@ -761,6 +859,30 @@ class _RowEditState extends State<_RowEdit> {
               ),
             ),
           ],
+          if (_lines != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: InkWell(
+                key: const ValueKey('row-lines'),
+                onTap: _openLines,
+                child: InputDecorator(
+                  decoration: box(t.rowsColumnCategory),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          t.rowsSplitSummary(_lines!.length),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: onest(16, color: Mid.ink),
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: Mid.ink2),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: InkWell(

@@ -2455,6 +2455,17 @@ class WordsEn extends Words {
       'The lines even out, so the account’s balance doesn’t change.';
 
   @override
+  String rowsSplitSummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Split · $count categories',
+      one: 'Split · 1 category',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get rowsSplitAnother => '+ Another category';
 
   @override
