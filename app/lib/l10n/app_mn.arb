@@ -1798,5 +1798,6 @@
   "phoneApartBodyMore": "{count, plural, other{Хавтсан дахь дэвтрийг үлдээж болно. Энэ утсан дээр хийсэн {count} гүйлгээ болон бусад өөрчлөлт компьютерт хараахан ороогүй тул алдагдана.}}",
   "phoneAskChoose": "Нэгийг сонгоно уу:",
   "phoneAskChanged": "Өөрчилсөн: {when}",
-  "phoneAskSummary": "Энэ утасных: {mine} · {computer} дээрх: {theirs} · Урьдынх: {neither}"
+  "phoneAskSummary": "Энэ утасных: {mine} · {computer} дээрх: {theirs} · Урьдынх: {neither}",
+  "phoneBudgetAddTransaction": "Гүйлгээ нэмэх"
 }

@@ -115,6 +115,15 @@ Future<void> _toBudget(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// A category on Budget opens where it is; Add a transaction starts an
+/// entry in it (#528).
+Future<void> _addIn(WidgetTester tester, String name) async {
+  await tester.tap(find.text(name));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Add a transaction'));
+  await tester.pumpAndSettle();
+}
+
 Future<void> _toLedger(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey('to-ledger')));
   await tester.pumpAndSettle();
@@ -2069,13 +2078,62 @@ void main() {
     expect(find.text('New category'), findsNothing);
   });
 
+  testWidgets('a category on Budget opens where it is, with its figures', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      snapshot: PhoneSnapshot(
+        madeAt: DateTime(2026, 10, 7, 8, 10),
+        accounts: const [
+          PhoneAccount(id: 'a', name: 'TDB Checking', balanceMinor: 0),
+        ],
+        categories: const [
+          PhoneCategory(
+            id: 'g',
+            name: 'Groceries',
+            leftMinor: 14800000,
+            hadMinor: 20000000,
+            assignedMinor: 20000000,
+            spentMinor: 5200000,
+          ),
+          PhoneCategory(id: 't', name: 'Transport', leftMinor: 100000),
+        ],
+      ),
+    );
+    await _toBudget(tester);
+    expect(find.text('Add a transaction'), findsNothing);
+    await tester.tap(find.text('Groceries'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('open-assigned-g')), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('open-assigned-g'))).data,
+      '₮200,000.00',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('open-spent-g'))).data,
+      '₮52,000.00',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('open-left-g'))).data,
+      '₮148,000.00',
+    );
+    // One at a time; a second tap closes it.
+    await tester.tap(find.text('Transport'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('open-row-g')), findsNothing);
+    expect(find.byKey(const ValueKey('open-row-t')), findsOneWidget);
+    await tester.tap(find.text('Transport'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add a transaction'), findsNothing);
+  });
+
   testWidgets('a category on Budget starts an entry in it, and what was '
       'typed stays', (tester) async {
     await _pump(tester);
     await _type(tester, '500');
     await _toBudget(tester);
-    await tester.tap(find.text('Transport'));
-    await tester.pumpAndSettle();
+    await _addIn(tester, 'Transport');
     expect(find.text('−₮500'), findsOneWidget);
     expect(find.text('Transport'), findsOneWidget);
     expect(
@@ -3702,8 +3760,7 @@ void main() {
     expect(bill.fontWeight, isNot(spend.fontWeight));
 
     // It can still be paid from here.
-    await tester.tap(find.text('Rent'));
-    await tester.pumpAndSettle();
+    await _addIn(tester, 'Rent');
     expect(find.text('₮1,800,000.00 left now'), findsOneWidget);
   });
 
@@ -3837,8 +3894,7 @@ void main() {
     // Typed in dollars, then filed from Budget in a yen category.
     await _type(tester, '12.50');
     await _toBudget(tester);
-    await tester.tap(find.text('Trip'));
-    await tester.pumpAndSettle();
+    await _addIn(tester, 'Trip');
     expect(find.text('−¥12'), findsOneWidget);
     await _payee(tester, 'Lawson');
     await tester.tap(find.text('Save'));
@@ -3848,8 +3904,7 @@ void main() {
 
     // The next entry is begun from Budget: Undo would write over it.
     await _toBudget(tester);
-    await tester.tap(find.text('Food'));
-    await tester.pumpAndSettle();
+    await _addIn(tester, 'Food');
     expect(find.text('Undo'), findsNothing);
     expect(store.waiting, hasLength(1));
   });

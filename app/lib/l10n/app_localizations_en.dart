@@ -7922,4 +7922,7 @@ class WordsEn extends Words {
   String phoneAskSummary(int mine, String computer, int theirs, int neither) {
     return 'This phone’s: $mine · $computer’s: $theirs · As it was: $neither';
   }
+
+  @override
+  String get phoneBudgetAddTransaction => 'Add a transaction';
 }

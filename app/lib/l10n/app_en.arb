@@ -11836,5 +11836,9 @@
         "type": "int"
       }
     }
+  },
+  "phoneBudgetAddTransaction": "Add a transaction",
+  "@phoneBudgetAddTransaction": {
+    "description": "Phone Budget: button in a category's open row; starts an entry in that category."
   }
 }
