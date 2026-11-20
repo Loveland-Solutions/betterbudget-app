@@ -210,6 +210,54 @@ class PhonePay {
   final String? name;
 }
 
+/// One payday of the period for the Income page (#528): what is expected
+/// or came, by its date, named as the computer's Income tab names its pay.
+class PhonePayday {
+  const PhonePayday({
+    required this.date,
+    required this.amount,
+    required this.currency,
+    required this.state,
+    this.title,
+    this.account = '',
+    this.alone = true,
+  });
+  final DateTime date;
+  final int amount;
+  final Currency currency;
+  final PaydayState state;
+
+  /// What the person called the pay, else who pays it; null when neither,
+  /// when the page says Income, or the account it goes into if [alone] is
+  /// false (`payTitle`).
+  final String? title;
+
+  /// The account it is paid into.
+  final String account;
+
+  /// Whether this is the ledger's only pay.
+  final bool alone;
+}
+
+/// What the phone's Income page shows besides the sum's own figures.
+class PhoneIncome {
+  const PhoneIncome({
+    this.paydays = const [],
+    this.waiting = const [],
+    this.saidNone = false,
+  });
+
+  /// The period's paydays, by date.
+  final List<PhonePayday> paydays;
+
+  /// Money in this period still in Not categorized, which the sum's Income
+  /// doesn't count: one amount per currency.
+  final List<(Currency, int)> waiting;
+
+  /// "I don't have regular income" was said on a computer.
+  final bool saidNone;
+}
+
 class PhoneSnapshot {
   const PhoneSnapshot({
     required this.madeAt,
@@ -224,7 +272,11 @@ class PhoneSnapshot {
     this.sums = const [],
     this.beforeMonth,
     this.budgetCurrency,
+    this.income = const PhoneIncome(),
   });
+
+  /// The Income page's paydays and the money in waiting to be filed.
+  final PhoneIncome income;
 
   /// The Budget page's sum for each currency worth showing, worked out as
   /// the computer's is so the phone's adds up the same (#528).
@@ -836,6 +888,34 @@ PhoneSnapshot snapshotOf(
     ],
     beforeMonth: previousBudgetPeriod(period, by).start.month,
     budgetCurrency: budget.currency,
+    income: PhoneIncome(
+      saidNone: data.prefs[noRegularPayKey] == '1',
+      waiting: [
+        for (final c in Currency.values)
+          if ((budget.cameInUncategorized[c] ?? 0) > 0)
+            (c, budget.cameInUncategorized[c]!),
+      ],
+      paydays: [
+        for (final d in paydaysIn(
+          data,
+          start: period.start,
+          end: period.end,
+          today: today,
+        ))
+          PhonePayday(
+            date: d.date,
+            amount: d.amount,
+            currency: data.accounts[d.pay.accountId]?.currency ?? Currency.mnt,
+            state: d.state,
+            title: [d.pay.name, d.pay.payee]
+                .map((n) => n?.trim() ?? '')
+                .where((n) => n.isNotEmpty)
+                .firstOrNull,
+            account: data.accounts[d.pay.accountId]?.name ?? '',
+            alone: data.paySchedules.length < 2,
+          ),
+      ],
+    ),
     mine: device == null ? const [] : ownEntriesOf(data, mineIds, device),
     taken: PhoneTaken.decode(data.prefs[phoneTakenKey]),
     periodEnd: by == null ? null : period.end,

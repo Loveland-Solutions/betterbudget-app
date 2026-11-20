@@ -7687,4 +7687,34 @@ class WordsMn extends Words {
   String phoneAssignedCleared(String category) {
     return '$category ангиллын хуваарилсныг цэвэрлэсэн';
   }
+
+  @override
+  String phoneIncomeIn(String month) {
+    return 'Орлого · $month';
+  }
+
+  @override
+  String phoneIncomeUntil(String date) {
+    return '$date хүртэл орлого';
+  }
+
+  @override
+  String get phonePaydayCame => 'орсон';
+
+  @override
+  String get phonePaydayAhead => 'цаашид орох';
+
+  @override
+  String get phonePaydayMissed => 'ороогүй';
+
+  @override
+  String phonePaydayInto(String account) {
+    return 'данс: $account';
+  }
+
+  @override
+  String get phoneNoPaydays => 'Энэ үед орлого орох өдөр алга.';
+
+  @override
+  String get phoneOpenIncome => 'Орлого орох өдрүүдийг харах';
 }

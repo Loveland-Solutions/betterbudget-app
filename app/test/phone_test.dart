@@ -1383,6 +1383,95 @@ void main() {
     expect(find.byKey(const ValueKey('remember-line')), findsNothing);
   });
 
+  testWidgets('the sum\'s Income line opens a page of the period\'s paydays by '
+      'date, each came, still to come or didn\'t come (#528)', (tester) async {
+    final data = (await tester.runAsync(() async {
+      final db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      // New accounts, so the demo's own income rows tie to neither pay.
+      final payroll = await db.addAccount(
+        name: 'Payroll',
+        type: AccountType.asset,
+      );
+      final bank = await db.addAccount(
+        name: 'Support',
+        type: AccountType.asset,
+      );
+      final job = await db.savePaySchedule(
+        accountId: payroll,
+        amount: 105000000,
+        rule: PayRule.twiceMonthly,
+        day1: 25,
+        day2: 10,
+        name: 'Jenny’s job',
+        today: _now,
+      );
+      final support = await db.savePaySchedule(
+        accountId: bank,
+        amount: 40000000,
+        rule: PayRule.monthly,
+        day1: 5,
+        name: 'Child support',
+        today: _now,
+      );
+      final income = await db.incomeCategory();
+      await db.postTransaction(
+        date: DateTime(2026, 10, 5),
+        payScheduleId: support.after.id,
+        lines: [
+          (accountId: bank, amount: 40000000, cleared: Cleared.cleared),
+          (accountId: income, amount: -40000000, cleared: Cleared.cleared),
+        ],
+      );
+      expect(job.after.id, isNot(support.after.id));
+      final data = await db.loadLedger();
+      await db.close();
+      return data;
+    }))!;
+    await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('sum-income-open')));
+    await tester.pumpAndSettle();
+    expect(find.text('Income in October'), findsOneWidget);
+    expect(find.byKey(const ValueKey('income-page')), findsOneWidget);
+    // Child support came on the 5th; Jenny's job is paid on the 9th (the
+    // 10th is a Saturday) and the 23rd, both still ahead on the 7th.
+    final rows = [
+      for (final k in [
+        '10-5-Child support',
+        '10-9-Jenny’s job',
+        '10-23-Jenny’s job',
+      ])
+        find.byKey(ValueKey('payday-$k')),
+    ];
+    for (final r in rows) {
+      expect(r, findsOneWidget);
+    }
+    expect(
+      find.descendant(of: rows[0], matching: find.text('came')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: rows[1], matching: find.text('still to come')),
+      findsOneWidget,
+    );
+    expect(
+      tester.getTopLeft(rows[0]).dy,
+      lessThan(tester.getTopLeft(rows[1]).dy),
+    );
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_income.png'),
+    );
+    // Back to Budget.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('budget-sum')), findsOneWidget);
+  });
+
   testWidgets('Budget opens with the sum, the computer\'s terms with their '
       'signs, above the step and the categories (#528)', (tester) async {
     final (data, _) = await _stepLedger(tester);
