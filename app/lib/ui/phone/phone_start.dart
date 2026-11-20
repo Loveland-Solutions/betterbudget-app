@@ -288,17 +288,26 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         made: kept.categories,
         counts: kept.counts,
       )..addListener(_keep);
+      _store!.settle = () => _keeping;
+      _store!.undoTake = (take) async {
+        final source = _source;
+        if (source == null) throw StateError('The phone has no ledger open');
+        return source.undoTake(take, widget.now());
+      };
       // Only while something is waiting: that is all there is to wait
       // for. Coming back to the front always reads.
       _again ??= Timer.periodic(widget.every, (_) {
         final store = _store;
         if (_step != _Step.ready || store == null) return;
-        if (store.nothingWaiting) return;
+        // Also while the computers haven't applied what the phone entered.
+        if (store.nothingOnTheWay) return;
         _load();
       });
     } else {
       store.snapshot = snapshot;
     }
+    final news = _source?.takeNews() ?? const <PhoneNews>[];
+    if (news.isNotEmpty) _store?.news.value = news;
     _keep();
     setState(() => _step = _Step.ready);
   }
@@ -344,9 +353,16 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       // is let go of here as the ledger lists it.
       _keeping = _keeping.then((_) async {
         try {
-          final taken = await source.take(inbox, widget.now());
-          if (taken != null) {
-            if (identical(_source, source) && mounted) store.snapshot = taken;
+          final took = await source.take(inbox, widget.now());
+          if (took != null) {
+            store.tookInto([
+              for (final e in inbox.entries) e.id,
+              for (final c in inbox.counts) c.id,
+              for (final c in inbox.categories) c.id,
+            ], took.take);
+            if (identical(_source, source) && mounted) {
+              store.snapshot = took.snapshot;
+            }
             await _dropOwnFile(folder, inbox.device);
             unawaited(_load());
             return;

@@ -380,6 +380,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// files' headers. Kept in `cloud-folder`.
   final _names = <String, String>{};
 
+  /// The last of this computer's own changes that every other computer has
+  /// applied, as of the last look; null while none has written a file.
+  int? get seenOfMine => _seenOfMine;
+  int? _seenOfMine;
+
   /// What this computer's own change file last carried: its last change and
   /// its vector, so the file is written again only when either moved.
   int _publishedSeq = -1;
@@ -1286,6 +1291,18 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       afterSeq: state.applied,
       unreadable: unreadable,
     );
+    // How far of this computer's own changes every other computer of this
+    // ledger (seen lately) has applied, for a phone to say what the others
+    // don't have yet; null while no other computer has written a file.
+    int? seenOfMine;
+    for (final f in files) {
+      final h = f.header;
+      if (h.ledger != null && ledger != null && h.ledger != ledger) continue;
+      if (h.knowsCuts && now.difference(h.writtenAt) > awayAfter) continue;
+      final had = h.applied[me] ?? 0;
+      if (seenOfMine == null || had < seenOfMine) seenOfMine = had;
+    }
+    _seenOfMine = seenOfMine;
     var held = false;
     var takeWhole = false;
     var names = false;

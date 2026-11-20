@@ -1603,3 +1603,33 @@ saved, so the Waiting list is empty and a mistake is fixed by undo, which is par
 line "isn't on your computer yet" will say what the change file hasn't carried yet, in
 part 2 as well.
 
+**Built, 2026-11-20 (0.116.0): #526 piece 4, part 2: undo, and what another computer
+brought in.** (Owner: "Let's do it in order"; the choices below are mine, along the lines
+of "do it your way".) (1) **Undo on the phone is the toast's, as before, now through the
+ledger.** `PhoneLedgerSource.take` returns the ledger and the `PhoneTake` it made;
+`PhoneStore.tookInto` remembers it by the id of each entry, count or category, and
+`takeBack` waits for a take still under way, then `undoTake` runs `undoPhoneTake`: the
+rows are soft-deleted as a change of this phone's, so the next look carries the undo to the
+computers, and the entry is still listed as taken so nothing brings it back. The form is
+filled again as it was, which is the redo: Save puts it back. A take is undone whole, which
+for one entry saved at a time is that entry. The toast now survives the ledger being read
+again after a take (`PhoneStore.changes` counts only what the person did), which part 1
+had cut short. The count's Undo goes the same way. (2) **What another computer brought
+in** is said on the phone in the computer's own words (`combinedLabel`, shared with the
+computer's popup), in a snack bar with no Undo: undo is for what the person here did.
+`PhoneSync.takeNews` hands over what the looks brought in, once. (3) **"isn't on your computer yet" says what no computer has applied** (owner, 2026-11-20,
+"fix it", of both this line and fixing a saved entry). The other computers' change files say,
+in their headers, how much of this phone's changes each has applied (`seenOfMine` in
+`CloudFolder`, the same number compaction cuts by, computers away over 45 days left out);
+the phone's own rows with a change past the last one all have seen, made by this phone, are
+`PhoneSnapshot.mine`, each an entry named `row:<id>` (`ownEntriesOf`). The line under Save
+counts them with what still waits, as it did before the phone had a ledger, and goes when
+the computers have them; the half-minute look goes on while any are listed. (4) **A saved
+entry can be fixed or deleted until a computer has it**, from the same list ("Not on your
+computer yet"): a fix takes the old row out of the ledger and puts the changed entry in as a
+new one (so a computer that hadn't seen the first never does), and its Undo brings the old
+one back as an entry of its own and the form to go on with; Delete takes the row out. A row
+from before the app was last closed is taken back by its id alone, so a paycheck taken as a
+payday isn't put back to expected by that (only the row goes). One a computer has applied is
+no longer the phone's to change, as before.
+

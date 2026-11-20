@@ -5537,6 +5537,9 @@ class WordsEn extends Words {
   }
 
   @override
+  String get phoneCouldntChange => 'That entry couldn’t be changed. Try again.';
+
+  @override
   String get phoneWaitingTitle => 'Not on your computer yet';
 
   @override

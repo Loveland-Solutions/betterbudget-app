@@ -5375,6 +5375,10 @@ class WordsMn extends Words {
   }
 
   @override
+  String get phoneCouldntChange =>
+      'Энэ гүйлгээг өөрчилж чадсангүй. Дахин оролдоно уу.';
+
+  @override
   String get phoneWaitingTitle => 'Компьютерт хараахан ороогүй';
 
   @override

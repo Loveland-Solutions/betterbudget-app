@@ -50,6 +50,7 @@ import 'recovery_key_screen.dart';
 import 'register.dart';
 import 'appearance.dart';
 import 'schemes.dart';
+import 'combined_label.dart';
 import 'language.dart';
 import 'headed_section.dart';
 import 'brand.dart';
@@ -567,25 +568,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if (!mounted) return;
     final t = context.t;
     final n = done.transactions;
-    final label = switch (done.from.savedByName) {
-      // One transaction came: by its payee.
-      final name? when n == 1 && done.payee != null && done.others == 0 =>
-        t.ledgerCombinedPayeeFrom(done.payee!, name),
-      final name? when n == 1 && done.payee != null =>
-        t.ledgerCombinedPayeeMoreFrom(done.payee!, done.others, name),
-      null when n == 1 && done.payee != null && done.others == 0 =>
-        t.ledgerCombinedPayee(done.payee!),
-      null when n == 1 && done.payee != null => t.ledgerCombinedPayeeMore(
-        done.payee!,
-        done.others,
-      ),
-      final name? when n == 0 => t.ledgerCombinedOtherFrom(name),
-      final name? when done.others == 0 => t.ledgerCombinedFrom(n, name),
-      final name? => t.ledgerCombinedMoreFrom(n, name),
-      null when n == 0 => t.ledgerCombinedOther,
-      null when done.others == 0 => t.ledgerCombined(n),
-      null => t.ledgerCombinedMore(n),
-    };
+    final label = combinedLabel(
+      t,
+      transactions: n,
+      others: done.others,
+      payee: done.payee,
+      from: done.from.savedByName,
+    );
     // Below zero, where it wasn't or was less before, said by what made
     // it, as the Budget page names it (#470).
     final short = overNow.entries
@@ -7531,11 +7520,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (to != null) {
           await _cloud.stop();
           await _whileRestoring(
-            () => _backups.replaceWith(
-              done.before,
-              widget.clock(),
-              whole: true,
-            ),
+            () =>
+                _backups.replaceWith(done.before, widget.clock(), whole: true),
           );
           return;
         }
