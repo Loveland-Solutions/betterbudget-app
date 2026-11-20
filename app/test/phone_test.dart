@@ -407,19 +407,57 @@ class _ActingSource {
             return _after();
           },
         );
-      case PhoneEditCategory(:final category, :final name):
-        // Only the name: the plan and Paid from are PhoneSync's, tested in
-        // phone_sync_test.dart.
-        final was = (await db.loadLedger()).accounts[category]!.name;
+      case PhoneEditCategory(
+        :final category,
+        :final name,
+        :final group,
+        :final note,
+      ):
+        // The name, group and note: the plan and Paid from are PhoneSync's,
+        // tested in phone_sync_test.dart.
+        final was = (await db.loadLedger()).accounts[category]!;
         await db.renameAccount(category, name);
+        await db.setCategoryDetails(category, group: group, note: note);
         return (
           snapshot: await _after(),
           undo: () async {
-            await db.renameAccount(category, was);
+            await db.renameAccount(category, was.name);
+            await db.setCategoryDetails(
+              category,
+              group: was.budgetGroup,
+              note: was.note,
+            );
             return _after();
           },
           redo: () async {
             await db.renameAccount(category, name);
+            await db.setCategoryDetails(category, group: group, note: note);
+            return _after();
+          },
+        );
+      case PhoneArchiveCategory(:final category, :final archived):
+        await db.setArchived(category, archived);
+        return (
+          snapshot: await _after(),
+          undo: () async {
+            await db.setArchived(category, !archived);
+            return _after();
+          },
+          redo: () async {
+            await db.setArchived(category, archived);
+            return _after();
+          },
+        );
+      case PhoneDeleteCategory(:final category, :final into):
+        var done = await db.deleteCategory(category, into: into);
+        return (
+          snapshot: await _after(),
+          undo: () async {
+            await db.undeleteCategory(done);
+            return _after();
+          },
+          redo: () async {
+            done = await db.deleteCategory(category, into: into);
             return _after();
           },
         );
@@ -2444,6 +2482,129 @@ void main() {
     await tester.tap(find.text('Undo'));
     await settle();
     expect(nameOf(), 'Groceries');
+  });
+
+  testWidgets('Edit has a Note and a Group saved with Save, and Archive and '
+      'Delete…, each with Undo (#528)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int groceries;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      groceries = data.accounts.values
+          .firstWhere((a) => a.isCategory && a.name == 'Groceries')
+          .id;
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    var onBudget = false;
+    Future<void> openEdit() async {
+      if (!onBudget) await _toBudget(tester);
+      onBudget = true;
+      final edit = find.byKey(ValueKey('open-edit-$groceries'));
+      if (edit.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          find.text('Groceries'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Groceries'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(edit);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> see(String key) async {
+      await tester.scrollUntilVisible(
+        find.byKey(ValueKey(key)),
+        200,
+        scrollable: find
+            .byWidgetPredicate(
+              (w) => w is Scrollable && w.axis == Axis.vertical,
+            )
+            .last,
+      );
+      await tester.ensureVisible(find.byKey(ValueKey(key)));
+      await tester.pumpAndSettle();
+    }
+
+    await openEdit();
+    await see('category-note');
+    await tester.enterText(
+      find.byKey(const ValueKey('category-note')),
+      'Weekly shop',
+    );
+    await see('category-group');
+    await tester.tap(find.byKey(const ValueKey('category-group')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New group…'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('category-new-group')),
+      'Home',
+    );
+    await tester.tap(find.byKey(const ValueKey('category-new-group-ok')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await settle();
+    expect(data.accounts[groceries]!.note, 'Weekly shop');
+    expect(data.accounts[groceries]!.budgetGroup, 'Home');
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.accounts[groceries]!.note, isNull);
+    expect(data.accounts[groceries]!.budgetGroup, isNull);
+
+    // Archive asks nothing.
+    await openEdit();
+    await see('edit-archive');
+    await tester.tap(find.byKey(const ValueKey('edit-archive')));
+    await settle();
+    expect(data.accounts[groceries]!.archived, isTrue);
+    expect(find.textContaining('Groceries archived'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.accounts[groceries]!.archived, isFalse);
+
+    // Delete asks where its rows go (the demo has no Not categorized to
+    // start with, so one is picked).
+    await openEdit();
+    await see('category-delete');
+    await tester.tap(find.byKey(const ValueKey('category-delete')));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete Groceries?'), findsOneWidget);
+    expect(find.byKey(const ValueKey('delete-category-into')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('warning-cancel')));
+    await tester.pumpAndSettle();
+    expect(data.categories.any((a) => a.id == groceries), isTrue);
+    await tester.tap(find.byKey(const ValueKey('category-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('delete-category-into')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('delete-into-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('warning-confirm')));
+    await settle();
+    expect(data.categories.any((a) => a.id == groceries), isFalse);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.categories.any((a) => a.id == groceries), isTrue);
   });
 
   testWidgets('Edit on a bill has a switch for this period\'s bill, and Save '

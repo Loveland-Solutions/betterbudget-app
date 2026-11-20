@@ -21,9 +21,11 @@ import '../../data/database.dart'
 import '../../data/phone_sync.dart'
     show
         PhoneActed,
+        PhoneArchiveCategory,
         PhoneAssign,
         PhoneAsking,
         PhoneBillPaid,
+        PhoneDeleteCategory,
         PhoneDeleteRow,
         PhoneEditCategory,
         PhoneEdited,
@@ -1167,13 +1169,13 @@ class _BudgetScreenState extends State<_BudgetScreen> {
           key: const ValueKey('edit-done'),
           backgroundColor: Mid.raised,
           content: Text(
-            t.planEditedUndo(category.name),
+            done.said ?? t.planEditedUndo(category.name),
             style: onest(15, color: Mid.ink),
           ),
           action: SnackBarAction(
             label: t.ledgerUndo,
             textColor: Mid.blue,
-            onPressed: () => unawaited(store.replay(done.undo)),
+            onPressed: () => unawaited(store.replay(done.done.undo)),
           ),
         ),
       );

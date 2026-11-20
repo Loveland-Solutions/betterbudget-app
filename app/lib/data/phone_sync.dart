@@ -222,9 +222,15 @@ class PhoneEditCategory extends PhoneRowAct {
     this.paidFrom,
     this.skip = const [],
     this.back = const [],
+    this.group,
+    this.note,
   });
   final int category;
   final String name;
+
+  /// Its group heading on Budget and its note (#100); empty is none.
+  final String? group;
+  final String? note;
 
   /// Bills of this period the switches turned off, and skipped ones turned
   /// on again, by date (#365), as the computer's Edit does on Save.
@@ -235,6 +241,22 @@ class PhoneEditCategory extends PhoneRowAct {
 
   /// Null when Paid from wasn't changed.
   final int? paidFrom;
+}
+
+/// A category put away, or brought back, as the computer's Archive does
+/// (#528): its rows keep it, and it leaves the menus.
+class PhoneArchiveCategory extends PhoneRowAct {
+  const PhoneArchiveCategory(this.category, this.archived);
+  final int category;
+  final bool archived;
+}
+
+/// A category deleted, its rows moved to [into] (null when it has none), as
+/// the computer's Delete does (#528).
+class PhoneDeleteCategory extends PhoneRowAct {
+  const PhoneDeleteCategory(this.category, this.into);
+  final int category;
+  final int? into;
 }
 
 class PhoneDeleteRow extends PhoneRowAct {
@@ -941,6 +963,8 @@ class PhoneSync implements PhoneLedgerSource {
         :final paidFrom,
         :final skip,
         :final back,
+        :final group,
+        :final note,
       ):
         final data = await db.loadLedger();
         final c = data.accounts[category];
@@ -953,6 +977,10 @@ class PhoneSync implements PhoneLedgerSource {
           splitEmoji(c.name).rest,
         );
         final renamed = name != c.name && name != asEdit;
+        String? text(String? v) =>
+            v == null || v.trim().isEmpty ? null : v.trim();
+        final details =
+            text(group) != text(c.budgetGroup) || text(note) != text(c.note);
         final newPlan = plan?.forCategory(category);
         final planned = newPlan != data.plans[category];
         final money = paidFrom != null && paidFrom != data.paidFrom[category];
@@ -1063,6 +1091,9 @@ class PhoneSync implements PhoneLedgerSource {
               type == CategoryType.fund && newPlan == null ? 'yes' : null,
             );
           }
+          if (details) {
+            await db.setCategoryDetails(category, group: group, note: note);
+          }
         });
 
         await db.transaction(() async {
@@ -1073,6 +1104,13 @@ class PhoneSync implements PhoneLedgerSource {
           snapshot: await again(),
           undo: () async {
             await db.transaction(() async {
+              if (details) {
+                await db.setCategoryDetails(
+                  category,
+                  group: c.budgetGroup,
+                  note: c.note,
+                );
+              }
               if (fund) await db.setPreference(fundKey, fundWas);
               if (goal) {
                 await db.setPreference(goalKey, goalWas);
@@ -1094,6 +1132,32 @@ class PhoneSync implements PhoneLedgerSource {
               await billsRedo();
               await write();
             });
+            return again();
+          },
+        );
+      case PhoneArchiveCategory(:final category, :final archived):
+        await db.setArchived(category, archived);
+        return (
+          snapshot: await again(),
+          undo: () async {
+            await db.setArchived(category, !archived);
+            return again();
+          },
+          redo: () async {
+            await db.setArchived(category, archived);
+            return again();
+          },
+        );
+      case PhoneDeleteCategory(:final category, :final into):
+        var done = await db.deleteCategory(category, into: into);
+        return (
+          snapshot: await again(),
+          undo: () async {
+            await db.undeleteCategory(done);
+            return again();
+          },
+          redo: () async {
+            done = await db.deleteCategory(category, into: into);
             return again();
           },
         );

@@ -45,7 +45,7 @@ Future<PhoneCategory?> _openNewCategory(
 /// from its plan and type, saved into the ledger as one change. Comes back
 /// with the change, for the snack bar's Undo, or null when nothing was
 /// saved.
-Future<PhoneActed?> _openEditCategory(
+Future<_EditDone?> _openEditCategory(
   BuildContext context, {
   required PhoneStore store,
   required PhoneCategory category,
@@ -67,7 +67,11 @@ Future<PhoneActed?> _openEditCategory(
                   ?.toString(),
           plan: data.plans[id],
           type: typeOf(data, id),
+          group: data.accounts[id]?.budgetGroup,
+          note: data.accounts[id]?.note,
         );
+  final account = id == null ? null : data?.accounts[id];
+  final usage = id == null ? null : data?.categoryUsage[id];
   return Navigator.of(context)
       .push(
         MaterialPageRoute<Object>(
@@ -86,10 +90,40 @@ Future<PhoneActed?> _openEditCategory(
                 id != null &&
                 data != null &&
                 Budget.loanOfCategory(data, id) != null,
+            // Groups are inside Day-to-day, and the Safety net has none
+            // (#469); it is neither archived nor deleted.
+            groupable:
+                account != null &&
+                !isSafetyNet(account) &&
+                typeOf(data!, account.id) == CategoryType.dayToDay,
+            guarded: account == null || isSafetyNet(account),
+            groups: [
+              if (data != null)
+                for (final g in {
+                  for (final a in data.categories)
+                    if (a.budgetGroup != null) a.budgetGroup!,
+                })
+                  g,
+            ]..sort(compareNames),
+            rows: (usage?.rows ?? 0) + (usage?.scheduled ?? 0),
+            scheduled: usage?.scheduled ?? 0,
+            targets: [
+              if (data != null)
+                for (final a in data.categories)
+                  if (a.id != id && !a.archived) a,
+            ],
           ),
         ),
       )
-      .then((done) => done is PhoneActed ? done : null);
+      .then((done) => done is _EditDone ? done : null);
+}
+
+/// What Edit did, for Budget's snack bar: [said] when it was an archive or
+/// a delete, else the plain "edited".
+class _EditDone {
+  const _EditDone(this.done, [this.said]);
+  final PhoneActed done;
+  final String? said;
 }
 
 class _NewCategoryPage extends StatefulWidget {
@@ -102,7 +136,24 @@ class _NewCategoryPage extends StatefulWidget {
     this.editing,
     this.bills = const [],
     this.loan = false,
+    this.groupable = false,
+    this.guarded = true,
+    this.groups = const [],
+    this.rows = 0,
+    this.scheduled = 0,
+    this.targets = const [],
   });
+
+  /// Edit of a ledger category: a Group when it is Day-to-day, the groups
+  /// there are, how many rows are filed under it (and how many of those are
+  /// scheduled) and where they can move. [guarded]: the Safety net, which
+  /// is neither archived nor deleted.
+  final bool groupable;
+  final bool guarded;
+  final List<String> groups;
+  final int rows;
+  final int scheduled;
+  final List<AccountInfo> targets;
 
   /// The period's bills a switch each (#365), for a category of the
   /// ledger; [loan] words them as payments.
@@ -144,6 +195,11 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     );
     setState(() => _emoji = e);
   }
+
+  /// Its group heading and its note (#100), saved with the rest by Save.
+  late String? _group = widget.editing?.group;
+  late final _note = TextEditingController(text: widget.editing?.note ?? '');
+  late final List<String> _groupNames = [...widget.groups];
 
   /// The switches turned in Edit, by date: only their flips (#365).
   final _flips = <DateTime>{};
@@ -348,6 +404,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   void dispose() {
     _name.removeListener(_takeTypedEmoji);
     _name.dispose();
+    _note.dispose();
     _p.dispose();
     for (final f in _focuses.values) {
       f.dispose();
@@ -449,6 +506,8 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
           plan: _draft,
           type: _type,
           paidFrom: picked != null && '$picked' != c.paidFromId ? picked : null,
+          group: widget.groupable ? _group : c.group,
+          note: _note.text,
           skip: [
             for (final b in widget.bills)
               if (!b.skipped && _flips.contains(b.date)) b.date,
@@ -476,7 +535,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         );
       return;
     }
-    if (mounted) Navigator.of(context).pop(done);
+    if (mounted) Navigator.of(context).pop(_EditDone(done));
   }
 
   /// Save, for a category still waiting: in place, or, when the computer
@@ -514,6 +573,155 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       if (!mounted) return;
     }
     Navigator.of(context).pop();
+  }
+
+  // ---------- group, note, archive, delete ----------
+
+  Future<void> _pickGroup(Words t) async {
+    final picked = await _pick<String>(
+      t.planGroup,
+      [
+        ('', t.planNoGroup),
+        ('\n', t.planNewGroup),
+        for (final g in _groupNames) (g, g),
+      ],
+      chosen: _group ?? '',
+      keyPrefix: 'group',
+    );
+    if (picked == null || !mounted) return;
+    if (picked == '\n') {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (_) => const _NewGroupAsk(),
+      );
+      if (name == null || name.isEmpty || !mounted) return;
+      setState(() {
+        if (!_groupNames.contains(name)) _groupNames.add(name);
+        _group = name;
+      });
+      return;
+    }
+    setState(() => _group = picked.isEmpty ? null : picked);
+  }
+
+  Widget _actionRow(String key, String label, Color color, VoidCallback tap) =>
+      InkWell(
+        key: ValueKey(key),
+        onTap: tap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 52),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(label, style: onest(16, weight: 500, color: color)),
+            ),
+          ),
+        ),
+      );
+
+  /// A row with a line of text to type in, its label before it.
+  Widget _textRow(String key, String label, TextEditingController c) =>
+      ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 52),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Text(label, style: onest(15, color: Mid.ink2)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  key: ValueKey(key),
+                  controller: c,
+                  textAlign: TextAlign.end,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: onest(16, weight: 500),
+                  cursorColor: Mid.blue,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  /// Archive: no question, its rows keep it, and Undo is in the snack bar.
+  Future<void> _archive(PhoneCategory c) async {
+    final t = context.t;
+    final id = int.parse(c.id);
+    if (await _actOn(PhoneArchiveCategory(id, true)) case final done?
+        when mounted) {
+      Navigator.of(context)
+          .pop(_EditDone(done, t.ledgerCategoryArchivedToast(c.name)));
+    }
+  }
+
+  /// Delete: with rows filed under it, asks where they move, with Not
+  /// categorized as the default (owner, 2026-09-18: a default, not a
+  /// required choice); with none it just goes. Undo is in the snack bar.
+  Future<void> _delete(PhoneCategory c) async {
+    final t = context.t;
+    final id = int.parse(c.id);
+    final n = widget.rows;
+    AccountInfo? into;
+    if (n > 0) {
+      final asked = await showDialog<({AccountInfo? into})>(
+        context: context,
+        builder: (_) => _DeleteCategoryAsk(
+          category: c,
+          rows: n,
+          scheduled: widget.scheduled,
+          targets: widget.targets,
+          pick: _pick,
+        ),
+      );
+      if (asked == null || !mounted) return;
+      into = asked.into;
+    }
+    final done = await _actOn(PhoneDeleteCategory(id, into?.id));
+    if (done == null || !mounted) return;
+    // Its Assigned goes back unless it moves with the rows: Income holds
+    // none, and in another currency it would be read as that one's.
+    final back =
+        (into == null || into.isIncome || into.currency != c.currency) &&
+            c.leftMinor != 0
+        ? t.planMoneyBack(
+            formatMoney(c.leftMinor, currency: c.currency),
+            c.name,
+          )
+        : null;
+    final said = into == null
+        ? t.ledgerDeleted(c.name)
+        : t.ledgerDeletedRowsMovedTo(c.name, n, into.name);
+    Navigator.of(context).pop(_EditDone(done, [said, ?back].join(' · ')));
+  }
+
+  /// An archive or delete through the ledger; null, with the refusal said,
+  /// when it didn't go.
+  Future<PhoneActed?> _actOn(PhoneRowAct act) async {
+    try {
+      return await widget.store.actRow(act);
+    } catch (e) {
+      debugPrint('Changing a category on the phone failed: $e');
+      if (!mounted) return null;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            key: const ValueKey('edit-category-refused'),
+            backgroundColor: Mid.raised,
+            content: Text(
+              context.t.ledgerCouldntSave,
+              style: onest(15, color: Mid.ink),
+            ),
+          ),
+        );
+      return null;
+    }
   }
 
   // ---------- pickers ----------
@@ -1348,6 +1556,36 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                               ),
                           ]),
                         ],
+                        if (_inLedger) ...[
+                          const SizedBox(height: 14),
+                          _card([
+                            if (widget.groupable)
+                              _choiceRow(
+                                'category-group',
+                                t.planGroup,
+                                _group ?? t.planNoGroup,
+                                () => _pickGroup(t),
+                              ),
+                            _textRow('category-note', t.planNote, _note),
+                          ]),
+                          if (!widget.guarded) ...[
+                            const SizedBox(height: 14),
+                            _card([
+                              _actionRow(
+                                'edit-archive',
+                                t.planArchive,
+                                Mid.blue,
+                                () => _archive(widget.editing!),
+                              ),
+                              _actionRow(
+                                'category-delete',
+                                t.planDeleteMenu,
+                                Mid.coral,
+                                () => _delete(widget.editing!),
+                              ),
+                            ]),
+                          ],
+                        ],
                         const SizedBox(height: 18),
                         // The row, as it will read on the computer's
                         // Budget page once the computer has it.
@@ -1811,6 +2049,163 @@ class _CustomRepeatPageState extends State<_CustomRepeatPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Delete, asked while rows are filed under the category: where they move,
+/// Not categorized unless another is picked.
+class _DeleteCategoryAsk extends StatefulWidget {
+  const _DeleteCategoryAsk({
+    required this.category,
+    required this.rows,
+    required this.scheduled,
+    required this.targets,
+    required this.pick,
+  });
+  final PhoneCategory category;
+  final int rows;
+  final int scheduled;
+  final List<AccountInfo> targets;
+  final Future<T?> Function<T>(
+    String title,
+    List<(T, String)> items, {
+    required T chosen,
+    String keyPrefix,
+  })
+  pick;
+
+  @override
+  State<_DeleteCategoryAsk> createState() => _DeleteCategoryAskState();
+}
+
+class _DeleteCategoryAskState extends State<_DeleteCategoryAsk> {
+  late AccountInfo? _into = widget.targets.where(isUncategorized).firstOrNull;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final c = widget.category;
+    final into = _into;
+    final line = widget.scheduled == 0
+        ? t.planRowsFiled(widget.rows)
+        : t.planRowsFiledScheduled(widget.rows, widget.scheduled);
+    final note = into == null || !into.isIncome
+        ? null
+        : widget.scheduled == 0
+        ? t.planIntoIncome(into.name)
+        : t.planIntoIncomeScheduled(into.name);
+    return AlertDialog(
+      backgroundColor: Mid.panel,
+      title: Text(
+        t.planDeleteTitle(c.name),
+        style: onest(18, weight: 600, color: Mid.coral),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(line, style: onest(15)),
+          const SizedBox(height: 12),
+          if (widget.targets.isEmpty)
+            Text(t.planNoOtherCategory, style: onest(15, color: Mid.coral))
+          else
+            OutlinedButton(
+              key: const ValueKey('delete-category-into'),
+              onPressed: () async {
+                final id = await widget.pick<int>(
+                  t.planPickCategory,
+                  [for (final a in widget.targets) (a.id, a.name)],
+                  chosen: into?.id ?? -1,
+                  keyPrefix: 'delete-into',
+                );
+                if (id == null || !mounted) return;
+                setState(
+                  () => _into = widget.targets.firstWhere((a) => a.id == id),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                foregroundColor: Mid.ink,
+                side: BorderSide(color: Mid.rule),
+                textStyle: onest(16, weight: 500),
+              ),
+              child: Text(into?.name ?? t.planPickCategory),
+            ),
+          if (note != null) ...[
+            const SizedBox(height: 10),
+            Text(note, style: onest(14, color: Mid.ink2)),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('warning-cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(t.planCancel, style: onest(15, color: Mid.blue)),
+        ),
+        TextButton(
+          key: const ValueKey('warning-confirm'),
+          onPressed: into == null
+              ? null
+              : () => Navigator.of(context).pop((into: into)),
+          child: Text(
+            into == null
+                ? t.planDeleteButton(c.name)
+                : t.planMoveAndDelete(into.name),
+            style: onest(15, weight: 600, color: Mid.coral),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// New group…: its name, typed in a box of its own.
+class _NewGroupAsk extends StatefulWidget {
+  const _NewGroupAsk();
+
+  @override
+  State<_NewGroupAsk> createState() => _NewGroupAskState();
+}
+
+class _NewGroupAskState extends State<_NewGroupAsk> {
+  final _typed = TextEditingController();
+
+  @override
+  void dispose() {
+    _typed.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return AlertDialog(
+      backgroundColor: Mid.panel,
+      content: TextField(
+        key: const ValueKey('category-new-group'),
+        controller: _typed,
+        autofocus: true,
+        textCapitalization: TextCapitalization.sentences,
+        style: onest(17),
+        decoration: InputDecoration(hintText: t.planGroupName),
+        onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(t.planCancel, style: onest(15, color: Mid.blue)),
+        ),
+        TextButton(
+          key: const ValueKey('category-new-group-ok'),
+          onPressed: () => Navigator.of(context).pop(_typed.text.trim()),
+          child: Text(
+            t.planSave,
+            style: onest(15, weight: 600, color: Mid.blue),
+          ),
+        ),
+      ],
     );
   }
 }
