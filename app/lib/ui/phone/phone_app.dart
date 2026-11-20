@@ -10,8 +10,10 @@ import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
-import '../../data/database.dart' show PhoneTake;
-import '../../data/phone_sync.dart' show PhoneAsking, PhoneNews;
+import '../../data/database.dart'
+    show DbException, LockedException, PhoneTake, TxnSnapshot;
+import '../../data/phone_sync.dart'
+    show PhoneAsking, PhoneEdited, PhoneNews, PhoneRowEdit;
 import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
 import '../../domain/budget.dart';
@@ -111,6 +113,34 @@ class PhoneStore extends ChangeNotifier {
   /// a stand-in): what waits is then simply let go of.
   Future<void> Function()? settle;
   Future<PhoneSnapshot> Function(PhoneTake take)? undoTake;
+
+  /// Set by whoever keeps the ledger: edits a row of the register, and puts
+  /// one back (#527). Null where there is no ledger (the preview).
+  Future<PhoneEdited> Function(PhoneRowEdit edit)? editRowIn;
+  Future<PhoneSnapshot> Function(TxnSnapshot row)? restoreRowIn;
+
+  /// Saves [edit] into the ledger. Returns what Undo and Redo put back, as
+  /// [PhoneEdited]; throws what the ledger refuses.
+  Future<PhoneEdited> editRow(PhoneRowEdit edit) async {
+    final into = editRowIn;
+    if (into == null) throw UnsupportedError('No ledger to edit');
+    await settle?.call();
+    final done = await into(edit);
+    _snapshot = done.snapshot;
+    _changes++;
+    notifyListeners();
+    return done;
+  }
+
+  /// Puts a row back as it was ([editRow]'s Undo and Redo).
+  Future<void> restoreRow(TxnSnapshot row) async {
+    final back = restoreRowIn;
+    if (back == null) throw UnsupportedError('No ledger to edit');
+    await settle?.call();
+    _snapshot = await back(row);
+    _changes++;
+    notifyListeners();
+  }
 
   /// Records that [take] brought [ids] (entries, counts, categories) into
   /// the ledger.

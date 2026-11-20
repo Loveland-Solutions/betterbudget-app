@@ -330,6 +330,42 @@ void main() {
     },
   );
 
+  test('a row edited on the phone goes to the computer as a change, and '
+      'Undo puts it back (#527)', () async {
+    await spend('Nomin');
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    final row = ledger.registerAll().posted.firstWhere(
+      (r) => r.payee == 'Nomin',
+    );
+    final done = await phone.editRow((
+      txn: row.txnId,
+      account: row.accountId,
+      date: row.date,
+      payee: 'Nomin Super',
+      memo: 'Weekly',
+      counter: null,
+      amount: null,
+    ), tuesday);
+    expect(await payees(), contains('Nomin Super'));
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect([
+      for (final t in (await macDb.loadLedger()).txns) t.payee,
+    ], contains('Nomin Super'));
+    // Undo is another change, which the computer takes too.
+    await phone.restoreRow(done.before, tuesday);
+    expect(await payees(), contains('Nomin'));
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect([
+      for (final t in (await macDb.loadLedger()).txns) t.payee,
+    ], isNot(contains('Nomin Super')));
+  });
+
   test('a row of the phone’s own is taken back from its id alone, as after '
       'the app was closed', () async {
     await phone.look(drive.path, monday);

@@ -187,10 +187,7 @@ class _RegisterState extends State<_RegisterScreen> {
                       for (final a in accounts)
                         PopupMenuItem<int?>(
                           value: int.tryParse(a.id),
-                          child: Text(
-                            a.name,
-                            style: onest(16, color: Mid.ink),
-                          ),
+                          child: Text(a.name, style: onest(16, color: Mid.ink)),
                         ),
                     ],
                     child: Container(
@@ -212,10 +209,7 @@ class _RegisterState extends State<_RegisterScreen> {
                               style: onest(15, weight: 600, color: Mid.ink),
                             ),
                           ),
-                          Icon(
-                            Icons.arrow_drop_down_rounded,
-                            color: Mid.ink2,
-                          ),
+                          Icon(Icons.arrow_drop_down_rounded, color: Mid.ink2),
                         ],
                       ),
                     ),
@@ -254,10 +248,7 @@ class _RegisterState extends State<_RegisterScreen> {
                 showCheckmark: false,
                 selectedColor: Mid.blue,
                 backgroundColor: Mid.raised,
-                labelStyle: onest(
-                  14,
-                  color: s == on ? Mid.onAccent : Mid.ink2,
-                ),
+                labelStyle: onest(14, color: s == on ? Mid.onAccent : Mid.ink2),
                 side: BorderSide.none,
                 onSelected: (_) => setState(() {
                   _show = s;
@@ -320,15 +311,15 @@ class _RegisterState extends State<_RegisterScreen> {
         borderRadius: BorderRadius.circular(12),
         border: open ? Border.all(color: Mid.blue, width: 2) : null,
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => setState(() => _open = open ? null : key),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ConstrainedBox(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => setState(() => _open = open ? null : key),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 44),
                 child: Row(
                   children: [
@@ -371,40 +362,309 @@ class _RegisterState extends State<_RegisterScreen> {
                   ],
                 ),
               ),
-              if (open) _details(t, r, account),
-            ],
+            ),
           ),
-        ),
+          if (open)
+            _RowEdit(
+              key: ValueKey('register-open-${r.txnId}-${r.entryId}'),
+              row: r,
+              categories: [
+                for (final c in _data.knownCategories)
+                  if (c.currency == r.currency) c,
+              ],
+              onCancel: () => setState(() => _open = null),
+              onSave: (edit) => _save(r, edit),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _details(Words t, RegisterRow r, PhoneAccount? account) {
-    Widget line(String label, String value) => Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 92,
-            child: Text(label, style: onest(13, color: Mid.ink2)),
+  /// Saves the edit into the phone's ledger. Null when it went in, else
+  /// what to say: the ledger's own words when it refuses.
+  Future<String?> _save(RegisterRow r, PhoneRowEdit edit) async {
+    final t = context.t;
+    final store = widget.store;
+    final PhoneEdited done;
+    try {
+      done = await store.editRow(edit);
+    } on LockedException catch (e) {
+      return dbProblem(t, e);
+    } on DbException catch (e) {
+      return t.ledgerCouldntSaveBecause(dbProblem(t, e));
+    } catch (e) {
+      debugPrint('Saving a row on the phone failed: $e');
+      return t.ledgerCouldntSave;
+    }
+    if (!mounted) return null;
+    setState(() => _open = null);
+    final name = (edit.payee ?? '').isEmpty ? rowPayee(t, r) : edit.payee!;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const ValueKey('row-saved'),
+          backgroundColor: Mid.raised,
+          content: Text(t.ledgerEdited(name), style: onest(15, color: Mid.ink)),
+          action: SnackBarAction(
+            label: t.ledgerUndo,
+            textColor: Mid.blue,
+            onPressed: () => unawaited(store.restoreRow(done.before)),
           ),
-          Expanded(child: Text(value, style: onest(15, color: Mid.ink))),
-        ],
+        ),
+      );
+    return null;
+  }
+}
+
+/// A row opened in place: its fields, then Save and Cancel (#527). A split,
+/// a transfer or an opening balance has its date and memo here; the rest is
+/// the computer's for now.
+class _RowEdit extends StatefulWidget {
+  const _RowEdit({
+    super.key,
+    required this.row,
+    required this.categories,
+    required this.onCancel,
+    required this.onSave,
+  });
+  final RegisterRow row;
+  final List<AccountInfo> categories;
+  final VoidCallback onCancel;
+
+  /// Saves; returns what to say when it didn't go in.
+  final Future<String?> Function(PhoneRowEdit edit) onSave;
+
+  @override
+  State<_RowEdit> createState() => _RowEditState();
+}
+
+class _RowEditState extends State<_RowEdit> {
+  late final TextEditingController _payee;
+  late final TextEditingController _amount;
+  late final TextEditingController _memo;
+  late DateTime _date;
+  late int? _category;
+  late bool _moneyIn;
+  String? _said;
+  var _saving = false;
+
+  RegisterRow get _r => widget.row;
+  bool get _simple => _r.kind == RowKind.simple;
+
+  /// A reconciled row's date and amount stay as they are.
+  bool get _locked => _r.locked;
+
+  @override
+  void initState() {
+    super.initState();
+    _payee = TextEditingController(text: _r.txnPayee ?? _r.payee);
+    _amount = TextEditingController(
+      text: groupTyped(typedOfMinor(_r.amount, _r.currency), const []).text,
+    );
+    _memo = TextEditingController(text: _r.memo);
+    _date = DateTime(_r.date.year, _r.date.month, _r.date.day);
+    _category = _r.categoryId;
+    _moneyIn = _r.amount > 0;
+  }
+
+  @override
+  void dispose() {
+    _payee.dispose();
+    _amount.dispose();
+    _memo.dispose();
+    super.dispose();
+  }
+
+  int? get _typed => parseAmount(_amount.text, _r.currency)?.abs();
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => _date = picked);
+  }
+
+  Future<void> _save() async {
+    final t = context.t;
+    final typed = _typed;
+    if (_simple && (typed == null || typed == 0)) {
+      setState(() => _said = t.rowsColumnAmount);
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _said = null;
+    });
+    final amount = !_simple ? null : (_moneyIn ? typed! : -typed!);
+    final said = await widget.onSave((
+      txn: _r.txnId,
+      account: _r.accountId,
+      date: _date,
+      payee: _simple ? _payee.text.trim() : _r.txnPayee,
+      memo: _memo.text,
+      counter: _simple && _category != _r.categoryId ? _category : null,
+      amount: amount != null && amount != _r.amount ? amount : null,
+    ));
+    if (mounted && said != null) {
+      setState(() {
+        _saving = false;
+        _said = said;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    InputDecoration box(String label) => InputDecoration(
+      labelText: label,
+      labelStyle: onest(14, color: Mid.ink2),
+      enabledBorder: UnderlineInputBorder(
+        borderSide: BorderSide(color: Mid.rule),
       ),
     );
-    return Column(
-      key: ValueKey('register-open-${r.txnId}-${r.entryId}'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 4),
-        Divider(height: 1, color: Mid.rule),
-        if (account != null) line(t.rowsColumnAccount, account.name),
-        line(t.rowsColumnDate, fullDate(r.date)),
-        line(t.rowsColumnCategory, rowCategory(t, r)),
-        if (r.memo.isNotEmpty) line(t.rowsHintMemo, r.memo),
-        line('', clearedName(t, r.cleared)),
-      ],
+    final category = widget.categories
+        .where((c) => c.id == _category)
+        .firstOrNull;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Divider(height: 1, color: Mid.rule),
+          if (_simple) ...[
+            TextField(
+              key: const ValueKey('row-payee'),
+              controller: _payee,
+              style: onest(16, color: Mid.ink),
+              decoration: box(t.rowsHintPayee),
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('row-amount'),
+                    controller: _amount,
+                    enabled: !_locked,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [GroupedAmount(_r.currency)],
+                    style: onest(16, color: Mid.ink),
+                    decoration: box(t.rowsColumnAmount),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (!_locked)
+                  _SignButton(
+                    moneyIn: _moneyIn,
+                    onTap: () => setState(() => _moneyIn = !_moneyIn),
+                  ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: PopupMenuButton<int>(
+                key: const ValueKey('row-category'),
+                color: Mid.raised,
+                onSelected: (id) => setState(() => _category = id),
+                itemBuilder: (_) => [
+                  for (final c in widget.categories)
+                    PopupMenuItem<int>(
+                      value: c.id,
+                      child: Text(c.name, style: onest(16, color: Mid.ink)),
+                    ),
+                ],
+                child: InputDecorator(
+                  decoration: box(t.rowsColumnCategory),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          category?.name ?? _r.categoryLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: onest(16, color: Mid.ink),
+                        ),
+                      ),
+                      Icon(Icons.arrow_drop_down_rounded, color: Mid.ink2),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: InkWell(
+              key: const ValueKey('row-date'),
+              onTap: _locked ? null : _pickDate,
+              child: InputDecorator(
+                decoration: box(t.rowsColumnDate),
+                child: Text(
+                  fullDate(_date),
+                  style: onest(16, color: _locked ? Mid.ink3 : Mid.ink),
+                ),
+              ),
+            ),
+          ),
+          TextField(
+            key: const ValueKey('row-memo'),
+            controller: _memo,
+            style: onest(16, color: Mid.ink),
+            decoration: box(t.rowsHintMemo),
+          ),
+          if (_locked)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                t.rowsReconciledLocked,
+                style: onest(13, color: Mid.ink2),
+              ),
+            ),
+          if (_said != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                _said!,
+                key: const ValueKey('row-said'),
+                style: onest(14, color: Mid.coral),
+              ),
+            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  key: const ValueKey('row-save'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Mid.fill,
+                    foregroundColor: Mid.onFill,
+                    minimumSize: const Size.fromHeight(44),
+                  ),
+                  onPressed: _saving ? null : _save,
+                  child: Text(t.rowsSave, style: onest(15, weight: 600)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                key: const ValueKey('row-cancel'),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(88, 44),
+                  foregroundColor: Mid.ink2,
+                ),
+                onPressed: widget.onCancel,
+                child: Text(t.rowsCancel, style: onest(15)),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
