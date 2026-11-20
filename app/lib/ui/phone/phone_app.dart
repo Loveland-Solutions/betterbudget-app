@@ -1175,7 +1175,7 @@ class _BudgetScreenState extends State<_BudgetScreen> {
           action: SnackBarAction(
             label: t.ledgerUndo,
             textColor: Mid.blue,
-            onPressed: () => unawaited(store.replay(done.done.undo)),
+            onPressed: () => unawaited(store.replay(done.change.undo)),
           ),
         ),
       );

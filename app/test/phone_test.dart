@@ -2599,6 +2599,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('delete-into-0')));
     await tester.pumpAndSettle();
+    // Moved into a category of its own currency, its money moves with the
+    // rows: nothing goes back to Not assigned.
+    expect(find.byKey(const ValueKey('delete-money-back')), findsNothing);
     await tester.tap(find.byKey(const ValueKey('warning-confirm')));
     await settle();
     expect(data.categories.any((a) => a.id == groceries), isFalse);

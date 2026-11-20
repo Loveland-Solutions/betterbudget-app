@@ -121,8 +121,8 @@ Future<_EditDone?> _openEditCategory(
 /// What Edit did, for Budget's snack bar: [said] when it was an archive or
 /// a delete, else the plain "edited".
 class _EditDone {
-  const _EditDone(this.done, [this.said]);
-  final PhoneActed done;
+  const _EditDone(this.change, [this.said]);
+  final PhoneActed change;
   final String? said;
 }
 
@@ -595,9 +595,13 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         builder: (_) => const _NewGroupAsk(),
       );
       if (name == null || name.isEmpty || !mounted) return;
+      // A group there already is taken as spelled, as on the computer.
+      final same = _groupNames
+          .where((g) => g.toLowerCase() == name.toLowerCase())
+          .firstOrNull;
       setState(() {
-        if (!_groupNames.contains(name)) _groupNames.add(name);
-        _group = name;
+        if (same == null) _groupNames.add(name);
+        _group = same ?? name;
       });
       return;
     }
@@ -667,8 +671,20 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     final t = context.t;
     final id = int.parse(c.id);
     final n = widget.rows;
+    // Its Assigned goes back unless it moves with the rows: Income holds
+    // none, and in another currency it would be read as that one's.
+    String? backFor(AccountInfo? into) =>
+        (into == null || into.isIncome || into.currency != c.currency) &&
+            c.leftMinor != 0
+        ? t.planMoneyBack(
+            formatMoney(c.leftMinor, currency: c.currency),
+            c.name,
+          )
+        : null;
     AccountInfo? into;
-    if (n > 0) {
+    // Asked while there are rows to move or money to go back, said before
+    // anything is done; with neither it just goes.
+    if (n > 0 || c.leftMinor != 0) {
       final asked = await showDialog<({AccountInfo? into})>(
         context: context,
         builder: (_) => _DeleteCategoryAsk(
@@ -677,6 +693,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
           scheduled: widget.scheduled,
           targets: widget.targets,
           pick: _pick,
+          backFor: backFor,
         ),
       );
       if (asked == null || !mounted) return;
@@ -684,20 +701,11 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     }
     final done = await _actOn(PhoneDeleteCategory(id, into?.id));
     if (done == null || !mounted) return;
-    // Its Assigned goes back unless it moves with the rows: Income holds
-    // none, and in another currency it would be read as that one's.
-    final back =
-        (into == null || into.isIncome || into.currency != c.currency) &&
-            c.leftMinor != 0
-        ? t.planMoneyBack(
-            formatMoney(c.leftMinor, currency: c.currency),
-            c.name,
-          )
-        : null;
     final said = into == null
         ? t.ledgerDeleted(c.name)
         : t.ledgerDeletedRowsMovedTo(c.name, n, into.name);
-    Navigator.of(context).pop(_EditDone(done, [said, ?back].join(' · ')));
+    Navigator.of(context)
+        .pop(_EditDone(done, [said, ?backFor(into)].join(' · ')));
   }
 
   /// An archive or delete through the ledger; null, with the refusal said,
@@ -2062,7 +2070,11 @@ class _DeleteCategoryAsk extends StatefulWidget {
     required this.scheduled,
     required this.targets,
     required this.pick,
+    required this.backFor,
   });
+
+  /// What is said about its money going back, for where the rows go.
+  final String? Function(AccountInfo? into) backFor;
   final PhoneCategory category;
   final int rows;
   final int scheduled;
@@ -2087,14 +2099,17 @@ class _DeleteCategoryAskState extends State<_DeleteCategoryAsk> {
     final t = context.t;
     final c = widget.category;
     final into = _into;
+    final rows = widget.rows > 0;
     final line = widget.scheduled == 0
         ? t.planRowsFiled(widget.rows)
         : t.planRowsFiledScheduled(widget.rows, widget.scheduled);
-    final note = into == null || !into.isIncome
+    final note = !rows || into == null || !into.isIncome
         ? null
         : widget.scheduled == 0
         ? t.planIntoIncome(into.name)
         : t.planIntoIncomeScheduled(into.name);
+    final back = widget.backFor(rows ? into : null);
+    final ready = !rows || into != null;
     return AlertDialog(
       backgroundColor: Mid.panel,
       title: Text(
@@ -2105,36 +2120,46 @@ class _DeleteCategoryAskState extends State<_DeleteCategoryAsk> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(line, style: onest(15)),
-          const SizedBox(height: 12),
-          if (widget.targets.isEmpty)
-            Text(t.planNoOtherCategory, style: onest(15, color: Mid.coral))
-          else
-            OutlinedButton(
-              key: const ValueKey('delete-category-into'),
-              onPressed: () async {
-                final id = await widget.pick<int>(
-                  t.planPickCategory,
-                  [for (final a in widget.targets) (a.id, a.name)],
-                  chosen: into?.id ?? -1,
-                  keyPrefix: 'delete-into',
-                );
-                if (id == null || !mounted) return;
-                setState(
-                  () => _into = widget.targets.firstWhere((a) => a.id == id),
-                );
-              },
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                foregroundColor: Mid.ink,
-                side: BorderSide(color: Mid.rule),
-                textStyle: onest(16, weight: 500),
+          if (rows) ...[
+            Text(line, style: onest(15)),
+            const SizedBox(height: 12),
+            if (widget.targets.isEmpty)
+              Text(t.planNoOtherCategory, style: onest(15, color: Mid.coral))
+            else
+              OutlinedButton(
+                key: const ValueKey('delete-category-into'),
+                onPressed: () async {
+                  final id = await widget.pick<int>(
+                    t.planPickCategory,
+                    [for (final a in widget.targets) (a.id, a.name)],
+                    chosen: into?.id ?? -1,
+                    keyPrefix: 'delete-into',
+                  );
+                  if (id == null || !mounted) return;
+                  setState(
+                    () => _into = widget.targets.firstWhere((a) => a.id == id),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: Mid.ink,
+                  side: BorderSide(color: Mid.rule),
+                  textStyle: onest(16, weight: 500),
+                ),
+                child: Text(into?.name ?? t.planPickCategory),
               ),
-              child: Text(into?.name ?? t.planPickCategory),
-            ),
+          ],
           if (note != null) ...[
             const SizedBox(height: 10),
             Text(note, style: onest(14, color: Mid.ink2)),
+          ],
+          if (back != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              back,
+              key: const ValueKey('delete-money-back'),
+              style: onest(14, color: Mid.ink2),
+            ),
           ],
         ],
       ),
@@ -2146,11 +2171,11 @@ class _DeleteCategoryAskState extends State<_DeleteCategoryAsk> {
         ),
         TextButton(
           key: const ValueKey('warning-confirm'),
-          onPressed: into == null
+          onPressed: !ready
               ? null
-              : () => Navigator.of(context).pop((into: into)),
+              : () => Navigator.of(context).pop((into: rows ? into : null)),
           child: Text(
-            into == null
+            !rows || into == null
                 ? t.planDeleteButton(c.name)
                 : t.planMoveAndDelete(into.name),
             style: onest(15, weight: 600, color: Mid.coral),
