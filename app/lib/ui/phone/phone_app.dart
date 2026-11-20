@@ -27,7 +27,9 @@ import '../../data/phone_sync.dart'
         PhoneMarkCleared,
         PhoneMoveRow,
         PhoneNews,
+        PhoneNoBill,
         PhoneRowAct,
+        PhoneRowConfirm,
         PhoneRowEdit;
 import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
@@ -141,6 +143,21 @@ class PhoneStore extends ChangeNotifier {
     if (into == null) throw UnsupportedError('No ledger to edit');
     await settle?.call();
     final done = await into(edit);
+    _snapshot = done.snapshot;
+    _changes++;
+    notifyListeners();
+    return done;
+  }
+
+  /// Set by whoever keeps the ledger: confirms a scheduled row (#527).
+  Future<PhoneActed> Function(PhoneRowConfirm confirm)? confirmRowIn;
+
+  /// Confirms a scheduled row; throws what the ledger refuses.
+  Future<PhoneActed> confirmRow(PhoneRowConfirm confirm) async {
+    final into = confirmRowIn;
+    if (into == null) throw UnsupportedError('No ledger to edit');
+    await settle?.call();
+    final done = await into(confirm);
     _snapshot = done.snapshot;
     _changes++;
     notifyListeners();

@@ -14,7 +14,8 @@ import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_sync.dart';
 import 'package:betterbudget/domain/combine.dart' show Pick;
-import 'package:betterbudget/domain/ledger.dart' show Cleared, RegisterRow;
+import 'package:betterbudget/domain/ledger.dart'
+    show CategoryPlan, Cleared, PlanKind, RegisterRow;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -402,6 +403,121 @@ void main() {
     expect(await there(macDb), isNull);
     await deleted.undo();
     expect(await there(phone.db!), isNotNull);
+  });
+
+  /// A rent bill due on the 6th each month, scheduled on the computer.
+  Future<int> rentBill() async {
+    final ledger = await macDb.loadLedger();
+    final bank = ledger.accounts.values
+        .singleWhere((a) => a.name == 'TDB Checking')
+        .id;
+    final rent = await macDb.createCategory('Rent');
+    await macDb.setCategoryPlan(
+      rent,
+      CategoryPlan(
+        categoryId: rent,
+        kind: PlanKind.byDate,
+        amount: 80000000,
+        start: monday,
+        due: DateTime(2026, 10, 6),
+        everyMonths: 1,
+        paidFrom: bank,
+      ),
+    );
+    await macDb.ensurePlanBills(monday);
+    return rent;
+  }
+
+  Future<List<RegisterRow>> billsOn(AppDatabase db, int rent) async => [
+    for (final r in (await db.loadLedger()).registerAll().scheduled)
+      if (r.planCategoryId == rent) r,
+  ];
+
+  test('Confirm on a scheduled bill makes it real and schedules the next, '
+      'and Undo takes both back (#527)', () async {
+    final rent = await rentBill();
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final bill = (await billsOn(phone.db!, rent)).single;
+    final done = await phone.confirmRow((
+      edit: (
+        txn: bill.txnId,
+        account: bill.accountId,
+        date: DateTime(2026, 10, 6),
+        payee: null,
+        memo: '',
+        counter: null,
+        amount: -79000000,
+        splits: null,
+      ),
+      paySchedule: null,
+      planCategory: rent,
+    ), tuesday);
+    var ledger = await phone.db!.loadLedger();
+    final posted = ledger.registerAll().posted.singleWhere(
+      (r) => r.txnId == bill.txnId,
+    );
+    expect(posted.amount, -79000000);
+    final next = await billsOn(phone.db!, rent);
+    expect(next.single.date, DateTime(2026, 11, 6));
+    // The computer takes both.
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect(
+      (await macDb.loadLedger()).registerAll().posted.any(
+        (r) => r.txnId == bill.txnId,
+      ),
+      isTrue,
+    );
+    await done.undo();
+    ledger = await phone.db!.loadLedger();
+    final back = await billsOn(phone.db!, rent);
+    expect(back.single.txnId, bill.txnId);
+    expect(back.single.amount, bill.amount);
+    await done.redo();
+    expect((await billsOn(phone.db!, rent)).single.date, DateTime(2026, 11, 6));
+  });
+
+  test('a bill can’t be confirmed for a date after today (#527)', () async {
+    final rent = await rentBill();
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final bill = (await billsOn(phone.db!, rent)).single;
+    expect(
+      () => phone.confirmRow((
+        edit: (
+          txn: bill.txnId,
+          account: bill.accountId,
+          date: DateTime(2026, 10, 9),
+          payee: null,
+          memo: '',
+          counter: null,
+          amount: null,
+          splits: null,
+        ),
+        paySchedule: null,
+        planCategory: rent,
+      ), tuesday),
+      throwsA(isA<LockedException>()),
+    );
+  });
+
+  test('No bill this time skips a bill, keeps the next, and Undo brings it '
+      'back (#527)', () async {
+    final rent = await rentBill();
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final bill = (await billsOn(phone.db!, rent)).single;
+    final done = await phone.actOnRow(
+      PhoneNoBill(bill.txnId, rent, bill.date),
+      tuesday,
+    );
+    final after = await billsOn(phone.db!, rent);
+    expect(after.map((r) => r.txnId), isNot(contains(bill.txnId)));
+    expect(after.single.date, DateTime(2026, 11, 6));
+    await done.undo();
+    expect((await billsOn(phone.db!, rent)).single.txnId, bill.txnId);
   });
 
   test('a row of the phone’s own is taken back from its id alone, as after '

@@ -374,7 +374,9 @@ class _RegisterState extends State<_RegisterScreen> {
                   if (c.currency == r.currency) c,
               ],
               onCancel: () => setState(() => _open = null),
+              today: widget.now(),
               onSave: (edit) => _save(r, edit),
+              onConfirm: (edit) => _confirm(r, edit),
               more: _more(t, r),
             ),
         ],
@@ -396,6 +398,8 @@ class _RegisterState extends State<_RegisterScreen> {
             unawaited(_markCleared(r));
           case 'move':
             unawaited(_move(r));
+          case 'nobill':
+            unawaited(_noBill(r));
           case 'delete':
             unawaited(_delete(r));
         }
@@ -413,10 +417,18 @@ class _RegisterState extends State<_RegisterScreen> {
           value: 'move',
           child: Text(t.rowsMoveTo, style: onest(16, color: Mid.ink)),
         ),
-        PopupMenuItem<String>(
-          value: 'delete',
-          child: Text(t.rowsDelete, style: onest(16, color: Mid.ink)),
-        ),
+        // A category's bill: deleting it was always skipping it, so the
+        // item says so (as on the computer).
+        if (r.scheduled && r.planCategoryId != null && r.amount < 0)
+          PopupMenuItem<String>(
+            value: 'nobill',
+            child: Text(t.rowsNoBillThisTime, style: onest(16, color: Mid.ink)),
+          )
+        else
+          PopupMenuItem<String>(
+            value: 'delete',
+            child: Text(t.rowsDelete, style: onest(16, color: Mid.ink)),
+          ),
       ],
     );
   }
@@ -458,6 +470,62 @@ class _RegisterState extends State<_RegisterScreen> {
           ),
         ),
       );
+  }
+
+  /// No bill this time on a category's scheduled bill (#527).
+  Future<void> _noBill(RegisterRow r) {
+    final t = context.t;
+    final planned = r.planCategoryId!;
+    return _act(
+      r,
+      PhoneNoBill(r.txnId, planned, r.date),
+      t.ledgerNoBillLast(rowPayee(t, r), sayDate(t, r.date)),
+      said: (_) => r.lockedIn != null
+          ? t.ledgerCantDeleteTransfer(r.lockedIn!)
+          : t.ledgerCantDeleteReconciled,
+    );
+  }
+
+  /// Confirms a scheduled row. Null when it went in, else what to say.
+  Future<String?> _confirm(RegisterRow r, PhoneRowEdit edit) async {
+    final t = context.t;
+    final store = widget.store;
+    final PhoneActed done;
+    try {
+      done = await store.confirmRow((
+        edit: edit,
+        paySchedule: r.payScheduleId,
+        planCategory: r.planCategoryId,
+      ));
+    } on LockedException catch (e) {
+      return dbProblem(t, e);
+    } on DbException catch (e) {
+      return t.ledgerCouldntSaveBecause(dbProblem(t, e));
+    } catch (e) {
+      debugPrint('Confirming a row on the phone failed: $e');
+      return t.ledgerCouldntSave;
+    }
+    if (!mounted) return null;
+    setState(() => _open = null);
+    final name = (edit.payee ?? '').isEmpty ? rowPayee(t, r) : edit.payee!;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const ValueKey('row-confirmed'),
+          backgroundColor: Mid.raised,
+          content: Text(
+            t.ledgerConfirmed(name),
+            style: onest(15, color: Mid.ink),
+          ),
+          action: SnackBarAction(
+            label: t.ledgerUndo,
+            textColor: Mid.blue,
+            onPressed: () => unawaited(store.replay(done.undo)),
+          ),
+        ),
+      );
+    return null;
   }
 
   void _say(String words) {
@@ -587,6 +655,8 @@ class _RowEdit extends StatefulWidget {
     required this.categories,
     required this.onCancel,
     required this.onSave,
+    required this.onConfirm,
+    required this.today,
     required this.more,
   });
   final RegisterRow row;
@@ -599,6 +669,10 @@ class _RowEdit extends StatefulWidget {
 
   /// Saves; returns what to say when it didn't go in.
   final Future<String?> Function(PhoneRowEdit edit) onSave;
+
+  /// Confirms a scheduled row; returns what to say when it didn't go in.
+  final Future<String?> Function(PhoneRowEdit edit) onConfirm;
+  final DateTime today;
 
   @override
   State<_RowEdit> createState() => _RowEditState();
@@ -633,7 +707,9 @@ class _RowEditState extends State<_RowEdit> {
       text: groupTyped(typedOfMinor(_r.amount, _r.currency), const []).text,
     );
     _memo = TextEditingController(text: _r.memo);
-    _date = DateTime(_r.date.year, _r.date.month, _r.date.day);
+    // A scheduled row opens to be confirmed: it happened, so dated today.
+    final day = _r.scheduled ? widget.today : _r.date;
+    _date = DateTime(day.year, day.month, day.day);
     _category = _r.categoryId;
     _moneyIn = _r.amount > 0;
     if (_r.kind == RowKind.split) {
@@ -759,7 +835,7 @@ class _RowEditState extends State<_RowEdit> {
       _said = null;
     });
     final amount = !_simple ? null : (_moneyIn ? typed! : -typed!);
-    final said = await widget.onSave((
+    final said = await (_r.scheduled ? widget.onConfirm : widget.onSave)((
       txn: _r.txnId,
       account: _r.accountId,
       date: _date,
@@ -932,7 +1008,10 @@ class _RowEditState extends State<_RowEdit> {
                     minimumSize: const Size.fromHeight(44),
                   ),
                   onPressed: _saving ? null : _save,
-                  child: Text(t.rowsSave, style: onest(15, weight: 600)),
+                  child: Text(
+                    _r.scheduled ? t.rowsConfirm : t.rowsSave,
+                    style: onest(15, weight: 600),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),

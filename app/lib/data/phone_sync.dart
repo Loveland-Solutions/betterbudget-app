@@ -14,8 +14,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
+import '../domain/budget.dart' show Budget;
 import '../domain/combine.dart' show Ask, Pick;
-import '../domain/ledger.dart' show Cleared;
+import '../domain/ledger.dart' show Cleared, billSkippedKey, billSkippedValue;
 import '../domain/phone.dart';
 import '../domain/sync.dart' show appliedMarkerOp;
 import 'backup.dart';
@@ -86,6 +87,15 @@ typedef PhoneRowEdit = ({
   List<SplitPart>? splits,
 });
 
+/// A scheduled row confirmed (#527): the edit as the person made it, and the
+/// payday's schedule or the plan's category the row came from, whose next
+/// one is scheduled once this one is real.
+typedef PhoneRowConfirm = ({
+  PhoneRowEdit edit,
+  int? paySchedule,
+  int? planCategory,
+});
+
 /// An edit done: the ledger as it stands after, and the row as it was and
 /// as it is, which undo and redo put back.
 typedef PhoneEdited = ({
@@ -111,6 +121,15 @@ class PhoneMoveRow extends PhoneRowAct {
   final int txn;
   final int from;
   final int to;
+}
+
+/// No bill this time (#527): a category's scheduled bill, due [date], is
+/// skipped, and its money stays for the next one.
+class PhoneNoBill extends PhoneRowAct {
+  const PhoneNoBill(this.txn, this.planCategory, this.date);
+  final int txn;
+  final int planCategory;
+  final DateTime date;
 }
 
 class PhoneDeleteRow extends PhoneRowAct {
@@ -162,6 +181,12 @@ abstract class PhoneLedgerSource {
   /// Edits a row of the phone's own ledger, as a change the computers see
   /// (#527). Throws what the ledger refuses (a reconciled row's amount).
   Future<PhoneEdited> editRow(PhoneRowEdit edit, DateTime now) =>
+      throw UnsupportedError('This source keeps no ledger to edit');
+
+  /// Confirms a scheduled row: it happened, so it is dated and valued as
+  /// [confirm] says and the next payday or bill is scheduled (#527). Throws
+  /// what the ledger refuses (a date after today).
+  Future<PhoneActed> confirmRow(PhoneRowConfirm confirm, DateTime now) =>
       throw UnsupportedError('This source keeps no ledger to edit');
 
   /// Puts a row back as [row] was, for Undo and Redo of an edit.
@@ -524,6 +549,63 @@ class PhoneSync implements PhoneLedgerSource {
   }
 
   @override
+  Future<PhoneActed> confirmRow(PhoneRowConfirm confirm, DateTime now) async {
+    final db = await _ledger();
+    final edit = confirm.edit;
+    final before = await db.snapshot(edit.txn);
+    await db.editTransaction(
+      transactionId: edit.txn,
+      accountId: edit.account,
+      date: edit.date,
+      today: now,
+      payee: edit.payee,
+      memo: edit.memo,
+      counterAccountId: edit.counter,
+      amount: edit.amount,
+      confirm: true,
+    );
+    final after = await db.snapshot(edit.txn);
+    // Only its own: confirming a bill never touches pay.
+    var next = const <int>[];
+    var nextBills = const <int>[];
+    final schedule = confirm.paySchedule;
+    final planned = confirm.planCategory;
+    if (schedule != null) {
+      try {
+        next = await db.ensurePaydays(now, only: schedule);
+      } catch (e) {
+        debugPrint('Scheduling the next payday failed: $e');
+      }
+    }
+    if (planned != null) {
+      try {
+        nextBills = await db.ensurePlanBills(now, only: planned);
+      } catch (e) {
+        debugPrint('Scheduling the next bill failed: $e');
+      }
+    }
+    return (
+      snapshot: await asItStands(now),
+      undo: () async {
+        await db.transaction(() async {
+          await db.dropPaydays(next);
+          await db.dropPlanBills(nextBills);
+          await db.restoreSnapshot(before);
+        });
+        return asItStands(now);
+      },
+      redo: () async {
+        await db.transaction(() async {
+          await db.restoreSnapshot(after);
+          if (schedule != null) await db.bringBackPaydays(next, schedule);
+          if (planned != null) await db.bringBackPlanBills(nextBills, planned);
+        });
+        return asItStands(now);
+      },
+    );
+  }
+
+  @override
   Future<PhoneSnapshot> restoreRow(TxnSnapshot row, DateTime now) async {
     final db = await _ledger();
     await db.restoreSnapshot(row);
@@ -563,6 +645,45 @@ class PhoneSync implements PhoneLedgerSource {
           },
           redo: () async {
             await db.redoMove(done);
+            return again();
+          },
+        );
+      case PhoneNoBill(:final txn, :final planCategory, :final date):
+        final data = await db.loadLedger();
+        final plan = data.plans[planCategory];
+        final pay = data.payScheduleById(plan?.payScheduleId);
+        final due =
+            (plan == null
+                ? null
+                : Budget.billDate(
+                    plan,
+                    date,
+                    pay: pay,
+                    skipped: Budget.skippedBills(data, plan),
+                  )) ??
+            date;
+        final skipKey = billSkippedKey(txn);
+        final skipValue = billSkippedValue(planCategory, due);
+        final deleted = await db.softDeleteMany([txn]);
+        if (deleted.isEmpty) throw LockedException(DbProblem.reconciled);
+        await db.setPreference(skipKey, skipValue);
+        final made = await db.ensurePlanBills(now, only: planCategory);
+        return (
+          snapshot: await again(),
+          undo: () async {
+            await db.transaction(() async {
+              await db.dropPlanBills(made);
+              await db.restoreMany(deleted);
+              await db.setPreference(skipKey, null);
+            });
+            return again();
+          },
+          redo: () async {
+            await db.transaction(() async {
+              await db.softDeleteMany(deleted);
+              await db.setPreference(skipKey, skipValue);
+              await db.bringBackPlanBills(made, planCategory);
+            });
             return again();
           },
         );
