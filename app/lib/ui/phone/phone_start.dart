@@ -372,13 +372,13 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         unawaited(_load());
         return snapshot;
       };
-      // Only while something is waiting: that is all there is to wait
-      // for. Coming back to the front always reads.
+      // Every half minute while the app is open, whether or not anything
+      // waits: the phone is another computer on the ledger (#526), so what
+      // the others change is brought in as it happens, not only when the
+      // app comes back to the front.
       _again ??= Timer.periodic(widget.every, (_) {
         final store = _store;
         if (_step != _Step.ready || store == null) return;
-        // Also while the computers haven't applied what the phone entered.
-        if (store.nothingOnTheWay) return;
         _load();
       });
     } else {
