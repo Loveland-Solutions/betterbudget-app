@@ -586,6 +586,8 @@ class RegisterPanel extends StatelessWidget {
 
     Widget postedRow(int i, RegisterRow r, {bool? isPointed}) => _PostedRow(
       row: r,
+      notCategorized:
+          uncategorizedId != null && r.categoryId == uncategorizedId,
       today: today,
       check: unclearedCheck(r.accountId),
       owed: owed,
@@ -1305,6 +1307,7 @@ class _HeaderRow extends StatelessWidget {
 class _PostedRow extends StatelessWidget {
   const _PostedRow({
     required this.row,
+    this.notCategorized = false,
     required this.today,
     required this.check,
     required this.owed,
@@ -1339,6 +1342,9 @@ class _PostedRow extends StatelessWidget {
   final String? categoryShown;
 
   final RegisterRow row;
+
+  /// The row sits in Not categorized: its chip is red so it's found at a glance.
+  final bool notCategorized;
   final DateTime today;
 
   /// The row a line elsewhere names: outlined so it's found at a glance.
@@ -1634,6 +1640,7 @@ class _PostedRow extends StatelessWidget {
                                   ],
                                   builder: (open, toggle) => CategoryChip(
                                     label: categoryShown ?? r.categoryLabel,
+                                    alert: notCategorized,
                                     open: open,
                                     onTap: toggle,
                                   ),
@@ -2124,9 +2131,13 @@ class CategoryChip extends StatelessWidget {
     required this.open,
     required this.onTap,
     this.arrow = true,
+    this.alert = false,
     this.focusNode,
   });
   final String label;
+
+  /// Red words: the row is still in Not categorized.
+  final bool alert;
   final bool open;
   final VoidCallback onTap;
   final FocusNode? focusNode;
@@ -2142,10 +2153,16 @@ class CategoryChip extends StatelessWidget {
       height: 28,
       padding: const EdgeInsets.fromLTRB(10, 0, 8, 0),
       decoration: BoxDecoration(
-        color: open ? Mid.ground : (hover ? Mid.raised : Mid.chip),
+        color: alert && !open
+            ? Mid.coral.withValues(alpha: hover ? 0.16 : 0.10)
+            : (open ? Mid.ground : (hover ? Mid.raised : Mid.chip)),
         borderRadius: BorderRadius.circular(open ? 8 : 14),
         border: Border.all(
-          color: open ? Mid.blue : Colors.transparent,
+          color: open
+              ? Mid.blue
+              : (alert
+                    ? Mid.coral.withValues(alpha: 0.25)
+                    : Colors.transparent),
           width: 1.5,
         ),
         boxShadow: open
@@ -2163,7 +2180,10 @@ class CategoryChip extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              style: onest(12.5, color: open ? Mid.ink : Mid.ink2),
+              style: onest(
+                12.5,
+                color: alert ? Mid.coral : (open ? Mid.ink : Mid.ink2),
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
