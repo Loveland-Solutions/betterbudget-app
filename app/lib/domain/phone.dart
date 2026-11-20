@@ -63,7 +63,15 @@ class PhoneCategory {
     this.type,
     this.coverMinor = 0,
     this.coverMonth,
+    this.assignedMinor = 0,
+    this.spentMinor = 0,
   });
+
+  /// This period's Assigned and Spent as the budget read them when the
+  /// snapshot was made (#528), for a row opened on Budget; [spentNow]
+  /// counts the entries still waiting.
+  final int assignedMinor;
+  final int spentMinor;
 
   /// By a paycheck, what of its month's money lies outside this one, for
   /// a monthly category (#468, owner 2026-11-16: "Say it's ahead, not
@@ -604,6 +612,12 @@ double? usedShareNow(PhoneCategory category, int left) {
   return used <= 0 ? 0 : (used >= had ? 1 : used / had);
 }
 
+/// What [category] has spent this period once the [waiting] entries are
+/// counted: the snapshot's figure plus money out, less a refund, as
+/// [leftNow] moves Left by the same amounts.
+int spentNow(PhoneCategory category, Iterable<PhoneEntry> waiting) =>
+    category.spentMinor + category.leftMinor - leftNow(category, waiting);
+
 int leftNow(PhoneCategory category, Iterable<PhoneEntry> waiting) {
   var left = category.leftMinor;
   for (final e in waiting) {
@@ -830,6 +844,8 @@ PhoneSnapshot snapshotOf(
             id: '${c.id}',
             name: c.name,
             leftMinor: budget.lines[c.id]!.left,
+            assignedMinor: budget.lines[c.id]!.assigned,
+            spentMinor: budget.lines[c.id]!.spent,
             currency: budget.lines[c.id]!.currency,
             // Its own Paid from (#180), else where its last row was paid.
             paidFromId: (data.paidFrom[c.id] ?? paidFrom[c.id])?.toString(),
