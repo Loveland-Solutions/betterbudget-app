@@ -15,12 +15,19 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../domain/combine.dart' show Ask, Pick;
+import '../domain/ledger.dart' show Cleared;
 import '../domain/phone.dart';
 import '../domain/sync.dart' show appliedMarkerOp;
 import 'backup.dart';
 import 'cloud_folder.dart';
 import 'database.dart'
-    show AppDatabase, ChangedSinceException, PhoneTake, TxnSnapshot;
+    show
+        AppDatabase,
+        ChangedSinceException,
+        DbProblem,
+        LockedException,
+        PhoneTake,
+        TxnSnapshot;
 import 'folder_io.dart';
 import 'phone_ledger.dart';
 import 'phone_own_ledger.dart';
@@ -84,6 +91,38 @@ typedef PhoneEdited = ({
   TxnSnapshot after,
 });
 
+/// What a row's ⋯ menu does (#527): mark one entry cleared or uncleared,
+/// move a row's side to another account, or delete the row.
+sealed class PhoneRowAct {
+  const PhoneRowAct();
+}
+
+class PhoneMarkCleared extends PhoneRowAct {
+  const PhoneMarkCleared(this.entry, this.to);
+  final int entry;
+  final Cleared to;
+}
+
+class PhoneMoveRow extends PhoneRowAct {
+  const PhoneMoveRow(this.txn, this.from, this.to);
+  final int txn;
+  final int from;
+  final int to;
+}
+
+class PhoneDeleteRow extends PhoneRowAct {
+  const PhoneDeleteRow(this.txn);
+  final int txn;
+}
+
+/// An act done: the ledger after it, and what Undo and Redo do, each
+/// returning the ledger after (and throwing what the ledger refuses).
+typedef PhoneActed = ({
+  PhoneSnapshot snapshot,
+  Future<PhoneSnapshot> Function() undo,
+  Future<PhoneSnapshot> Function() redo,
+});
+
 abstract class PhoneLedgerSource {
   /// Whether this phone already has a ledger of its own.
   bool get joined;
@@ -124,6 +163,11 @@ abstract class PhoneLedgerSource {
 
   /// Puts a row back as [row] was, for Undo and Redo of an edit.
   Future<PhoneSnapshot> restoreRow(TxnSnapshot row, DateTime now) =>
+      throw UnsupportedError('This source keeps no ledger to edit');
+
+  /// Does what a row's ⋯ menu asked, as a change the computers see (#527).
+  /// Throws what the ledger refuses (a reconciled row).
+  Future<PhoneActed> actOnRow(PhoneRowAct act, DateTime now) =>
       throw UnsupportedError('This source keeps no ledger to edit');
 
   /// What the looks since the last call brought in from the other
@@ -480,6 +524,59 @@ class PhoneSync implements PhoneLedgerSource {
     final db = await _ledger();
     await db.restoreSnapshot(row);
     return asItStands(now);
+  }
+
+  @override
+  Future<PhoneActed> actOnRow(PhoneRowAct act, DateTime now) async {
+    final db = await _ledger();
+    Future<PhoneSnapshot> again() => asItStands(now);
+    switch (act) {
+      case PhoneMarkCleared(:final entry, :final to):
+        final previous = await db.setClearedMany({entry: to});
+        if (previous.isEmpty) throw LockedException(DbProblem.reconciled);
+        return (
+          snapshot: await again(),
+          undo: () async {
+            await db.setClearedMany(previous);
+            return again();
+          },
+          redo: () async {
+            await db.setClearedMany({entry: to});
+            return again();
+          },
+        );
+      case PhoneMoveRow(:final txn, :final from, :final to):
+        final done = await db.moveToAccount(
+          transactionId: txn,
+          fromAccountId: from,
+          toAccountId: to,
+        );
+        return (
+          snapshot: await again(),
+          undo: () async {
+            await db.undoMove(done);
+            return again();
+          },
+          redo: () async {
+            await db.redoMove(done);
+            return again();
+          },
+        );
+      case PhoneDeleteRow(:final txn):
+        final deleted = await db.softDeleteMany([txn]);
+        if (deleted.isEmpty) throw LockedException(DbProblem.reconciled);
+        return (
+          snapshot: await again(),
+          undo: () async {
+            await db.restoreMany(deleted);
+            return again();
+          },
+          redo: () async {
+            await db.softDeleteMany(deleted);
+            return again();
+          },
+        );
+    }
   }
 
   Future<AppDatabase> _ledger() async {

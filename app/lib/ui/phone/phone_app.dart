@@ -11,9 +11,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../../data/database.dart'
-    show DbException, LockedException, PhoneTake, TxnSnapshot;
+    show
+        DbException,
+        LockedException,
+        NotFoundException,
+        PhoneTake,
+        TxnSnapshot;
 import '../../data/phone_sync.dart'
-    show PhoneAsking, PhoneEdited, PhoneNews, PhoneRowEdit;
+    show
+        PhoneActed,
+        PhoneAsking,
+        PhoneDeleteRow,
+        PhoneEdited,
+        PhoneMarkCleared,
+        PhoneMoveRow,
+        PhoneNews,
+        PhoneRowAct,
+        PhoneRowEdit;
 import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
 import '../../domain/budget.dart';
@@ -130,6 +144,29 @@ class PhoneStore extends ChangeNotifier {
     _changes++;
     notifyListeners();
     return done;
+  }
+
+  /// Set by whoever keeps the ledger: does what a row's ⋯ menu asked.
+  Future<PhoneActed> Function(PhoneRowAct act)? actRowIn;
+
+  /// Does [act] on the ledger; throws what the ledger refuses.
+  Future<PhoneActed> actRow(PhoneRowAct act) async {
+    final into = actRowIn;
+    if (into == null) throw UnsupportedError('No ledger to edit');
+    await settle?.call();
+    final done = await into(act);
+    _snapshot = done.snapshot;
+    _changes++;
+    notifyListeners();
+    return done;
+  }
+
+  /// Runs an [PhoneActed]'s undo or redo and shows the ledger after it.
+  Future<void> replay(Future<PhoneSnapshot> Function() step) async {
+    await settle?.call();
+    _snapshot = await step();
+    _changes++;
+    notifyListeners();
   }
 
   /// Puts a row back as it was ([editRow]'s Undo and Redo).

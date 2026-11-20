@@ -14,6 +14,7 @@ import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_sync.dart';
 import 'package:betterbudget/domain/combine.dart' show Pick;
+import 'package:betterbudget/domain/ledger.dart' show Cleared, RegisterRow;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -364,6 +365,42 @@ void main() {
     expect([
       for (final t in (await macDb.loadLedger()).txns) t.payee,
     ], isNot(contains('Nomin Super')));
+  });
+
+  test('Mark cleared and Delete on the phone reach the computer, and Undo '
+      'takes them back (#527)', () async {
+    await spend('Nomin');
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    final row = ledger.registerAll().posted.firstWhere(
+      (r) => r.payee == 'Nomin',
+    );
+    final marked = await phone.actOnRow(
+      PhoneMarkCleared(row.entryId, Cleared.cleared),
+      tuesday,
+    );
+    Future<RegisterRow?> there(AppDatabase db) async => (await db.loadLedger())
+        .registerAll()
+        .posted
+        .where((r) => r.txnId == row.txnId)
+        .firstOrNull;
+    expect((await there(phone.db!))!.cleared, Cleared.cleared);
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect((await there(macDb))!.cleared, Cleared.cleared);
+    await marked.undo();
+    expect((await there(phone.db!))!.cleared, Cleared.uncleared);
+
+    final deleted = await phone.actOnRow(PhoneDeleteRow(row.txnId), tuesday);
+    expect(await there(phone.db!), isNull);
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect(await there(macDb), isNull);
+    await deleted.undo();
+    expect(await there(phone.db!), isNotNull);
   });
 
   test('a row of the phone’s own is taken back from its id alone, as after '
