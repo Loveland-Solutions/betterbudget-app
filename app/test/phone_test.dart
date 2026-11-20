@@ -2487,6 +2487,57 @@ void main() {
     expect(nameOf(), 'Groceries');
   });
 
+  testWidgets('the Undo bar after an Edit clears by itself, with no swipe', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int groceries;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      groceries = data.accounts.values
+          .firstWhere((a) => a.isCategory && a.name == 'Groceries')
+          .id;
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    await _toBudget(tester);
+    await tester.scrollUntilVisible(
+      find.text('Groceries'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Groceries'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('open-edit-$groceries')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'Food',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byKey(const ValueKey('edit-done')), findsOneWidget);
+    // Flutter keeps a snack bar with an action until it is swiped away,
+    // unless told it may go.
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('edit-done')), findsNothing);
+  });
+
   testWidgets('Edit has a Note and a Group saved with Save, and Archive and '
       'Delete…, each with Undo (#528)', (tester) async {
     late AppDatabase db;

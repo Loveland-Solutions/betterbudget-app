@@ -22,6 +22,9 @@ Future<void> _openMove(
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(
+        persist: false,
+        duration: phoneSnackTime,
+
         key: const ValueKey('move-done'),
         backgroundColor: Mid.raised,
         content: Text(moved.said, style: onest(15, color: Mid.ink)),
@@ -160,6 +163,9 @@ class _MovePageState extends State<_MovePage> {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
+            persist: false,
+            duration: phoneSnackTime,
+
             key: const ValueKey('move-refused'),
             backgroundColor: Mid.raised,
             content: Text(
