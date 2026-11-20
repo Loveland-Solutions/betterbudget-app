@@ -79,6 +79,13 @@ Future<PhoneActed?> _openEditCategory(
             name: editing.name,
             forEntry: false,
             editing: editing,
+            bills: id == null || data == null
+                ? const []
+                : billSwitches(data, id, today),
+            loan:
+                id != null &&
+                data != null &&
+                Budget.loanOfCategory(data, id) != null,
           ),
         ),
       )
@@ -93,7 +100,14 @@ class _NewCategoryPage extends StatefulWidget {
     required this.name,
     required this.forEntry,
     this.editing,
+    this.bills = const [],
+    this.loan = false,
   });
+
+  /// The period's bills a switch each (#365), for a category of the
+  /// ledger; [loan] words them as payments.
+  final List<({DateTime date, bool skipped})> bills;
+  final bool loan;
   final PhoneStore store;
   final DateTime today;
   final Currency currency;
@@ -130,6 +144,12 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
     );
     setState(() => _emoji = e);
   }
+
+  /// The switches turned in Edit, by date: only their flips (#365).
+  final _flips = <DateTime>{};
+
+  bool _expected(({DateTime date, bool skipped}) b) =>
+      b.skipped == _flips.contains(b.date);
 
   late PlanAnswers _p = widget.editing == null
       ? _fresh(widget.currency)
@@ -429,6 +449,14 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
           plan: _draft,
           type: _type,
           paidFrom: picked != null && '$picked' != c.paidFromId ? picked : null,
+          skip: [
+            for (final b in widget.bills)
+              if (!b.skipped && _flips.contains(b.date)) b.date,
+          ],
+          back: [
+            for (final b in widget.bills)
+              if (b.skipped && _flips.contains(b.date)) b.date,
+          ],
         ),
       );
     } catch (e) {
@@ -1291,6 +1319,35 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                         ),
                         const SizedBox(height: 14),
                         ..._planRows(t, line: line),
+                        if (_inLedger && widget.bills.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          _aside(
+                            widget.loan ? t.planPaymentsHere : t.planBillsHere,
+                          ),
+                          const SizedBox(height: 6),
+                          _card([
+                            for (final b in widget.bills)
+                              SwitchListTile(
+                                key: ValueKey('bill-switch-${dateKey(b.date)}'),
+                                value: _expected(b),
+                                onChanged: (_) => setState(() {
+                                  if (!_flips.remove(b.date)) {
+                                    _flips.add(b.date);
+                                  }
+                                }),
+                                title: Text(
+                                  (widget.loan
+                                      ? t.planPaymentComes
+                                      : t.planBillComes)(
+                                    b.date.year == widget.today.year
+                                        ? sayDate(t, b.date)
+                                        : sayFullDate(t, b.date),
+                                  ),
+                                  style: onest(15, color: Mid.ink),
+                                ),
+                              ),
+                          ]),
+                        ],
                         const SizedBox(height: 18),
                         // The row, as it will read on the computer's
                         // Budget page once the computer has it.

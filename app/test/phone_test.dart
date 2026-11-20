@@ -19,7 +19,9 @@ import 'package:betterbudget/domain/combine.dart'
     show Ask, AskKind, AskLine, AskSide, Pick;
 import 'package:betterbudget/domain/ledger.dart'
     show
+        AccountInfo,
         AccountType,
+        dateKey,
         BudgetAmount,
         Cleared,
         CategoryPlan,
@@ -2442,6 +2444,89 @@ void main() {
     await tester.tap(find.text('Undo'));
     await settle();
     expect(nameOf(), 'Groceries');
+  });
+
+  testWidgets('Edit on a bill has a switch for this period\'s bill, and Save '
+      'skips it, with Undo (#365)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late AccountInfo bill;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      final id = await db.createCategory('Gym');
+      await db.changeCategoryPlan(
+        id,
+        CategoryPlan(
+          categoryId: id,
+          kind: PlanKind.byDate,
+          amount: 5000000,
+          start: _now,
+          due: DateTime(_now.year, _now.month, _now.day + 3),
+          everyMonths: 1,
+        ),
+        _now,
+      );
+      data = await db.loadLedger();
+      bill = data.accounts[id]!;
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final day = billSwitches(data, bill.id, _now).first.date;
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    PhoneEditCategory? got;
+    store.actRowIn = (act) {
+      if (act is PhoneEditCategory) got = act;
+      return source.act(act);
+    };
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await _toBudget(tester);
+    await tester.scrollUntilVisible(
+      find.text(bill.name),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(bill.name));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('open-edit-${bill.id}')));
+    await tester.pumpAndSettle();
+    final switchKey = ValueKey('bill-switch-${dateKey(day)}');
+    await tester.scrollUntilVisible(
+      find.byKey(switchKey),
+      200,
+      scrollable: find
+          .byWidgetPredicate((w) => w is Scrollable && w.axis == Axis.vertical)
+          .last,
+    );
+    await tester.ensureVisible(find.byKey(switchKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(switchKey));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('new-category-add')),
+      -200,
+      scrollable: find
+          .byWidgetPredicate((w) => w is Scrollable && w.axis == Axis.vertical)
+          .last,
+    );
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await settle();
+    // What the skip does, and its Undo, is in phone_sync_test.
+    expect(got?.skip, [day]);
+    expect(got?.back, isEmpty);
   });
 
   testWidgets('a category on Budget starts an entry in it, and what was '
