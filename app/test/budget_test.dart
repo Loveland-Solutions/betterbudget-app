@@ -2519,6 +2519,29 @@ void main() {
         expect(c.overAt(c.leftMinor), isTrue);
       });
 
+      test('a phone category carries Assigned and Spent, and Spent counts '
+          'what waits (#528)', () {
+        final groceries = plan(
+          food,
+          PlanKind.each,
+          60000000,
+          start: DateTime(2026, 9, 1),
+        );
+        final c = snapshotOf(
+          ledger(
+            plans: [groceries],
+            amounts: [put(food, DateTime(2026, 11, 1), 60000000)],
+            rows: [move(DateTime(2026, 11, 2), checking, food, 10000000)],
+          ),
+          today: DateTime(2026, 11, 5),
+          madeAt: DateTime(2026, 11, 5),
+        ).categories.firstWhere((c) => c.id == '$food');
+        expect(c.assignedMinor, 60000000);
+        expect(c.spentMinor, 10000000);
+        expect(spentNow(c, const []), 10000000);
+        expect(c.leftMinor, 50000000);
+      });
+
       test('a deleted pay splits nothing', () {
         expect(
           splitScheduleOf(ledger(prefs: {BudgetKeys.splitBy: '1'})),
