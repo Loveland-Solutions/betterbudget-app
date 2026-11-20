@@ -1105,30 +1105,20 @@ class _BudgetPageState extends State<_BudgetPage> {
       Widget sum(BudgetPool p) {
         final c = p.currency, tag = tagOf(c);
         String short(int v) => formatShort(v, currency: c);
-        // Put aside in the period: what sits under Saved in the list, in
-        // its own box, so Assigned is the Total row's (budget review).
-        var aside = 0;
-        for (final x in spending) {
-          if (x.currency == c && saved.contains(x.id)) {
-            aside += budget.lines[x.id]?.assigned ?? 0;
-          }
-        }
-        if (aside < 0) aside = 0;
-        // Spent ahead isn't overspent (owner, 2026-11-16: "It is not
-        // overspent if it stays within the limits of the assignment"): it
-        // is money this paycheck took early from its month's next part, so
-        // it counts with Assigned, and the result is the same.
-        var ahead = 0;
-        for (final x in spending) {
-          if (x.currency == c) ahead += aheadOf(x) ?? 0;
-        }
-        if (ahead > p.overspent) ahead = p.overspent;
-        final given = p.assigned - aside + ahead;
-        final overspent = p.overspent - ahead;
-        final over = p.notAssigned < 0;
+        final terms = BudgetSum.of(
+          p,
+          budget: budget,
+          spending: spending,
+          saved: saved,
+          aheadBy: aheadBy,
+        );
+        final aside = terms.aside;
+        final given = terms.given;
+        final overspent = terms.overspent;
+        final over = terms.over;
         // Below zero, the result is named by what made it (#470): giving
         // out more than there is, spending past it, or both.
-        final cause = p.shortBy(ahead: ahead);
+        final cause = terms.cause;
         // One cause, named by its box; more than one, Short, with each
         // part under it by its box's name.
         // Spending alone, overspent or not categorized or both, is Over

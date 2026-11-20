@@ -536,6 +536,75 @@ Map<int, int> spentAhead(
   };
 }
 
+/// One currency's sum on the Budget page as its boxes read (#461, #470),
+/// worked out once so the computer's page and the phone's show the same
+/// figures and both add up: income and what is still to come, less what
+/// was [given] (Assigned, with spent ahead counted in), put [aside]
+/// (Saved) and [overspent], is [BudgetPool.notAssigned].
+class BudgetSum {
+  const BudgetSum({
+    required this.pool,
+    required this.given,
+    required this.aside,
+    required this.ahead,
+    required this.overspent,
+    required this.cause,
+  });
+  final BudgetPool pool;
+
+  /// Assigned, less what sits under Saved, with spent ahead counted in.
+  final int given;
+
+  /// Put aside in the period: what sits under Saved in the list, in its
+  /// own box so Assigned is the Total row's.
+  final int aside;
+
+  /// Spent ahead in this currency: not overspent (owner, 2026-11-16).
+  final int ahead;
+
+  /// What the overspent categories are over by, less what is spent ahead.
+  final int overspent;
+
+  /// What made the result short, below zero (#470).
+  final ShortBy cause;
+
+  /// More was given out or spent than there is: the result is coral.
+  bool get over => pool.notAssigned < 0;
+
+  /// The sum for [pool], from [budget]'s lines for the [spending]
+  /// categories, [saved] the ones under Saved and [aheadBy] from
+  /// [spentAhead].
+  factory BudgetSum.of(
+    BudgetPool pool, {
+    required Budget budget,
+    required Iterable<AccountInfo> spending,
+    required Set<int> saved,
+    required Map<int, int> aheadBy,
+  }) {
+    final c = pool.currency;
+    var aside = 0;
+    for (final x in spending) {
+      if (x.currency == c && saved.contains(x.id)) {
+        aside += budget.lines[x.id]?.assigned ?? 0;
+      }
+    }
+    if (aside < 0) aside = 0;
+    var ahead = 0;
+    for (final x in spending) {
+      if (x.currency == c) ahead += aheadBy[x.id] ?? 0;
+    }
+    if (ahead > pool.overspent) ahead = pool.overspent;
+    return BudgetSum(
+      pool: pool,
+      given: pool.assigned - aside + ahead,
+      aside: aside,
+      ahead: ahead,
+      overspent: pool.overspent - ahead,
+      cause: pool.shortBy(ahead: ahead),
+    );
+  }
+}
+
 class Budget {
   Budget._({
     required this.currency,
