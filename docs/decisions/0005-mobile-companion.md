@@ -1549,3 +1549,18 @@ owner's Pixel and Mac through Drive. The switch is not a piece of its own: a pho
 the entries file and a computer that knows only that file are not kept working with
 updated ones beyond what falls out of the above, and what a phone has waiting when it
 updates is still carried over.
+
+**Built, 2026-11-20 (0.112.0): #526 piece 2, the phone's own ledger.** `PhoneOwnLedger`
+(`data/phone_own_ledger.dart`) keeps a whole encrypted ledger on the phone, apart from
+the private copy the phone reads today. `join` takes the folder's `Ledger.betterbudget` in
+the way a second computer does (`replaceAllFrom(fromFolder: true)` into a new file): its
+rows, its ledger id and its vector come over, the log starts empty (nothing in the
+folder's copy was made here, and the phone's numbers start at 1), and the file takes its
+name only once the join is whole, so a join cut short leaves nothing for the next launch
+to take as a ledger. A wrong key throws `WrongKeyException` and leaves nothing; a ledger
+the phone already has is returned and never written over. `open` returns it as the
+computer `device` (the phone's id, the one its entries file is named by), so what is
+written is logged as this phone's. **Not yet wired in:** `PhoneStart` still shows the
+private copy, because an own ledger that nothing keeps up to date would show stale
+figures; piece 3 (the phone's change file and taking in the others') is what puts the
+phone on it.

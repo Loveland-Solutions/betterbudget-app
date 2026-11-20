@@ -264,6 +264,11 @@ the owner settled what was left of the first color scheme on the computer.
   minus and money in's green and plus still tell the two apart. Red (coral) is left
   for what is wrong: a balance below zero, a forecast that runs out, a category
   overspent, an error. The phone still shows it red until its own turn.
+- **A row in Not categorized wears the red chip** (owner, 2026-11-20: "I want the 'Not
+  categorized' to show as red in the ledger rows to make them more easily visible"; then
+  "just the badge, colored like the red tab at the top of the page"): the category chip
+  of a row still waiting takes the Not categorized tab's coral text, faint fill and faint
+  outline. It is something left to do, so it is red. Computer only; the phone's turn comes later.
 - **At night the Add button is the day's green** (`#4DB594`, was `#5FC9A3`), so it
   can't be read as money in's mint; an amount's cents in the register are at 80%, was
   60%.
