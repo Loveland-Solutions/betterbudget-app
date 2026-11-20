@@ -333,7 +333,7 @@ class _ActingSource {
           },
           redo: () async => _after(),
         );
-      case PhoneMoveRow():
+      case PhoneMoveRow() || PhoneNoBill():
         throw UnimplementedError();
     }
   }
@@ -359,6 +359,10 @@ class _FakeSource implements PhoneLedgerSource {
 
   @override
   Future<PhoneActed> actOnRow(PhoneRowAct act, DateTime now) =>
+      throw UnsupportedError('no ledger');
+
+  @override
+  Future<PhoneActed> confirmRow(PhoneRowConfirm confirm, DateTime now) =>
       throw UnsupportedError('no ledger');
 
   @override
@@ -915,6 +919,101 @@ void main() {
     await tester.tap(find.text('Undo'));
     await settle();
     expect(now(), isNotNull);
+  });
+
+  testWidgets('a scheduled bill opened in the register has Confirm and No bill '
+      'this time, and Confirm makes it real, with Undo (#527)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int rent;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      final bank = (await db.loadLedger()).accounts.values
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      rent = await db.createCategory('Rent');
+      await db.setCategoryPlan(
+        rent,
+        CategoryPlan(
+          categoryId: rent,
+          kind: PlanKind.byDate,
+          amount: 80000000,
+          start: _now,
+          due: DateTime(2026, 10, 9),
+          everyMonths: 1,
+          paidFrom: bank,
+        ),
+      );
+      await db.ensurePlanBills(_now);
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    store.confirmRowIn = (c) async => await (() async {
+      final before = await db.snapshot(c.edit.txn);
+      await db.editTransaction(
+        transactionId: c.edit.txn,
+        accountId: c.edit.account,
+        date: c.edit.date,
+        today: _now,
+        payee: c.edit.payee,
+        memo: c.edit.memo,
+        amount: c.edit.amount,
+        confirm: true,
+      );
+      data = await db.loadLedger();
+      return (
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+        undo: () async {
+          await db.restoreSnapshot(before);
+          data = await db.loadLedger();
+          return snapshotOf(data, today: _now, madeAt: _now);
+        },
+        redo: () async => snapshotOf(data, today: _now, madeAt: _now),
+      );
+    })();
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    final bill = data.registerAll().scheduled.firstWhere(
+      (r) => r.planCategoryId == rent,
+    );
+    await tester.tap(find.byKey(const ValueKey('register-tab-scheduled')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(ValueKey('register-row-${bill.txnId}-${bill.entryId}')),
+    );
+    await tester.pumpAndSettle();
+    // Confirm in place of Save; the ⋯ has No bill this time, not Delete.
+    expect(find.text('Confirm'), findsOneWidget);
+    expect(find.byKey(const ValueKey('row-save')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('row-more')));
+    await tester.tap(find.byKey(const ValueKey('row-more')));
+    await tester.pumpAndSettle();
+    expect(find.text('No bill this time'), findsOneWidget);
+    expect(find.text('Delete'), findsNothing);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('row-save')));
+    await tester.tap(find.byKey(const ValueKey('row-save')));
+    await settle();
+    expect(find.byKey(const ValueKey('row-confirmed')), findsOneWidget);
+    expect(data.registerAll().posted.any((r) => r.txnId == bill.txnId), isTrue);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(
+      data.registerAll().scheduled.any((r) => r.txnId == bill.txnId),
+      isTrue,
+    );
   });
 
   testWidgets('Budget opens with the Savings step and its progress, and no '

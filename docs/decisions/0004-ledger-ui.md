@@ -7355,5 +7355,15 @@ is. The owner chose **C**. A (recommended) and B are not built.
   row, one change, one Undo. A reconciled split keeps its total and date locked; its
   lines' categories can change. Rejected: lines as fields inline (crowded past three
   lines) and a bottom sheet (a pattern nothing else on the phone uses).
+- **Confirming a scheduled row** (owner, 2026-11-20, 0.122.0; picked A of three): a
+  scheduled row opens in place like any row, dated today, and its button says **Confirm**
+  in place of Save; its ⋯ has **No bill this time** in place of Delete when it is a
+  category's bill. Confirm is the computer's: the row becomes real, and a payday's or a
+  plan's next one is scheduled, in one Undo that takes both back; a date after today is
+  refused in the ledger's words. No bill this time skips the bill and keeps its money for
+  the next, with Undo. Rejected: a Confirm button on every scheduled row's face (a bill
+  that varies is confirmed at the wrong figure until fixed) and a swipe (hidden, with no
+  visible control). Left on #527: a bill's "Paid on…?" question on a posted row, "Not
+  this bill", and an amount under the plan leaving the rest owed.
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.
