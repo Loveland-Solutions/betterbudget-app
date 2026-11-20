@@ -7321,3 +7321,29 @@ more chore).
     back.
   - A second count waiting behind a first is an ordinary count: the first makes the
     opening balance or finds one, so the second never offers to.
+
+## The register on the phone (owner, 2026-11-20, #527)
+
+Three sketches at phone size: **A** a tap on a row opens a sheet of actions, with the
+register one tap in from Accounts; **B** swipe right to mark cleared and left to
+delete, a tap opens the entry screen filled in; **C** the Ledger tab is the register,
+a chip narrows it to one account, Add opens the pad, and a tapped row opens where it
+is. The owner chose **C**. A (recommended) and B are not built.
+
+- **Ledger is the register** (0.118.0, first piece): the phone's first tab shows every
+  account's rows, newest first, each with its cleared mark, payee, category (and
+  account, while All accounts is shown) and a signed amount in the computer's words.
+  The chip at the top (All accounts, or one) narrows it; the filter tabs are the
+  computer's (All, Uncleared, Scheduled, Not categorized with its count) and each is
+  offered only while there is something for it; a search looks in payee, memo,
+  category and amount. Day headings are Today or the date.
+- **Add a transaction** opens the amount pad on its own page with a back arrow; the
+  Budget page's categories open it too. Everything the pad did stays.
+- **A tapped row opens where it is**, showing account, date, category, memo and its
+  cleared state; a second tap closes it. In this piece the open row only reads. What
+  it will offer (Save and Cancel in place, a ⋯ with Mark cleared, Move to another
+  account and Delete, a split's lines, Confirm on a scheduled row, a bill's "Paid
+  on…?", locked reconciled rows) comes in the next pieces of #527, each with its undo
+  and the memo field (#386) and the payee's category (#403).
+- **Figures made up** (the demo key Play's review uses, the preview) have no rows to
+  show, so they still open on the pad.

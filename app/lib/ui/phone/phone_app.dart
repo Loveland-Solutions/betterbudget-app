@@ -25,6 +25,7 @@ import '../plan_form.dart';
 import '../schemes.dart';
 import '../amount_input.dart';
 import '../combined_label.dart';
+import '../data_words.dart';
 import '../brand.dart';
 import '../category_types.dart';
 import '../emoji_chooser.dart';
@@ -34,6 +35,7 @@ import 'phone_asking.dart';
 
 part 'phone_count.dart';
 part 'phone_new_category.dart';
+part 'phone_register.dart';
 
 /// The snapshot and this phone's waiting entries. Where they are kept and how
 /// they reach the Mac is the store's business; the screens only read and add.
@@ -746,6 +748,38 @@ class _PhoneHomeState extends State<PhoneHome> {
     }
   }
 
+  /// The amount pad, over the register, with Back to it.
+  void _openPad() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          backgroundColor: Mid.ground,
+          body: SafeArea(
+            child: Column(
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    key: const ValueKey('pad-back'),
+                    icon: Icon(Icons.arrow_back_rounded, color: Mid.ink),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                Expanded(
+                  child: _EntryScreen(
+                    store: widget.store,
+                    draft: _draft,
+                    now: widget.now,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void didUpdateWidget(PhoneHome old) {
     super.didUpdateWidget(old);
@@ -820,11 +854,20 @@ class _PhoneHomeState extends State<PhoneHome> {
                 child: IndexedStack(
                   index: _budget ? 1 : 0,
                   children: [
-                    _EntryScreen(
-                      store: widget.store,
-                      draft: _draft,
-                      now: widget.now,
-                    ),
+                    // With the ledger's rows to show, Ledger is the register
+                    // and the amount pad opens from Add (#527); figures made
+                    // up (the demo) have no rows, so it opens on the pad.
+                    widget.store.snapshot.data == null
+                        ? _EntryScreen(
+                            store: widget.store,
+                            draft: _draft,
+                            now: widget.now,
+                          )
+                        : _RegisterScreen(
+                            store: widget.store,
+                            now: widget.now,
+                            onAdd: _openPad,
+                          ),
                     _BudgetScreen(
                       store: widget.store,
                       now: widget.now,
@@ -857,6 +900,7 @@ class _PhoneHomeState extends State<PhoneHome> {
                           );
                         }
                         setState(() => _budget = false);
+                        if (widget.store.snapshot.data != null) _openPad();
                       },
                     ),
                   ],

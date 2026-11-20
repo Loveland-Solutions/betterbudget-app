@@ -576,6 +576,54 @@ void main() {
     );
   });
 
+  testWidgets('Ledger is the register: rows, an account, a search, and Add '
+      'opens the pad (#527)', (tester) async {
+    final (data, _) = await _stepLedger(tester);
+    await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    // Rows of every account, and the chip says so.
+    expect(find.byKey(const ValueKey('register-list')), findsOneWidget);
+    expect(find.text('All accounts'), findsOneWidget);
+    final rows = find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key! as ValueKey<String>).value.startsWith('register-row-'),
+    );
+    expect(rows, findsWidgets);
+    // A tapped row opens where it is, and closes on a second tap.
+    await tester.tap(rows.first);
+    await tester.pumpAndSettle();
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w.key is ValueKey<String> &&
+            (w.key! as ValueKey<String>).value.startsWith('register-open-'),
+      ),
+      findsOneWidget,
+    );
+    // A search with nothing in it leaves no row.
+    await tester.tap(find.byKey(const ValueKey('register-search-open')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('register-search')),
+      'zzzzqq',
+    );
+    await tester.pumpAndSettle();
+    expect(rows, findsNothing);
+    await tester.tap(find.byKey(const ValueKey('register-search-close')));
+    await tester.pumpAndSettle();
+    expect(rows, findsWidgets);
+    // Add opens the amount pad, and Back comes home to the register.
+    await tester.tap(find.byKey(const ValueKey('add-transaction')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('category-row')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('pad-back')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('register-list')), findsOneWidget);
+  });
+
   testWidgets('Budget opens with the Savings step and its progress, and no '
       'button (#487)', (tester) async {
     final (data, _) = await _stepLedger(tester);
