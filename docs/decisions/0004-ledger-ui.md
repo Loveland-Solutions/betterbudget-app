@@ -7414,5 +7414,13 @@ is. The owner chose **C**. A (recommended) and B are not built.
   said in coral before Move, which goes ahead anyway; one change with Undo. The page
   has no section headings in its list (the computer's groups by type): a phone's list
   is short enough, and it is cheap to add.
+  Edit's piece (0.129.0): the open row's **Edit** opens the phone's New category page
+  filled in from the category's plan and type (the four cards, two to a row, its
+  Paid from, name with its emoji); **Save** writes the name, plan, type and Paid from as
+  the computer's Edit does, in one change with a snack bar's Undo, and the page offers no
+  currency for a category already in the ledger (the computer's change of currency takes
+  Assigned back and removes the plan; it stays on the computer for now). A name another
+  category has is refused on the page as it is for a new one, not merged. The group,
+  note, In a month of expenses?, Archive and Delete are the next piece.
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.

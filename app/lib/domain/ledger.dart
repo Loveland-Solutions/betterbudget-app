@@ -1184,6 +1184,33 @@ class CategoryPlan {
   static bool _sameOnce(Map<DateTime, int> a, Map<DateTime, int> b) =>
       a.length == b.length && a.entries.every((e) => b[e.key] == e.value);
 
+  /// This plan as [id]'s: the phone works a plan out for a stand-in
+  /// category, and the ledger's own gets it under its own id (#528).
+  CategoryPlan forCategory(int id) => CategoryPlan(
+    categoryId: id,
+    kind: kind,
+    amount: amount,
+    start: start,
+    due: due,
+    everyMonths: everyMonths,
+    everyDays: everyDays,
+    onDates: onDates,
+    monthDays: monthDays,
+    payScheduleId: payScheduleId,
+    daysAfterPay: daysAfterPay,
+    weekend: weekend,
+    weekdays: weekdays,
+    nth: nth,
+    nthWeekday: nthWeekday,
+    endDate: endDate,
+    endCount: endCount,
+    rollover: rollover,
+    spentEach: spentEach,
+    upTo: upTo,
+    paidFrom: paidFrom,
+    once: once,
+  );
+
   @override
   bool operator ==(Object other) =>
       other is CategoryPlan &&
