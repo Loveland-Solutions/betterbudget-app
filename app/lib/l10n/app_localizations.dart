@@ -11056,6 +11056,48 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Show the paydays'**
   String get phoneOpenIncome;
+
+  /// Phone Income page, a quiet line under the heading of the regular incomes (#528).
+  ///
+  /// In en, this message translates to:
+  /// **'Each payday above comes from one of these.'**
+  String get phoneIncomeRules;
+
+  /// Phone, a form with changes in it, when the person goes back.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave without saving?'**
+  String get phoneLeaveAsk;
+
+  /// Phone: the choice that stays on the form.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get phoneKeepEditing;
+
+  /// Phone: the choice that leaves the form and drops its changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get phoneLeaveIt;
+
+  /// Phone, asked before a regular income is stopped, when a payday is still to come. {amount} is like ₮1,050,000 and {date} like 11.25.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} stops. {amount} still to come on {date} won’t be expected. Paydays that came stay.'**
+  String phoneStopPayNext(String name, String amount, String date);
+
+  /// Phone, asked before a regular income is stopped, when no payday is still to come.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} stops. Paydays that came stay.'**
+  String phoneStopPayNoNext(String name);
+
+  /// Phone, under the list of categories set by a regular income's pay periods, when it is stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'They will be budgeted by the month from now.'**
+  String get phoneStopPayMonth;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

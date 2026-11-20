@@ -31,7 +31,8 @@ import 'package:betterbudget/domain/ledger.dart'
         RegisterRow,
         RowKind;
 import 'package:betterbudget/domain/money.dart';
-import 'package:betterbudget/domain/pay.dart' show PayRule, budgetPeriod;
+import 'package:betterbudget/domain/pay.dart'
+    show PayRule, budgetPeriod, noRegularPayKey;
 import 'package:betterbudget/domain/payee_rules.dart' show Remembered;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/readiness.dart' show ReadyKeys, isGoal;
@@ -471,6 +472,8 @@ class _ActingSource {
           },
           redo: () async => _after(),
         );
+      case PhoneSavePay() || PhoneStopPay() || PhoneNoPay():
+        return actOnPay(db, act, now(), _after);
       case PhoneMoveRow() ||
           PhoneNoBill() ||
           PhoneBillPaid() ||
@@ -1470,6 +1473,132 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('budget-sum')), findsOneWidget);
+  });
+
+  testWidgets('Add regular income on the Income page saves the pay form into '
+      'the ledger, Edit changes it, Stop asks first, each with Undo (#528)', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('sum-income-open')));
+    await tester.pumpAndSettle();
+    // None yet: Add your regular income, and the way to say there is none.
+    expect(find.byKey(const ValueKey('income-no-pay')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('income-no-pay')));
+    await settle();
+    expect(data.prefs[noRegularPayKey], '1');
+    expect(find.text('Ask me again'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.prefs[noRegularPayKey], isNull);
+    await tester.tap(find.byKey(const ValueKey('income-add-pay')));
+    await tester.pumpAndSettle();
+    // Save with nothing typed: said above Save, and the name takes the cursor.
+    await tester.tap(find.byKey(const ValueKey('pay-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('Type a name.'), findsOneWidget);
+    expect(data.paySchedules, isEmpty);
+    await tester.enterText(
+      find.byKey(const ValueKey('pay-name')),
+      'Jenny’s job',
+    );
+    await tester.enterText(find.byKey(const ValueKey('pay-amount')), '1050000');
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const ValueKey('pay-page')),
+      const Offset(0, 800),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_pay.png'),
+    );
+    await tester.tap(find.byKey(const ValueKey('pay-save')));
+    await settle();
+    expect(data.paySchedules, hasLength(1));
+    final pay = data.paySchedules.single;
+    expect(
+      (pay.name, pay.amount, pay.rule),
+      ('Jenny’s job', 105000000, PayRule.monthly),
+    );
+    expect(find.byKey(const ValueKey('pay-done')), findsOneWidget);
+    expect(find.byKey(ValueKey('regular-${pay.id}')), findsOneWidget);
+    // Undo takes it back out.
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.paySchedules, isEmpty);
+    await tester.tap(find.byKey(const ValueKey('income-add-pay')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('pay-name')),
+      'Jenny’s job',
+    );
+    await tester.enterText(find.byKey(const ValueKey('pay-amount')), '1050000');
+    await tester.tap(find.byKey(const ValueKey('pay-save')));
+    await settle();
+    final id = data.paySchedules.single.id;
+
+    // Edit: the form opens filled in, and leaving it changed asks first.
+    await tester.tap(find.byKey(ValueKey('edit-pay-$id')));
+    await tester.pumpAndSettle();
+    expect(find.text('1,050,000'), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('pay-amount')), '1200000');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('pay-cancel')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('pay-leave-ask')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('pay-keep-editing')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('pay-page')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('pay-save')));
+    await settle();
+    expect(data.paySchedules.single.amount, 120000000);
+
+    // Stop: asked first, with this income's own figures, then goes ahead.
+    await tester.tap(find.byKey(ValueKey('edit-pay-$id')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('pay-stop')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('pay-stop')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('stop-pay-ask')), findsOneWidget);
+    expect(find.textContaining('Jenny’s job stops.'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('stop-pay-cancel')));
+    await tester.pumpAndSettle();
+    expect(data.paySchedules, hasLength(1));
+    await tester.tap(find.byKey(const ValueKey('pay-stop')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('stop-pay-confirm')));
+    await settle();
+    expect(data.paySchedules, isEmpty);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.paySchedules, hasLength(1));
   });
 
   testWidgets('Budget opens with the sum, the computer\'s terms with their '

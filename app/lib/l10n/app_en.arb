@@ -11913,5 +11913,49 @@
   "phoneOpenIncome": "Show the paydays",
   "@phoneOpenIncome": {
     "description": "Phone Budget: the spoken label for the sum's Income line, which opens the Income page."
+  },
+  "phoneIncomeRules": "Each payday above comes from one of these.",
+  "@phoneIncomeRules": {
+    "description": "Phone Income page, a quiet line under the heading of the regular incomes (#528)."
+  },
+  "phoneLeaveAsk": "Leave without saving?",
+  "@phoneLeaveAsk": {
+    "description": "Phone, a form with changes in it, when the person goes back."
+  },
+  "phoneKeepEditing": "Keep editing",
+  "@phoneKeepEditing": {
+    "description": "Phone: the choice that stays on the form."
+  },
+  "phoneLeaveIt": "Leave",
+  "@phoneLeaveIt": {
+    "description": "Phone: the choice that leaves the form and drops its changes."
+  },
+  "phoneStopPayNext": "{name} stops. {amount} still to come on {date} won’t be expected. Paydays that came stay.",
+  "@phoneStopPayNext": {
+    "description": "Phone, asked before a regular income is stopped, when a payday is still to come. {amount} is like ₮1,050,000 and {date} like 11.25.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneStopPayNoNext": "{name} stops. Paydays that came stay.",
+  "@phoneStopPayNoNext": {
+    "description": "Phone, asked before a regular income is stopped, when no payday is still to come.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneStopPayMonth": "They will be budgeted by the month from now.",
+  "@phoneStopPayMonth": {
+    "description": "Phone, under the list of categories set by a regular income's pay periods, when it is stopped."
   }
 }

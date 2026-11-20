@@ -449,6 +449,101 @@ void main() {
         expect(overflows.toSet().toList(), isEmpty);
         expect(cut.toList(), isEmpty, reason: 'text cut off without "…"');
       });
+
+      testWidgets('nothing overflows on the phone\'s Income page and pay form: '
+          '$words, ${size.width.toInt()} × ${size.height.toInt()}', (
+        tester,
+      ) async {
+        final overflows = <String>[];
+        final cut = <String>{};
+        var page = 'Income';
+        addTearDown(_catchOverflows(overflows, () => page));
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final today = DateTime(2026, 9, 16, 10);
+        final db = AppDatabase(NativeDatabase.memory());
+        final data = (await tester.runAsync(() async {
+          await seedDemoIfEmpty(db, today);
+          await _fillIn(db, today);
+          await _stretch(db, mongolian: mongolian);
+          final data = await db.loadLedger();
+          await db.close();
+          return data;
+        }))!;
+        final store = PhoneStore(snapshotOf(data, today: today, madeAt: today));
+        await tester.pumpWidget(
+          LanguageScope(
+            controller: LanguageController(
+              initial: mongolian ? Language.mongolian : Language.english,
+            ),
+            child: PhoneApp(store: store, now: () => today),
+          ),
+        );
+        await tester.pumpAndSettle();
+        void look() => cut.addAll(_cutText(tester).map((w) => '$w, on $page'));
+        Future<void> tap(Finder f) async {
+          expect(f, findsWidgets, reason: 'on $page');
+          await tester.ensureVisible(f.first);
+          await tester.pumpAndSettle();
+          await tester.tap(f.first);
+          await tester.pumpAndSettle();
+          look();
+        }
+
+        await tap(find.byKey(const ValueKey('to-budget')));
+        await tap(find.byKey(const ValueKey('sum-income-open')));
+        look();
+        // Under the paydays: on a small phone, a scroll away.
+        await tester.dragUntilVisible(
+          find.byKey(const ValueKey('income-add-pay')),
+          find.byKey(const ValueKey('income-page')),
+          const Offset(0, -100),
+        );
+        page = 'the pay form';
+        await tap(find.byKey(const ValueKey('income-add-pay')));
+        // The form is a long scroll: each part is brought into view first.
+        Future<void> show(String key) async {
+          final f = find.byKey(ValueKey(key));
+          if (f.evaluate().isEmpty) {
+            await tester.dragUntilVisible(
+              f,
+              find.byKey(const ValueKey('pay-page')),
+              const Offset(0, -100),
+            );
+          }
+          await tester.ensureVisible(f);
+          await tester.pumpAndSettle();
+        }
+
+        await tester.enterText(
+          find.byKey(const ValueKey('pay-name')),
+          'Хүүхдийн цэцэрлэгийн хоол ба сургалтын төлбөр',
+        );
+        await show('pay-amount');
+        await tester.enterText(
+          find.byKey(const ValueKey('pay-amount')),
+          '999999999999',
+        );
+        await tester.pumpAndSettle();
+        look();
+        // Twice a month, two amounts, the weekend rule and Ends.
+        page = 'the pay form, twice a month';
+        await show('pay-repeat');
+        await tap(find.byKey(const ValueKey('pay-repeat')));
+        await tap(find.byKey(const ValueKey('pay-repeat-2')));
+        await show('pay-varies');
+        await tap(find.byKey(const ValueKey('pay-varies')));
+        await show('pay-two-amounts');
+        await tap(find.byKey(const ValueKey('pay-two-amounts')));
+        await show('pay-ends-count');
+        await tap(find.byKey(const ValueKey('pay-ends-count')));
+        await show('pay-end-count');
+        look();
+
+        expect(overflows.toSet().toList(), isEmpty);
+        expect(cut.toList(), isEmpty, reason: 'text cut off without "…"');
+      });
     }
   }
 }

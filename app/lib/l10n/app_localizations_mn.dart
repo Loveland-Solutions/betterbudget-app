@@ -7717,4 +7717,29 @@ class WordsMn extends Words {
 
   @override
   String get phoneOpenIncome => 'Орлого орох өдрүүдийг харах';
+
+  @override
+  String get phoneIncomeRules => 'Дээрх орлого эдгээрээс орж ирнэ.';
+
+  @override
+  String get phoneLeaveAsk => 'Хадгалахгүйгээр гарах уу?';
+
+  @override
+  String get phoneKeepEditing => 'Засахаа үргэлжлүүлэх';
+
+  @override
+  String get phoneLeaveIt => 'Гарах';
+
+  @override
+  String phoneStopPayNext(String name, String amount, String date) {
+    return '$name зогсоно. $date-нд орох $amount цаашид тооцогдохгүй. Орсон орлого хэвээр үлдэнэ.';
+  }
+
+  @override
+  String phoneStopPayNoNext(String name) {
+    return '$name зогсоно. Орсон орлого хэвээр үлдэнэ.';
+  }
+
+  @override
+  String get phoneStopPayMonth => 'Одооноос тэдгээр сараар төлөвлөгдөнө.';
 }
