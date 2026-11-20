@@ -1289,6 +1289,7 @@
   "phoneFromMacToday": "Компьютероос өнөөдөр {time}",
   "phoneFromMacOn": "Компьютероос {date} {time}",
   "phoneWaiting": "{count, plural, other{{count} гүйлгээ таны компьютерт хараахан ороогүй байна}}",
+  "phoneCouldntChange": "Энэ гүйлгээг өөрчилж чадсангүй. Дахин оролдоно уу.",
   "phoneWaitingTitle": "Компьютерт хараахан ороогүй",
   "phoneOwed": "Өр {amount}",
   "phoneLeftNow": "Одоо {left} үлдсэн",

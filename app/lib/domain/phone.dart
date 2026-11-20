@@ -9,6 +9,7 @@ import 'money.dart';
 import 'pay.dart';
 import 'payee_rules.dart';
 import 'readiness.dart' show isSafetyNet;
+import 'sync.dart' show MadeHow;
 
 /// What a phone files money in under when it is the app's one Income (rule
 /// 30) and not a refund. A word, not the ledger's id for it: the ledger
@@ -205,7 +206,13 @@ class PhoneSnapshot {
     this.payees = const [],
     this.taken = const {},
     this.data,
+    this.mine = const [],
   });
+
+  /// What this phone entered that the computers haven't applied yet: rows of
+  /// its own ledger, each named `row:<id>` ([phoneRowPrefix]), so one can be
+  /// fixed or deleted until a computer has it (#526 piece 4).
+  final List<PhoneEntry> mine;
 
   /// The ledger the snapshot was made from: the New category page works
   /// out a plan from it as the computer does, with its pays and periods.
@@ -312,6 +319,18 @@ class PhoneEntry {
   /// The categories it is filed in: its lines', or its own.
   Iterable<String> get categoryIds =>
       isSplit ? lines.map((l) => l.categoryId) : [categoryId];
+
+  /// The same entry under another id.
+  PhoneEntry withId(String id) => PhoneEntry(
+    id: id,
+    categoryId: categoryId,
+    accountId: accountId,
+    payee: payee,
+    amountMinor: amountMinor,
+    date: date,
+    madeAt: madeAt,
+    lines: lines,
+  );
 
   /// The same entry with a category made on the phone named by the
   /// ledger's id for it, now the computer has it.
@@ -663,6 +682,8 @@ PhoneSnapshot snapshotOf(
   LedgerData data, {
   required DateTime today,
   required DateTime madeAt,
+  Set<int> mineIds = const {},
+  String? device,
 }) {
   // The period the Mac's Budget page opens on, so the two agree.
   final by = data.periodSchedule;
@@ -751,6 +772,7 @@ PhoneSnapshot snapshotOf(
   return PhoneSnapshot(
     madeAt: madeAt,
     data: data,
+    mine: device == null ? const [] : ownEntriesOf(data, mineIds, device),
     taken: PhoneTaken.decode(data.prefs[phoneTakenKey]),
     periodEnd: by == null ? null : period.end,
     payees: everyPayee,
@@ -872,4 +894,82 @@ int balanceNow(
     }
   }
   return balance;
+}
+
+
+/// What names an entry that is a row of the phone's own ledger, not one
+/// waiting: `row:` and the transaction's id.
+const phoneRowPrefix = 'row:';
+
+/// The id of the ledger row a phone entry names, or null for a waiting one.
+int? phoneRowOf(String id) =>
+    id.startsWith(phoneRowPrefix)
+    ? int.tryParse(id.substring(phoneRowPrefix.length))
+    : null;
+
+/// The rows [ids] of [data] that this phone ([device]) made, as entries a
+/// person can open again: money out of one account to a category, money in,
+/// a transfer (its "category" is the account it went to), or one receipt
+/// over several categories. A count is not an entry, and a row made
+/// elsewhere isn't this phone's.
+List<PhoneEntry> ownEntriesOf(LedgerData data, Set<int> ids, String device) {
+  bool holds(int account) => switch (data.accounts[account]?.type) {
+    AccountType.asset || AccountType.liability => true,
+    _ => false,
+  };
+  final out = <PhoneEntry>[];
+  for (final t in data.txns) {
+    if (!ids.contains(t.id) ||
+        t.madeHow != MadeHow.phone ||
+        t.madeOn != device ||
+        t.counted != null ||
+        t.scheduled) {
+      continue;
+    }
+    final mine = [
+      for (final e in t.entries)
+        if (holds(e.accountId)) e,
+    ];
+    final others = [
+      for (final e in t.entries)
+        if (!holds(e.accountId)) e,
+    ];
+    // A transfer has two accounts and no category: the one money left is
+    // where it was paid from.
+    final account = mine.length == 2
+        ? mine.firstWhere((e) => e.amount < 0, orElse: () => mine.first)
+        : mine.singleOrNull;
+    if (account == null) continue;
+    final to = mine.length == 2
+        ? mine.firstWhere((e) => !identical(e, account))
+        : null;
+    String category(EntryData e) =>
+        data.accounts[e.accountId]?.type == AccountType.income
+        ? phoneIncomeId
+        : '${e.accountId}';
+    if (to == null && others.isEmpty) continue;
+    final split = to == null && others.length > 1;
+    out.add(
+      PhoneEntry(
+        id: '$phoneRowPrefix${t.id}',
+        categoryId: split
+            ? phoneSplitId
+            : to != null
+            ? '${to.accountId}'
+            : category(others.single),
+        accountId: '${account.accountId}',
+        payee: to != null ? '' : t.payee ?? '',
+        amountMinor: account.amount,
+        date: t.date,
+        madeAt: t.date,
+        lines: split
+            ? [
+                for (final e in others)
+                  (categoryId: category(e), amountMinor: -e.amount),
+              ]
+            : const [],
+      ),
+    );
+  }
+  return out;
 }

@@ -7899,6 +7899,12 @@ abstract class Words {
   /// **'{count, plural, =1{1 entry isn’t on your computer yet} other{{count} entries aren’t on your computer yet}}'**
   String phoneWaiting(int count);
 
+  /// Phone app, under the amount pad: Save was pressed on an entry already in this phone’s ledger and the old one couldn’t be taken out first, so nothing was changed.
+  ///
+  /// In en, this message translates to:
+  /// **'That entry couldn’t be changed. Try again.'**
+  String get phoneCouldntChange;
+
   /// Phone app: heading of the list of this phone’s entries the Mac hasn’t taken in yet.
   ///
   /// In en, this message translates to:

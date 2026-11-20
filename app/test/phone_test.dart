@@ -292,7 +292,14 @@ class _FakeSource implements PhoneLedgerSource {
   /// This stand-in has no ledger to take entries into: they wait for the
   /// computer in the folder, as before the phone's own ledger.
   @override
-  Future<PhoneSnapshot?> take(PhoneInbox inbox, DateTime now) async => null;
+  Future<PhoneTook?> take(PhoneInbox inbox, DateTime now) async => null;
+
+  @override
+  Future<PhoneSnapshot> undoTake(PhoneTake take, DateTime now) =>
+      throw UnsupportedError('no ledger');
+
+  @override
+  List<PhoneNews> takeNews() => const [];
 
   _FakeSource({
     required this.dir,
@@ -1424,6 +1431,78 @@ void main() {
     expect(find.text('Transport'), findsOneWidget);
   });
 
+  testWidgets('an entry the phone’s ledger took in at once keeps its toast, '
+      'and Undo takes it back out of the ledger (#526 piece 4)', (
+    tester,
+  ) async {
+    final store = await _pump(tester);
+    final undone = <PhoneTake>[];
+    const take = PhoneTake([1], []);
+    store.undoTake = (t) async {
+      undone.add(t);
+      return store.snapshot;
+    };
+    await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+    final id = store.waiting.single.id;
+    // The ledger took it in: the store lets go of it as the snapshot says.
+    store.tookInto([id], take);
+    store.snapshot = PhoneSnapshot(
+      madeAt: store.snapshot.madeAt,
+      accounts: store.snapshot.accounts,
+      categories: store.snapshot.categories,
+      taken: {
+        store.device: PhoneTaken(entries: {id}),
+      },
+    );
+    await tester.pump();
+    expect(store.waiting, isEmpty);
+    // Reading the ledger again didn't take the toast away.
+    expect(find.text('Undo'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(undone, [take]);
+    // The form has the entry back, to go on with.
+    expect(find.text('−₮8,000'), findsOneWidget);
+    expect(find.text('UB Cab'), findsOneWidget);
+  });
+
+  test('a second take over an entry already taken leaves the first take its '
+      'own entry, and a failing Undo says so by returning false', () async {
+    final store = PhoneStore(
+      PhoneSnapshot(
+        madeAt: DateTime(2026, 11, 20),
+        categories: [],
+        accounts: [],
+      ),
+    );
+    const first = PhoneTake([1], []);
+    const second = PhoneTake([2], []);
+    store.tookInto(['a'], first);
+    store.tookInto(['a', 'b'], second);
+    final undone = <PhoneTake>[];
+    store.undoTake = (t) async {
+      undone.add(t);
+      return store.snapshot;
+    };
+    expect(await store.takeBack(['a']), isTrue);
+    expect(undone, [first]);
+    store.undoTake = (_) async => throw StateError('closed');
+    expect(await store.takeBack(['b']), isFalse);
+  });
+
+  testWidgets('what another computer’s changes brought in is said as the '
+      'computer says it, with no Undo', (tester) async {
+    final store = await _pump(tester);
+    store.news.value = [
+      (transactions: 4, others: 0, payee: null, from: 'Tom’s MacBook Air'),
+    ];
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey('brought-in')), findsOneWidget);
+    expect(find.textContaining('Tom’s MacBook Air'), findsOneWidget);
+    expect(find.text('Undo'), findsNothing);
+  });
+
   testWidgets('a waiting entry opens on the entry screen, and Save puts '
       'the fix in its place', (tester) async {
     final store = await _pump(tester);
@@ -1470,6 +1549,59 @@ void main() {
     expect(store.waiting.single.amountMinor, -800000);
     expect(find.text('−₮0'), findsOneWidget);
     expect(find.text('Changing an entry that’s waiting'), findsNothing);
+  });
+
+  testWidgets('an entry in the phone’s ledger that no computer has applied is '
+      'on the same list, and Save puts the fix in its place (#526 piece 4)', (
+    tester,
+  ) async {
+    final store = await _pump(tester);
+    await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+    final first = store.waiting.single;
+    // The ledger took it in; no computer has applied it yet.
+    final row = first.withId('${phoneRowPrefix}7');
+    PhoneSnapshot with_(List<PhoneEntry> mine) => PhoneSnapshot(
+      madeAt: store.snapshot.madeAt,
+      accounts: store.snapshot.accounts,
+      categories: store.snapshot.categories,
+      taken: {
+        store.device: PhoneTaken(entries: {first.id}),
+      },
+      mine: mine,
+    );
+    final undone = <PhoneTake>[];
+    store.undoTake = (t) async {
+      undone.add(t);
+      return with_(const []);
+    };
+    store.snapshot = with_([row]);
+    await tester.pump();
+    expect(store.waiting, isEmpty);
+    expect(store.nothingOnTheWay, isFalse);
+
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('waiting-${row.id}')));
+    await tester.pumpAndSettle();
+    expect(find.text('−₮8,000'), findsOneWidget);
+    expect(find.text('Changing an entry that’s waiting'), findsOneWidget);
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.byKey(const ValueKey('pad-<')));
+    }
+    await _type(tester, '9500');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    // The old row went out of the ledger, the fix is a new entry.
+    expect(undone.single.transactionIds, [7]);
+    expect(store.waiting.single.amountMinor, -950000);
+    expect(store.waiting.single.id, isNot(row.id));
+    expect(find.text('Saved · UB Cab −₮9,500.00'), findsOneWidget);
+
+    // Undo takes the fix out and brings the first back as an entry.
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(store.waiting.single.amountMinor, -800000);
+    expect(find.text('−₮9,500'), findsOneWidget);
   });
 
   testWidgets('a waiting split opens with its lines, a return among them', (

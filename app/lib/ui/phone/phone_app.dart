@@ -10,6 +10,8 @@ import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
+import '../../data/database.dart' show PhoneTake;
+import '../../data/phone_sync.dart' show PhoneNews;
 import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
 import '../../domain/budget.dart';
@@ -22,6 +24,7 @@ import '../language.dart';
 import '../plan_form.dart';
 import '../schemes.dart';
 import '../amount_input.dart';
+import '../combined_label.dart';
 import '../brand.dart';
 import '../category_types.dart';
 import '../emoji_chooser.dart';
@@ -82,20 +85,94 @@ class PhoneStore extends ChangeNotifier {
   PhoneSnapshot _snapshot;
   final List<PhoneEntry> _waiting;
 
+  /// What the last look brought in from the other computers, to be said
+  /// once by the screen it is on.
+  final news = ValueNotifier<List<PhoneNews>>(const []);
+
+  /// Counts what the person does here (an entry, a count, a category), not a
+  /// new look at the ledger: the screens tell the two apart, so a take
+  /// that finishes doesn't end the Undo the toast offers (#526 piece 4).
+  int get changes => _changes;
+  int _changes = 0;
+
+  /// What the phone's own ledger took in, by the id of each entry, count or
+  /// category made here, so Undo can take it back out of the ledger.
+  final Map<String, PhoneTake> _tookBy = {};
+
+  /// Set by whoever keeps the ledger: waits for a take still under way, and
+  /// takes one back. Null where nothing is taken into a ledger (the preview,
+  /// a stand-in): what waits is then simply let go of.
+  Future<void> Function()? settle;
+  Future<PhoneSnapshot> Function(PhoneTake take)? undoTake;
+
+  /// Records that [take] brought [ids] (entries, counts, categories) into
+  /// the ledger.
+  void tookInto(Iterable<String> ids, PhoneTake? take) {
+    if (take == null) return;
+    // The first take that brought an id in keeps it: a second take over an
+    // inbox still listing an entry already taken skips that entry.
+    for (final id in ids) {
+      _tookBy.putIfAbsent(id, () => take);
+    }
+  }
+
+  /// Takes back what was made here as [ids]: lets go of it while it still
+  /// waits, or takes it out of the ledger once it was taken in. The take is
+  /// undone whole, which for a person saving one entry at a time is that
+  /// entry. False when the ledger couldn't take it back.
+  Future<bool> takeBack(Iterable<String> ids) async {
+    await settle?.call();
+    final taken = [
+      for (final id in ids)
+        if (_tookBy[id] case final t?)
+          t
+        // A row from before this run: its take wasn't kept, its row is.
+        else if (phoneRowOf(id) case final row?)
+          PhoneTake([row], const []),
+    ];
+    final undo = undoTake;
+    for (final take in {...taken}) {
+      if (undo == null) break;
+      try {
+        final snapshot = await undo(take);
+        _tookBy.removeWhere((_, t) => identical(t, take));
+        _snapshot = snapshot;
+      } catch (e) {
+        // Said by the caller: nothing was taken back, and what is shown
+        // stays as it was.
+        debugPrint('Taking an entry back out of the ledger failed: $e');
+        return false;
+      }
+    }
+    for (final id in ids) {
+      _waiting.removeWhere((e) => e.id == id);
+      _counts.removeWhere((c) => c.id == id);
+    }
+    _changes++;
+    notifyListeners();
+    return true;
+  }
+
   /// Cash counted here (#119), waiting for the computer as entries do.
   final List<PhoneCount> _counts;
   List<PhoneCount> get counts => List.unmodifiable(_counts);
+
+  /// Nothing here that the computers haven't got: nothing waiting, and
+  /// nothing in the phone's ledger that no computer has applied yet.
+  bool get nothingOnTheWay => nothingWaiting && _snapshot.mine.isEmpty;
 
   /// Nothing here for the computer.
   bool get nothingWaiting =>
       _waiting.isEmpty && _made.isEmpty && _counts.isEmpty;
 
   void addCount(PhoneCount count) {
+    _changes++;
     _counts.add(count);
     notifyListeners();
   }
 
   void removeCount(String id) {
+    _changes++;
     _counts.removeWhere((c) => c.id == id);
     notifyListeners();
   }
@@ -164,6 +241,7 @@ class PhoneStore extends ChangeNotifier {
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
     _made.add(category);
+    _changes++;
     notifyListeners();
     return category;
   }
@@ -196,6 +274,7 @@ class PhoneStore extends ChangeNotifier {
       type: type,
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
+    _changes++;
     notifyListeners();
     return true;
   }
@@ -209,6 +288,7 @@ class PhoneStore extends ChangeNotifier {
       final c = _counts[i];
       if (c.categoryId == id) _counts[i] = c.uncategorized();
     }
+    _changes++;
     notifyListeners();
   }
 
@@ -219,11 +299,18 @@ class PhoneStore extends ChangeNotifier {
   }
 
   void add(PhoneEntry entry) {
+    _changes++;
     _waiting.add(entry);
     notifyListeners();
   }
 
   void remove(String id) {
+    if (phoneRowOf(id) != null) {
+      // In the phone's ledger: its rows go, as a change the computers see.
+      unawaited(takeBack([id]));
+      return;
+    }
+    _changes++;
     _waiting.removeWhere((e) => e.id == id);
     notifyListeners();
   }
@@ -234,6 +321,7 @@ class PhoneStore extends ChangeNotifier {
     final at = _waiting.indexWhere((e) => e.id == entry.id);
     if (at < 0) return false;
     _waiting[at] = entry;
+    _changes++;
     notifyListeners();
     return true;
   }
@@ -603,6 +691,9 @@ class _PhoneHomeState extends State<PhoneHome> {
   void initState() {
     super.initState();
     widget.store.now = widget.now;
+    widget.store.news.addListener(_brought);
+    // What the first look brought in was set before this screen was up.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _brought());
   }
 
   @override
@@ -613,8 +704,33 @@ class _PhoneHomeState extends State<PhoneHome> {
 
   @override
   void dispose() {
+    widget.store.news.removeListener(_brought);
     _draft.dispose();
     super.dispose();
+  }
+
+  /// What another computer's changes brought in, said as the computer's
+  /// popup says it: no Undo, for it isn't what this person did.
+  void _brought() {
+    final news = widget.store.news.value;
+    if (news.isEmpty || !mounted) return;
+    final one = news.length == 1 ? news.single : null;
+    final label = combinedLabel(
+      context.t,
+      transactions: news.fold(0, (s, n) => s + n.transactions),
+      others: news.fold(0, (s, n) => s + n.others),
+      payee: one?.payee,
+      from: one?.from,
+    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const ValueKey('brought-in'),
+          backgroundColor: Mid.raised,
+          content: Text(label, style: onest(15, color: Mid.ink)),
+        ),
+      );
   }
 
   @override
@@ -1506,21 +1622,33 @@ class _EntryState extends State<_EntryScreen> {
   void initState() {
     super.initState();
     _draft.addListener(_said);
-    _store.addListener(_said);
+    _store.addListener(_storeSaid);
+    _seenChanges = _store.changes;
   }
 
   @override
   void dispose() {
     _toastTimer?.cancel();
     _draft.removeListener(_said);
-    _store.removeListener(_said);
+    _store.removeListener(_storeSaid);
     super.dispose();
+  }
+
+  /// What the store's changes had reached when the toast went up.
+  var _seenChanges = 0;
+
+  /// The store told: ends what was said only for something the person did,
+  /// not for the ledger's figures being read again after a take.
+  void _storeSaid() {
+    if (_store.changes == _seenChanges) return;
+    _said();
   }
 
   /// Any change to the entry or to what is waiting, from this screen or
   /// from Budget, ends what was said: an Undo left up would write over the
   /// entry begun since.
   void _said() {
+    _seenChanges = _store.changes;
     if (_saving || (_missing == null && _saved == null)) return;
     setState(() {
       _missing = null;
@@ -1535,7 +1663,7 @@ class _EntryState extends State<_EntryScreen> {
     () => _draft.typed = pressAmountKey(_draft.typed, key, _currency),
   );
 
-  void _save() {
+  Future<void> _save() async {
     final t = context.t;
     final category = _category;
     final account = _account;
@@ -1563,7 +1691,6 @@ class _EntryState extends State<_EntryScreen> {
     }
     final typed = _draft.typed;
     final date = _draft.date;
-    final fixing = _draft.editing;
     final moneyIn = _draft.moneyIn && to == null;
     final signed = moneyIn ? amount : -amount;
     final entry = PhoneEntry(
@@ -1575,7 +1702,11 @@ class _EntryState extends State<_EntryScreen> {
       date: date ?? _day(widget.now()),
       madeAt: widget.now(),
     );
-    final put = _put(entry);
+    final put = await _put(entry);
+    if (put == null) {
+      if (mounted) setState(() => _missing = context.t.phoneCouldntChange);
+      return;
+    }
     // The form is empty again, so this line is what says it went in.
     // What the entry did to its category, the reason the phone is opened.
     final left = to == null ? leftNow(category, _store.waiting) : 0;
@@ -1623,8 +1754,8 @@ class _EntryState extends State<_EntryScreen> {
         ];
       }
       if (put.asNew) _savedLines.add((text: t.phoneSavedAsNew, over: false));
-      _undo = () {
-        put.takeBack();
+      _undo = () async {
+        if (!await put.takeBack() || !mounted) return;
         _change(() {
           _draft
             ..typed = typed
@@ -1633,7 +1764,7 @@ class _EntryState extends State<_EntryScreen> {
             ..categoryId = category.id
             ..accountId = account.id
             ..date = date
-            ..editing = fixing;
+            ..editing = put.editing;
         });
       };
     });
@@ -1669,10 +1800,25 @@ class _EntryState extends State<_EntryScreen> {
   /// empties the form. Gives what takes it back out (bringing back the one
   /// it replaced), and whether the one being changed had been taken in by
   /// the computer meanwhile, so that this went in as a new entry.
-  ({VoidCallback takeBack, bool asNew}) _put(PhoneEntry entry) {
+  ///
+  /// An entry in the phone's own ledger that no computer has yet (a row,
+  /// [phoneRowOf]) is changed by taking its row back out and putting the
+  /// fix in as a new entry, so a computer that hadn't seen it never does;
+  /// Undo then brings the old one back as an entry of its own. Null when the
+  /// ledger couldn't take the old row out: nothing was changed.
+  Future<
+    ({Future<bool> Function() takeBack, bool asNew, String? editing})?
+  >
+  _put(PhoneEntry entry) async {
     final fixing = _draft.editing;
+    final old = fixing == null || phoneRowOf(fixing) == null
+        ? null
+        : _store.snapshot.mine.where((e) => e.id == fixing).firstOrNull;
+    if (old != null && !await _store.takeBack([old.id])) return null;
+    if (!mounted) return null;
     final was = _store.waiting.where((e) => e.id == entry.id).firstOrNull;
     final asNew = fixing != null && was == null && _store.wasTaken(fixing);
+    final restored = old == null ? null : _newId();
     _saving = true;
     if (was != null) {
       _store.replace(entry);
@@ -1682,16 +1828,23 @@ class _EntryState extends State<_EntryScreen> {
     _draft.clear();
     _saving = false;
     return (
-      takeBack: () {
-        if (was == null || !_store.replace(was)) _store.remove(entry.id);
+      takeBack: () async {
+        if (was != null && _store.replace(was)) return true;
+        // Waiting still, or already in the phone's own ledger: either way
+        // it goes (the ledger's rows as a change the computers will see).
+        if (!await _store.takeBack([entry.id])) return false;
+        if (old != null) _store.add(old.withId(restored!));
+        return true;
       },
       asNew: asNew,
+      // What the form goes on editing once this is taken back.
+      editing: restored ?? fixing,
     );
   }
 
   /// Save for one receipt over several categories: waits until its lines
   /// add up to the amount (owner, 2026-10-17), as Add does on the computer.
-  void _saveSplit(int amount) {
+  Future<void> _saveSplit(int amount) async {
     final t = context.t;
     final account = _account;
     final payee = _draft.payee;
@@ -1737,7 +1890,6 @@ class _EntryState extends State<_EntryScreen> {
     }
     final typed = _draft.typed;
     final date = _draft.date;
-    final fixing = _draft.editing;
     final moneyIn = _draft.moneyIn;
     final lines = _draft.lines;
     final entry = PhoneEntry(
@@ -1756,7 +1908,11 @@ class _EntryState extends State<_EntryScreen> {
           ),
       ],
     );
-    final put = _put(entry);
+    final put = await _put(entry);
+    if (put == null) {
+      if (mounted) setState(() => _missing = context.t.phoneCouldntChange);
+      return;
+    }
     // What it did to each of its categories, one line each, red only where
     // that category is overspent.
     final said = <({String text, bool over})>[];
@@ -1779,8 +1935,8 @@ class _EntryState extends State<_EntryScreen> {
     setState(() {
       _saved = t.phoneSaved(payee, _signed(entry.amountMinor, currency));
       _savedLines = said;
-      _undo = () {
-        put.takeBack();
+      _undo = () async {
+        if (!await put.takeBack() || !mounted) return;
         _change(() {
           _draft
             ..typed = typed
@@ -1790,7 +1946,7 @@ class _EntryState extends State<_EntryScreen> {
             ..lines = lines
             ..accountId = account.id
             ..date = date
-            ..editing = fixing;
+            ..editing = put.editing;
         });
       };
     });
@@ -2073,7 +2229,10 @@ class _EntryState extends State<_EntryScreen> {
 
   String _waitingLine(Words t) {
     // A count waits as an entry does.
-    final entries = _store.waiting.length + _store.counts.length;
+    final entries =
+        _store.waiting.length +
+        _store.counts.length +
+        _store.snapshot.mine.length;
     final categories = _store.made.length;
     if (categories == 0) return t.phoneWaiting(entries);
     if (entries == 0) return t.phoneWaitingCategories(categories);
@@ -2393,7 +2552,7 @@ class _EntryState extends State<_EntryScreen> {
                             child: Text(t.rowsSave),
                           ),
                           // Offered only while there is something waiting.
-                          if (!_store.nothingWaiting)
+                          if (!_store.nothingOnTheWay)
                             TextButton(
                               key: const ValueKey('waiting-link'),
                               onPressed: _openWaiting,
@@ -3792,7 +3951,12 @@ class _WaitingScreen extends StatelessWidget {
       };
       final accounts = {for (final a in store.snapshot.accounts) a.id: a};
       final made = store.made;
-      final entries = store.waiting.reversed.toList();
+      // Waiting, then what is in the phone's ledger and not yet on a
+      // computer: the same rows to open or delete.
+      final entries = [
+        ...store.waiting.reversed,
+        ...store.snapshot.mine.reversed,
+      ];
       final counts = store.counts.reversed.toList();
       return Scaffold(
         backgroundColor: Mid.ground,

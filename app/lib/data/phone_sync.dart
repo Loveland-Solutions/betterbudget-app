@@ -7,6 +7,7 @@
 // mobile data; the computers keep it), and it asks nothing yet: a row changed
 // two ways, or two ledgers that can't be combined, wait for the phone's
 // asking window (piece 4), the figures staying as they were.
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -15,13 +16,28 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import '../domain/phone.dart';
 import 'backup.dart';
 import 'cloud_folder.dart';
-import 'database.dart' show AppDatabase, ChangedSinceException;
+import 'database.dart' show AppDatabase, ChangedSinceException, PhoneTake;
 import 'folder_io.dart';
 import 'phone_ledger.dart';
 import 'phone_own_ledger.dart';
 
 /// What the phone shows and keeps up, as [PhoneStart] asks it: swapped in
 /// tests.
+/// What [PhoneLedgerSource.take] did: the ledger as it stands after, and what
+/// was taken, which [PhoneLedgerSource.undoTake] takes back ([take] is null
+/// when the inbox held nothing new).
+typedef PhoneTook = ({PhoneSnapshot snapshot, PhoneTake? take});
+
+/// What a look brought in from another computer, for the phone to say
+/// (#526 piece 4): [transactions] and [others] changes, one transaction by
+/// its [payee], and the name of the computer, [from], when it has one.
+typedef PhoneNews = ({
+  int transactions,
+  int others,
+  String? payee,
+  String? from,
+});
+
 abstract class PhoneLedgerSource {
   /// Whether this phone already has a ledger of its own.
   bool get joined;
@@ -47,7 +63,18 @@ abstract class PhoneLedgerSource {
   /// is listed under this phone ([PhoneSnapshot.taken]) for the store to
   /// let go of. Null when this source keeps no ledger of its own to take
   /// them into: the entries then wait for the computer in the folder.
-  Future<PhoneSnapshot?> take(PhoneInbox inbox, DateTime now) async => null;
+  Future<PhoneTook?> take(PhoneInbox inbox, DateTime now) async => null;
+
+  /// Takes back what [take] brought into the phone's own ledger: its rows go
+  /// (soft-deleted, as a change the others will see), and the categories it
+  /// made. Returns the ledger as it stands after.
+  Future<PhoneSnapshot> undoTake(PhoneTake take, DateTime now) =>
+      throw UnsupportedError('This source keeps no ledger to take back from');
+
+  /// What the looks since the last call brought in from the other
+  /// computers, said once: the phone shows it, with no Undo, as a computer's
+  /// popup has none (undo is for what the person here did).
+  List<PhoneNews> takeNews() => const [];
 
   Future<void> close();
 
@@ -102,6 +129,14 @@ class PhoneSync implements PhoneLedgerSource {
 
   AppDatabase? _db;
   CloudFolder? _cloud;
+  final _news = <PhoneNews>[];
+
+  @override
+  List<PhoneNews> takeNews() {
+    final out = [..._news];
+    _news.clear();
+    return out;
+  }
 
   /// Given up or closed: nothing reopens the ledger or writes beside it, so
   /// a look still running when the phone leaves it can't undo that.
@@ -177,6 +212,14 @@ class PhoneSync implements PhoneLedgerSource {
             await done.before.delete();
           }
           if (done == null) break;
+          if (!done.quiet) {
+            _news.add((
+              transactions: done.transactions,
+              others: done.others,
+              payee: done.payee,
+              from: done.from.savedByName,
+            ));
+          }
           continue;
         }
         if (standing == FolderStanding.newer) {
@@ -200,22 +243,44 @@ class PhoneSync implements PhoneLedgerSource {
     _db ??= await _own.open(device);
     final db = _db;
     if (db == null) throw StateError('The phone has no ledger of its own yet');
+    // The rows of this phone's own that no other computer has applied: the
+    // changes since the last one all of them have seen. With no other
+    // computer heard from, all of them.
+    final seen = _cloud?.seenOfMine ?? 0;
+    final ids = <int>{};
+    for (final c in await db.changesSince(seen)) {
+      if (c.tbl != 'transactions' || c.op == 'delete') continue;
+      final id = (jsonDecode(c.pk) as Map<String, dynamic>)['id'];
+      if (id is int) ids.add(id);
+    }
     return snapshotOf(
       await db.loadLedger(),
       today: now,
       madeAt: await _looked() ?? now,
+      mineIds: ids,
+      device: device,
     );
   }
 
   @override
-  Future<PhoneSnapshot?> take(PhoneInbox inbox, DateTime now) async {
+  Future<PhoneTook?> take(PhoneInbox inbox, DateTime now) async {
     if (_closed) throw StateError('The phone’s ledger was closed');
     _db ??= await _own.open(device);
     final db = _db;
     if (db == null) return null;
     // Each is a row of this phone's own, written to its log: the folder
     // cycle's next look puts it in the phone's change file.
-    await db.takePhoneEntries([inbox], today: now);
+    final took = await db.takePhoneEntries([inbox], today: now);
+    return (snapshot: await asItStands(now), take: took);
+  }
+
+  @override
+  Future<PhoneSnapshot> undoTake(PhoneTake take, DateTime now) async {
+    if (_closed) throw StateError('The phone’s ledger was closed');
+    _db ??= await _own.open(device);
+    final db = _db;
+    if (db == null) throw StateError('The phone has no ledger of its own yet');
+    await db.undoPhoneTake(take);
     return asItStands(now);
   }
 

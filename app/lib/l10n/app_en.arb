@@ -8047,6 +8047,10 @@
       }
     }
   },
+  "phoneCouldntChange": "That entry couldn’t be changed. Try again.",
+  "@phoneCouldntChange": {
+    "description": "Phone app, under the amount pad: Save was pressed on an entry already in this phone’s ledger and the old one couldn’t be taken out first, so nothing was changed."
+  },
   "phoneWaitingTitle": "Not on your computer yet",
   "@phoneWaitingTitle": {
     "description": "Phone app: heading of the list of this phone’s entries the Mac hasn’t taken in yet."

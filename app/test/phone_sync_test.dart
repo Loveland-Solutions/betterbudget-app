@@ -220,7 +220,8 @@ void main() {
       tuesday,
     );
     // The ledger lists it as taken, which is how the store lets go of it.
-    expect(after!.taken['bbbb']!.entries, contains('e1'));
+    expect(after!.snapshot.taken['bbbb']!.entries, contains('e1'));
+    expect(after.take, isNotNull);
     expect(await payees(), contains('Nomin'));
     // Taking the same inbox again adds nothing.
     await phone.take(PhoneInbox(device: 'bbbb', entries: [entry]), tuesday);
@@ -233,6 +234,128 @@ void main() {
       for (final t in (await macDb.loadLedger()).txns) t.payee,
     ];
     expect(macPayees.where((p) => p == 'Nomin'), hasLength(1));
+  });
+
+  test('a look says what it brought in, once, and a look with nothing new '
+      'says nothing', () async {
+    await phone.look(drive.path, monday);
+    expect(phone.takeNews(), isEmpty);
+    await spend('Nomin');
+    await mac.check(monday);
+    await phone.look(drive.path, tuesday);
+    final news = phone.takeNews();
+    expect(news.single.transactions, 1);
+    expect(news.single.payee, 'Nomin');
+    expect(phone.takeNews(), isEmpty);
+    await phone.look(drive.path, tuesday);
+    expect(phone.takeNews(), isEmpty);
+  });
+
+  test('taking an entry back out of the phone’s ledger goes to the computer '
+      'as a change, and a second take of it doesn’t bring it back', () async {
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    int id(String name) =>
+        ledger.accounts.values.singleWhere((a) => a.name == name).id;
+    final inbox = PhoneInbox(
+      device: 'bbbb',
+      entries: [
+        PhoneEntry(
+          id: 'e1',
+          categoryId: '${id('Groceries')}',
+          accountId: '${id('TDB Checking')}',
+          payee: 'Nomin',
+          amountMinor: -1250000,
+          date: tuesday,
+          madeAt: tuesday,
+        ),
+      ],
+    );
+    final took = await phone.take(inbox, tuesday);
+    expect(await payees(), contains('Nomin'));
+    final after = await phone.undoTake(took!.take!, tuesday);
+    expect(await payees(), isNot(contains('Nomin')));
+    // Still listed as taken: the next look of a computer doesn't redo it.
+    expect(after.taken['bbbb']!.entries, contains('e1'));
+    // The computer never sees the row, or sees it gone.
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect([
+      for (final t in (await macDb.loadLedger()).txns) t.payee,
+    ], isNot(contains('Nomin')));
+  });
+
+  test(
+    'an entry made on the phone is listed as not on the computer yet, '
+    'until a computer has applied it, and can be taken back by its row',
+    () async {
+      await phone.look(drive.path, monday);
+      final ledger = await phone.db!.loadLedger();
+      int id(String name) =>
+          ledger.accounts.values.singleWhere((a) => a.name == name).id;
+      final inbox = PhoneInbox(
+        device: 'bbbb',
+        entries: [
+          PhoneEntry(
+            id: 'e1',
+            categoryId: '${id('Groceries')}',
+            accountId: '${id('TDB Checking')}',
+            payee: 'Nomin',
+            amountMinor: -1250000,
+            date: tuesday,
+            madeAt: tuesday,
+          ),
+        ],
+      );
+      final took = await phone.take(inbox, tuesday);
+      final mine = took!.snapshot.mine.single;
+      expect(phoneRowOf(mine.id), isNotNull);
+      expect(mine.payee, 'Nomin');
+      expect(mine.amountMinor, -1250000);
+      expect(mine.categoryId, '${id('Groceries')}');
+      expect(mine.accountId, '${id('TDB Checking')}');
+
+      // The Mac has not seen it: still listed after a look.
+      await phone.look(drive.path, tuesday);
+      expect((await phone.asItStands(tuesday)).mine, hasLength(1));
+      // The Mac applies it and writes its file saying so; the phone's next look
+      // reads that and lets go of it.
+      await mac.check(tuesday);
+      await mac.bringIn(tuesday);
+      await mac.check(tuesday);
+      await phone.look(drive.path, tuesday);
+      expect((await phone.asItStands(tuesday)).mine, isEmpty);
+    },
+  );
+
+  test('a row of the phone’s own is taken back from its id alone, as after '
+      'the app was closed', () async {
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    int id(String name) =>
+        ledger.accounts.values.singleWhere((a) => a.name == name).id;
+    final took = await phone.take(
+      PhoneInbox(
+        device: 'bbbb',
+        entries: [
+          PhoneEntry(
+            id: 'e1',
+            categoryId: '${id('Groceries')}',
+            accountId: '${id('TDB Checking')}',
+            payee: 'Nomin',
+            amountMinor: -1250000,
+            date: tuesday,
+            madeAt: tuesday,
+          ),
+        ],
+      ),
+      tuesday,
+    );
+    final row = phoneRowOf(took!.snapshot.mine.single.id)!;
+    final after = await phone.undoTake(PhoneTake([row], const []), tuesday);
+    expect(after.mine, isEmpty);
+    expect(await payees(), isNot(contains('Nomin')));
   });
 
   test('giving the ledger up leaves nothing, and nothing reopens it', () async {

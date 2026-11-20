@@ -31,7 +31,7 @@ Future<void> _openCount(
         action: SnackBarAction(
           label: t.ledgerUndo,
           textColor: Mid.blue,
-          onPressed: () => store.removeCount(saved.count.id),
+          onPressed: () => unawaited(store.takeBack([saved.count.id])),
         ),
       ),
     );
