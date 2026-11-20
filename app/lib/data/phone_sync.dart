@@ -329,6 +329,11 @@ abstract class PhoneLedgerSource {
   Future<PhoneActed> actOnRow(PhoneRowAct act, DateTime now) =>
       throw UnsupportedError('This source keeps no ledger to edit');
 
+  /// How many rows are filed under category [id] in the phone's own ledger
+  /// right now, counted live as the computer's Delete does (#528).
+  Future<int> categoryRows(int id) =>
+      throw UnsupportedError('This source keeps no ledger to count in');
+
   /// What the looks since the last call brought in from the other
   /// computers, said once: the phone shows it, with no Undo, as a computer's
   /// popup has none (undo is for what the person here did).
@@ -775,6 +780,10 @@ class PhoneSync implements PhoneLedgerSource {
     });
     return asItStands(now);
   }
+
+  @override
+  Future<int> categoryRows(int id) async =>
+      (await _ledger()).categoryEntryCount(id);
 
   @override
   Future<PhoneActed> actOnRow(PhoneRowAct act, DateTime now) async {

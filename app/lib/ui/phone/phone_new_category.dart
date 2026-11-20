@@ -638,6 +638,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                 child: TextField(
                   key: ValueKey(key),
                   controller: c,
+                  onChanged: (_) => setState(() {}),
                   textAlign: TextAlign.end,
                   textCapitalization: TextCapitalization.sentences,
                   style: onest(16, weight: 500),
@@ -652,6 +653,20 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
           ),
         ),
       );
+
+  /// Changes typed or switched on this page that Save would keep, which
+  /// Archive and Delete leave behind (said, not stopped).
+  bool get _unsaved {
+    final c = widget.editing;
+    if (c == null || !_inLedger) return false;
+    String? text(String? v) => v == null || v.trim().isEmpty ? null : v.trim();
+    final id = int.tryParse(c.id);
+    return _fullName != c.name ||
+        text(_note.text) != text(c.note) ||
+        (widget.groupable && text(_group) != text(c.group)) ||
+        _flips.isNotEmpty ||
+        (id != null && _draft?.forCategory(id) != c.plan);
+  }
 
   /// Archive: no question, its rows keep it, and Undo is in the snack bar.
   Future<void> _archive(PhoneCategory c) async {
@@ -670,7 +685,16 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
   Future<void> _delete(PhoneCategory c) async {
     final t = context.t;
     final id = int.parse(c.id);
-    final n = widget.rows;
+    // Counted now, not as the page was drawn: a row another computer filed
+    // since is asked about, never refused.
+    int? live;
+    try {
+      live = await widget.store.categoryRows(id);
+    } catch (e) {
+      debugPrint('Counting a category\'s rows on the phone failed: $e');
+    }
+    if (!mounted) return;
+    final n = live ?? widget.rows;
     // Its Assigned goes back unless it moves with the rows: Income holds
     // none, and in another currency it would be read as that one's.
     String? backFor(AccountInfo? into) =>
@@ -690,7 +714,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         builder: (_) => _DeleteCategoryAsk(
           category: c,
           rows: n,
-          scheduled: widget.scheduled,
+          scheduled: widget.scheduled > n ? n : widget.scheduled,
           targets: widget.targets,
           pick: _pick,
           backFor: backFor,
@@ -1592,6 +1616,12 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                                 () => _delete(widget.editing!),
                               ),
                             ]),
+                            if (_unsaved)
+                              _aside(
+                                t.phoneEditUnsaved,
+                                key: 'edit-unsaved',
+                                color: Mid.ink2,
+                              ),
                           ],
                         ],
                         const SizedBox(height: 18),

@@ -2216,6 +2216,10 @@
       }
     }
   },
+  "phoneEditUnsaved": "Changes made on this page aren’t kept if you archive or delete.",
+  "@phoneEditUnsaved": {
+    "description": "Said on the phone's category Edit, under Archive and Delete, while the page holds changes Save would keep"
+  },
   "planShowInMenus": "Show in menus",
   "@planShowInMenus": {
     "description": "Budget page: button on an archived category, un-archives it"

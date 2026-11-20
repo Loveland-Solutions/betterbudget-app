@@ -181,6 +181,17 @@ class PhoneStore extends ChangeNotifier {
   /// Set by whoever keeps the ledger: does what a row's ⋯ menu asked.
   Future<PhoneActed> Function(PhoneRowAct act)? actRowIn;
 
+  /// Counts the rows filed under a category in the ledger as it is now.
+  Future<int> Function(int id)? categoryRowsIn;
+
+  /// How many rows are filed under category [id] right now; null when this
+  /// phone has no ledger to count in.
+  Future<int?> categoryRows(int id) async {
+    final count = categoryRowsIn;
+    if (count == null) return null;
+    return count(id);
+  }
+
   /// Does [act] on the ledger; throws what the ledger refuses.
   Future<PhoneActed> actRow(PhoneRowAct act) async {
     final into = actRowIn;
@@ -1268,10 +1279,19 @@ class _BudgetScreenState extends State<_BudgetScreen> {
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     if (i == listed.length + 1) {
-                      return switch (problems) {
-                        final log? => _RecentProblemsLine(log: log, now: now),
-                        null => const SizedBox.shrink(),
-                      };
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _ArchivedLine(store: store),
+                          switch (problems) {
+                            final log? => _RecentProblemsLine(
+                              log: log,
+                              now: now,
+                            ),
+                            null => const SizedBox.shrink(),
+                          },
+                        ],
+                      );
                     }
                     if (i == newAt) {
                       return Align(
@@ -1662,6 +1682,140 @@ class ReportProblemLine extends StatelessWidget {
         ),
       ),
     ),
+  );
+}
+
+/// Show archived (n), above Recent problems, while the ledger holds any
+/// archived category (#528): opens the page that lists them, each with Show
+/// in menus.
+class _ArchivedLine extends StatelessWidget {
+  const _ArchivedLine({required this.store});
+  final PhoneStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    final n = store.snapshot.data?.archivedCategories.length ?? 0;
+    if (n == 0) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton(
+        key: const ValueKey('budget-archived'),
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => _ArchivedPage(store: store)),
+        ),
+        style: TextButton.styleFrom(
+          minimumSize: const Size(44, 44),
+          foregroundColor: Mid.blue,
+          textStyle: onest(16),
+        ),
+        child: Text(context.t.planShowArchived(n)),
+      ),
+    );
+  }
+}
+
+/// The archived categories, each with Show in menus (a change the
+/// computers see, with a snack bar's Undo).
+class _ArchivedPage extends StatelessWidget {
+  const _ArchivedPage({required this.store});
+  final PhoneStore store;
+
+  Future<void> _bring(BuildContext context, AccountInfo c) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final t = context.t;
+    final PhoneActed done;
+    try {
+      done = await store.actRow(PhoneArchiveCategory(c.id, false));
+    } catch (e) {
+      debugPrint('Bringing a category back on the phone failed: $e');
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            key: const ValueKey('edit-category-refused'),
+            backgroundColor: Mid.raised,
+            content: Text(
+              t.ledgerCouldntSave,
+              style: onest(15, color: Mid.ink),
+            ),
+          ),
+        );
+      return;
+    }
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const ValueKey('archived-back'),
+          backgroundColor: Mid.raised,
+          content: Text(
+            t.ledgerBackInMenus(c.name),
+            style: onest(15, color: Mid.ink),
+          ),
+          action: SnackBarAction(
+            label: t.ledgerUndo,
+            textColor: Mid.blue,
+            onPressed: () => unawaited(store.replay(done.undo)),
+          ),
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: store,
+    builder: (context, _) {
+      final t = context.t;
+      final archived = store.snapshot.data?.archivedCategories ?? const [];
+      return Scaffold(
+        backgroundColor: Mid.ground,
+        appBar: AppBar(
+          backgroundColor: Mid.ground,
+          title: Text(
+            t.planShowArchived(archived.length),
+            style: onest(20, weight: 600),
+          ),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          children: [
+            for (final c in archived)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Material(
+                  color: Mid.card,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            c.name,
+                            style: onest(16, weight: 500),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        TextButton(
+                          key: ValueKey('unarchive-category-${c.id}'),
+                          onPressed: () => _bring(context, c),
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(44, 48),
+                            foregroundColor: Mid.blue,
+                            textStyle: onest(15),
+                          ),
+                          child: Text(t.planShowInMenus),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    },
   );
 }
 

@@ -7437,6 +7437,13 @@ is. The owner chose **C**. A (recommended) and B are not built.
   categorized** to start with (a default, not a required choice) and the computer's
   sentences, then goes ahead; with none it just goes; each has a snack bar's Undo. No
   sketch: the computer's design carried over, as the owner's skipping bills was. Left for
-  later: In a month of expenses?, which stays on the computer for now.
+  later: In a month of expenses?, which stays on the computer for now. After the two
+  review passes (owner, 2026-11-20): Delete asks whenever there are rows to move or money
+  to go back, and the dialog says that money ("₮… assigned to X goes back to not
+  assigned") before anything is done, not only afterwards; while the page holds changes
+  Save would keep, a line under Archive and Delete says they aren't kept (said, not
+  stopped); **Show archived (n)** on Budget, above Recent problems, opens the archived
+  categories, each with **Show in menus** and a snack bar's Undo, as the computer's
+  Budget has it.
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.

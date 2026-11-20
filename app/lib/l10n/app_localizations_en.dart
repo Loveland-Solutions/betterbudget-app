@@ -1502,6 +1502,10 @@ class WordsEn extends Words {
   }
 
   @override
+  String get phoneEditUnsaved =>
+      'Changes made on this page aren’t kept if you archive or delete.';
+
+  @override
   String get planShowInMenus => 'Show in menus';
 
   @override

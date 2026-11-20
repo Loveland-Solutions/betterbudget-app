@@ -514,6 +514,16 @@ void main() {
       await deleted.redo();
       data = await phone.db!.loadLedger();
       expect(data.categories.any((a) => a.id == food.id), isFalse);
+      // The computer sees it: the category gone, its rows in the other.
+      await phone.look(drive.path, tuesday);
+      await mac.check(tuesday);
+      await mac.bringIn(tuesday);
+      final there = await macDb.loadLedger();
+      expect(there.categories.any((a) => a.id == food.id), isFalse);
+      expect(
+        there.categoryUsage[other.id]?.rows ?? 0,
+        greaterThanOrEqualTo(rows),
+      );
     },
   );
 
