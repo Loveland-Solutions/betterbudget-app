@@ -69,6 +69,11 @@ part 'phone_move.dart';
 part 'phone_new_category.dart';
 part 'phone_register.dart';
 
+/// How long a snack bar stays: a Flutter one with an action (Undo) stays
+/// until it is swiped away unless told otherwise, and the owner's Undo bar
+/// is meant to clear by itself (a computer's popup does).
+const phoneSnackTime = Duration(seconds: 6);
+
 /// The snapshot and this phone's waiting entries. Where they are kept and how
 /// they reach the Mac is the store's business; the screens only read and add.
 class PhoneStore extends ChangeNotifier {
@@ -926,6 +931,9 @@ class _PhoneHomeState extends State<PhoneHome> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: phoneSnackTime,
+
           key: const ValueKey('brought-in'),
           backgroundColor: Mid.raised,
           content: Text(label, style: onest(15, color: Mid.ink)),
@@ -1128,6 +1136,9 @@ class _BudgetScreenState extends State<_BudgetScreen> {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
+            persist: false,
+            duration: phoneSnackTime,
+
             key: const ValueKey('assign-refused'),
             backgroundColor: Mid.raised,
             content: Text(
@@ -1142,6 +1153,9 @@ class _BudgetScreenState extends State<_BudgetScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: phoneSnackTime,
+
           key: const ValueKey('assign-done'),
           backgroundColor: Mid.raised,
           content: Text(
@@ -1177,6 +1191,9 @@ class _BudgetScreenState extends State<_BudgetScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: phoneSnackTime,
+
           key: const ValueKey('edit-done'),
           backgroundColor: Mid.raised,
           content: Text(
@@ -1732,6 +1749,9 @@ class _ArchivedPage extends StatelessWidget {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
+            persist: false,
+            duration: phoneSnackTime,
+
             key: const ValueKey('edit-category-refused'),
             backgroundColor: Mid.raised,
             content: Text(
@@ -1746,6 +1766,9 @@ class _ArchivedPage extends StatelessWidget {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: phoneSnackTime,
+
           key: const ValueKey('archived-back'),
           backgroundColor: Mid.raised,
           content: Text(

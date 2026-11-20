@@ -2487,6 +2487,57 @@ void main() {
     expect(nameOf(), 'Groceries');
   });
 
+  testWidgets('the Undo bar after an Edit clears by itself, with no swipe', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int groceries;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      groceries = data.accounts.values
+          .firstWhere((a) => a.isCategory && a.name == 'Groceries')
+          .id;
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    await _toBudget(tester);
+    await tester.scrollUntilVisible(
+      find.text('Groceries'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Groceries'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('open-edit-$groceries')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'Food',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byKey(const ValueKey('edit-done')), findsOneWidget);
+    // Flutter keeps a snack bar with an action until it is swiped away,
+    // unless told it may go.
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('edit-done')), findsNothing);
+  });
+
   testWidgets('Edit has a Note and a Group saved with Save, and Archive and '
       'Delete…, each with Undo (#528)', (tester) async {
     late AppDatabase db;
@@ -3183,6 +3234,66 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('phone-asking-line')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('ask-save')), findsOneWidget);
+  });
+
+  testWidgets('a snack bar from the page underneath doesn’t lie over Save on '
+      'the asking page', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    AskSide side(String payee) => AskSide(
+      date: '2026-11-12',
+      payee: payee,
+      lines: const [
+        AskLine(
+          account: 'Checking',
+          amountMinor: -1200000,
+          currency: 'MNT',
+          isCategory: false,
+        ),
+        AskLine(
+          account: 'Groceries',
+          amountMinor: 0,
+          currency: 'MNT',
+          isCategory: true,
+        ),
+      ],
+    );
+    final store = PhoneStore(previewSnapshot(DateTime(2026, 11, 20)));
+    await tester.pumpWidget(
+      PhoneApp(store: store, now: () => _now, onAnswer: (a) async => true),
+    );
+    await tester.pumpAndSettle();
+    // An edit's snack bar is up when the question arrives.
+    ScaffoldMessenger.of(tester.element(find.byType(Scaffold).first))
+        .showSnackBar(
+          const SnackBar(
+            duration: Duration(minutes: 1),
+            content: Text('Corner shop 3 edited'),
+          ),
+        );
+    await tester.pump();
+    expect(find.text('Corner shop 3 edited'), findsOneWidget);
+    store.asking.value = (
+      asks: [
+        Ask(
+          id: 'a',
+          kind: AskKind.transaction,
+          mine: side('Corner shop 3'),
+          theirs: side('Corner shop 4'),
+          neither: side('Corner shop 2'),
+        ),
+      ],
+      from: 'Tom’s Mac',
+      apart: false,
+      notOnComputer: 0,
+      otherChanges: 0,
+      mineDigest: null,
+      digest: 'd1',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ask-save')), findsOneWidget);
+    expect(find.text('Corner shop 3 edited'), findsNothing);
   });
 
   testWidgets('two ledgers that can’t be put together say what would be '

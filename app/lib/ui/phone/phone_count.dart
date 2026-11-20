@@ -25,6 +25,9 @@ Future<void> _openCount(
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(
+        persist: false,
+        duration: phoneSnackTime,
+
         key: const ValueKey('count-saved'),
         backgroundColor: Mid.raised,
         content: Text(saved.said, style: onest(15, color: Mid.ink)),

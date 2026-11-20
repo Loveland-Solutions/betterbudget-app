@@ -525,6 +525,9 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
+            persist: false,
+            duration: phoneSnackTime,
+
             key: const ValueKey('edit-category-refused'),
             backgroundColor: Mid.raised,
             content: Text(
@@ -744,6 +747,9 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
+            persist: false,
+            duration: phoneSnackTime,
+
             key: const ValueKey('edit-category-refused'),
             backgroundColor: Mid.raised,
             content: Text(

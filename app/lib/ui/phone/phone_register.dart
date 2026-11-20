@@ -627,6 +627,9 @@ class _RegisterState extends State<_RegisterScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: phoneSnackTime,
+
           key: const ValueKey('row-acted'),
           backgroundColor: Mid.raised,
           content: Text(
@@ -687,6 +690,9 @@ class _RegisterState extends State<_RegisterScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: phoneSnackTime,
+
           key: const ValueKey('row-confirmed'),
           backgroundColor: Mid.raised,
           content: Text(
@@ -719,6 +725,9 @@ class _RegisterState extends State<_RegisterScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: phoneSnackTime,
+
           key: const ValueKey('row-refused'),
           backgroundColor: Mid.raised,
           content: Text(words, style: onest(15, color: Mid.ink)),
@@ -815,6 +824,9 @@ class _RegisterState extends State<_RegisterScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: phoneSnackTime,
+
           key: const ValueKey('row-saved'),
           backgroundColor: Mid.raised,
           content: Text(t.ledgerEdited(name), style: onest(15, color: Mid.ink)),
