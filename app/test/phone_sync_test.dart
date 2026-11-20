@@ -110,6 +110,48 @@ void main() {
     },
   );
 
+  test('a payee changed on a row on the Mac reaches the phone, which had the '
+      'row already', () async {
+    await spend('Nomin Market');
+    expect(await mac.check(monday), FolderStanding.ok);
+    await phone.look(drive.path, monday);
+    expect(await payees(), contains('Nomin Market'));
+    // The phone has written its own file by now; then the Mac edits the row.
+    final ledger = await macDb.loadLedger();
+    int id(String name) =>
+        ledger.accounts.values.singleWhere((a) => a.name == name).id;
+    final row = ledger.txns.singleWhere((t) => t.payee == 'Nomin Market');
+    await macDb.editTransaction(
+      transactionId: row.id,
+      accountId: id('TDB Checking'),
+      date: monday,
+      today: monday,
+      payee: 'Nomin Market 2',
+      counterAccountId: id('Groceries'),
+      amount: -1250000,
+    );
+    expect(await mac.check(tuesday), FolderStanding.ok);
+    await phone.look(drive.path, tuesday);
+    expect(await payees(), contains('Nomin Market 2'));
+    expect(await payees(), isNot(contains('Nomin Market')));
+  });
+
+  test('rows renamed to a payee on the Mac (the offer after Save) reach the '
+      'phone, which had them already', () async {
+    await spend('Nomin Market');
+    expect(await mac.check(monday), FolderStanding.ok);
+    await phone.look(drive.path, monday);
+    final ledger = await macDb.loadLedger();
+    final row = ledger.txns.singleWhere((t) => t.payee == 'Nomin Market');
+    await macDb.renamePayeeMany(
+      transactionIds: [row.id],
+      name: 'Nomin Market 2',
+    );
+    expect(await mac.check(tuesday), FolderStanding.ok);
+    await phone.look(drive.path, tuesday);
+    expect(await payees(), contains('Nomin Market 2'));
+  });
+
   test('a look brings in what a computer did, and writes the phone’s own '
       'change file, never the folder’s ledger', () async {
     await spend('Nomin');

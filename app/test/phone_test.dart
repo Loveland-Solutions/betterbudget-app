@@ -6669,23 +6669,24 @@ void main() {
       expect(problems.recent.single.message, startsWith('Couldn’t save'));
     });
 
-    testWidgets('while an entry waits the folder is looked at every half '
-        'minute', (tester) async {
+    testWidgets('the folder is looked at every half minute while the app is '
+        'open, with nothing waiting too: the phone is another computer on '
+        'the ledger (#526)', (tester) async {
       final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
       final folder = _FakeFolder()..picked = 'drive:BetterBudget';
       final s = await start(tester, keys: keys, folder: folder);
-      // Nothing waiting: nothing to look for.
+      expect(s.looks, hasLength(1));
       await tester.pump(const Duration(seconds: 31));
       await tester.pumpAndSettle();
-      expect(s.looks, hasLength(1));
+      expect(s.looks, hasLength(2));
 
       await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
       await tester.pump(const Duration(seconds: 31));
       await tester.pumpAndSettle();
-      expect(s.looks, hasLength(2));
+      expect(s.looks, hasLength(3));
       await tester.pump(const Duration(seconds: 31));
       await tester.pumpAndSettle();
-      expect(s.looks, hasLength(3));
+      expect(s.looks, hasLength(4));
     });
 
     testWidgets('an entry waiting on the phone survives a fresh read', (
