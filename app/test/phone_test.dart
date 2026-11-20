@@ -3185,6 +3185,66 @@ void main() {
     expect(find.byKey(const ValueKey('ask-save')), findsOneWidget);
   });
 
+  testWidgets('a snack bar from the page underneath doesn’t lie over Save on '
+      'the asking page', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    AskSide side(String payee) => AskSide(
+      date: '2026-11-12',
+      payee: payee,
+      lines: const [
+        AskLine(
+          account: 'Checking',
+          amountMinor: -1200000,
+          currency: 'MNT',
+          isCategory: false,
+        ),
+        AskLine(
+          account: 'Groceries',
+          amountMinor: 0,
+          currency: 'MNT',
+          isCategory: true,
+        ),
+      ],
+    );
+    final store = PhoneStore(previewSnapshot(DateTime(2026, 11, 20)));
+    await tester.pumpWidget(
+      PhoneApp(store: store, now: () => _now, onAnswer: (a) async => true),
+    );
+    await tester.pumpAndSettle();
+    // An edit's snack bar is up when the question arrives.
+    ScaffoldMessenger.of(tester.element(find.byType(Scaffold).first))
+        .showSnackBar(
+          const SnackBar(
+            duration: Duration(minutes: 1),
+            content: Text('Corner shop 3 edited'),
+          ),
+        );
+    await tester.pump();
+    expect(find.text('Corner shop 3 edited'), findsOneWidget);
+    store.asking.value = (
+      asks: [
+        Ask(
+          id: 'a',
+          kind: AskKind.transaction,
+          mine: side('Corner shop 3'),
+          theirs: side('Corner shop 4'),
+          neither: side('Corner shop 2'),
+        ),
+      ],
+      from: 'Tom’s Mac',
+      apart: false,
+      notOnComputer: 0,
+      otherChanges: 0,
+      mineDigest: null,
+      digest: 'd1',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ask-save')), findsOneWidget);
+    expect(find.text('Corner shop 3 edited'), findsNothing);
+  });
+
   testWidgets('two ledgers that can’t be put together say what would be '
       'lost, and Not now loses nothing', (tester) async {
     tester.view.physicalSize = const Size(390, 844);

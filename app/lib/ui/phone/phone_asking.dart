@@ -60,8 +60,13 @@ Future<PhoneAnswer?> showPhoneAsking(
   PhoneAsking asking,
 ) => Navigator.of(context).push<PhoneAnswer>(
   MaterialPageRoute(
-    builder: (_) =>
-        asking.apart ? _ApartPage(asking: asking) : _AsksPage(asking: asking),
+    // Its own messenger: a snack bar from the page underneath (an edit's
+    // "… edited · Undo") would lie over Save, the one button that answers.
+    builder: (_) => ScaffoldMessenger(
+      child: asking.apart
+          ? _ApartPage(asking: asking)
+          : _AsksPage(asking: asking),
+    ),
   ),
 );
 
