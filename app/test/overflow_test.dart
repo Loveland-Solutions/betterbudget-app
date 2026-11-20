@@ -366,6 +366,10 @@ void main() {
         }
 
         look();
+        // The register's rows, one opened, and the pad from Add.
+        page = 'the register';
+        await tap(_keyed('register-row-'));
+        await tap(find.byKey(const ValueKey('add-transaction')));
         // The biggest amount the pad takes, in a category with a long name.
         for (final k in '999999999999'.split('')) {
           final key = find.byKey(ValueKey('pad-$k'));
@@ -384,6 +388,7 @@ void main() {
         await tester.tap(find.textContaining('TDB Checking').last);
         await tester.pumpAndSettle();
         look();
+        await tap(find.byKey(const ValueKey('pad-back')));
         page = 'Budget';
         await tap(find.byKey(const ValueKey('to-budget')));
         await tester.drag(
