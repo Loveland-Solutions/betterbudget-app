@@ -16,7 +16,17 @@ import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../domain/budget.dart' show Budget;
 import '../domain/combine.dart' show Ask, Pick;
-import '../domain/ledger.dart' show Cleared, billSkippedKey, billSkippedValue;
+import '../domain/ledger.dart'
+    show
+        Cleared,
+        RegisterRow,
+        RowKind,
+        billNotIt,
+        billNotItKey,
+        billPaidKey,
+        billSkippedKey,
+        billSkippedValue,
+        decodeBillPaid;
 import '../domain/phone.dart';
 import '../domain/sync.dart' show appliedMarkerOp;
 import 'backup.dart';
@@ -27,6 +37,7 @@ import 'database.dart'
         ChangedSinceException,
         DbProblem,
         LockedException,
+        NotFoundException,
         PhoneTake,
         SplitPart,
         TxnSnapshot;
@@ -130,6 +141,36 @@ class PhoneNoBill extends PhoneRowAct {
   final int txn;
   final int planCategory;
   final DateTime date;
+}
+
+/// A row already in paid a bill, as the person answered (#527): [found]
+/// is [bill] paid, and the bill goes, or with [keepRest] stays for what is
+/// still to pay; with [bills] over one, the bills after it are paid with it.
+class PhoneBillPaid extends PhoneRowAct {
+  const PhoneBillPaid(
+    this.bill,
+    this.found, {
+    this.keepRest = false,
+    this.bills = 1,
+  });
+  final RegisterRow bill;
+  final RegisterRow found;
+  final bool keepRest;
+  final int bills;
+}
+
+/// No on "Paid on…?": [found] isn't [bill], and the bill stops asking.
+class PhoneNotIt extends PhoneRowAct {
+  const PhoneNotIt(this.bill, this.found);
+  final int bill;
+  final int found;
+}
+
+/// "Not this bill" on a row taken as a bill paid: it wasn't, and what the
+/// tie did is put back.
+class PhoneNotTheBill extends PhoneRowAct {
+  const PhoneNotTheBill(this.row);
+  final RegisterRow row;
 }
 
 class PhoneDeleteRow extends PhoneRowAct {
@@ -687,6 +728,27 @@ class PhoneSync implements PhoneLedgerSource {
             return again();
           },
         );
+      case PhoneBillPaid():
+        return _billPaid(db, act, now);
+      case PhoneNotIt(:final bill, :final found):
+        final key = billNotItKey(bill);
+        final prefs = (await db.loadLedger()).prefs;
+        final before = prefs[key];
+        final after = {...billNotIt(prefs, bill), found}.join(',');
+        await db.setPreference(key, after);
+        return (
+          snapshot: await again(),
+          undo: () async {
+            await db.setPreference(key, before);
+            return again();
+          },
+          redo: () async {
+            await db.setPreference(key, after);
+            return again();
+          },
+        );
+      case PhoneNotTheBill(:final row):
+        return _notTheBill(db, row, now);
       case PhoneDeleteRow(:final txn):
         final deleted = await db.softDeleteMany([txn]);
         if (deleted.isEmpty) throw LockedException(DbProblem.reconciled);
@@ -702,6 +764,144 @@ class PhoneSync implements PhoneLedgerSource {
           },
         );
     }
+  }
+
+  /// Ties [act]'s row to its bill, as the computer's `_tieBill` does.
+  Future<PhoneActed> _billPaid(
+    AppDatabase db,
+    PhoneBillPaid act,
+    DateTime now,
+  ) async {
+    final bill = act.bill, found = act.found;
+    final planned = bill.planCategoryId;
+    // A split is that bill only with a line in its category.
+    final tie =
+        planned != null &&
+        (found.kind == RowKind.simple ||
+            found.splitLines.any((l) => l.accountId == planned));
+    final short = bill.amount.abs() - found.amount.abs();
+    final rest = act.keepRest && short > 0 && bill.kind == RowKind.simple
+        ? bill.amount - found.amount
+        : null;
+    final notItKey = billNotItKey(bill.txnId);
+    final prefs = (await db.loadLedger()).prefs;
+    final notItBefore = prefs[notItKey];
+    final notIt = rest == null
+        ? null
+        : tie
+        ? notItBefore
+        : {...billNotIt(prefs, bill.txnId), found.txnId}.join(',');
+    final tiedBefore = found.planCategoryId;
+    final billBefore = await db.snapshot(bill.txnId);
+    final done = await db.payBill(
+      billId: bill.txnId,
+      billAccountId: bill.accountId,
+      foundId: found.txnId,
+      today: now,
+      planCategoryId: planned,
+      tie: tie,
+      rest: rest,
+      notIt: notIt,
+      bills: act.bills,
+    );
+    final billAfter = await db.snapshot(bill.txnId);
+    // Bills scheduled before and skipped with this one come back on undo.
+    final hadSkipped = [
+      for (final id in done.skipped)
+        if (!done.made.contains(id)) id,
+    ];
+    return (
+      snapshot: await asItStands(now),
+      undo: () async {
+        await db.transaction(() async {
+          await db.dropPlanBills(done.made);
+          if (hadSkipped.isNotEmpty) await db.restoreMany(hadSkipped);
+          // Only its tie: whatever was done to the row since stays.
+          if (tie) await db.setPlanBill(found.txnId, tiedBefore);
+          await db.restoreSnapshot(billBefore);
+          await db.setPreference(notItKey, notItBefore);
+          for (final k in done.wrote.keys) {
+            await db.setPreference(k, null);
+          }
+        });
+        return asItStands(now);
+      },
+      redo: () async {
+        await db.transaction(() async {
+          await db.restoreSnapshot(billAfter);
+          if (tie) await db.setPlanBill(found.txnId, planned);
+          if (planned != null) await db.bringBackPlanBills(done.made, planned);
+          if (done.skipped.isNotEmpty) await db.softDeleteMany(done.skipped);
+          await db.setPreference(notItKey, notIt);
+          for (final e in done.wrote.entries) {
+            await db.setPreference(e.key, e.value);
+          }
+        });
+        return asItStands(now);
+      },
+    );
+  }
+
+  /// "Not this bill", as the computer's `_notThisBill` does.
+  Future<PhoneActed> _notTheBill(
+    AppDatabase db,
+    RegisterRow r,
+    DateTime now,
+  ) async {
+    final data = await db.loadLedger();
+    final paidKey = billPaidKey(r.txnId);
+    final recordValue = data.prefs[paidKey];
+    final record = decodeBillPaid(recordValue);
+    if (record == null) throw NotFoundException(DbProblem.notSingleCategory);
+    final planned = r.planCategoryId;
+    final notItKey = billNotItKey(record.bill);
+    final notItBefore = data.prefs[notItKey];
+    final skippedBefore = {
+      for (final s in record.skipped)
+        billSkippedKey(s): data.prefs[billSkippedKey(s)],
+    };
+    final billBefore = await db.snapshot(record.bill);
+    final made = await db.notTheBill(
+      rowId: r.txnId,
+      planCategoryId: planned,
+      record: record,
+      today: now,
+    );
+    final billAfter = await db.snapshot(record.bill);
+    final notItAfter = await db.preference(notItKey);
+    return (
+      snapshot: await asItStands(now),
+      undo: () async {
+        await db.transaction(() async {
+          await db.dropPlanBills(made);
+          await db.restoreSnapshot(billBefore);
+          if (record.skipped.isNotEmpty) {
+            await db.softDeleteMany(record.skipped);
+          }
+          for (final e in skippedBefore.entries) {
+            await db.setPreference(e.key, e.value);
+          }
+          await db.setPreference(notItKey, notItBefore);
+          await db.setPreference(paidKey, recordValue);
+          if (planned != null) await db.setPlanBill(r.txnId, planned);
+        });
+        return asItStands(now);
+      },
+      redo: () async {
+        await db.transaction(() async {
+          if (planned != null) await db.setPlanBill(r.txnId, null);
+          await db.restoreSnapshot(billAfter);
+          if (record.skipped.isNotEmpty) await db.restoreMany(record.skipped);
+          for (final k in skippedBefore.keys) {
+            await db.setPreference(k, null);
+          }
+          await db.setPreference(notItKey, notItAfter);
+          await db.setPreference(paidKey, null);
+          if (planned != null) await db.bringBackPlanBills(made, planned);
+        });
+        return asItStands(now);
+      },
+    );
   }
 
   Future<AppDatabase> _ledger() async {

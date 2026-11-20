@@ -7363,7 +7363,16 @@ is. The owner chose **C**. A (recommended) and B are not built.
   refused in the ledger's words. No bill this time skips the bill and keeps its money for
   the next, with Undo. Rejected: a Confirm button on every scheduled row's face (a bill
   that varies is confirmed at the wrong figure until fixed) and a swipe (hidden, with no
-  visible control). Left on #527: a bill's "Paid on…?" question on a posted row, "Not
-  this bill", and an amount under the plan leaving the rest owed.
+  visible control). Left on #527 then: an amount under the plan leaving the rest owed.
+- **A bill asked about on the phone** (owner, 2026-11-20, 0.123.0; picked A of three): a
+  row already in that may have paid a scheduled bill is asked about in the register, as the
+  computer's "Paid on 10.13?": a line under the bill's row, and "Did this pay the Rent
+  bill?" under the row that may have paid it, each with Yes and No. Yes on a row near its
+  bill pays it (the bill goes and the plan's next is scheduled); a payment far less, part,
+  far more or two or three bills' worth opens a page with the computer's answers as
+  full-width buttons. No keeps the bill and stops it asking about that row. A row taken as
+  a bill paid has **Not this bill** in its ⋯. Each is one Undo. Rejected: a sheet right
+  after Save (it interrupts saving, and closing it leaves the question unanswered) and
+  asking only in the Scheduled tab (a person who never opens it is never asked).
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.

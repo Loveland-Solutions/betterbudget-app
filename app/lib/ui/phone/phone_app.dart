@@ -22,12 +22,15 @@ import '../../data/phone_sync.dart'
     show
         PhoneActed,
         PhoneAsking,
+        PhoneBillPaid,
         PhoneDeleteRow,
         PhoneEdited,
         PhoneMarkCleared,
         PhoneMoveRow,
         PhoneNews,
         PhoneNoBill,
+        PhoneNotIt,
+        PhoneNotTheBill,
         PhoneRowAct,
         PhoneRowConfirm,
         PhoneRowEdit;
@@ -52,6 +55,7 @@ import '../savings_steps.dart';
 import '../theme.dart';
 import 'phone_asking.dart';
 
+part 'phone_bill_ask.dart';
 part 'phone_count.dart';
 part 'phone_new_category.dart';
 part 'phone_register.dart';
