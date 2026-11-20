@@ -1564,3 +1564,23 @@ written is logged as this phone's. **Not yet wired in:** `PhoneStart` still show
 private copy, because an own ledger that nothing keeps up to date would show stale
 figures; piece 3 (the phone's change file and taking in the others') is what puts the
 phone on it.
+
+**Built, 2026-11-20 (0.114.0): #526 piece 3, the phone on its own ledger.** `PhoneSync`
+(`data/phone_sync.dart`) runs the computer's `CloudFolder` cycle over the phone's own
+ledger, through `PhoneFolderIo`: the phone's change file is written when its log has
+grown (with nothing in it yet, as the phone writes to its ledger in the pieces after
+this), and every other computer's change files are folded in and brought in, as on a
+computer. `PhoneStart` now shows that ledger: the first launch takes the folder's ledger
+as its own (`join`), every look after is the cycle, and the phone asks the folder for no
+whole ledger again. Three differences from a computer: (1) `CloudFolder(writesLedger:
+false)`: the phone never writes `Ledger.betterbudget`, which over mobile data is too
+much to send and which the computers keep; (2) the copy kept to restore from before each
+bring-in is not kept, the folder holds the copies; (3) a row changed two ways, and two
+ledgers that can't be combined, are not asked about yet: the standing is held and the
+figures stay as they were until piece 4's asking window. A folder that never answers
+shows the ledger as it stands after 8 seconds and the look brings the figures up to date
+when it finishes; the figures say how old they are by the last look that went through. A
+folder whose change files were cut past what the phone had (away over 45 days) is taken
+whole, as a computer does. Choosing another folder gives up the phone's ledger, which
+holds nothing of the phone's own until the pieces after this. The private copy and the
+fallback copy of earlier versions are removed once the phone's own ledger is up.

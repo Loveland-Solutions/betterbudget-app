@@ -7,11 +7,11 @@ import 'dart:io';
 
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
-import 'package:betterbudget/data/encryption.dart';
 import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_inbox.dart';
 import 'package:betterbudget/data/phone_ledger.dart';
+import 'package:betterbudget/data/phone_sync.dart';
 import 'package:betterbudget/data/problem_log.dart';
 import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/ledger.dart'
@@ -281,6 +281,95 @@ Directory _phoneDir() {
   final dir = Directory.systemTemp.createTempSync('bb-phone');
   addTearDown(() => dir.deleteSync(recursive: true));
   return dir;
+}
+
+/// Stands in for the phone's own ledger and its cycle with the folder
+/// (`PhoneSync`, tested on real ledgers in `phone_sync_test.dart`): joined once
+/// (kept between launches by a file in the phone's folder), then a look asks
+/// the folder as the real one would and shows the figures as of the last
+/// look that went through.
+class _FakeSource implements PhoneLedgerSource {
+  _FakeSource({
+    required this.dir,
+    required this.key,
+    required this.folder,
+    this.opens,
+    this.taken,
+    this.fails,
+    required this.joins,
+    required this.looks,
+  });
+
+  final Directory dir;
+  final Uint8List key;
+  final _FakeFolder folder;
+  final Uint8List? opens;
+  final Map<String, PhoneTaken> Function()? taken;
+  final bool Function()? fails;
+  final List<Uint8List> joins;
+  final List<DateTime> looks;
+
+  File get _marker => File('${dir.path}/fake-joined');
+  File get _looked => File('${dir.path}/fake-looked');
+
+  @override
+  bool get joined => _marker.existsSync();
+
+  @override
+  Future<void> join(Uint8List folderLedger) async {
+    joins.add(key);
+    if (opens != null && !_same(key, opens!)) throw WrongKeyException();
+    _marker.writeAsStringSync('1');
+  }
+
+  PhoneSnapshot _snapshot(DateTime madeAt) {
+    final snapshot = previewSnapshot(madeAt);
+    final kept = taken?.call();
+    return kept == null
+        ? snapshot
+        : PhoneSnapshot(
+            madeAt: snapshot.madeAt,
+            categories: snapshot.categories,
+            accounts: snapshot.accounts,
+            payees: snapshot.payees,
+            taken: kept,
+          );
+  }
+
+  @override
+  Future<PhoneSnapshot> asItStands(DateTime now) async => _snapshot(
+    _looked.existsSync()
+        ? DateTime.fromMillisecondsSinceEpoch(
+            int.parse(_looked.readAsStringSync()),
+          )
+        : now,
+  );
+
+  @override
+  Future<PhoneSnapshot> look(String at, DateTime now) async {
+    looks.add(now);
+    // Half-arrived, or another ledger's: what the phone has can't be opened.
+    if (fails?.call() ?? false) throw StateError('cannot open');
+    try {
+      final found = await folder.read(at, ledgerFileName);
+      if (found != null) {
+        _looked.writeAsStringSync(
+          '${(found.changed ?? now).millisecondsSinceEpoch}',
+        );
+      }
+    } on PlatformException {
+      // No signal: the figures are as old as the last look that went through.
+    }
+    return asItStands(now);
+  }
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  Future<void> leave() async {
+    if (_marker.existsSync()) _marker.deleteSync();
+  }
 }
 
 void main() {
@@ -2943,50 +3032,6 @@ void main() {
         expect(checking.balanceMinor, data.balanceOf(int.parse(checking.id)));
       },
     );
-
-    test(
-      'the encrypted ledger opens with its key and not with another',
-      () async {
-        final dir = await Directory.systemTemp.createTemp('bb-phone');
-        addTearDown(() => dir.delete(recursive: true));
-        final key = deriveDataKey(RecoveryKey.generate());
-        final file = File('${dir.path}/$ledgerFileName');
-        final db = AppDatabase(
-          NativeDatabase(file, setup: (raw) => applyCipherKey(raw, key)),
-        );
-        await seedDemoIfEmpty(db, today);
-        await db.customStatement('PRAGMA wal_checkpoint(TRUNCATE)');
-        final names = {
-          for (final a in (await db.loadLedger()).accounts.values) a.name,
-        };
-        await db.close();
-        final bytes = await file.readAsBytes();
-        final private = Directory('${dir.path}/phone');
-
-        final snapshot = await readPhoneLedger(
-          bytes,
-          key,
-          dir: private,
-          today: today,
-          madeAt: today,
-        );
-        expect(names, containsAll(snapshot.categories.map((c) => c.name)));
-        expect(snapshot.categories, isNotEmpty);
-        // The file in the folder is never the one that is opened.
-        expect(await file.readAsBytes(), bytes);
-
-        await expectLater(
-          readPhoneLedger(
-            bytes,
-            deriveDataKey(RecoveryKey.generate()),
-            dir: private,
-            today: today,
-            madeAt: today,
-          ),
-          throwsA(isA<WrongKeyException>()),
-        );
-      },
-    );
   });
 
   group('entries reach the computer', () {
@@ -4258,7 +4303,15 @@ void main() {
   });
 
   group('first launch', () {
-    Future<({_FakeKeys keys, _FakeFolder folder, List<Uint8List> read})> start(
+    Future<
+      ({
+        _FakeKeys keys,
+        _FakeFolder folder,
+        List<Uint8List> read,
+        List<DateTime> looks,
+      })
+    >
+    start(
       WidgetTester tester, {
       _FakeKeys? keys,
       _FakeFolder? folder,
@@ -4266,6 +4319,7 @@ void main() {
       Directory? dir,
       Map<String, PhoneTaken> Function()? taken,
       ProblemLog? problems,
+      bool Function()? fails,
     }) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -4273,6 +4327,7 @@ void main() {
       final k = keys ?? _FakeKeys();
       final f = folder ?? _FakeFolder();
       final read = <Uint8List>[];
+      final looks = <DateTime>[];
       await tester.pumpWidget(
         PhoneFrame(
           child: PhoneStart(
@@ -4281,34 +4336,27 @@ void main() {
             dir: dir ?? _phoneDir(),
             now: () => _now,
             problems: problems,
-            read:
-                (
-                  bytes,
-                  key, {
+            open:
+                ({
                   required dir,
-                  required today,
-                  required madeAt,
-                }) async {
-                  read.add(key);
-                  if (opens != null && !_same(key, opens)) {
-                    throw WrongKeyException();
-                  }
-                  final snapshot = previewSnapshot(madeAt);
-                  return taken == null
-                      ? snapshot
-                      : PhoneSnapshot(
-                          madeAt: snapshot.madeAt,
-                          categories: snapshot.categories,
-                          accounts: snapshot.accounts,
-                          payees: snapshot.payees,
-                          taken: taken(),
-                        );
-                },
+                  required key,
+                  required device,
+                  required folder,
+                }) => _FakeSource(
+                  dir: dir,
+                  key: key,
+                  folder: f,
+                  opens: opens,
+                  taken: taken,
+                  fails: fails,
+                  joins: read,
+                  looks: looks,
+                ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      return (keys: k, folder: f, read: read);
+      return (keys: k, folder: f, read: read, looks: looks);
     }
 
     testWidgets('the demo key opens made-up figures, reads and keeps nothing '
@@ -4406,6 +4454,43 @@ void main() {
       expect(find.byKey(const ValueKey('report-problem')), findsNothing);
     });
 
+    testWidgets('a wrong key and then the right one: what is written is under '
+        'the right key and is there after a relaunch', (tester) async {
+      final rightKey = RecoveryKey.generate();
+      final right = deriveDataKey(rightKey);
+      final dir = _phoneDir();
+      final keys = _FakeKeys();
+      final folder = _FakeFolder();
+      await start(tester, keys: keys, folder: folder, dir: dir, opens: right);
+      await tester.enterText(
+        find.byKey(const ValueKey('phone-key')),
+        RecoveryKey.generate().display,
+      );
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose the folder'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('That recovery key doesn’t open the ledger in this folder'),
+        findsOneWidget,
+      );
+      // Nothing kept under the key that didn't fit.
+      expect(Directory('${dir.path}/waiting').existsSync(), isFalse);
+
+      await tester.tap(find.text('Enter the key again'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('phone-key')),
+        rightKey.display,
+      );
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+      await tester.pumpWidget(const SizedBox());
+      await start(tester, keys: keys, folder: folder, dir: dir, opens: right);
+      expect(find.text('1 entry isn’t on your computer yet'), findsOneWidget);
+    });
+
     testWidgets('a ledger the kept key no longer opens goes in the record', (
       tester,
     ) async {
@@ -4454,6 +4539,22 @@ void main() {
       expect(folder.forgotten, ['drive:Photos']);
     });
 
+    testWidgets('the copies an earlier version kept apart are removed once the '
+        'phone’s own ledger is up', (tester) async {
+      final dir = _phoneDir();
+      for (final old in ['phone', 'phone-last']) {
+        File('${dir.path}/$old/$ledgerFileName')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync([1, 2, 3]);
+      }
+      final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+      final folder = _FakeFolder()..picked = 'drive:BetterBudget';
+      await start(tester, keys: keys, folder: folder, dir: dir);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+      expect(Directory('${dir.path}/phone').existsSync(), isFalse);
+      expect(Directory('${dir.path}/phone-last').existsSync(), isFalse);
+    });
+
     testWidgets('a problem screen ends with Send feedback…', (tester) async {
       final browser = _FakeBrowser();
       final before = UrlLauncherPlatform.instance;
@@ -4495,18 +4596,20 @@ void main() {
             folder: folder,
             dir: _phoneDir(),
             now: () => _now,
-            read:
-                (
-                  bytes,
-                  key, {
+            open:
+                ({
                   required dir,
-                  required today,
-                  required madeAt,
-                }) async {
-                  // Half-arrived: the key that opened it before no longer does.
-                  if (broken) throw WrongKeyException();
-                  return previewSnapshot(madeAt);
-                },
+                  required key,
+                  required device,
+                  required folder,
+                }) => _FakeSource(
+                  dir: dir,
+                  key: key,
+                  folder: folder as _FakeFolder,
+                  fails: () => broken,
+                  joins: [],
+                  looks: [],
+                ),
           ),
         ),
       );
@@ -4717,35 +4820,23 @@ void main() {
       expect(problems.recent.single.message, startsWith('Couldn’t save'));
     });
 
-    testWidgets('while an entry waits the folder is asked every half minute, '
-        'and the ledger fetched only when it has changed', (tester) async {
+    testWidgets('while an entry waits the folder is looked at every half '
+        'minute', (tester) async {
       final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
       final folder = _FakeFolder()..picked = 'drive:BetterBudget';
       final s = await start(tester, keys: keys, folder: folder);
       // Nothing waiting: nothing to look for.
       await tester.pump(const Duration(seconds: 31));
       await tester.pumpAndSettle();
-      expect(s.read, hasLength(1));
+      expect(s.looks, hasLength(1));
 
       await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
       await tester.pump(const Duration(seconds: 31));
       await tester.pumpAndSettle();
-      // Asked, and the same ledger is still there: not fetched again.
-      expect(s.read, hasLength(1));
-
-      folder.changedAt = DateTime(2026, 10, 7, 14, 6);
+      expect(s.looks, hasLength(2));
       await tester.pump(const Duration(seconds: 31));
       await tester.pumpAndSettle();
-      expect(s.read, hasLength(2));
-
-      // A folder that goes on giving the old time is fetched anyway on
-      // every fourth look.
-      await tester.pump(const Duration(seconds: 31));
-      await tester.pumpAndSettle();
-      expect(s.read, hasLength(2));
-      await tester.pump(const Duration(seconds: 31));
-      await tester.pumpAndSettle();
-      expect(s.read, hasLength(3));
+      expect(s.looks, hasLength(3));
     });
 
     testWidgets('an entry waiting on the phone survives a fresh read', (
@@ -4760,8 +4851,7 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpAndSettle();
-      expect(s.read.length, 2);
-      expect(s.folder.asked.toSet(), {ledgerFileName});
+      expect(s.looks.length, 2);
       expect(find.text('1 entry isn’t on your computer yet'), findsOneWidget);
       await _toBudget(tester);
       expect(find.text('₮53,500.00'), findsOneWidget);
