@@ -21,6 +21,133 @@ class _IncomePage extends StatelessWidget {
   final PhoneStore store;
   final DateTime today;
 
+  /// The regular incomes, each with Edit, then Add regular income; "I
+  /// don't have regular income" while there is none. Only where the phone
+  /// holds the ledger (figures made up have none).
+  List<Widget> _regular(
+    BuildContext context,
+    PhoneSnapshot snapshot,
+    PhoneIncome income,
+  ) {
+    final t = context.t;
+    final data = snapshot.data;
+    if (data == null) return const [];
+    final pays = data.paySchedules;
+    String accountName(PaySchedule p) => data.accounts[p.accountId]?.name ?? '';
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(2, 18, 2, 6),
+        child: Text(
+          t.setupYourPay,
+          style: onest(13, weight: 700, color: Mid.ink2),
+        ),
+      ),
+      if (pays.isNotEmpty) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+          child: Text(t.phoneIncomeRules, style: onest(13, color: Mid.ink3)),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Mid.card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Mid.rule),
+          ),
+          child: Column(
+            children: [
+              for (final (i, p) in pays.indexed)
+                Container(
+                  key: ValueKey('regular-${p.id}'),
+                  constraints: const BoxConstraints(minHeight: 60),
+                  padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+                  decoration: BoxDecoration(
+                    border: i == pays.length - 1
+                        ? null
+                        : Border(bottom: BorderSide(color: Mid.rule)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              payTitle(t, data, p),
+                              style: onest(15, weight: 600),
+                            ),
+                            Text(
+                              t.planPayInto(
+                                payAmounts(
+                                  t,
+                                  p,
+                                  (v) => formatShort(
+                                    v,
+                                    currency:
+                                        data.accounts[p.accountId]?.currency ??
+                                        Currency.mnt,
+                                  ),
+                                  dotted: true,
+                                ),
+                                accountName(p),
+                              ),
+                              style: onest(13, color: Mid.ink2, tabular: true),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        key: ValueKey('edit-pay-${p.id}'),
+                        onPressed: () => unawaited(
+                          _openPay(
+                            context,
+                            store: store,
+                            today: today,
+                            existing: p,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(56, 44),
+                          foregroundColor: Mid.blue,
+                          textStyle: onest(15, weight: 600),
+                        ),
+                        child: Text(t.setupEdit),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+      const SizedBox(height: 12),
+      FilledButton.icon(
+        key: const ValueKey('income-add-pay'),
+        onPressed: () =>
+            unawaited(_openPay(context, store: store, today: today)),
+        icon: const Icon(Icons.add_rounded),
+        label: Text(pays.isEmpty ? t.setupAddYourPay : t.setupAddOtherPay),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(48),
+          backgroundColor: Mid.green,
+          foregroundColor: Colors.white,
+          textStyle: onest(16, weight: 600),
+        ),
+      ),
+      if (pays.isEmpty)
+        TextButton(
+          key: const ValueKey('income-no-pay'),
+          onPressed: () =>
+              unawaited(_sayNoPay(context, store, none: !income.saidNone)),
+          style: TextButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            foregroundColor: Mid.blue,
+            textStyle: onest(15),
+          ),
+          child: Text(income.saidNone ? t.setupAskAgain : t.setupNoRegularPay),
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: store,
@@ -81,6 +208,7 @@ class _IncomePage extends StatelessWidget {
                     style: onest(14, color: Mid.ink2),
                   ),
                 ),
+              ..._regular(context, snapshot, income),
               if (income.waiting.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(2, 12, 2, 0),

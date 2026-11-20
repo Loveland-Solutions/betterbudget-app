@@ -34,11 +34,14 @@ import '../../data/phone_sync.dart'
         PhoneMoveRow,
         PhoneNews,
         PhoneNoBill,
+        PhoneNoPay,
         PhoneNotIt,
         PhoneNotTheBill,
         PhoneRowAct,
         PhoneRowConfirm,
-        PhoneRowEdit;
+        PhoneRowEdit,
+        PhoneSavePay,
+        PhoneStopPay;
 import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
 import '../../domain/budget_amounts.dart' show billSwitches;
@@ -68,6 +71,7 @@ part 'phone_count.dart';
 part 'phone_income.dart';
 part 'phone_move.dart';
 part 'phone_new_category.dart';
+part 'phone_pay.dart';
 part 'phone_register.dart';
 
 /// How long a snack bar stays: a Flutter one with an action (Undo) stays

@@ -36,7 +36,14 @@ import '../domain/ledger.dart'
         billSkippedValue,
         dateKey,
         decodeBillPaid;
-import '../domain/pay.dart' show budgetPeriod;
+import '../domain/pay.dart'
+    show
+        PayRepeat,
+        PayRule,
+        PayWeekend,
+        budgetPeriod,
+        noRegularPayKey,
+        payNever;
 import '../domain/payee_rules.dart' show Remembered;
 import '../domain/phone.dart';
 import '../domain/readiness.dart' show ReadyKeys;
@@ -52,6 +59,7 @@ import 'database.dart'
         DbProblem,
         LockedException,
         NotFoundException,
+        PayChange,
         PhoneTake,
         SplitPart,
         TxnSnapshot;
@@ -257,6 +265,47 @@ class PhoneDeleteCategory extends PhoneRowAct {
   const PhoneDeleteCategory(this.category, this.into);
   final int category;
   final int? into;
+}
+
+/// A regular income as the pay form answered it (#528): the fields of the
+/// computer's `PayDraft`.
+typedef PhonePayDraft = ({
+  int accountId,
+  String? name,
+  String? payee,
+  int amount,
+  int? amount2,
+  bool varies,
+  PayRule rule,
+  int day1,
+  int day2,
+  int weeks,
+  DateTime anchor,
+  PayRepeat? repeat,
+  PayWeekend weekend,
+});
+
+/// A regular income saved on the Income page (#528), new when [id] is null,
+/// written as the computer's `_applyPay` writes it. [replaced] is filled in
+/// by the ledger: how many rows of the person's own it took over.
+class PhoneSavePay extends PhoneRowAct {
+  PhoneSavePay(this.id, this.draft);
+  final int? id;
+  final PhonePayDraft draft;
+  int replaced = 0;
+}
+
+/// A regular income stopped (#528). The categories budgeted by its pay
+/// periods, as the ledger has them now, go by the month, in the same Undo.
+class PhoneStopPay extends PhoneRowAct {
+  const PhoneStopPay(this.id);
+  final int id;
+}
+
+/// "I don't have regular income" said, or asked again (#528).
+class PhoneNoPay extends PhoneRowAct {
+  const PhoneNoPay(this.none);
+  final bool none;
 }
 
 class PhoneDeleteRow extends PhoneRowAct {
@@ -1170,6 +1219,8 @@ class PhoneSync implements PhoneLedgerSource {
             return again();
           },
         );
+      case PhoneSavePay() || PhoneStopPay() || PhoneNoPay():
+        return actOnPay(db, act, now, again);
       case PhoneDeleteRow(:final txn):
         final deleted = await db.softDeleteMany([txn]);
         if (deleted.isEmpty) throw LockedException(DbProblem.reconciled);
@@ -1413,5 +1464,136 @@ class PhoneSync implements PhoneLedgerSource {
   Future<void> leave() async {
     await close();
     if (_own.dir.existsSync()) await _own.dir.delete(recursive: true);
+  }
+}
+
+/// Does a regular income's act (#528): save, stop, or say there is none,
+/// each with its undo and redo, as the computer's `_applyPay` does. Shared
+/// by the phone's ledger and the tests' stand-in, so there is one copy.
+Future<PhoneActed> actOnPay(
+  AppDatabase db,
+  PhoneRowAct act,
+  DateTime now,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  switch (act) {
+    case PhoneSavePay(:final id, :final draft):
+      final data = await db.loadLedger();
+      final today = dateOnly(now);
+      late PayChange change;
+      final wasNone = id == null ? data.prefs[noRegularPayKey] : null;
+      await db.transaction(() async {
+        change = await db.savePaySchedule(
+          id: id,
+          accountId: draft.accountId,
+          name: draft.name,
+          payee: draft.payee,
+          amount: draft.amount,
+          amount2: draft.amount2,
+          varies: draft.varies,
+          rule: draft.rule,
+          day1: draft.day1,
+          day2: draft.day2,
+          weeks: draft.weeks,
+          anchor: draft.anchor,
+          repeat: draft.repeat,
+          weekend: draft.weekend,
+          // The Budget page's view is chosen there; editing a pay leaves it.
+          definesPeriod: id == null
+              ? false
+              : data.payScheduleById(id)?.definesPeriod ?? false,
+          today: today,
+        );
+        // Pay added after "I don't have regular income": the saying no
+        // longer holds. Undone together.
+        if (wasNone != null) await db.setPreference(noRegularPayKey, null);
+      });
+      act.replaced = change.replaced.length;
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.transaction(() async {
+            await db.undoPayChange(change);
+            if (wasNone != null) {
+              await db.setPreference(noRegularPayKey, wasNone);
+            }
+          });
+          return again();
+        },
+        redo: () async {
+          await db.transaction(() async {
+            await db.redoPayChange(change);
+            if (wasNone != null) await db.setPreference(noRegularPayKey, null);
+          });
+          return again();
+        },
+      );
+    case PhoneStopPay(:final id):
+      final data = await db.loadLedger();
+      final today = dateOnly(now);
+      final existing = data.payScheduleById(id);
+      if (existing == null) throw NotFoundException(DbProblem.payIsIn);
+      // The categories per this pay go by the month, as the computer's
+      // dialog starts them: one undo with the stop.
+      final moved = <int, CategoryPlan>{};
+      final after = existing.nextAfter(today);
+      final next = after == payNever ? today : after;
+      for (final p in data.plans.values) {
+        if (p.payScheduleId == id) {
+          moved[p.categoryId] = p.movedToPay(null, nextPayday: next);
+        }
+      }
+      late PayChange change;
+      final planChanges = <int, PlanChange>{};
+      await db.transaction(() async {
+        change = await db.stopPaySchedule(id, today);
+        for (final e in moved.entries) {
+          planChanges[e.key] = await db.changeCategoryPlan(
+            e.key,
+            e.value,
+            today,
+          );
+        }
+      });
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.transaction(() async {
+            for (final e in planChanges.entries) {
+              await db.undoPlanChange(e.key, e.value);
+            }
+            await db.undoPayChange(change);
+          });
+          return again();
+        },
+        redo: () async {
+          await db.transaction(() async {
+            await db.redoPayChange(change);
+            for (final e in planChanges.entries) {
+              await db.redoPlanChange(e.key, moved[e.key], e.value);
+            }
+          });
+          return again();
+        },
+      );
+    case PhoneNoPay(:final none):
+      final old = (await db.loadLedger()).prefs[noRegularPayKey];
+      final value = none ? '1' : null;
+      // Said already: nothing changes, so nothing is undone (as the
+      // computer's `_setNoRegularPay`).
+      if (old != value) await db.setPreference(noRegularPayKey, value);
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.setPreference(noRegularPayKey, old);
+          return again();
+        },
+        redo: () async {
+          await db.setPreference(noRegularPayKey, value);
+          return again();
+        },
+      );
+    default:
+      throw ArgumentError('Not a regular income act: $act');
   }
 }

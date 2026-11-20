@@ -1811,5 +1811,12 @@
   "phonePaydayMissed": "ороогүй",
   "phonePaydayInto": "данс: {account}",
   "phoneNoPaydays": "Энэ үед орлого орох өдөр алга.",
-  "phoneOpenIncome": "Орлого орох өдрүүдийг харах"
+  "phoneOpenIncome": "Орлого орох өдрүүдийг харах",
+  "phoneIncomeRules": "Дээрх орлого эдгээрээс орж ирнэ.",
+  "phoneLeaveAsk": "Хадгалахгүйгээр гарах уу?",
+  "phoneKeepEditing": "Засахаа үргэлжлүүлэх",
+  "phoneLeaveIt": "Гарах",
+  "phoneStopPayNext": "{name} зогсоно. {date}-нд орох {amount} цаашид тооцогдохгүй. Орсон орлого хэвээр үлдэнэ.",
+  "phoneStopPayNoNext": "{name} зогсоно. Орсон орлого хэвээр үлдэнэ.",
+  "phoneStopPayMonth": "Одооноос тэдгээр сараар төлөвлөгдөнө."
 }

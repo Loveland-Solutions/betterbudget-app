@@ -7972,4 +7972,30 @@ class WordsEn extends Words {
 
   @override
   String get phoneOpenIncome => 'Show the paydays';
+
+  @override
+  String get phoneIncomeRules => 'Each payday above comes from one of these.';
+
+  @override
+  String get phoneLeaveAsk => 'Leave without saving?';
+
+  @override
+  String get phoneKeepEditing => 'Keep editing';
+
+  @override
+  String get phoneLeaveIt => 'Leave';
+
+  @override
+  String phoneStopPayNext(String name, String amount, String date) {
+    return '$name stops. $amount still to come on $date won’t be expected. Paydays that came stay.';
+  }
+
+  @override
+  String phoneStopPayNoNext(String name) {
+    return '$name stops. Paydays that came stay.';
+  }
+
+  @override
+  String get phoneStopPayMonth =>
+      'They will be budgeted by the month from now.';
 }

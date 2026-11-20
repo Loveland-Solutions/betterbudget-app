@@ -7473,3 +7473,41 @@ regular income**, the pay form's own sketches at phone size, are the next piece.
 computer has no list of paydays by date; this is the phone's own way of answering "when
 does money arrive", the owner's pick. The Mongolian is a draft until Tanan checks it
 (#90).
+
+## Regular income on the phone: Edit and Add, one page (owner, 2026-11-20, #528)
+
+Three sketches at phone size for the computer's pay form: **A** the form on one page,
+the computer's fields carried over, with Cancel and Save pinned at the foot; **B** three
+short steps (who and where, how much, how often); **C** one sentence whose underlined
+parts are tapped. The owner chose **A**, after the design committee (layout, words, flow,
+first-time reader): three of four picked A and none C. C can't be put into Mongolian (the
+verb comes last and every part takes a case), and its parts are small and not seen to
+be tappable; B costs three screens to change one amount after a raise, and its amount
+step was never drawn.
+
+Built (0.133.0): under the paydays, **Your regular income** lists each income with its
+amount, days and account and an **Edit**, then **Add your regular income** (**Add regular
+income** once there is one) and, while there are none, **I don't have regular income**
+(**Ask me again** after it). The page both open is the computer's pay form on one
+scroll: Name, From, Paid into; **How often** with its days or dates, **First payday**,
+**On a weekend**, and **Ends**; then **The amount is** (About the same each time · It
+varies), for twice a month **Both paydays bring the same amount · The two paydays bring
+different amounts**, and the amount, with "Type what is actually deposited into the
+account, after tax." under it. How often is the answers a category asks (`PlanAnswers`,
+the Custom… page), without Once or Every payday, which are a category's. The two
+questions about the amount stay separate: *It varies* means the least that is counted
+on, which twice a month needs as much as any other. Cancel and Save are pinned above the
+keyboard; above them the next payday, or what is missing. **Save is never greyed out**
+(warn, don't block): with something missing it says so in coral and a missing name takes
+the cursor. Leaving a form with changes asks **Leave without saving?** (Keep editing ·
+Leave); an untouched one just closes. A new income opens on its name with the keyboard;
+an Edit opens with none. **Stop counting on this income** (the computer's words) is last,
+away from Save, and asks first with this income's own figures ("Jenny's job stops. ₮… still
+to come on 11.25 won't be expected. Paydays that came stay."), saying which categories are
+set by its pay periods and that they go by the month; then it goes ahead. Save, Stop and "I
+don't have regular income" each reach the computers as ordinary changes and have an Undo in
+a snack bar. The computer's explaining card and its last-paychecks line are not on the
+phone. Rejected: B and C as above; dropping *It varies* for twice a month (it would lose
+a pay that varies). One line was added over the sketch: "Each payday above comes from one
+of these." under the list's heading, since the reader took the list as the paydays entered
+twice. The Mongolian is a draft until Tanan checks it (#90).
