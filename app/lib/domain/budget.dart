@@ -2462,42 +2462,7 @@ PeriodPay periodPay(
 }) {
   final day = dateOnly(today);
   final expected = <Currency, int>{}, toCome = <Currency, int>{};
-  // Each schedule's pay that came in the period: rows tied to it, into
-  // any of its currency's money (#461: pay picked on a row that went into
-  // savings isn't still expected), and money filed under its category into
-  // its own account, as typed or imported pay is. Plain Income into
-  // another account, a gift, takes nothing off the pay still due: every
-  // pay files under the one Income category (budget review).
-  final tied = <int, int>{};
-  final moneyAt = {for (final a in data.balanceSheetAccounts) a.id: a};
-  Currency? currencyOf(PaySchedule p) => data.accounts[p.accountId]?.currency;
-  for (final x in data.txns) {
-    if (x.scheduled || x.date.isBefore(start) || x.date.isAfter(end)) {
-      continue;
-    }
-    if (x.payScheduleId case final id?) {
-      final p = data.payScheduleById(id);
-      if (p == null) continue;
-      for (final e in x.entries) {
-        if (e.amount > 0 &&
-            moneyAt[e.accountId] != null &&
-            e.currency == currencyOf(p)) {
-          tied[p.id] = (tied[p.id] ?? 0) + e.amount;
-        }
-      }
-      continue;
-    }
-    final mine = [
-      for (final p in data.paySchedules)
-        if (x.entries.any((e) => e.accountId == p.categoryId)) p,
-    ];
-    if (mine.isEmpty) continue;
-    for (final e in x.entries) {
-      if (e.amount <= 0 || moneyAt[e.accountId] == null) continue;
-      final p = mine.where((p) => p.accountId == e.accountId).firstOrNull;
-      if (p != null) tied[p.id] = (tied[p.id] ?? 0) + e.amount;
-    }
-  }
+  final tied = _payTied(data, start: start, end: end);
   for (final p in data.paySchedules) {
     final c = data.accounts[p.accountId]?.currency ?? Currency.mnt;
     var all = 0, ahead = 0;
@@ -2528,4 +2493,95 @@ PeriodPay periodPay(
     }
   }
   return (expected: expected, came: came, toCome: toCome);
+}
+
+/// Where one payday stands (#528): its pay [came], is still [ahead], or
+/// the day [missed] went by without it (the sum doesn't count on it, #234).
+enum PaydayState { came, ahead, missed }
+
+typedef Payday = ({
+  DateTime date,
+  PaySchedule pay,
+  int amount,
+  PaydayState state,
+});
+
+/// Every payday of every pay in the period, by date, each marked as the
+/// sum at the top counts it ([periodPay]): the pay that has come is spent
+/// on a schedule's paydays in date order, then a payday before [today] with
+/// none left is missed and the rest are ahead.
+List<Payday> paydaysIn(
+  LedgerData data, {
+  required DateTime start,
+  required DateTime end,
+  required DateTime today,
+}) {
+  final day = dateOnly(today);
+  final tied = _payTied(data, start: start, end: end);
+  final out = <Payday>[];
+  for (final p in data.paySchedules) {
+    var came = tied[p.id] ?? 0;
+    var d = p.nextAfter(DateTime(start.year, start.month, start.day - 1));
+    for (var i = 0; i < 40 && !d.isAfter(end); i++) {
+      final amount = p.amountOn(d);
+      final PaydayState state;
+      if (came > 0) {
+        came -= amount;
+        state = PaydayState.came;
+      } else {
+        state = d.isBefore(day) ? PaydayState.missed : PaydayState.ahead;
+      }
+      out.add((date: d, pay: p, amount: amount, state: state));
+      d = p.nextAfter(d);
+    }
+  }
+  out.sort((a, b) {
+    final byDate = a.date.compareTo(b.date);
+    return byDate != 0 ? byDate : a.pay.id.compareTo(b.pay.id);
+  });
+  return out;
+}
+
+/// Each schedule's pay that came in the period, by schedule id: rows tied
+/// to it, into any of its currency's money (#461: pay picked on a row that
+/// went into savings isn't still expected), and money filed under its
+/// category into its own account, as typed or imported pay is. Plain
+/// Income into another account, a gift, takes nothing off the pay still
+/// due: every pay files under the one Income category (budget review).
+Map<int, int> _payTied(
+  LedgerData data, {
+  required DateTime start,
+  required DateTime end,
+}) {
+  final tied = <int, int>{};
+  final moneyAt = {for (final a in data.balanceSheetAccounts) a.id: a};
+  Currency? currencyOf(PaySchedule p) => data.accounts[p.accountId]?.currency;
+  for (final x in data.txns) {
+    if (x.scheduled || x.date.isBefore(start) || x.date.isAfter(end)) {
+      continue;
+    }
+    if (x.payScheduleId case final id?) {
+      final p = data.payScheduleById(id);
+      if (p == null) continue;
+      for (final e in x.entries) {
+        if (e.amount > 0 &&
+            moneyAt[e.accountId] != null &&
+            e.currency == currencyOf(p)) {
+          tied[p.id] = (tied[p.id] ?? 0) + e.amount;
+        }
+      }
+      continue;
+    }
+    final mine = [
+      for (final p in data.paySchedules)
+        if (x.entries.any((e) => e.accountId == p.categoryId)) p,
+    ];
+    if (mine.isEmpty) continue;
+    for (final e in x.entries) {
+      if (e.amount <= 0 || moneyAt[e.accountId] == null) continue;
+      final p = mine.where((p) => p.accountId == e.accountId).firstOrNull;
+      if (p != null) tied[p.id] = (tied[p.id] ?? 0) + e.amount;
+    }
+  }
+  return tied;
 }

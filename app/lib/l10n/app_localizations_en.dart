@@ -7942,4 +7942,34 @@ class WordsEn extends Words {
   String phoneAssignedCleared(String category) {
     return 'Cleared $category’s Assigned';
   }
+
+  @override
+  String phoneIncomeIn(String month) {
+    return 'Income in $month';
+  }
+
+  @override
+  String phoneIncomeUntil(String date) {
+    return 'Income until $date';
+  }
+
+  @override
+  String get phonePaydayCame => 'came';
+
+  @override
+  String get phonePaydayAhead => 'still to come';
+
+  @override
+  String get phonePaydayMissed => 'didn’t come';
+
+  @override
+  String phonePaydayInto(String account) {
+    return 'into $account';
+  }
+
+  @override
+  String get phoneNoPaydays => 'No paydays in this period.';
+
+  @override
+  String get phoneOpenIncome => 'Show the paydays';
 }

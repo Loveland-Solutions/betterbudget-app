@@ -7447,3 +7447,29 @@ is. The owner chose **C**. A (recommended) and B are not built.
   Budget has it.
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.
+
+## The Income page on the phone (owner, 2026-11-20, #528)
+
+Three sketches at phone size for the computer's Income tab: **A** Spending and Income
+tabs as on the computer, an income opening in place with its days, account and what came
+(the recommendation); **B** no tab, an INCOME section at the top of the Budget list;
+**C** the sum's Income line opens a page of the period's paydays by date. The owner
+chose **C** ("I like C the best"). A and B are not built.
+
+Built (0.132.0): the **Income** line of the sum at the top of the phone's Budget has a
+chevron and opens **Income in November** (**Income until 10.14** when the budget runs
+by pay periods). It holds, for each currency, the sum's own figure and "₮… received ·
+₮… still to come" (the same words as the computer's Income tab, so the two agree), then
+**Paydays**: one row for every payday of the period, by date, with the pay's name (what
+the person called it, else who pays it, else Income, as `payTitle` says), the account it
+goes into, the amount and one word, **came**, **still to come** or **didn't come** (the
+day went by without its pay, which the sum doesn't count on, #234). Under it, as on the
+computer, "₮… more came in and is still in Not categorized". With no regular income it
+says "Regular income not set up", or that they said they don't have any. The paydays
+come from `paydaysIn` in `domain/budget.dart`, which shares `periodPay`'s reading of
+what came (`_payTied`), so a payday's word matches the sum; a pay that came is spent on
+a schedule's paydays in date order. It only reads: regular income's **Edit** and **Add
+regular income**, the pay form's own sketches at phone size, are the next piece. The
+computer has no list of paydays by date; this is the phone's own way of answering "when
+does money arrive", the owner's pick. The Mongolian is a draft until Tanan checks it
+(#90).

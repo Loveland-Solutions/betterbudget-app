@@ -11008,6 +11008,54 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Cleared {category}’s Assigned'**
   String phoneAssignedCleared(String category);
+
+  /// Phone Budget, the Income page's title when the budget runs by months, opened from the sum's Income line (#528). {month} is a month's name from monthNames.
+  ///
+  /// In en, this message translates to:
+  /// **'Income in {month}'**
+  String phoneIncomeIn(String month);
+
+  /// Phone Budget, the Income page's title when the budget runs by pay periods. {date} is the period's last day, like 10.14.
+  ///
+  /// In en, this message translates to:
+  /// **'Income until {date}'**
+  String phoneIncomeUntil(String date);
+
+  /// Phone Budget, Income page: after a payday's amount, when its pay has come.
+  ///
+  /// In en, this message translates to:
+  /// **'came'**
+  String get phonePaydayCame;
+
+  /// Phone Budget, Income page: after a payday's amount, when its pay is still to come.
+  ///
+  /// In en, this message translates to:
+  /// **'still to come'**
+  String get phonePaydayAhead;
+
+  /// Phone Budget, Income page: after a payday's amount, when the day went by without its pay, so the sum doesn't count on it.
+  ///
+  /// In en, this message translates to:
+  /// **'didn’t come'**
+  String get phonePaydayMissed;
+
+  /// Phone Budget, Income page, under a payday's name: the account its pay goes into.
+  ///
+  /// In en, this message translates to:
+  /// **'into {account}'**
+  String phonePaydayInto(String account);
+
+  /// Phone Budget, Income page: regular income is set up, but none of it falls in this period.
+  ///
+  /// In en, this message translates to:
+  /// **'No paydays in this period.'**
+  String get phoneNoPaydays;
+
+  /// Phone Budget: the spoken label for the sum's Income line, which opens the Income page.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the paydays'**
+  String get phoneOpenIncome;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

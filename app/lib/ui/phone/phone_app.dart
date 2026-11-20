@@ -65,6 +65,7 @@ import 'phone_asking.dart';
 
 part 'phone_bill_ask.dart';
 part 'phone_count.dart';
+part 'phone_income.dart';
 part 'phone_move.dart';
 part 'phone_new_category.dart';
 part 'phone_register.dart';
@@ -1224,7 +1225,13 @@ class _BudgetScreenState extends State<_BudgetScreen> {
       final today = now();
       final band = _stepBandOf(snapshot, store.waiting);
       final listed = <Object?>[
-        for (final sum in snapshot.sums) _PhoneSum(sum, snapshot, today),
+        for (final sum in snapshot.sums)
+          _PhoneSum(
+            sum,
+            snapshot,
+            today,
+            onIncome: () => _openIncome(context, store: store, today: today),
+          ),
         ?band,
         ..._spendThenBills(store.categories),
       ];
@@ -1371,11 +1378,43 @@ class _BudgetScreenState extends State<_BudgetScreen> {
 /// A): the computer's terms, each on a line with its sign, so it adds up
 /// the same way, and the result under them. A term at zero is left out,
 /// but for Income and the result.
+/// A sum line that opens something when it has [onTap]: a row at least 44
+/// tall, spoken as [label]; a plain line when it has none.
+class _SumLineTap extends StatelessWidget {
+  const _SumLineTap({
+    required this.onTap,
+    required this.label,
+    required this.child,
+  });
+  final VoidCallback? onTap;
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => onTap == null
+      ? child
+      : Semantics(
+          button: true,
+          hint: label,
+          child: InkWell(
+            key: const ValueKey('sum-income-open'),
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Align(alignment: Alignment.centerLeft, child: child),
+            ),
+          ),
+        );
+}
+
 class _PhoneSum extends StatelessWidget {
-  const _PhoneSum(this.sum, this.snapshot, this.today);
+  const _PhoneSum(this.sum, this.snapshot, this.today, {this.onIncome});
   final BudgetSum sum;
   final PhoneSnapshot snapshot;
   final DateTime today;
+
+  /// Opens the Income page: the sum's Income line is its way in (#528).
+  final VoidCallback? onIncome;
 
   @override
   Widget build(BuildContext context) {
@@ -1399,37 +1438,57 @@ class _PhoneSum extends StatelessWidget {
       Color? hue,
       String? key,
       String? note,
-    }) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          SizedBox(
-            width: 20,
-            child: Text(sign, style: onest(16, color: Mid.ink3)),
-          ),
-          Expanded(
-            child: Text.rich(
-              TextSpan(
-                text: words,
-                style: onest(15, color: Mid.ink2),
-                children: [
-                  if (note != null)
-                    TextSpan(
-                      text: ' · $note',
-                      style: onest(13, color: Mid.ink3),
-                    ),
-                ],
+      VoidCallback? onTap,
+    }) => _SumLineTap(
+      onTap: onTap,
+      label: t.phoneOpenIncome,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            SizedBox(
+              width: 20,
+              child: Text(sign, style: onest(16, color: Mid.ink3)),
+            ),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  text: words,
+                  style: onest(15, color: Mid.ink2),
+                  children: [
+                    if (note != null)
+                      TextSpan(
+                        text: ' · $note',
+                        style: onest(13, color: Mid.ink3),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-          Text(
-            short(figure),
-            key: key == null ? null : ValueKey('$key$tag'),
-            style: onest(16, weight: 600, color: hue ?? Mid.ink, tabular: true),
-          ),
-        ],
+            Text(
+              short(figure),
+              key: key == null ? null : ValueKey('$key$tag'),
+              style: onest(
+                16,
+                weight: 600,
+                color: hue ?? Mid.ink,
+                tabular: true,
+              ),
+            ),
+            if (onTap != null)
+              SizedBox(
+                width: 18,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: Text('›', style: onest(20, color: Mid.ink3)),
+                ),
+              )
+            else if (onIncome != null)
+              const SizedBox(width: 18),
+          ],
+        ),
       ),
     );
     final over = sum.over;
@@ -1452,6 +1511,7 @@ class _PhoneSum extends StatelessWidget {
             hue: p.income > 0 ? Mid.green : null,
             key: 'sum-income',
             note: p.toCome > 0 ? t.planFitToCome(short(p.toCome)) : null,
+            onTap: onIncome,
           ),
           if (p.fromBefore > 0)
             line(

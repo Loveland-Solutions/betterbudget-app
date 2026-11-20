@@ -1803,5 +1803,13 @@
   "phoneBudgetAddTransaction": "Гүйлгээ нэмэх",
   "phoneAssignPlanned": "Төлөвлөснийг хуваарилах · {amount}",
   "phoneClearAssigned": "Хуваарилсныг цэвэрлэх",
-  "phoneAssignedCleared": "{category} ангиллын хуваарилсныг цэвэрлэсэн"
+  "phoneAssignedCleared": "{category} ангиллын хуваарилсныг цэвэрлэсэн",
+  "phoneIncomeIn": "Орлого · {month}",
+  "phoneIncomeUntil": "{date} хүртэл орлого",
+  "phonePaydayCame": "орсон",
+  "phonePaydayAhead": "цаашид орох",
+  "phonePaydayMissed": "ороогүй",
+  "phonePaydayInto": "данс: {account}",
+  "phoneNoPaydays": "Энэ үед орлого орох өдөр алга.",
+  "phoneOpenIncome": "Орлого орох өдрүүдийг харах"
 }
