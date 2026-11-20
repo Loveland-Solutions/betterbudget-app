@@ -7667,4 +7667,7 @@ class WordsMn extends Words {
   String phoneAskSummary(int mine, String computer, int theirs, int neither) {
     return 'Энэ утасных: $mine · $computer дээрх: $theirs · Урьдынх: $neither';
   }
+
+  @override
+  String get phoneBudgetAddTransaction => 'Гүйлгээ нэмэх';
 }

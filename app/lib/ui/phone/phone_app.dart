@@ -1065,7 +1065,7 @@ class _SwitchItem extends StatelessWidget {
 }
 
 /// What is left in each category, from the computer's last copy.
-class _BudgetScreen extends StatelessWidget {
+class _BudgetScreen extends StatefulWidget {
   const _BudgetScreen({
     required this.store,
     required this.now,
@@ -1078,6 +1078,19 @@ class _BudgetScreen extends StatelessWidget {
   final ValueChanged<PhoneCategory> onCategory;
   final Future<void> Function()? onRefresh;
   final ProblemLog? problems;
+
+  @override
+  State<_BudgetScreen> createState() => _BudgetScreenState();
+}
+
+class _BudgetScreenState extends State<_BudgetScreen> {
+  PhoneStore get store => widget.store;
+  DateTime Function() get now => widget.now;
+  ProblemLog? get problems => widget.problems;
+  Future<void> Function()? get onRefresh => widget.onRefresh;
+
+  /// The category whose row is open where it is (#528), one at a time.
+  String? _open;
 
   Future<void> _newCategory(BuildContext context) => _openNewCategory(
     context,
@@ -1197,7 +1210,17 @@ class _BudgetScreen extends StatelessWidget {
                       byPay: snapshot.periodEnd != null,
                       month: monthName(t, today.month),
                       left: leftNow(category, store.waiting),
-                      onTap: () => onCategory(category),
+                      onTap: () => setState(
+                        () => _open = _open == category.id ? null : category.id,
+                      ),
+                      open: _open == category.id
+                          ? _OpenBudgetRow(
+                              category: category,
+                              left: leftNow(category, store.waiting),
+                              spent: spentNow(category, store.waiting),
+                              onAdd: () => widget.onCategory(category),
+                            )
+                          : null,
                     );
                   },
                 ),
@@ -1707,10 +1730,14 @@ class _CategoryRow extends StatelessWidget {
     required this.onTap,
     this.byPay = false,
     this.month = '',
+    this.open,
   });
   final PhoneCategory category;
   final int left;
   final VoidCallback onTap;
+
+  /// What shows under the row while it is open (Budget, #528).
+  final Widget? open;
 
   /// Budget is by pay period, not month: the one-month line says so.
   final bool byPay;
@@ -1743,93 +1770,164 @@ class _CategoryRow extends StatelessWidget {
       color: Mid.card,
       borderRadius: BorderRadius.circular(14),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 64),
-          child: Padding(
-            // Room above and below once a line or a note is under the
-            // name; a one-line row is the 64 either way.
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: LayoutBuilder(
-              builder: (context, box) {
-                final nameStyle = onest(17, weight: 500);
-                final name = TextPainter(
-                  text: TextSpan(text: category.name, style: nameStyle),
-                  textDirection: TextDirection.ltr,
-                  maxLines: 1,
-                )..layout();
-                // The row less the gap and the name: what the amount can
-                // have before the name would be cut short.
-                final room = box.maxWidth - 12 - name.width;
-                name.dispose();
-                // The ring before the name: how much of what it had this
-                // period is left, in the computer's three colors (#241,
-                // #465; ADR 0005 "The phone's ring"). Spent ahead isn't
-                // over (#468).
-                final share = usedShareNow(category, left);
-                return Row(
-                  children: [
-                    if (share != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: UsedRing(
-                          key: ValueKey('used-${category.id}'),
-                          left: 1 - share,
-                          over: category.overAt(left),
-                          size: 16,
-                        ),
-                      ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            category.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: nameStyle,
-                          ),
-                          if (under != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                under,
-                                style: onest(12, color: Mid.ink2),
-                              ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 64),
+              child: Padding(
+                // Room above and below once a line or a note is under the
+                // name; a one-line row is the 64 either way.
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final nameStyle = onest(17, weight: 500);
+                    final name = TextPainter(
+                      text: TextSpan(text: category.name, style: nameStyle),
+                      textDirection: TextDirection.ltr,
+                      maxLines: 1,
+                    )..layout();
+                    // The row less the gap and the name: what the amount can
+                    // have before the name would be cut short.
+                    final room = box.maxWidth - 12 - name.width;
+                    name.dispose();
+                    // The ring before the name: how much of what it had this
+                    // period is left, in the computer's three colors (#241,
+                    // #465; ADR 0005 "The phone's ring"). Spent ahead isn't
+                    // over (#468).
+                    final share = usedShareNow(category, left);
+                    return Row(
+                      children: [
+                        if (share != null)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: UsedRing(
+                              key: ValueKey('used-${category.id}'),
+                              left: 1 - share,
+                              over: category.overAt(left),
+                              size: 16,
                             ),
-                          if (category.note case final note?)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                note,
-                                key: ValueKey('note-${category.id}'),
+                          ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                category.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: onest(12, color: Mid.ink3),
+                                style: nameStyle,
                               ),
-                            ),
+                              if (under != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    under,
+                                    style: onest(12, color: Mid.ink2),
+                                  ),
+                                ),
+                              if (category.note case final note?)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    note,
+                                    key: ValueKey('note-${category.id}'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: onest(12, color: Mid.ink3),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        // Income holds no budget: there is no figure for it.
+                        if (!category.isIncome) ...[
+                          const SizedBox(width: 12),
+                          _RoomMoney(
+                            left,
+                            category.currency,
+                            room: room,
+                            spokenFor: category.due != null,
+                            ahead: !category.overAt(left),
+                          ),
                         ],
-                      ),
-                    ),
-                    // Income holds no budget: there is no figure for it.
-                    if (!category.isIncome) ...[
-                      const SizedBox(width: 12),
-                      _RoomMoney(
-                        left,
-                        category.currency,
-                        room: room,
-                        spokenFor: category.due != null,
-                        ahead: !category.overAt(left),
-                      ),
-                    ],
-                  ],
-                );
-              },
+                      ],
+                    );
+                  },
+                ),
+              ),
             ),
           ),
+          ?open,
+        ],
+      ),
+    );
+  }
+}
+
+/// A Budget row opened where it is (#528, owner's pick of sketch A):
+/// this period's Assigned, Spent and Left, and Add a transaction, which
+/// starts an entry in the category.
+class _OpenBudgetRow extends StatelessWidget {
+  const _OpenBudgetRow({
+    required this.category,
+    required this.left,
+    required this.spent,
+    required this.onAdd,
+  });
+  final PhoneCategory category;
+  final int left;
+  final int spent;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    Widget figure(String key, String label, int minor, {Color? color}) => Row(
+      children: [
+        Expanded(
+          child: Text(label, style: onest(15, color: Mid.ink2)),
         ),
+        Text(
+          formatMoney(minor, currency: category.currency),
+          key: ValueKey('open-$key-${category.id}'),
+          style: onest(16, weight: 600, tabular: true, color: color),
+        ),
+      ],
+    );
+    return Padding(
+      key: ValueKey('open-row-${category.id}'),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          figure('assigned', t.planAssigned, category.assignedMinor),
+          const SizedBox(height: 6),
+          figure('spent', t.planSpent, spent),
+          const SizedBox(height: 6),
+          figure('left', t.planLeft, left),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: ValueKey('open-add-${category.id}'),
+              onPressed: onAdd,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(44, 44),
+                foregroundColor: Mid.blue,
+                textStyle: onest(16),
+              ),
+              child: Text(t.phoneBudgetAddTransaction),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -10978,6 +10978,12 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'This phone’s: {mine} · {computer}’s: {theirs} · As it was: {neither}'**
   String phoneAskSummary(int mine, String computer, int theirs, int neither);
+
+  /// Phone Budget: button in a category's open row; starts an entry in that category.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a transaction'**
+  String get phoneBudgetAddTransaction;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {
