@@ -31,14 +31,16 @@ import '../domain/ledger.dart'
         billNotIt,
         billNotItKey,
         billPaidKey,
+        billSkippedDayKey,
         billSkippedKey,
         billSkippedValue,
+        dateKey,
         decodeBillPaid;
 import '../domain/pay.dart' show budgetPeriod;
 import '../domain/payee_rules.dart' show Remembered;
 import '../domain/phone.dart';
 import '../domain/readiness.dart' show ReadyKeys;
-import '../domain/sync.dart' show appliedMarkerOp;
+import '../domain/sync.dart' show appliedMarkerOp, sharedRowId;
 import 'backup.dart';
 import 'cloud_folder.dart';
 import 'database.dart'
@@ -218,9 +220,16 @@ class PhoneEditCategory extends PhoneRowAct {
     required this.plan,
     required this.type,
     this.paidFrom,
+    this.skip = const [],
+    this.back = const [],
   });
   final int category;
   final String name;
+
+  /// Bills of this period the switches turned off, and skipped ones turned
+  /// on again, by date (#365), as the computer's Edit does on Save.
+  final List<DateTime> skip;
+  final List<DateTime> back;
   final CategoryPlan? plan;
   final CategoryType type;
 
@@ -930,6 +939,8 @@ class PhoneSync implements PhoneLedgerSource {
         :final plan,
         :final type,
         :final paidFrom,
+        :final skip,
+        :final back,
       ):
         final data = await db.loadLedger();
         final c = data.accounts[category];
@@ -961,6 +972,75 @@ class PhoneSync implements PhoneLedgerSource {
             (fundWas == 'yes');
         late CategoryMoney moneyBefore;
         PlanChange? planChange;
+        // A bill's switch (#365): skipped on its row when one is scheduled
+        // for the date, else by a setting that keeps it from being
+        // scheduled; brought back by the ledger's own way.
+        final skips = <({String key, String value, List<int> deleted})>[];
+        var skipMade = <int>[];
+        final backs = <({Map<String, String> settings, List<int> made})>[];
+        Future<void> billsWrite() async {
+          for (final d in skip) {
+            final rowId = sharedRowId('bill', '$category|${dateKey(d)}');
+            int? row;
+            for (final a in data.accounts.keys) {
+              for (final r in data.registerFor(a).scheduled) {
+                if (r.planCategoryId != category || r.amount >= 0) continue;
+                if (r.txnId == rowId || r.date == d) row = r.txnId;
+              }
+            }
+            final value = billSkippedValue(category, d);
+            if (row == null) {
+              final key = billSkippedDayKey(category, d);
+              await db.setPreference(key, value);
+              skips.add((key: key, value: value, deleted: const []));
+            } else {
+              final deleted = await db.softDeleteMany([row]);
+              if (deleted.isEmpty) throw LockedException(DbProblem.reconciled);
+              final key = billSkippedKey(row);
+              await db.setPreference(key, value);
+              skips.add((key: key, value: value, deleted: deleted));
+            }
+          }
+          if (skip.isNotEmpty) {
+            skipMade = await db.ensurePlanBills(now, only: category);
+          }
+          for (final d in back) {
+            backs.add(await db.bringBackBill(category, d, today));
+          }
+        }
+
+        Future<void> billsUndo() async {
+          for (final b in backs.reversed) {
+            await db.dropPlanBills(b.made);
+            for (final e in b.settings.entries) {
+              await db.setPreference(e.key, e.value);
+            }
+          }
+          if (skips.isNotEmpty) {
+            await db.dropPlanBills(skipMade);
+            for (final k in skips) {
+              if (k.deleted.isNotEmpty) await db.restoreMany(k.deleted);
+              await db.setPreference(k.key, null);
+            }
+          }
+        }
+
+        Future<void> billsRedo() async {
+          for (final k in skips) {
+            if (k.deleted.isNotEmpty) await db.softDeleteMany(k.deleted);
+            await db.setPreference(k.key, k.value);
+          }
+          if (skips.isNotEmpty) {
+            await db.bringBackPlanBills(skipMade, category);
+          }
+          for (final b in backs) {
+            for (final k in b.settings.keys) {
+              await db.setPreference(k, null);
+            }
+            await db.bringBackPlanBills(b.made, category);
+          }
+        }
+
         Future<void> write() => db.transaction(() async {
           if (renamed) await db.renameAccount(category, name);
           if (money) {
@@ -985,7 +1065,10 @@ class PhoneSync implements PhoneLedgerSource {
           }
         });
 
-        await write();
+        await db.transaction(() async {
+          await billsWrite();
+          await write();
+        });
         return (
           snapshot: await again(),
           undo: () async {
@@ -1002,11 +1085,15 @@ class PhoneSync implements PhoneLedgerSource {
                 await db.ensurePlanBills(today, only: category);
               }
               if (renamed) await db.renameAccount(category, c.name);
+              await billsUndo();
             });
             return again();
           },
           redo: () async {
-            await write();
+            await db.transaction(() async {
+              await billsRedo();
+              await write();
+            });
             return again();
           },
         );

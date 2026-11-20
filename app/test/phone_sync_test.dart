@@ -3,6 +3,7 @@
 // own, and never writes the folder's whole ledger.
 import 'dart:io';
 
+import 'package:betterbudget/domain/budget_amounts.dart' show billSwitches;
 import 'package:betterbudget/data/backup.dart';
 import 'package:betterbudget/data/change_file.dart';
 import 'package:betterbudget/data/cloud_folder.dart';
@@ -452,6 +453,85 @@ void main() {
     expect(data.accounts[food.id]!.name, 'Trips');
     expect(typeOf(data, food.id), CategoryType.goal);
   });
+
+  test(
+    'a bill skipped in a category\'s Edit on the phone stops being '
+    'expected, and brought back it is again; Undo and Redo hold (#365)',
+    () async {
+      await spend('Nomin');
+      await mac.check(monday);
+      await phone.look(drive.path, monday);
+      final ledger = await phone.db!.loadLedger();
+      final food = ledger.accounts.values.lastWhere((a) => a.isCategory);
+      final due = DateTime(tuesday.year, tuesday.month, tuesday.day + 5);
+      final plan = CategoryPlan(
+        categoryId: -1,
+        kind: PlanKind.byDate,
+        amount: 5000000,
+        start: tuesday,
+        due: due,
+        everyMonths: 1,
+      );
+      await phone.actOnRow(
+        PhoneEditCategory(
+          food.id,
+          name: food.name,
+          plan: plan,
+          type: CategoryType.bill,
+        ),
+        tuesday,
+      );
+      var data = await phone.db!.loadLedger();
+      var switches = billSwitches(data, food.id, tuesday);
+      expect(switches.map((b) => b.skipped), [false]);
+      final day = switches.single.date;
+      final skipped = await phone.actOnRow(
+        PhoneEditCategory(
+          food.id,
+          name: food.name,
+          plan: plan,
+          type: CategoryType.bill,
+          skip: [day],
+        ),
+        tuesday,
+      );
+      data = await phone.db!.loadLedger();
+      expect(
+        billSwitches(
+          data,
+          food.id,
+          tuesday,
+        ).where((b) => b.skipped).map((b) => b.date),
+        [day],
+      );
+      await skipped.undo();
+      data = await phone.db!.loadLedger();
+      expect(billSwitches(data, food.id, tuesday).map((b) => b.skipped), [
+        false,
+      ]);
+      await skipped.redo();
+      data = await phone.db!.loadLedger();
+      expect(
+        billSwitches(data, food.id, tuesday).any((b) => b.skipped),
+        isTrue,
+      );
+      await phone.actOnRow(
+        PhoneEditCategory(
+          food.id,
+          name: food.name,
+          plan: plan,
+          type: CategoryType.bill,
+          back: [day],
+        ),
+        tuesday,
+      );
+      data = await phone.db!.loadLedger();
+      expect(
+        billSwitches(data, food.id, tuesday).any((b) => b.skipped),
+        isFalse,
+      );
+    },
+  );
 
   test(
     'Assigned set on the phone reaches the computer, fixes the day the '

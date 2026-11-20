@@ -7422,5 +7422,11 @@ is. The owner chose **C**. A (recommended) and B are not built.
   Assigned back and removes the plan; it stays on the computer for now). A name another
   category has is refused on the page as it is for a new one, not merged. The group,
   note, In a month of expenses?, Archive and Delete are the next piece.
+  Skipping a bill (0.130.0): as on the computer (owner, 2026-11-03: skipping is the
+  category's Edit's, saved with Save), a bill category's Edit has, under its plan, "Bills
+  in this period" (Payments for a card or loan) with a switch for each bill that can be
+  skipped and each already skipped ("Bill on 10.11"); a flipped switch is acted on by
+  **Save**, in the same one change and Undo as the rest of the Edit. No sketch was drawn:
+  the owner's computer design is carried over unchanged, in the page's own card.
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.

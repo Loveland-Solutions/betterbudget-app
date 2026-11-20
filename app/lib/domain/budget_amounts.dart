@@ -239,3 +239,37 @@ Map<int, List<({DateTime date, int amount})>> moveRows(
     if (to != null) to.id: rows(to, amount),
   };
 }
+
+/// The bills of this period that can be skipped or brought back, each a
+/// switch in a category's Edit (#365): the one due here, and the skipped
+/// ones, by date. Shared by the computer's Budget and the phone's.
+List<({DateTime date, bool skipped})> billSwitches(
+  LedgerData data,
+  int categoryId,
+  DateTime now,
+) {
+  final today = dateOnly(now);
+  final period = budgetPeriod(today, data.periodSchedule);
+  final line = Budget.of(
+    data,
+    start: period.start,
+    end: period.end,
+    today: today,
+  ).lines[categoryId];
+  final planLine = line?.plan;
+  final due = planLine?.due;
+  final skippable =
+      planLine != null &&
+      due != null &&
+      planLine.plan.kind == PlanKind.byDate &&
+      planLine.plan.repeats &&
+      planLine.dueHere &&
+      !planLine.ended &&
+      !planLine.waiting &&
+      line?.paidOn == null;
+  return [
+    if (skippable) (date: due, skipped: false),
+    for (final d in planLine?.noBills ?? const <DateTime>[])
+      (date: d, skipped: true),
+  ]..sort((a, b) => a.date.compareTo(b.date));
+}

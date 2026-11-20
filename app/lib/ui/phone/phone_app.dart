@@ -39,6 +39,7 @@ import '../../data/phone_sync.dart'
         PhoneRowEdit;
 import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
+import '../../domain/budget_amounts.dart' show billSwitches;
 import '../../domain/budget.dart';
 import '../../domain/ledger.dart';
 import '../../domain/money.dart';
