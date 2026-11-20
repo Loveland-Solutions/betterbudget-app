@@ -214,15 +214,12 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       } on TimeoutException {
         snapshot = await source.asItStands(now);
         unawaited(
-          looking.then(
-            (later) {
-              // Not over a newer look's figures, nor another ledger's.
-              if (generation == _looks && identical(_source, source)) {
-                _show(later, dataKey, at);
-              }
-            },
-            onError: (Object e) => debugPrint('The late look failed: $e'),
-          ),
+          looking.then((later) {
+            // Not over a newer look's figures, nor another ledger's.
+            if (generation == _looks && identical(_source, source)) {
+              _show(later, dataKey, at);
+            }
+          }, onError: (Object e) => debugPrint('The late look failed: $e')),
         );
       }
       if (_typedKey != null) {
@@ -336,16 +333,67 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       _sent = null;
       return;
     }
-    _keeping = _keeping.then((_) async {
-      try {
-        await widget.folder.write(folder, phoneInboxName(inbox.device), bytes);
-      } catch (e) {
-        // Not a problem to keep: with no signal this is the phone working
-        // as it should, and Budget says what waits for the computer.
-        debugPrint('Writing this phone’s entries to the folder failed: $e');
-        if (_sent == saying) _sent = null;
-      }
-    });
+    final source = _source;
+    final nothingToTake =
+        inbox.entries.isEmpty &&
+        inbox.categories.isEmpty &&
+        inbox.counts.isEmpty;
+    if (source != null && !_demo && !nothingToTake) {
+      // Into the phone's own ledger at once (#526 piece 4): the change file
+      // the next look writes carries it to the others, and what was taken
+      // is let go of here as the ledger lists it.
+      _keeping = _keeping.then((_) async {
+        try {
+          final taken = await source.take(inbox, widget.now());
+          if (taken != null) {
+            if (identical(_source, source) && mounted) store.snapshot = taken;
+            await _dropOwnFile(folder, inbox.device);
+            unawaited(_load());
+            return;
+          }
+        } catch (e) {
+          // Kept on the phone: the next change tries again.
+          debugPrint('Taking this phone’s entries into its ledger failed: $e');
+          if (!_saveFailing) _record((t) => t.phoneProblemNotKept, e);
+          _saveFailing = true;
+          if (_sent == saying) _sent = null;
+          return;
+        }
+        await _writeOwnFile(folder, inbox, bytes, saying);
+      });
+      return;
+    }
+    _keeping = _keeping.then(
+      (_) => _writeOwnFile(folder, inbox, bytes, saying),
+    );
+  }
+
+  /// A phone's own file of entries, which the computers took in before the
+  /// phone had a ledger of its own: what is in the ledger now is carried in
+  /// the change file, so the file goes, or a computer would bring an entry
+  /// the person has since taken back in again.
+  Future<void> _dropOwnFile(String folder, String device) async {
+    try {
+      await widget.folder.delete(folder, phoneInboxName(device));
+    } catch (e) {
+      debugPrint('The phone’s old file of entries couldn’t be removed: $e');
+    }
+  }
+
+  Future<void> _writeOwnFile(
+    String folder,
+    PhoneInbox inbox,
+    Uint8List bytes,
+    String saying,
+  ) async {
+    try {
+      await widget.folder.write(folder, phoneInboxName(inbox.device), bytes);
+    } catch (e) {
+      // Not a problem to keep: with no signal this is the phone working
+      // as it should, and Budget says what waits for the computer.
+      debugPrint('Writing this phone’s entries to the folder failed: $e');
+      if (_sent == saying) _sent = null;
+    }
   }
 
   /// The demo key was typed: invented figures, nothing read or kept.
