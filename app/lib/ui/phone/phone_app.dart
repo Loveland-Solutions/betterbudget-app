@@ -50,6 +50,7 @@ import '../amount_input.dart';
 import '../combined_label.dart';
 import '../data_words.dart';
 import '../brand.dart';
+import '../budget_sum_words.dart';
 import '../category_types.dart';
 import '../emoji_chooser.dart';
 import '../savings_steps.dart';
@@ -1092,7 +1093,11 @@ class _BudgetScreen extends StatelessWidget {
       final snapshot = store.snapshot;
       final today = now();
       final band = _stepBandOf(snapshot, store.waiting);
-      final listed = <Object?>[?band, ..._spendThenBills(store.categories)];
+      final listed = <Object?>[
+        for (final sum in snapshot.sums) _PhoneSum(sum, snapshot, today),
+        ?band,
+        ..._spendThenBills(store.categories),
+      ];
       // "+ New category" ends the money to spend, where the new row lands.
       final newAt = listed.contains(null)
           ? listed.indexOf(null)
@@ -1184,6 +1189,7 @@ class _BudgetScreen extends StatelessWidget {
                     final item = listed[i > newAt ? i - 1 : i];
                     if (item == null) return const _BillsHeading();
                     if (item is _PhoneStepBand) return item;
+                    if (item is _PhoneSum) return item;
                     if (item is String) return _GroupHeading(item);
                     final category = item as PhoneCategory;
                     return _CategoryRow(
@@ -1202,6 +1208,177 @@ class _BudgetScreen extends StatelessWidget {
       );
     },
   );
+}
+
+/// One currency's sum at the top of Budget (#528, owner's pick of sketch
+/// A): the computer's terms, each on a line with its sign, so it adds up
+/// the same way, and the result under them. A term at zero is left out,
+/// but for Income and the result.
+class _PhoneSum extends StatelessWidget {
+  const _PhoneSum(this.sum, this.snapshot, this.today);
+  final BudgetSum sum;
+  final PhoneSnapshot snapshot;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final p = sum.pool, c = p.currency;
+    final tag = c == snapshot.budgetCurrency ? '' : '-${c.code}';
+    String short(int v) => formatShort(v, currency: c);
+    final byPay = snapshot.periodEnd != null;
+    final before = monthName(t, snapshot.beforeMonth ?? today.month);
+    final (:label, :parts) = overWords(
+      t,
+      sum.cause,
+      byPay: byPay,
+      beforeMonth: before,
+      short: short,
+    );
+    Widget line(
+      String sign,
+      String words,
+      int figure, {
+      Color? hue,
+      String? key,
+      String? note,
+    }) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          SizedBox(
+            width: 20,
+            child: Text(sign, style: onest(16, color: Mid.ink3)),
+          ),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                text: words,
+                style: onest(15, color: Mid.ink2),
+                children: [
+                  if (note != null)
+                    TextSpan(
+                      text: ' · $note',
+                      style: onest(13, color: Mid.ink3),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          Text(
+            short(figure),
+            key: key == null ? null : ValueKey('$key$tag'),
+            style: onest(16, weight: 600, color: hue ?? Mid.ink, tabular: true),
+          ),
+        ],
+      ),
+    );
+    final over = sum.over;
+    return Container(
+      key: ValueKey('budget-sum$tag'),
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.fromLTRB(14, 10, 16, 12),
+      decoration: BoxDecoration(
+        color: Mid.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Mid.rule),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          line(
+            '',
+            t.planFitIncome,
+            p.income + p.toCome,
+            hue: p.income > 0 ? Mid.green : null,
+            key: 'sum-income',
+            note: p.toCome > 0 ? t.planFitToCome(short(p.toCome)) : null,
+          ),
+          if (p.fromBefore > 0)
+            line(
+              '+',
+              byPay ? t.planSumFromPay : t.planSumFromMonth(before),
+              p.fromBefore,
+              hue: Mid.green,
+              key: 'sum-from',
+            ),
+          if (p.fromBefore < 0)
+            line(
+              '−',
+              byPay ? t.planSumShortFromPay : t.planSumShortFromMonth(before),
+              -p.fromBefore,
+              hue: Mid.coral,
+              key: 'sum-from',
+            ),
+          if (p.hadBefore > 0)
+            line(
+              '+',
+              t.planSumHadBefore,
+              p.hadBefore,
+              hue: Mid.green,
+              key: 'sum-had',
+            ),
+          if (p.exchanged != 0)
+            line(
+              p.exchanged > 0 ? '+' : '−',
+              t.planSumExchanged,
+              p.exchanged.abs(),
+              hue: p.exchanged > 0 ? Mid.green : null,
+              key: 'sum-exchanged',
+            ),
+          if (sum.given != 0)
+            line(
+              '−',
+              t.planAssigned,
+              sum.given,
+              hue: Mid.gold,
+              key: 'sum-assigned',
+            ),
+          if (sum.aside > 0)
+            line('−', t.planFitAside, sum.aside, key: 'sum-saved'),
+          if (sum.overspent > 0)
+            line(
+              '−',
+              t.planKeyOverspent,
+              sum.overspent,
+              hue: Mid.coral,
+              key: 'sum-overspent',
+            ),
+          if (p.loose > 0)
+            line(
+              '−',
+              t.rowsTabUncategorized,
+              p.loose,
+              hue: Mid.coral,
+              key: 'sum-loose',
+            ),
+          Divider(height: 14, color: Mid.rule),
+          line(
+            '=',
+            over ? label : t.planKeyNotAssigned,
+            p.notAssigned.abs(),
+            hue: over
+                ? Mid.coral
+                : p.notAssigned > 0
+                ? Mid.green
+                : null,
+            key: over ? 'assigned-over' : 'not-assigned',
+          ),
+          if (over && parts != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 20, top: 2),
+              child: Text(
+                parts,
+                key: ValueKey('over-parts$tag'),
+                style: onest(13, color: Mid.ink2),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 /// The Savings steps of a ledger, worked out once per copy from the
