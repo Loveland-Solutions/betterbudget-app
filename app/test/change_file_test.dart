@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:betterbudget/data/change_file.dart';
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
+import 'package:betterbudget/data/folder_io.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -48,7 +49,9 @@ void main() {
     expect(rows.length, greaterThan(3));
     final file = File('${root.path}/${changeFileName('a1b2')}');
     await writeChangeFile(
-      file,
+      const DirectoryFolderIo(),
+      root.path,
+      file.uri.pathSegments.last,
       null,
       header('a1b2', applied: {'a1b2': rows.last.seq, 'c3d4': 7}),
       rows,
@@ -69,7 +72,9 @@ void main() {
     expect(later.changes.first.seq, rows[3].seq);
     // Written again over the same file: one file, the new contents.
     await writeChangeFile(
-      file,
+      const DirectoryFolderIo(),
+      root.path,
+      file.uri.pathSegments.last,
       null,
       header('a1b2'),
       rows.take(2).toList(),
@@ -85,7 +90,9 @@ void main() {
     final scratch = Directory('${root.path}/scratch');
     for (final c in ['a1b2', 'c3d4', 'e5f6']) {
       await writeChangeFile(
-        File('${root.path}/${changeFileName(c)}'),
+        const DirectoryFolderIo(),
+        root.path,
+        changeFileName(c),
         null,
         header(c),
         rows,
@@ -96,7 +103,8 @@ void main() {
         .writeAsBytes([1, 2, 3]);
     final unreadable = <String>[];
     final read = await readChangeFiles(
-      root,
+      const DirectoryFolderIo(),
+      root.path,
       null,
       scratch: scratch,
       butComputer: 'a1b2',
@@ -138,7 +146,9 @@ void main() {
 
     final file = File('${root.path}/${changeFileName('a1b2')}');
     await writeChangeFile(
-      file,
+      const DirectoryFolderIo(),
+      root.path,
+      file.uri.pathSegments.last,
       null,
       header('a1b2', applied: {'a1b2': last}),
       kept,

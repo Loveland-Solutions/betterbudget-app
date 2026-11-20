@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import '../domain/phone.dart';
 import 'database.dart';
 import 'encryption.dart';
+import 'folder_io.dart';
 import 'ledger_file.dart';
 
 /// The folder picked with the system's own picker, which is how a phone
@@ -63,9 +64,60 @@ class PhoneFolder {
         'bytes': bytes,
       });
 
+  /// The file's [FolderStat], or null when there is no such file.
+  Future<FolderStat?> stat(String folder, String name) async {
+    final found = await _channel.invokeMapMethod<String, Object?>('stat', {
+      'folder': folder,
+      'name': name,
+    });
+    if (found == null) return null;
+    final at = found['changed'] as int?;
+    // A provider that doesn't say reads as "no time", never as a change.
+    return (
+      modified: DateTime.fromMillisecondsSinceEpoch(at ?? 0),
+      size: (found['size'] as int?) ?? -1,
+    );
+  }
+
+  /// The names of the files in [folder], not its sub-folders.
+  Future<List<String>> names(String folder) async =>
+      (await _channel.invokeListMethod<String>('list', {'folder': folder})) ??
+      const [];
+
+  /// Takes the file [name] out of [folder]; nothing when there is none.
+  Future<void> delete(String folder, String name) =>
+      _channel.invokeMethod<void>('delete', {'folder': folder, 'name': name});
+
   /// Gives the folder up, before another is picked.
   Future<void> forget(String folder) =>
       _channel.invokeMethod<void>('forget', {'folder': folder});
+}
+
+/// The folder cycle's way into the folder on a phone ([FolderIo]): the system's
+/// picker, through [PhoneFolder]. [folder] is the address it gave.
+class PhoneFolderIo extends FolderIo {
+  const PhoneFolderIo([this.folders = const PhoneFolder()]);
+
+  final PhoneFolder folders;
+
+  @override
+  Future<FolderStat?> stat(String folder, String name) =>
+      folders.stat(folder, name);
+
+  @override
+  Future<List<String>> names(String folder) => folders.names(folder);
+
+  @override
+  Future<Uint8List?> read(String folder, String name) async =>
+      (await folders.read(folder, name))?.bytes;
+
+  @override
+  Future<void> write(String folder, String name, List<int> bytes) =>
+      folders.write(folder, name, Uint8List.fromList(bytes));
+
+  @override
+  Future<void> delete(String folder, String name) =>
+      folders.delete(folder, name);
 }
 
 /// The recovery key typed on this phone doesn't open the ledger in the folder.

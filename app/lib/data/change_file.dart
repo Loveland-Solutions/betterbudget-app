@@ -15,6 +15,7 @@ import 'package:sqlite3/sqlite3.dart';
 import '../domain/sync.dart';
 import 'database.dart' show ChangeRow;
 import 'encryption.dart';
+import 'folder_io.dart';
 
 /// Not a ledger, so not the ledger's extension; not a phone's either.
 const changeFileExtension = 'betterbudget-changes';
@@ -208,14 +209,16 @@ int firstSeqOf(List<ChangeRow> rows) {
 /// the first time), so a sync service sees one file with a new version. A
 /// null [key] writes it plain (tests).
 Future<void> writeChangeFile(
-  File target,
+  FolderIo io,
+  String folder,
+  String name,
   Uint8List? key,
   ChangeFileHeader header,
   List<ChangeRow> rows, {
   required Directory scratch,
 }) async {
   await scratch.create(recursive: true);
-  final made = File('${scratch.path}/${target.uri.pathSegments.last}.tmp');
+  final made = File('${scratch.path}/$name.tmp');
   if (made.existsSync()) await made.delete();
   final db = sqlite3.open(made.path);
   try {
@@ -274,7 +277,7 @@ Future<void> writeChangeFile(
     db.close();
   }
   try {
-    await replaceFileBytes(target, await made.readAsBytes());
+    await io.write(folder, name, await made.readAsBytes());
   } finally {
     if (made.existsSync()) await made.delete();
   }
@@ -350,7 +353,8 @@ ChangeFile readChangeFile(File file, Uint8List? key, {int afterSeq = 0}) {
 /// A file that can't be read (still arriving) is named in [unreadable] and
 /// left for the next look.
 Future<List<ChangeFile>> readChangeFiles(
-  Directory folder,
+  FolderIo io,
+  String folder,
   Uint8List? key, {
   required Directory scratch,
   required String butComputer,
@@ -358,19 +362,19 @@ Future<List<ChangeFile>> readChangeFiles(
   List<String>? unreadable,
 }) async {
   final found = <ChangeFile>[];
-  if (!folder.existsSync()) return found;
-  final files = [
-    await for (final f in folder.list())
-      if (f is File && isChangeFileName(f.uri.pathSegments.last)) f,
-  ]..sort((a, b) => a.path.compareTo(b.path));
-  for (final f in files) {
-    final name = f.uri.pathSegments.last;
+  final names = [
+    for (final n in await io.names(folder))
+      if (isChangeFileName(n)) n,
+  ]..sort();
+  for (final name in names) {
     final computer = computerOfChangeFile(name);
     if (computer == null || computer == butComputer) continue;
     final copy = File('${scratch.path}/$name');
     try {
+      final bytes = await io.read(folder, name);
+      if (bytes == null) continue;
       await scratch.create(recursive: true);
-      await f.copy(copy.path);
+      await copy.writeAsBytes(bytes, flush: true);
       found.add(readChangeFile(copy, key, afterSeq: afterSeq[computer] ?? 0));
     } catch (e) {
       debugPrint('A computer’s change file couldn’t be read: $e');
@@ -380,17 +384,4 @@ Future<List<ChangeFile>> readChangeFiles(
     }
   }
   return found;
-}
-
-/// [bytes] written over [file] where it is, not beside it and renamed, so a
-/// sync service sees the same file with a new version and never a second
-/// one. Made when there is none.
-Future<void> replaceFileBytes(File file, List<int> bytes) async {
-  final out = await file.open(mode: FileMode.write);
-  try {
-    await out.writeFrom(bytes);
-    await out.flush();
-  } finally {
-    await out.close();
-  }
 }

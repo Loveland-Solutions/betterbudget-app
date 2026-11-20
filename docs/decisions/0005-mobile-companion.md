@@ -1536,3 +1536,16 @@ open on the entry, as now (ADR 0004 "Phone screens: Ledger first").
 the device, encrypted, and writes a file of its own into the folder the person picked.
 `PRIVACY.md` needs no change for the way itself; a phone screen that adds a place (a
 bank file opened on the phone, a backup saved there) is checked against it when built.
+
+**How #526 is cut (owner, 2026-11-19, "Okay" to each; on the switch: "I wouldn't worry
+too much about the switch. The phones aren't doing much right now").** Five pieces, each
+its own PR: (1) one way into the folder under `CloudFolder` (list, read, write, delete,
+when changed), the `dart:io` one behind it and the phone's picker channel given list and
+delete, computers unchanged; (2) the phone keeps a whole writable ledger of its own with
+its own `changes` log; (3) the phone writes its change file and takes in the others'
+with the same fold, combine and asking window; (4) undo and redo on the phone, with the
+phone's form of the brought-in popup and the asking window; (5) seen working with the
+owner's Pixel and Mac through Drive. The switch is not a piece of its own: a phone on
+the entries file and a computer that knows only that file are not kept working with
+updated ones beyond what falls out of the above, and what a phone has waiting when it
+updates is still carried over.
