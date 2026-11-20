@@ -14,6 +14,7 @@ import 'package:betterbudget/data/phone_ledger.dart';
 import 'package:betterbudget/data/phone_sync.dart';
 import 'package:betterbudget/data/problem_log.dart';
 import 'package:betterbudget/domain/budget.dart';
+import 'package:betterbudget/domain/budget_amounts.dart';
 import 'package:betterbudget/domain/combine.dart'
     show Ask, AskKind, AskLine, AskSide, Pick;
 import 'package:betterbudget/domain/ledger.dart'
@@ -22,11 +23,12 @@ import 'package:betterbudget/domain/ledger.dart'
         Cleared,
         CategoryPlan,
         LedgerData,
+        dateOnly,
         PlanKind,
         RegisterRow,
         RowKind;
 import 'package:betterbudget/domain/money.dart';
-import 'package:betterbudget/domain/pay.dart' show PayRule;
+import 'package:betterbudget/domain/pay.dart' show PayRule, budgetPeriod;
 import 'package:betterbudget/domain/payee_rules.dart' show Remembered;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/readiness.dart' show ReadyKeys, isGoal;
@@ -332,6 +334,48 @@ class _ActingSource {
             return _after();
           },
           redo: () async => _after(),
+        );
+      case PhoneAssign(:final category, :final amount):
+        final data = await db.loadLedger();
+        final c = data.accounts[category]!;
+        final today = dateOnly(now());
+        final period = budgetPeriod(today, data.periodSchedule);
+        final rows = budgetRows(
+          data,
+          Budget.of(data, start: period.start, end: period.end, today: today),
+          c,
+          period,
+          amount,
+          today: today,
+        );
+        var before = await db.setBudgetAmount(
+          category,
+          period.start,
+          period.end,
+          amount,
+          rows: rows,
+        );
+        return (
+          snapshot: await _after(),
+          undo: () async {
+            await db.restoreBudgetAmounts(
+              category,
+              period.start,
+              period.end,
+              before,
+            );
+            return _after();
+          },
+          redo: () async {
+            before = await db.setBudgetAmount(
+              category,
+              period.start,
+              period.end,
+              amount,
+              rows: rows,
+            );
+            return _after();
+          },
         );
       case PhoneDeleteRow(:final txn):
         final ids = await db.softDeleteMany([txn]);
@@ -2126,6 +2170,93 @@ void main() {
     await tester.tap(find.text('Transport'));
     await tester.pumpAndSettle();
     expect(find.text('Add a transaction'), findsNothing);
+  });
+
+  testWidgets('a category on Budget takes an Assigned amount, Assign what’s '
+      'planned and Clear Assigned, each with Undo (#528)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int groceries;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      groceries = data.accounts.values
+          .firstWhere((a) => a.name == 'Groceries')
+          .id;
+      await db.setCategoryPlan(
+        groceries,
+        CategoryPlan(
+          categoryId: groceries,
+          kind: PlanKind.each,
+          amount: 30000000,
+          start: DateTime(2026, 10),
+        ),
+      );
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    int assigned() => snapshotOf(
+      data,
+      today: _now,
+      madeAt: _now,
+    ).categories.firstWhere((c) => c.id == '$groceries').assignedMinor;
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await _toBudget(tester);
+    await Scrollable.ensureVisible(
+      tester.element(find.text('Groceries')),
+      alignment: 0.2,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Groceries'));
+    await tester.pumpAndSettle();
+    final before = assigned();
+    // A typed amount, kept when the keyboard's Done is pressed.
+    await tester.enterText(
+      find.byKey(ValueKey('open-assigned-field-$groceries')),
+      '123456',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle();
+    expect(assigned(), 12345600);
+    expect(find.byKey(const ValueKey('assign-done')), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(assigned(), before);
+    // Assign what's planned sets it to its plan's amount, Undo undoes it.
+    await tester.tap(find.byKey(ValueKey('open-planned-$groceries')));
+    await settle();
+    expect(assigned(), 30000000);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(assigned(), before);
+    // Typed again, then Clear Assigned takes it to nothing; Undo puts it back.
+    await tester.enterText(
+      find.byKey(ValueKey('open-assigned-field-$groceries')),
+      '123456',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle();
+    await tester.tap(find.byKey(ValueKey('open-clear-$groceries')));
+    await settle();
+    expect(assigned(), 0);
+    expect(find.text('Cleared Groceries’s Assigned'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(assigned(), 12345600);
   });
 
   testWidgets('a category on Budget starts an entry in it, and what was '

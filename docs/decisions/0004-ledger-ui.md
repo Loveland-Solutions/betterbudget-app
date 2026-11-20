@@ -7399,5 +7399,13 @@ is. The owner chose **C**. A (recommended) and B are not built.
   (`_beganBy` and `_budgetRows` lifted out of `ui/ledger_screen.dart` so the phone writes
   amounts as the computer does), Move money, Edit with the four type cards, skipping a
   bill, groups, archive and delete, the Income tab. The Savings step band stays.
+  Assigned's piece (0.127.0): the open row's Assigned is a field that takes what is
+  typed (kept on Done or on leaving the field, once), **Assign what's planned · ₮…**
+  shows while the plan asks for more than is assigned and sets Assigned to the plan's
+  amount, and **Clear Assigned** shows while there is something to clear; each is one
+  change the computers see, with a snack bar and Undo, and a category made on the
+  phone and not in the ledger yet has none of them. The row's own, not the whole
+  page's: the computer's page-wide Assign what's planned and Clear stay on the
+  computer for now.
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.

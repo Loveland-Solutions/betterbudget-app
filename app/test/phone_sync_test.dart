@@ -14,7 +14,7 @@ import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_sync.dart';
 import 'package:betterbudget/domain/budget.dart'
-    show BillFit, BillPayment, billPayments;
+    show BillFit, BillPayment, BudgetKeys, billPayments;
 import 'package:betterbudget/domain/combine.dart' show Pick;
 import 'package:betterbudget/domain/ledger.dart'
     show CategoryPlan, Cleared, PlanKind, RegisterRow;
@@ -408,6 +408,46 @@ void main() {
     await deleted.undo();
     expect(await there(phone.db!), isNotNull);
   });
+
+  test(
+    'Assigned set on the phone reaches the computer, fixes the day the '
+    'budget began as the computer does, and Undo takes it back (#528)',
+    () async {
+      await spend('Nomin');
+      await mac.check(monday);
+      await phone.look(drive.path, monday);
+      final ledger = await phone.db!.loadLedger();
+      final food = ledger.accounts.values.firstWhere((a) => a.isCategory).id;
+      Future<int> assignedIn(AppDatabase db) async {
+        final d = await db.loadLedger();
+        return d.budgetAmounts
+            .where((b) => b.categoryId == food)
+            .fold<int>(0, (sum, b) => sum + b.amount);
+      }
+
+      final assigned = await phone.actOnRow(
+        PhoneAssign(food, 25000000),
+        tuesday,
+      );
+      expect(await assignedIn(phone.db!), 25000000);
+      // The first amount ever fixes the day the budget began, as it does there.
+      expect((await phone.db!.loadLedger()).prefs[BudgetKeys.began], isNotNull);
+      await phone.look(drive.path, tuesday);
+      await mac.check(tuesday);
+      await mac.bringIn(tuesday);
+      expect(await assignedIn(macDb), 25000000);
+      // Clear is the same act with nothing.
+      final cleared = await phone.actOnRow(PhoneAssign(food, 0), tuesday);
+      expect(await assignedIn(phone.db!), 0);
+      await cleared.undo();
+      expect(await assignedIn(phone.db!), 25000000);
+      await assigned.undo();
+      expect(await assignedIn(phone.db!), 0);
+      expect((await phone.db!.loadLedger()).prefs[BudgetKeys.began], isNull);
+      await assigned.redo();
+      expect(await assignedIn(phone.db!), 25000000);
+    },
+  );
 
   /// A rent bill due on the 6th each month, scheduled on the computer.
   Future<int> rentBill() async {

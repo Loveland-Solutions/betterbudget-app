@@ -65,6 +65,7 @@ class PhoneCategory {
     this.coverMonth,
     this.assignedMinor = 0,
     this.spentMinor = 0,
+    this.plannedMinor,
   });
 
   /// This period's Assigned and Spent as the budget read them when the
@@ -72,6 +73,11 @@ class PhoneCategory {
   /// counts the entries still waiting.
   final int assignedMinor;
   final int spentMinor;
+
+  /// What its plan asks this period, while some of that isn't assigned
+  /// yet (#528): what Assign what's planned sets Assigned to. Null when
+  /// there is nothing to assign.
+  final int? plannedMinor;
 
   /// By a paycheck, what of its month's money lies outside this one, for
   /// a monthly category (#468, owner 2026-11-16: "Say it's ahead, not
@@ -846,6 +852,9 @@ PhoneSnapshot snapshotOf(
             leftMinor: budget.lines[c.id]!.left,
             assignedMinor: budget.lines[c.id]!.assigned,
             spentMinor: budget.lines[c.id]!.spent,
+            plannedMinor: budget.lines[c.id]!.toAssign > 0
+                ? budget.lines[c.id]!.plan!.planned
+                : null,
             currency: budget.lines[c.id]!.currency,
             // Its own Paid from (#180), else where its last row was paid.
             paidFromId: (data.paidFrom[c.id] ?? paidFrom[c.id])?.toString(),
