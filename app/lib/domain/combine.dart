@@ -103,7 +103,22 @@ class AskSide {
     this.memo,
     this.lines = const [],
     this.assignedMinor,
+    this.changedAtMs,
   });
+
+  /// When it was last changed, by the changing computer's clock; null when
+  /// not known.
+  final int? changedAtMs;
+
+  AskSide at(int? ms) => AskSide(
+    deleted: deleted,
+    date: date,
+    payee: payee,
+    memo: memo,
+    lines: lines,
+    assignedMinor: assignedMinor,
+    changedAtMs: ms,
+  );
 
   /// A transaction taken away in this version.
   final bool deleted;
@@ -454,6 +469,8 @@ Combined combine({
   Set<Object?>? madeHere,
   Set<String> madeUp = const {},
   bool logged = false,
+  Map<String, int> mineAt = const {},
+  Map<String, int> theirsAt = const {},
 }) {
   // A row from a computer before v21 has no `made_how` or `made_on`: it is
   // the same row with them empty.
@@ -475,6 +492,8 @@ Combined combine({
         madeHere,
         madeUp,
         logged: logged,
+        mineAt: mineAt,
+        theirsAt: theirsAt,
       );
       final found = run.run();
       if (units.isEmpty) return found;
@@ -540,6 +559,8 @@ class _Combine {
     this.madeHere,
     this.madeUp, {
     this.logged = false,
+    this.mineAt = const {},
+    this.theirsAt = const {},
   }) : base = {
         for (final e in base.entries) e.key: [...e.value],
       },
@@ -559,6 +580,22 @@ class _Combine {
   /// Rows, by `table|key`, whose base the fold made up for a column both
   /// changed apart: nothing to offer as it was.
   final Set<String> madeUp;
+
+  /// When each row was last changed here and on the other computer, by
+  /// `table|key`: for what a question says, nothing more.
+  final Map<String, int> mineAt;
+  final Map<String, int> theirsAt;
+
+  int? _lastAt(Map<String, List<Row>> rows, Map<String, int> times) {
+    int? last;
+    for (final e in rows.entries) {
+      for (final r in e.value) {
+        final at = times['${e.key}|${_keyOf(e.key, r)}'];
+        if (at != null && (last == null || at > last)) last = at;
+      }
+    }
+    return last;
+  }
 
   /// [theirs] was made from the other computer's own logged changes (a
   /// change file, folded): a transaction or account it lacks was taken out
@@ -906,8 +943,8 @@ class _Combine {
         id: u.id,
         kind: AskKind.transaction,
         transaction: u.transaction as int?,
-        mine: side(m),
-        theirs: side(t),
+        mine: side(m).at(_lastAt(m, mineAt)),
+        theirs: side(t).at(_lastAt(t, theirsAt)),
         neither: side(b),
         hasBase: hasBase && (b['transactions'] ?? const <Row>[]).isNotEmpty,
       );
@@ -925,8 +962,8 @@ class _Combine {
       category: _nameIn('accounts', u.category, 'name'),
       currency: _nameIn('accounts', u.category, 'currency'),
       date: u.date,
-      mine: side(m),
-      theirs: side(t),
+      mine: side(m).at(_lastAt(m, mineAt)),
+      theirs: side(t).at(_lastAt(t, theirsAt)),
       neither: side(b),
     );
   }

@@ -7546,4 +7546,115 @@ class WordsMn extends Words {
   String ledgerEraseShared(String folder) {
     return '$folder хавтсыг хуваалцаж буй бусад компьютер, утсан дээр ч бүгд устна. Тэдний өөрчилсөн ч хараахан илгээгээгүй зүйл дараа нь орж ирнэ.';
   }
+
+  @override
+  String phoneAskTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count зүйл энд болон компьютер дээр өөрчлөгдсөн',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneAskBody =>
+      'Эдгээрийн хувьд өөрчлөхгүй бол энэ утасны хувилбар үлдэнэ. Бусад нь хадгалахад орж ирнэ.';
+
+  @override
+  String get phoneAskThisPhone => 'Энэ утас';
+
+  @override
+  String get phoneAskKeepingMine => 'Энэ утасных үлдэнэ';
+
+  @override
+  String get phoneAskKeepingMineDeleted =>
+      'Устгасан хэвээр үлдэнэ (энэ утасных)';
+
+  @override
+  String phoneAskKeepingTheirs(String computer) {
+    return '$computer дээрхийг үлдээнэ';
+  }
+
+  @override
+  String phoneAskKeepingTheirsDeleted(String computer) {
+    return 'Устгасан хэвээр үлдэнэ ($computer дээрх)';
+  }
+
+  @override
+  String get phoneAskKeepingNeither => 'Урьдынхаар нь үлдээнэ';
+
+  @override
+  String get phoneAskChange => 'Өөрчлөх';
+
+  @override
+  String get phoneAskKeepMine => 'Энэ утасных үлдээх';
+
+  @override
+  String get phoneAskKeepMineDeleted => 'Устгасан хэвээр үлдээх (энэ утасных)';
+
+  @override
+  String get phoneAskSave => 'Хадгалах';
+
+  @override
+  String phoneAskLine(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count зүйл энд болон компьютер дээр өөрчлөгдсөн. Аль нь үлдэхийг сонгоно уу.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneApartTitle =>
+      'Энэ утасны дэвтэр болон хавтсан дахь дэвтрийг нэгтгэх боломжгүй';
+
+  @override
+  String phoneApartBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Хавтсан дахь дэвтрийг үлдээж болно. Энэ утсан дээр хийсэн $count гүйлгээ компьютерт хараахан ороогүй тул алдагдана.',
+      zero: 'Хавтсан дахь дэвтрийг үлдээж болно. Энэ утсан дээр хийсэн зүйл алдагдахгүй.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneApartKeepFolder => 'Хавтсан дахь дэвтрийг үлдээх';
+
+  @override
+  String get phoneProblemAnswer =>
+      'Хоёр компьютер дээр өөрчлөгдсөн зүйлийн сонголтыг хадгалж чадсангүй';
+
+  @override
+  String get phoneApartBodyOther =>
+      'Хавтсан дахь дэвтрийг үлдээж болно. Энэ утсан дээр хийсэн, компьютерт хараахан ороогүй өөрчлөлт, жишээ нь оноосон дүн, алдагдана.';
+
+  @override
+  String phoneApartBodyMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Хавтсан дахь дэвтрийг үлдээж болно. Энэ утсан дээр хийсэн $count гүйлгээ болон бусад өөрчлөлт компьютерт хараахан ороогүй тул алдагдана.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phoneAskChoose => 'Нэгийг сонгоно уу:';
+
+  @override
+  String phoneAskChanged(String when) {
+    return 'Өөрчилсөн: $when';
+  }
+
+  @override
+  String phoneAskSummary(int mine, String computer, int theirs, int neither) {
+    return 'Энэ утасных: $mine · $computer дээрх: $theirs · Урьдынх: $neither';
+  }
 }

@@ -1633,3 +1633,36 @@ from before the app was last closed is taken back by its id alone, so a paycheck
 payday isn't put back to expected by that (only the row goes). One a computer has applied is
 no longer the phone's to change, as before.
 
+
+**Built, 2026-11-20 (0.117.0): #526 piece 4, part 3: the phone's asking window.** (Owner,
+2026-11-20, picked sketch C of three: all on one page like the computer's, one at a time,
+or "say it once, change the few".) A thing changed on the phone and on another computer both
+is asked about once, and nothing comes in until it is answered; the figures stay as they
+were. **Each thing already says what is kept, this phone's unless changed, with a Change
+button** that opens the three ways (this phone's, the computer's, neither: as it was); one
+Save makes the choices and brings in everything else, the version not kept is not saved on the phone (it keeps no copies; the computer still
+holds its own). (An answer for what has changed since the look is not made and is not
+remembered: `CloudFolder.bringIn` dropped nothing on a stale answer before, which let the
+next look make it unasked.) Rejected: all cards with their buttons open on
+one page (long with many things), and one thing per page (slow with many). The page opens
+by itself once for each thing found (`PhoneHome._asked`), and a line across the top, "N
+things were changed here and on a computer", opens it again after Not now.
+`PhoneSync.asking` holds what a look found (`PhoneAsking`: the asks, the computer's name,
+`apart`, how many of the phone's entries no computer has applied) and `answer` brings it in
+through `CloudFolder.bringIn(picks:)`. **Two ledgers that can't be put together** are asked
+on the same page: the phone never writes the folder's whole ledger, so the one choice is
+"Keep the folder's ledger" (`takeFoldersLedger`), said with how many entries made on the
+phone no computer has taken in and would be lost, and Not now loses nothing. (The owner
+was told this and given the chance to say otherwise; I read their pick of C as "go ahead".)
+The words are `phoneAsk…` and `phoneApart…` in both `.arb` files; the Mongolian is a draft.
+
+**Owner's answers to the review of the asking window (2026-11-20).** (1) "When in doubt have
+BetterBudget ask the user. Conflicts like these will be relatively rare in a home budget, so
+just ask": a thing one computer deleted and the other changed has no default; its card says
+"Choose one:" with the ways open, and Save waits until it is answered. (2) For the two-ledgers
+question, "What do the desktop versions do?": the computer's dialog gives Not now, Keep this
+computer's and Keep the folder's the same weight, none filled, so the phone's two buttons
+are the same. (3) A line above Save counts what is kept each way. (4) Every card shows each
+version's accounts and amounts, split lines too, with the date and payee where the versions
+differ. (5) Each version says when it was last changed (`AskSide.changedAtMs`, from the
+change log's `at_ms` of the two computers' changes, through `combine(mineAt:, theirsAt:)`).

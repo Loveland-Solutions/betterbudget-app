@@ -11690,5 +11690,142 @@
         "type": "String"
       }
     }
+  },
+  "phoneAskTitle": "{count, plural, =1{1 thing was changed here and on a computer} other{{count} things were changed here and on a computer}}",
+  "@phoneAskTitle": {
+    "description": "Phone app, title of the page that asks about things changed on this phone and on another computer both.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneAskBody": "For these, this phone’s version is kept unless you change it. Everything else comes in when you save.",
+  "@phoneAskBody": {
+    "description": "Phone app, under phoneAskTitle: nothing is lost, and the default is the phone’s version."
+  },
+  "phoneAskThisPhone": "This phone",
+  "@phoneAskThisPhone": {
+    "description": "Phone app, the label of this phone’s version of a thing asked about."
+  },
+  "phoneAskKeepingMine": "Keeping this phone’s",
+  "@phoneAskKeepingMine": {
+    "description": "Phone app, under a thing asked about: the choice now."
+  },
+  "phoneAskKeepingMineDeleted": "Keeping it deleted (this phone’s)",
+  "@phoneAskKeepingMineDeleted": {
+    "description": "Phone app, as phoneAskKeepingMine when this phone deleted it."
+  },
+  "phoneAskKeepingTheirs": "Keeping {computer}’s",
+  "@phoneAskKeepingTheirs": {
+    "description": "Phone app, under a thing asked about: the choice now is the other computer’s. {computer} is its name.",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneAskKeepingTheirsDeleted": "Keeping it deleted ({computer}’s)",
+  "@phoneAskKeepingTheirsDeleted": {
+    "description": "Phone app, as phoneAskKeepingTheirs when the other computer deleted it.",
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneAskKeepingNeither": "Keeping it as it was",
+  "@phoneAskKeepingNeither": {
+    "description": "Phone app, under a thing asked about: neither version, as it was before either changed it."
+  },
+  "phoneAskChange": "Change",
+  "@phoneAskChange": {
+    "description": "Phone app, button on a thing asked about: opens the ways to settle it."
+  },
+  "phoneAskKeepMine": "Keep this phone’s",
+  "@phoneAskKeepMine": {
+    "description": "Phone app, a way to settle a thing changed on both: this phone’s version."
+  },
+  "phoneAskKeepMineDeleted": "Keep it deleted (this phone’s)",
+  "@phoneAskKeepMineDeleted": {
+    "description": "Phone app, as phoneAskKeepMine when this phone deleted it."
+  },
+  "phoneAskSave": "Save",
+  "@phoneAskSave": {
+    "description": "Phone app, button at the foot of the page that asks: makes the choices and brings in everything else."
+  },
+  "phoneAskLine": "{count, plural, =1{1 thing was changed here and on a computer. Choose which to keep.} other{{count} things were changed here and on a computer. Choose which to keep.}}",
+  "@phoneAskLine": {
+    "description": "Phone app, a line across the top while things changed on both wait for an answer. Tapping it opens phoneAskTitle.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneApartTitle": "This phone’s ledger and the one in the folder can’t be put together",
+  "@phoneApartTitle": {
+    "description": "Phone app, title of the question when the two ledgers can’t be combined."
+  },
+  "phoneApartBody": "{count, plural, =0{The folder’s ledger can be kept. Nothing made on this phone is lost.} =1{The folder’s ledger can be kept. 1 entry made on this phone isn’t on a computer yet and would be lost.} other{The folder’s ledger can be kept. {count} entries made on this phone aren’t on a computer yet and would be lost.}}",
+  "@phoneApartBody": {
+    "description": "Phone app, under phoneApartTitle. {count} is how many entries made on this phone no computer has taken in.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneApartKeepFolder": "Keep the folder’s ledger",
+  "@phoneApartKeepFolder": {
+    "description": "Phone app, button of the question phoneApartTitle: this phone takes the folder’s ledger as its own."
+  },
+  "phoneProblemAnswer": "Couldn’t save the choices about what was changed on two computers",
+  "@phoneProblemAnswer": {
+    "description": "Kept in the phone's Recent problems when the answers to the question phoneAskTitle couldn't be made."
+  },
+  "phoneApartBodyOther": "The folder’s ledger can be kept. Changes made on this phone that no computer has taken in yet, such as assigned amounts, would be lost.",
+  "@phoneApartBodyOther": {
+    "description": "Phone app, under phoneApartTitle when only changes besides entries are unapplied."
+  },
+  "phoneApartBodyMore": "{count, plural, =1{The folder’s ledger can be kept. 1 entry and other changes made on this phone aren’t on a computer yet and would be lost.} other{The folder’s ledger can be kept. {count} entries and other changes made on this phone aren’t on a computer yet and would be lost.}}",
+  "@phoneApartBodyMore": {
+    "description": "Phone app, under phoneApartTitle when entries and other changes are unapplied.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneAskChoose": "Choose one:",
+  "@phoneAskChoose": {
+    "description": "Phone app, under a thing asked about when nothing is chosen yet (one computer deleted it and the other changed it)."
+  },
+  "phoneAskChanged": "Changed {when}",
+  "@phoneAskChanged": {
+    "description": "Phone app, under one version of a thing asked about: when it was last changed. {when} reads “2026.11.20 14:30”.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneAskSummary": "This phone’s: {mine} · {computer}’s: {theirs} · As it was: {neither}",
+  "@phoneAskSummary": {
+    "description": "Phone app, one line above Save: how many things are kept each way. {computer} is the other computer’s name.",
+    "placeholders": {
+      "mine": {
+        "type": "int"
+      },
+      "computer": {
+        "type": "String"
+      },
+      "theirs": {
+        "type": "int"
+      },
+      "neither": {
+        "type": "int"
+      }
+    }
   }
 }
