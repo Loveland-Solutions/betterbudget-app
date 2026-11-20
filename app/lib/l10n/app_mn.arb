@@ -539,6 +539,7 @@
   "rowsSplitMakeIn": "Орлого болгох",
   "rowsSplitMakeOut": "Зарлага болгох",
   "rowsSplitEven": "Мөрүүд хоорондоо тэнцэж байгаа тул дансны үлдэгдэл өөрчлөгдөхгүй.",
+  "rowsSplitSummary": "{count, plural, other{Хуваасан · {count} ангилал}}",
   "rowsSplitAnother": "+ Өөр ангилал",
   "rowsSplitRemove": "Энэ ангиллыг хасах",
   "rowsSplitDone": "Дуусгах",

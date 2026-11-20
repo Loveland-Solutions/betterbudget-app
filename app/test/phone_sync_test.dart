@@ -348,6 +348,7 @@ void main() {
       memo: 'Weekly',
       counter: null,
       amount: null,
+      splits: null,
     ), tuesday);
     expect(await payees(), contains('Nomin Super'));
     await phone.look(drive.path, tuesday);

@@ -755,6 +755,104 @@ void main() {
     expect(now().memo, row.memo);
   });
 
+  testWidgets('a split row opened in the register has its lines on the split '
+      'page, and a sum that is off is said before Save (#527)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int txn;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      final account = data.accounts.values.firstWhere(
+        (a) => a.type == AccountType.asset && a.currency == Currency.mnt,
+      );
+      final cats = data.accounts.values
+          .where(
+            (a) => a.type == AccountType.expense && a.currency == Currency.mnt,
+          )
+          .take(2)
+          .toList();
+      txn = await db.postSplit(
+        accountId: account.id,
+        date: DateTime(2026, 10, 5),
+        today: _now,
+        payee: 'Emart',
+        splits: [
+          (categoryId: cats[0].id, amount: -3000000),
+          (categoryId: cats[1].id, amount: -2000000),
+        ],
+      );
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    var saved = <SplitPart>[];
+    store.editRowIn = (edit) async => await (() async {
+      saved = edit.splits ?? [];
+      final before = await db.snapshot(edit.txn);
+      await db.editTransaction(
+        transactionId: edit.txn,
+        accountId: edit.account,
+        date: edit.date,
+        today: _now,
+        payee: edit.payee,
+        memo: edit.memo,
+        splits: edit.splits,
+      );
+      final after = await db.snapshot(edit.txn);
+      data = await db.loadLedger();
+      return (
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+        before: before,
+        after: after,
+      );
+    })();
+    final row = data.registerAll().posted.firstWhere((r) => r.txnId == txn);
+    await tester.tap(find.byKey(ValueKey('register-row-$txn-${row.entryId}')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('row-lines')));
+    expect(find.text('Split · 2 categories'), findsOneWidget);
+    // Lines changed on the page so they no longer add up: said, not saved.
+    await tester.tap(find.byKey(const ValueKey('row-lines')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('pad-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('split-done')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('row-save')));
+    await tester.tap(find.byKey(const ValueKey('row-save')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('row-said')), findsOneWidget);
+    expect(saved, isEmpty);
+    // Back to as it was on the page: the lines are saved, adding up.
+    await tester.ensureVisible(find.byKey(const ValueKey('row-lines')));
+    await tester.drag(
+      find.byKey(const ValueKey('register-list')),
+      const Offset(0, 150),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('row-lines')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('pad-<')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('split-done')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('row-save')));
+    await tester.tap(find.byKey(const ValueKey('row-save')));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pumpAndSettle();
+    expect(saved.length, 2);
+    expect(saved.fold(0, (s, p) => s + p.amount), -5000000);
+    expect(find.byKey(const ValueKey('row-saved')), findsOneWidget);
+  });
+
   testWidgets('a row’s ⋯ marks it cleared, moves it and deletes it, each with '
       'Undo (#527)', (tester) async {
     late AppDatabase db;

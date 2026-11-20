@@ -3651,6 +3651,15 @@
   "@rowsSplitEven": {
     "description": "Split card, under the heading: the lines go both ways and add up to 0 (a ₮37,500 shirt returned for ₮37,500 of groceries on one receipt). The row is saved with a total of 0."
   },
+  "rowsSplitSummary": "{count, plural, =1{Split · 1 category} other{Split · {count} categories}}",
+  "@rowsSplitSummary": {
+    "description": "The phone's open split row, in the Category box: how many categories it is shared over. Tapping opens its lines.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "rowsSplitAnother": "+ Another category",
   "@rowsSplitAnother": {
     "description": "Split card: adds a line for one more category."
