@@ -1,17 +1,11 @@
 // The phone's side of the cloud folder (ADR 0005): finding the folder the
-// ledger was moved to, and reading the ledger in it. The phone never writes to
-// that file; it takes a private copy and opens the copy. What the phone does
-// write there is its own file (`phone_inbox.dart`).
-import 'dart:io';
-
-import 'package:drift/native.dart';
+// ledger was moved to, and reaching the files in it. The phone never writes the
+// folder's whole ledger; it keeps a ledger of its own (`phone_own_ledger.dart`,
+// `phone_sync.dart`). What it writes there is its change file and its entries
+// file (`phone_inbox.dart`).
 import 'package:flutter/services.dart';
 
-import '../domain/phone.dart';
-import 'database.dart';
-import 'encryption.dart';
 import 'folder_io.dart';
-import 'ledger_file.dart';
 
 /// The folder picked with the system's own picker, which is how a phone
 /// reaches Google Drive or OneDrive without this app touching the network
@@ -122,32 +116,3 @@ class PhoneFolderIo extends FolderIo {
 
 /// The recovery key typed on this phone doesn't open the ledger in the folder.
 class WrongKeyException implements Exception {}
-
-/// Takes [bytes], the ledger as it sits in the folder, into [dir] and reads
-/// what the phone shows from it. Throws [WrongKeyException] when [dataKey]
-/// doesn't open it, and whatever the database throws when it can't be read
-/// (a ledger from a newer version of the app).
-Future<PhoneSnapshot> readPhoneLedger(
-  Uint8List bytes,
-  Uint8List dataKey, {
-  required Directory dir,
-  required DateTime today,
-  required DateTime madeAt,
-}) async {
-  await dir.create(recursive: true);
-  final copy = File('${dir.path}/$ledgerFileName');
-  // Anything the last read left beside the copy belongs to the old bytes.
-  for (final f in dir.listSync().whereType<File>()) {
-    await f.delete();
-  }
-  await copy.writeAsBytes(bytes, flush: true);
-  if (!keyOpens(copy, dataKey)) throw WrongKeyException();
-  final db = AppDatabase(
-    NativeDatabase(copy, setup: (raw) => applyCipherKey(raw, dataKey)),
-  );
-  try {
-    return snapshotOf(await db.loadLedger(), today: today, madeAt: madeAt);
-  } finally {
-    await db.close();
-  }
-}

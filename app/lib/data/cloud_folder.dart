@@ -280,6 +280,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     this.access = const FolderAccess(),
     this.io = const DirectoryFolderIo(),
     this.wait = const Duration(seconds: 5),
+    this.writesLedger = true,
   }) : super(const CloudFolderState()) {
     // Any write to the ledger, the app's own scheduling included: what was
     // worked out about it no longer holds.
@@ -298,6 +299,12 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// How the folder's files are reached: by path on a computer, through the
   /// system's picker on a phone.
   final FolderIo io;
+
+  /// Whether this member writes the folder's whole ledger (`Ledger.betterbudget`).
+  /// A phone doesn't (#526 piece 3): over mobile data a whole ledger is too
+  /// much to send, and the computers keep it. It still writes its change file
+  /// and takes in the others'.
+  final bool writesLedger;
 
   /// How long after the last change the ledger is written: a run of edits
   /// makes one write, not one each.
@@ -849,6 +856,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       );
       over = found?.look.computers.counters ?? over;
     }
+    // A member that doesn't write the folder's ledger has no such choice.
+    assert(writesLedger, 'keepMine writes the folder’s whole ledger');
     final there = await _read(path);
     final theirsDigest = there?.look.digest;
     _askAbout = null;
@@ -915,6 +924,9 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     for (var tries = 0; ; tries++) {
       final stat = await io.stat(path, fileName);
       if (stat == null) {
+        if (!writesLedger) {
+          return (standing: FolderStanding.arriving, replaced: null);
+        }
         await _put(path, now, over: const {}, whole: true);
         return (standing: FolderStanding.ok, replaced: null);
       }
@@ -952,6 +964,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         final state = await backups.db.syncState();
         if (theirs.applied.isNotEmpty && state.applied.isNotEmpty) {
           return await _syncLogs(now, path, found, mine, state, stat);
+        }
+        // The older way writes the folder's ledger whole, which a member
+        // that doesn't can't do: it waits for a computer's.
+        if (!writesLedger) {
+          return (standing: FolderStanding.arriving, replaced: null);
         }
         if (_askAbout != null && theirs.digest != _askAbout) {
           _askAbout = null;
@@ -1419,7 +1436,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     if (behind.isEmpty) {
       // Written afresh when the rows differ; a vector alone that moved on
       // isn't worth a whole upload (the change files carry it).
-      if (theirs.digest != mine.digest) {
+      if (writesLedger && theirs.digest != mine.digest) {
         await _put(
           path,
           now,
