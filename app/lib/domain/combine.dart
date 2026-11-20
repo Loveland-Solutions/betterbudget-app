@@ -562,14 +562,14 @@ class _Combine {
     this.mineAt = const {},
     this.theirsAt = const {},
   }) : base = {
-        for (final e in base.entries) e.key: [...e.value],
-      },
-      theirs = {
-        for (final e in theirs.entries)
-          e.key: [
-            for (final r in e.value) {...r},
-          ],
-      };
+         for (final e in base.entries) e.key: [...e.value],
+       },
+       theirs = {
+         for (final e in theirs.entries)
+           e.key: [
+             for (final r in e.value) {...r},
+           ],
+       };
 
   /// The transactions this computer made that the other hasn't seen, by
   /// id, when the caller knows (from this computer's own log, on change

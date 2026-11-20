@@ -27,6 +27,7 @@ import '../domain/ledger.dart'
         billSkippedKey,
         billSkippedValue,
         decodeBillPaid;
+import '../domain/payee_rules.dart' show Remembered;
 import '../domain/phone.dart';
 import '../domain/sync.dart' show appliedMarkerOp;
 import 'backup.dart';
@@ -86,7 +87,8 @@ typedef PhoneAnswered = ({PhoneSnapshot snapshot, bool done});
 /// computer's edit takes it: [amount] is signed from [account]'s side and
 /// [counter] is the category (or the other account); null leaves them as
 /// they are. [splits] are a split's lines, in the account's sign, null to
-/// leave them.
+/// leave them. [remember] is the category to remember for the payee, when
+/// the box under the row was ticked (#403).
 typedef PhoneRowEdit = ({
   int txn,
   int account,
@@ -96,6 +98,7 @@ typedef PhoneRowEdit = ({
   int? counter,
   int? amount,
   List<SplitPart>? splits,
+  int? remember,
 });
 
 /// A scheduled row confirmed (#527): the edit as the person made it, and the
@@ -105,6 +108,7 @@ typedef PhoneRowConfirm = ({
   PhoneRowEdit edit,
   int? paySchedule,
   int? planCategory,
+  bool keepOwed,
 });
 
 /// An edit done: the ledger as it stands after, and the row as it was and
@@ -113,6 +117,7 @@ typedef PhoneEdited = ({
   PhoneSnapshot snapshot,
   TxnSnapshot before,
   TxnSnapshot after,
+  Remembered? remembered,
 });
 
 /// What a row's ⋯ menu does (#527): mark one entry cleared or uncleared,
@@ -230,9 +235,13 @@ abstract class PhoneLedgerSource {
   Future<PhoneActed> confirmRow(PhoneRowConfirm confirm, DateTime now) =>
       throw UnsupportedError('This source keeps no ledger to edit');
 
-  /// Puts a row back as [row] was, for Undo and Redo of an edit.
-  Future<PhoneSnapshot> restoreRow(TxnSnapshot row, DateTime now) =>
-      throw UnsupportedError('This source keeps no ledger to edit');
+  /// Puts a row back as [row] was, for Undo and Redo of an edit; with
+  /// [remembered], the payee's category the edit remembered is forgotten.
+  Future<PhoneSnapshot> restoreRow(
+    TxnSnapshot row,
+    DateTime now, {
+    Remembered? remembered,
+  }) => throw UnsupportedError('This source keeps no ledger to edit');
 
   /// Does what a row's ⋯ menu asked, as a change the computers see (#527).
   /// Throws what the ledger refuses (a reconciled row).
@@ -585,8 +594,27 @@ class PhoneSync implements PhoneLedgerSource {
       amount: edit.amount,
       splits: edit.splits,
     );
+    final remembered = await _remember(db, edit);
     final after = await db.snapshot(edit.txn);
-    return (snapshot: await asItStands(now), before: before, after: after);
+    return (
+      snapshot: await asItStands(now),
+      before: before,
+      after: after,
+      remembered: remembered,
+    );
+  }
+
+  /// The box under the row: the category the row is in is remembered for
+  /// its payee, with every spelling it has (#403).
+  Future<Remembered?> _remember(AppDatabase db, PhoneRowEdit edit) async {
+    final payee = edit.payee?.trim() ?? '';
+    final category = edit.remember;
+    if (category == null || payee.isEmpty) return null;
+    return db.rememberPayee(
+      accountId: edit.account,
+      payee: payee,
+      categoryId: category,
+    );
   }
 
   @override
@@ -594,7 +622,7 @@ class PhoneSync implements PhoneLedgerSource {
     final db = await _ledger();
     final edit = confirm.edit;
     final before = await db.snapshot(edit.txn);
-    await db.editTransaction(
+    final owedId = await db.editTransaction(
       transactionId: edit.txn,
       accountId: edit.account,
       date: edit.date,
@@ -604,7 +632,9 @@ class PhoneSync implements PhoneLedgerSource {
       counterAccountId: edit.counter,
       amount: edit.amount,
       confirm: true,
+      keepOwed: confirm.keepOwed,
     );
+    final remembered = await _remember(db, edit);
     final after = await db.snapshot(edit.txn);
     // Only its own: confirming a bill never touches pay.
     var next = const <int>[];
@@ -629,17 +659,22 @@ class PhoneSync implements PhoneLedgerSource {
       snapshot: await asItStands(now),
       undo: () async {
         await db.transaction(() async {
+          // The rule first: it may name a category the row's undo takes.
+          if (remembered != null) await db.forgetRemembered(remembered);
           await db.dropPaydays(next);
           await db.dropPlanBills(nextBills);
           await db.restoreSnapshot(before);
+          if (owedId != null) await db.softDeleteMany([owedId]);
         });
         return asItStands(now);
       },
       redo: () async {
         await db.transaction(() async {
           await db.restoreSnapshot(after);
+          if (owedId != null) await db.restoreMany([owedId]);
           if (schedule != null) await db.bringBackPaydays(next, schedule);
           if (planned != null) await db.bringBackPlanBills(nextBills, planned);
+          if (remembered != null) await db.redoRemembered(remembered);
         });
         return asItStands(now);
       },
@@ -647,9 +682,16 @@ class PhoneSync implements PhoneLedgerSource {
   }
 
   @override
-  Future<PhoneSnapshot> restoreRow(TxnSnapshot row, DateTime now) async {
+  Future<PhoneSnapshot> restoreRow(
+    TxnSnapshot row,
+    DateTime now, {
+    Remembered? remembered,
+  }) async {
     final db = await _ledger();
-    await db.restoreSnapshot(row);
+    await db.transaction(() async {
+      if (remembered != null) await db.forgetRemembered(remembered);
+      await db.restoreSnapshot(row);
+    });
     return asItStands(now);
   }
 

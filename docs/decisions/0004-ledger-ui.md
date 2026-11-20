@@ -7363,7 +7363,7 @@ is. The owner chose **C**. A (recommended) and B are not built.
   refused in the ledger's words. No bill this time skips the bill and keeps its money for
   the next, with Undo. Rejected: a Confirm button on every scheduled row's face (a bill
   that varies is confirmed at the wrong figure until fixed) and a swipe (hidden, with no
-  visible control). Left on #527 then: an amount under the plan leaving the rest owed.
+  visible control).
 - **A bill asked about on the phone** (owner, 2026-11-20, 0.123.0; picked A of three): a
   row already in that may have paid a scheduled bill is asked about in the register, as the
   computer's "Paid on 10.13?": a line under the bill's row, and "Did this pay the Rent
@@ -7374,5 +7374,17 @@ is. The owner chose **C**. A (recommended) and B are not built.
   a bill paid has **Not this bill** in its ⋯. Each is one Undo. Rejected: a sheet right
   after Save (it interrupts saving, and closing it leaves the question unanswered) and
   asking only in the Scheduled tab (a person who never opens it is never asked).
+- **Money that came short, and remembering a category, on the phone** (0.124.0; the
+  first the computer's own rule, the second the owner's pick of A of three). Confirming a
+  scheduled payday or other money in for less than planned says "₮… less than planned:"
+  in the open row, with **Still owed, due 12.01** or **Paid in full**; Still owed is
+  chosen when more than a tenth is missing, as on the computer, and leaves the rest
+  scheduled, in the same Undo. A bill that came in lower owes nothing more. A row with a
+  payee and a category not yet remembered for it has a box, **Remember this category for
+  this payee**, off until ticked, under its Category in the open row and at the foot of the
+  amount screen's fields; it saves with the row, and the row's Undo forgets it too. It
+  reaches the computers as the payee's rule, a change like any other. Rejected: a button
+  on the saved row's bar (a missed bar is a missed chance) and remembering on its own (a
+  guess filled in, which one wrong one-off shop would carry to every later row).
 - **Figures made up** (the demo key Play's review uses, the preview) have no rows to
   show, so they still open on the pad.

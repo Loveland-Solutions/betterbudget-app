@@ -308,7 +308,12 @@ class PhoneEntry {
     required this.date,
     required this.madeAt,
     this.lines = const [],
+    this.remember = false,
   });
+
+  /// The box under the category was ticked: the ledger remembers the
+  /// category for the payee when it takes the entry in (#403).
+  final bool remember;
 
   /// One receipt over several categories (owner, 2026-10-17): each one and
   /// its share. [categoryId] is then [phoneSplitId]. Empty otherwise.
@@ -330,6 +335,7 @@ class PhoneEntry {
     date: date,
     madeAt: madeAt,
     lines: lines,
+    remember: remember,
   );
 
   /// The same entry with a category made on the phone named by the
@@ -342,6 +348,7 @@ class PhoneEntry {
     amountMinor: amountMinor,
     date: date,
     madeAt: madeAt,
+    remember: remember,
     lines: [
       for (final l in lines)
         (
@@ -896,14 +903,12 @@ int balanceNow(
   return balance;
 }
 
-
 /// What names an entry that is a row of the phone's own ledger, not one
 /// waiting: `row:` and the transaction's id.
 const phoneRowPrefix = 'row:';
 
 /// The id of the ledger row a phone entry names, or null for a waiting one.
-int? phoneRowOf(String id) =>
-    id.startsWith(phoneRowPrefix)
+int? phoneRowOf(String id) => id.startsWith(phoneRowPrefix)
     ? int.tryParse(id.substring(phoneRowPrefix.length))
     : null;
 

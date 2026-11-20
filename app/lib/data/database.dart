@@ -672,8 +672,13 @@ class PhoneTake {
     this.leftOut = const [],
     this.paychecks = const [],
     this.counts = const [],
+    this.remembered = const [],
   ]);
   final List<int> transactionIds;
+
+  /// The payees' categories remembered with an entry (#403), for an exact
+  /// undo.
+  final List<Remembered> remembered;
 
   /// The cash counted on a phone (#119), for the popup to say.
   final List<PhoneCountTaken> counts;
@@ -6612,6 +6617,7 @@ class AppDatabase extends _$AppDatabase {
     final plans = <int, ({CategoryPlan plan, PlanChange change})>{};
     final added = <int>[], made = <int>[], unarchived = <int>[];
     final paychecks = <PayTaken>[];
+    final remembered = <Remembered>[];
     final madeNames = <String>[];
     final leftOut = <PhonePlanLeftOut>[];
     final nameOf = {for (final a in live) a.id: a.name};
@@ -6896,6 +6902,21 @@ class AppDatabase extends _$AppDatabase {
             on: inbox.device,
           ),
         );
+        // The box under the category was ticked (#403): spending only, a
+        // payee's category, never a paycheck or a transfer.
+        if (e.remember &&
+            !toIncome &&
+            !transfer &&
+            e.payee.trim().isNotEmpty &&
+            spending.contains(category)) {
+          remembered.add(
+            await rememberPayee(
+              accountId: account,
+              payee: e.payee,
+              categoryId: category,
+            ),
+          );
+        }
         if (asPay) {
           // In the payday's place, as a pay picked from a row's dropdown.
           final took = await _takePayday(added.last, account, pay, today);
@@ -7033,6 +7054,7 @@ class AppDatabase extends _$AppDatabase {
             leftOut,
             paychecks,
             counts,
+            remembered,
           );
   });
 
@@ -7148,6 +7170,10 @@ class AppDatabase extends _$AppDatabase {
   /// Undo for [takePhoneEntries]: its rows go, and the categories it made.
   /// They stay marked as taken, so the next look doesn't bring them back.
   Future<void> undoPhoneTake(PhoneTake t) => transaction(() async {
+    // The rules first: one may name a category this take made.
+    for (final r in t.remembered.reversed) {
+      await forgetRemembered(r);
+    }
     // The paydays the paychecks took the place of are expected again,
     // except one whose paycheck was reconciled meanwhile and stays.
     final kept = await _reconciledAmong(t.transactionIds);
@@ -7181,7 +7207,26 @@ class AppDatabase extends _$AppDatabase {
     for (final p in t.paychecks) {
       await _retakePayday(p);
     }
+    for (final r in t.remembered) {
+      await redoRemembered(r);
+    }
   });
+
+  /// Undoes [rememberPayee]: the line as it was, or none; a shared line
+  /// gets this account back.
+  Future<void> forgetRemembered(Remembered r) async {
+    if (r.was case final was?) {
+      await putPayeeRule(was);
+    } else {
+      await removePayeeRule(r.now.id);
+    }
+    if (r.left case final left?) await putPayeeRule(left.was);
+  }
+
+  Future<void> redoRemembered(Remembered r) async {
+    if (r.left case final left?) await putPayeeRule(left.now);
+    await putPayeeRule(r.now);
+  }
 
   // ---------- import (ADR 0002) ----------
 

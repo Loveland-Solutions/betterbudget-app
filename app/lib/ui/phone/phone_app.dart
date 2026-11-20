@@ -40,6 +40,7 @@ import '../../domain/budget.dart';
 import '../../domain/ledger.dart';
 import '../../domain/money.dart';
 import '../../domain/pay.dart';
+import '../../domain/payee_rules.dart';
 import '../../domain/phone.dart';
 import '../../domain/readiness.dart';
 import '../language.dart';
@@ -138,7 +139,8 @@ class PhoneStore extends ChangeNotifier {
   /// Set by whoever keeps the ledger: edits a row of the register, and puts
   /// one back (#527). Null where there is no ledger (the preview).
   Future<PhoneEdited> Function(PhoneRowEdit edit)? editRowIn;
-  Future<PhoneSnapshot> Function(TxnSnapshot row)? restoreRowIn;
+  Future<PhoneSnapshot> Function(TxnSnapshot row, Remembered? remembered)?
+  restoreRowIn;
 
   /// Saves [edit] into the ledger. Returns what Undo and Redo put back, as
   /// [PhoneEdited]; throws what the ledger refuses.
@@ -192,11 +194,11 @@ class PhoneStore extends ChangeNotifier {
   }
 
   /// Puts a row back as it was ([editRow]'s Undo and Redo).
-  Future<void> restoreRow(TxnSnapshot row) async {
+  Future<void> restoreRow(TxnSnapshot row, {Remembered? remembered}) async {
     final back = restoreRowIn;
     if (back == null) throw UnsupportedError('No ledger to edit');
     await settle?.call();
-    _snapshot = await back(row);
+    _snapshot = await back(row, remembered);
     _changes++;
     notifyListeners();
   }
@@ -621,6 +623,10 @@ class _Draft extends ChangeNotifier {
   /// puts this in its place. Null for a new entry.
   String? editing;
 
+  /// The box under the category: remember it for the payee (#403). Off
+  /// until ticked.
+  bool remember = false;
+
   bool get isSplit => lines.isNotEmpty;
 
   void change(VoidCallback make) {
@@ -695,6 +701,7 @@ class _Draft extends ChangeNotifier {
     date = null;
     lines = [];
     editing = null;
+    remember = false;
   });
 }
 
@@ -1892,6 +1899,7 @@ class _EntryState extends State<_EntryScreen> {
       amountMinor: signed,
       date: date ?? _day(widget.now()),
       madeAt: widget.now(),
+      remember: to == null && _draft.remember && _canRemember,
     );
     final put = await _put(entry);
     if (put == null) {
@@ -1960,6 +1968,24 @@ class _EntryState extends State<_EntryScreen> {
       };
     });
     _toastGoes(long: put.asNew);
+  }
+
+  /// Whether Save offers to remember the category for the payee: a payee
+  /// and a spending category that isn't already remembered for it.
+  bool get _canRemember {
+    final id = _draft.categoryId;
+    final payee = _draft.payee?.trim() ?? '';
+    final account = _account;
+    if (_draft.isSplit || id == null || payee.isEmpty || account == null) {
+      return false;
+    }
+    final category = _store.snapshot.categories
+        .where((c) => c.id == id)
+        .firstOrNull;
+    if (category == null || category.isIncome || category.transfer) {
+      return false;
+    }
+    return _store.snapshot.rememberedFor(payee, account.id)?.id != id;
   }
 
   /// Like any toast it goes by itself; later when it has more to say.
@@ -2701,6 +2727,20 @@ class _EntryState extends State<_EntryScreen> {
                                         : fullDate(date),
                                     onTap: _pickDate,
                                   ),
+                                  if (_canRemember) ...[
+                                    Divider(
+                                      height: 1,
+                                      thickness: 1,
+                                      color: Mid.rule,
+                                    ),
+                                    _RememberTick(
+                                      on: _draft.remember,
+                                      onTap: () => _change(
+                                        () =>
+                                            _draft.remember = !_draft.remember,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),

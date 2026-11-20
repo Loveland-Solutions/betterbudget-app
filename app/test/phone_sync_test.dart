@@ -13,10 +13,12 @@ import 'package:betterbudget/data/folder_io.dart';
 import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_sync.dart';
-import 'package:betterbudget/domain/budget.dart' show BillFit, BillPayment, billPayments;
+import 'package:betterbudget/domain/budget.dart'
+    show BillFit, BillPayment, billPayments;
 import 'package:betterbudget/domain/combine.dart' show Pick;
 import 'package:betterbudget/domain/ledger.dart'
     show CategoryPlan, Cleared, PlanKind, RegisterRow;
+import 'package:betterbudget/domain/ledger.dart' show AccountType;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -351,6 +353,7 @@ void main() {
       counter: null,
       amount: null,
       splits: null,
+      remember: null,
     ), tuesday);
     expect(await payees(), contains('Nomin Super'));
     await phone.look(drive.path, tuesday);
@@ -450,9 +453,11 @@ void main() {
         counter: null,
         amount: -79000000,
         splits: null,
+        remember: null,
       ),
       paySchedule: null,
       planCategory: rent,
+      keepOwed: false,
     ), tuesday);
     var ledger = await phone.db!.loadLedger();
     final posted = ledger.registerAll().posted.singleWhere(
@@ -496,9 +501,11 @@ void main() {
           counter: null,
           amount: null,
           splits: null,
+          remember: null,
         ),
         paySchedule: null,
         planCategory: rent,
+        keepOwed: false,
       ), tuesday),
       throwsA(isA<LockedException>()),
     );
@@ -602,6 +609,138 @@ void main() {
     expect((await billsOn(phone.db!, rent)).single.txnId, p.bill.txnId);
     await done.undo();
     expect(billPayments(await phone.db!.loadLedger(), tuesday), isNotEmpty);
+  });
+
+  Future<List<String>> remembered() async => [
+    for (final r in await phone.db!.allPayeeRules())
+      '${r.shownAs}:${r.categoryId}',
+  ];
+
+  test('the box under a row remembers its category for the payee, in the '
+      'same Undo as the edit (#403)', () async {
+    await spend('Nomin');
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    final row = ledger.registerAll().posted.firstWhere(
+      (r) => r.payee == 'Nomin',
+    );
+    final done = await phone.editRow((
+      txn: row.txnId,
+      account: row.accountId,
+      date: row.date,
+      payee: 'Nomin',
+      memo: '',
+      counter: null,
+      amount: null,
+      splits: null,
+      remember: row.categoryId,
+    ), tuesday);
+    expect(await remembered(), ['Nomin:${row.categoryId}']);
+    expect(done.remembered, isNotNull);
+    // Undo takes the row's edit and the rule back together.
+    await phone.restoreRow(done.before, tuesday, remembered: done.remembered);
+    expect(await remembered(), isEmpty);
+    // It reaches the computer as a change.
+    await phone.editRow((
+      txn: row.txnId,
+      account: row.accountId,
+      date: row.date,
+      payee: 'Nomin',
+      memo: '',
+      counter: null,
+      amount: null,
+      splits: null,
+      remember: row.categoryId,
+    ), tuesday);
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect([
+      for (final r in await macDb.allPayeeRules()) r.shownAs,
+    ], contains('Nomin'));
+  });
+
+  test('an entry saved on the phone with the box ticked remembers its '
+      'category, and taking it back forgets it (#403)', () async {
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    int id(String name) =>
+        ledger.accounts.values.singleWhere((a) => a.name == name).id;
+    PhoneEntry entry(String id0, {required bool remember}) => PhoneEntry(
+      id: id0,
+      categoryId: '${id('Groceries')}',
+      accountId: '${id('TDB Checking')}',
+      payee: 'Nomin',
+      amountMinor: -1250000,
+      date: tuesday,
+      madeAt: tuesday,
+      remember: remember,
+    );
+    // Unticked: nothing is remembered.
+    await phone.take(
+      PhoneInbox(device: 'bbbb', entries: [entry('e0', remember: false)]),
+      tuesday,
+    );
+    expect(await remembered(), isEmpty);
+    final took = await phone.take(
+      PhoneInbox(device: 'bbbb', entries: [entry('e1', remember: true)]),
+      tuesday,
+    );
+    expect(await remembered(), ['Nomin:${id('Groceries')}']);
+    await phone.undoTake(took!.take!, tuesday);
+    expect(await remembered(), isEmpty);
+  });
+
+  test('a payday confirmed for less keeps the rest owed, and Undo takes it '
+      'back (#527)', () async {
+    final ledger = await macDb.loadLedger();
+    final bank = ledger.accounts.values
+        .singleWhere((a) => a.name == 'TDB Checking')
+        .id;
+    final income = ledger.accounts.values
+        .firstWhere((a) => a.type == AccountType.income)
+        .id;
+    // Money in that is expected, not yet in: scheduled for the 9th.
+    await macDb.postSimple(
+      accountId: bank,
+      date: DateTime(2026, 10, 9),
+      today: monday,
+      payee: 'Employer',
+      counterAccountId: income,
+      amount: 100000000,
+    );
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final planned = (await phone.db!.loadLedger())
+        .registerAll()
+        .scheduled
+        .firstWhere((r) => r.payee == 'Employer');
+    final done = await phone.confirmRow((
+      edit: (
+        txn: planned.txnId,
+        account: planned.accountId,
+        date: tuesday,
+        payee: 'Employer',
+        memo: '',
+        counter: null,
+        amount: 60000000,
+        splits: null,
+        remember: null,
+      ),
+      paySchedule: null,
+      planCategory: null,
+      keepOwed: true,
+    ), tuesday);
+    List<RegisterRow> owed(PhoneSnapshot a) => [
+      for (final r in a.data!.registerAll().scheduled)
+        if (r.payee == 'Employer') r,
+    ];
+    expect(owed(done.snapshot).single.amount, 40000000);
+    await done.undo();
+    final back = owed(await phone.asItStands(tuesday)).single;
+    expect(back.amount, 100000000);
+    expect(back.txnId, planned.txnId);
   });
 
   test('a row of the phone’s own is taken back from its id alone, as after '

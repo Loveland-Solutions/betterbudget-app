@@ -391,7 +391,7 @@ class _RegisterState extends State<_RegisterScreen> {
               onCancel: () => setState(() => _open = null),
               today: widget.now(),
               onSave: (edit) => _save(r, edit),
-              onConfirm: (edit) => _confirm(r, edit),
+              onConfirm: (edit, keepOwed) => _confirm(r, edit, keepOwed),
               more: _more(t, r),
             ),
           ?_paidLine(t, r),
@@ -657,7 +657,11 @@ class _RegisterState extends State<_RegisterScreen> {
   }
 
   /// Confirms a scheduled row. Null when it went in, else what to say.
-  Future<String?> _confirm(RegisterRow r, PhoneRowEdit edit) async {
+  Future<String?> _confirm(
+    RegisterRow r,
+    PhoneRowEdit edit,
+    bool keepOwed,
+  ) async {
     final t = context.t;
     final store = widget.store;
     final PhoneActed done;
@@ -666,6 +670,7 @@ class _RegisterState extends State<_RegisterScreen> {
         edit: edit,
         paySchedule: r.payScheduleId,
         planCategory: r.planCategoryId,
+        keepOwed: keepOwed,
       ));
     } on LockedException catch (e) {
       return dbProblem(t, e);
@@ -685,7 +690,17 @@ class _RegisterState extends State<_RegisterScreen> {
           key: const ValueKey('row-confirmed'),
           backgroundColor: Mid.raised,
           content: Text(
-            t.ledgerConfirmed(name),
+            [
+              t.ledgerConfirmed(name),
+              if (keepOwed && (edit.amount ?? r.amount) < r.amount)
+                t.ledgerStillOwed(
+                  formatShort(
+                    r.amount - (edit.amount ?? r.amount),
+                    currency: r.currency,
+                  ),
+                  sayDate(t, r.date),
+                ),
+            ].join(' · '),
             style: onest(15, color: Mid.ink),
           ),
           action: SnackBarAction(
@@ -806,7 +821,9 @@ class _RegisterState extends State<_RegisterScreen> {
           action: SnackBarAction(
             label: t.ledgerUndo,
             textColor: Mid.blue,
-            onPressed: () => unawaited(store.restoreRow(done.before)),
+            onPressed: () => unawaited(
+              store.restoreRow(done.before, remembered: done.remembered),
+            ),
           ),
         ),
       );
@@ -841,7 +858,7 @@ class _RowEdit extends StatefulWidget {
   final Future<String?> Function(PhoneRowEdit edit) onSave;
 
   /// Confirms a scheduled row; returns what to say when it didn't go in.
-  final Future<String?> Function(PhoneRowEdit edit) onConfirm;
+  final Future<String?> Function(PhoneRowEdit edit, bool keepOwed) onConfirm;
   final DateTime today;
 
   @override
@@ -857,6 +874,13 @@ class _RowEditState extends State<_RowEdit> {
   late bool _moneyIn;
   String? _said;
   var _saving = false;
+
+  /// The box under the row: remember the category for the payee (#403).
+  var _remember = false;
+
+  /// Confirming money in that came short: the rest is still owed, or it was
+  /// paid in full. Null until chosen.
+  bool? _keepOwedChoice;
 
   /// A split's lines as the split page has them, or as changed there; null
   /// for a row of one category.
@@ -877,6 +901,13 @@ class _RowEditState extends State<_RowEdit> {
       text: groupTyped(typedOfMinor(_r.amount, _r.currency), const []).text,
     );
     _memo = TextEditingController(text: _r.memo);
+    // The line about money that came short follows what is typed.
+    _amount.addListener(() {
+      if (mounted && _r.scheduled) setState(() {});
+    });
+    _payee.addListener(() {
+      if (mounted) setState(() {});
+    });
     // A scheduled row opens to be confirmed: it happened, so dated today.
     final day = _r.scheduled ? widget.today : _r.date;
     _date = DateTime(day.year, day.month, day.day);
@@ -964,6 +995,47 @@ class _RowEditState extends State<_RowEdit> {
     return (parts: parts, said: null);
   }
 
+  /// Confirming money in below plan: how much is missing. Null otherwise:
+  /// never for a bill (one that came in lower owes nothing more), a paycheck
+  /// that varies, or a transfer.
+  int? get _shortBy {
+    final typed = _typed;
+    if (!_r.scheduled ||
+        !_simple ||
+        !_moneyIn ||
+        _r.amount <= 0 ||
+        _r.estimate != null ||
+        typed == null ||
+        typed == 0) {
+      return null;
+    }
+    return typed < _r.amount ? _r.amount - typed : null;
+  }
+
+  /// Still owed when more than a tenth is missing (half a salary); paid in
+  /// full for small differences, which would leave remainders nobody is
+  /// owed (as on the computer).
+  bool _keepOwedFor(int short) => _keepOwedChoice ?? short * 10 > _r.amount;
+
+  /// Whether the row offers to remember its category for its payee: a
+  /// payee and a category that isn't already remembered for it.
+  bool get _canRemember {
+    final category = _category;
+    final payee = _payee.text.trim();
+    if (!_simple || payee.isEmpty || category == null) return false;
+    final info = widget.categories.where((c) => c.id == category).firstOrNull;
+    if (info == null || isUncategorized(info)) return false;
+    final covering = PayeeRuleInfo.pick(
+      widget.store.snapshot.data!.payeeRules,
+      _r.accountId,
+      payee,
+      null,
+    );
+    return !(covering != null &&
+        covering.categoryId == category &&
+        covering.payId == null);
+  }
+
   @override
   void dispose() {
     _payee.dispose();
@@ -1005,7 +1077,8 @@ class _RowEditState extends State<_RowEdit> {
       _said = null;
     });
     final amount = !_simple ? null : (_moneyIn ? typed! : -typed!);
-    final said = await (_r.scheduled ? widget.onConfirm : widget.onSave)((
+    final short = _shortBy;
+    final edit = (
       txn: _r.txnId,
       account: _r.accountId,
       date: _date,
@@ -1014,7 +1087,11 @@ class _RowEditState extends State<_RowEdit> {
       counter: _simple && _category != _r.categoryId ? _category : null,
       amount: amount != null && amount != _r.amount ? amount : null,
       splits: splits,
-    ));
+      remember: _remember && _canRemember ? _category : null,
+    );
+    final said = await (_r.scheduled
+        ? widget.onConfirm(edit, short != null && _keepOwedFor(short))
+        : widget.onSave(edit));
     if (mounted && said != null) {
       setState(() {
         _saving = false;
@@ -1104,6 +1181,33 @@ class _RowEditState extends State<_RowEdit> {
                 ),
               ),
             ),
+            if (_shortBy case final short?)
+              _ChoiceLine(
+                key: const ValueKey('owed-line'),
+                lead: t.rowsLessThanPlanned(
+                  formatShort(short, currency: _r.currency),
+                ),
+                choices: [
+                  (
+                    key: 'owed-keep',
+                    label: t.rowsStillOwedDue(sayDate(t, _r.date)),
+                    on: _keepOwedFor(short),
+                    value: true,
+                  ),
+                  (
+                    key: 'owed-paid',
+                    label: t.rowsPaidInFull,
+                    on: !_keepOwedFor(short),
+                    value: false,
+                  ),
+                ],
+                onPick: (v) => setState(() => _keepOwedChoice = v),
+              ),
+            if (_canRemember)
+              _RememberTick(
+                on: _remember,
+                onTap: () => setState(() => _remember = !_remember),
+              ),
           ],
           if (_lines != null)
             Padding(
@@ -1201,4 +1305,88 @@ class _RowEditState extends State<_RowEdit> {
       ),
     );
   }
+}
+
+/// A line of words and a choice of two or three, under a row's fields: what
+/// to do about money that came in short (#527).
+class _ChoiceLine extends StatelessWidget {
+  const _ChoiceLine({
+    super.key,
+    required this.lead,
+    required this.choices,
+    required this.onPick,
+  });
+  final String lead;
+  final List<({String key, String label, bool on, bool value})> choices;
+  final ValueChanged<bool> onPick;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(lead, style: onest(14, color: Mid.ink2)),
+        for (final c in choices)
+          InkWell(
+            key: ValueKey(c.key),
+            onTap: () => onPick(c.value),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Row(
+                children: [
+                  Icon(
+                    c.on
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: c.on ? Mid.blue : Mid.ink3,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(c.label, style: onest(15, color: Mid.ink)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+/// The box under the category: remember it for the payee (#403). Off until
+/// ticked.
+class _RememberTick extends StatelessWidget {
+  const _RememberTick({required this.on, required this.onTap});
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    key: const ValueKey('remember-line'),
+    onTap: onTap,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 44),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          children: [
+            Icon(
+              on
+                  ? Icons.check_box_rounded
+                  : Icons.check_box_outline_blank_rounded,
+              color: on ? Mid.blue : Mid.ink3,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                context.t.rowsRemember,
+                style: onest(15, color: Mid.ink),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
