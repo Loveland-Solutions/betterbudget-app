@@ -14,7 +14,15 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
-import '../domain/budget.dart' show Budget, BudgetKeys, CategoryType;
+import '../domain/budget.dart'
+    show
+        BillFit,
+        Budget,
+        BudgetKeys,
+        CategoryType,
+        billPayments,
+        isUncategorized,
+        uncategorizedNames;
 import '../domain/budget_amounts.dart';
 import '../domain/combine.dart' show Ask, Pick;
 import '../domain/forecast.dart' show ForecastSpan;
@@ -62,6 +70,9 @@ import 'database.dart'
         DeletedAccount,
         PlanChange,
         DbProblem,
+        ImportPlan,
+        ImportPlanRow,
+        ImportRecord,
         LockedException,
         NotFoundException,
         PayChange,
@@ -69,6 +80,7 @@ import 'database.dart'
         ReconcileRecord,
         SplitPart,
         TxnSnapshot;
+import '../import/mapping.dart' show ImportRow;
 import 'folder_io.dart';
 import 'phone_ledger.dart';
 import 'phone_own_ledger.dart';
@@ -406,6 +418,36 @@ class PhoneUndoReconcile extends PhoneRowAct {
   ReconcileRecord? done;
 }
 
+/// A bank file's rows written into [account] (#531), as the computer's
+/// import window's Import does: [plan] is what each row does, as the page
+/// showed it, and with [moveOpening] the opening balance goes before the
+/// rows it already counted. The rows a bill's category takes pay the bill,
+/// in the same undo.
+class PhoneImport extends PhoneRowAct {
+  PhoneImport(
+    this.account, {
+    required this.plan,
+    required this.uncategorized,
+    this.moveOpening,
+    this.mapping,
+  });
+  final int account;
+  final List<ImportPlanRow> plan;
+  final ({DateTime date, int amount})? moveOpening;
+
+  /// Not categorized's name in the language showing, for the category the
+  /// rows no payee files go to when the ledger has none yet.
+  final String uncategorized;
+
+  /// The columns as set (`SavedMapping.encode`), kept for the account's
+  /// next file.
+  final String? mapping;
+
+  /// What it wrote, once done, with how many bills its rows paid and how
+  /// many more a row may have paid: the snack bar says them.
+  ({ImportRecord record, int billsPaid, int billsToCheck})? done;
+}
+
 /// An act done: the ledger after it, and what Undo and Redo do, each
 /// returning the ledger after (and throwing what the ledger refuses).
 typedef PhoneActed = ({
@@ -475,6 +517,14 @@ abstract class PhoneLedgerSource {
   /// right now, counted live as the computer's Delete does (#528).
   Future<int> categoryRows(int id) =>
       throw UnsupportedError('This source keeps no ledger to count in');
+
+  /// What each row of a bank file would do in [account], against the
+  /// phone's own ledger as it is now (#531): nothing is written.
+  Future<ImportPlan> planImport(
+    int account,
+    List<ImportRow> rows,
+    List<String> keys,
+  ) => throw UnsupportedError('This source keeps no ledger to import into');
 
   /// What the looks since the last call brought in from the other
   /// computers, said once: the phone shows it, with no Undo, as a computer's
@@ -928,6 +978,13 @@ class PhoneSync implements PhoneLedgerSource {
       (await _ledger()).categoryEntryCount(id);
 
   @override
+  Future<ImportPlan> planImport(
+    int account,
+    List<ImportRow> rows,
+    List<String> keys,
+  ) async => (await _ledger()).planImport(account, rows, keys);
+
+  @override
   Future<PhoneActed> actOnRow(PhoneRowAct act, DateTime now) async {
     final db = await _ledger();
     Future<PhoneSnapshot> again() => asItStands(now);
@@ -1337,6 +1394,8 @@ class PhoneSync implements PhoneLedgerSource {
         );
       case PhoneReconcile() || PhoneUndoReconcile():
         return actOnReconcile(db, act, now, again);
+      case PhoneImport():
+        return actOnImport(db, act, now, again);
     }
   }
 
@@ -1361,71 +1420,15 @@ class PhoneSync implements PhoneLedgerSource {
     PhoneBillPaid act,
     DateTime now,
   ) async {
-    final bill = act.bill, found = act.found;
-    final planned = bill.planCategoryId;
-    // A split is that bill only with a line in its category.
-    final tie =
-        planned != null &&
-        (found.kind == RowKind.simple ||
-            found.splitLines.any((l) => l.accountId == planned));
-    final short = bill.amount.abs() - found.amount.abs();
-    final rest = act.keepRest && short > 0 && bill.kind == RowKind.simple
-        ? bill.amount - found.amount
-        : null;
-    final notItKey = billNotItKey(bill.txnId);
-    final prefs = (await db.loadLedger()).prefs;
-    final notItBefore = prefs[notItKey];
-    final notIt = rest == null
-        ? null
-        : tie
-        ? notItBefore
-        : {...billNotIt(prefs, bill.txnId), found.txnId}.join(',');
-    final tiedBefore = found.planCategoryId;
-    final billBefore = await db.snapshot(bill.txnId);
-    final done = await db.payBill(
-      billId: bill.txnId,
-      billAccountId: bill.accountId,
-      foundId: found.txnId,
-      today: now,
-      planCategoryId: planned,
-      tie: tie,
-      rest: rest,
-      notIt: notIt,
-      bills: act.bills,
-    );
-    final billAfter = await db.snapshot(bill.txnId);
-    // Bills scheduled before and skipped with this one come back on undo.
-    final hadSkipped = [
-      for (final id in done.skipped)
-        if (!done.made.contains(id)) id,
-    ];
+    final tied = await tieBill(db, act, now);
     return (
       snapshot: await asItStands(now),
       undo: () async {
-        await db.transaction(() async {
-          await db.dropPlanBills(done.made);
-          if (hadSkipped.isNotEmpty) await db.restoreMany(hadSkipped);
-          // Only its tie: whatever was done to the row since stays.
-          if (tie) await db.setPlanBill(found.txnId, tiedBefore);
-          await db.restoreSnapshot(billBefore);
-          await db.setPreference(notItKey, notItBefore);
-          for (final k in done.wrote.keys) {
-            await db.setPreference(k, null);
-          }
-        });
+        await tied.undo();
         return asItStands(now);
       },
       redo: () async {
-        await db.transaction(() async {
-          await db.restoreSnapshot(billAfter);
-          if (tie) await db.setPlanBill(found.txnId, planned);
-          if (planned != null) await db.bringBackPlanBills(done.made, planned);
-          if (done.skipped.isNotEmpty) await db.softDeleteMany(done.skipped);
-          await db.setPreference(notItKey, notIt);
-          for (final e in done.wrote.entries) {
-            await db.setPreference(e.key, e.value);
-          }
-        });
+        await tied.redo();
         return asItStands(now);
       },
     );
@@ -1737,6 +1740,172 @@ Future<PhoneActed> actOnSpan(
     },
     redo: () async {
       await write(act.span.name, end);
+      return again();
+    },
+  );
+}
+
+/// Ties [act]'s row to its bill, as the computer's `_tieBill` does: the
+/// row is that bill paid and the bill goes. Returns what Undo and Redo
+/// write. Shared by a bill answered on the phone and by an import, whose
+/// rows pay their bills in its own undo.
+Future<({Future<void> Function() undo, Future<void> Function() redo})> tieBill(
+  AppDatabase db,
+  PhoneBillPaid act,
+  DateTime now,
+) async {
+  final bill = act.bill, found = act.found;
+  final planned = bill.planCategoryId;
+  // A split is that bill only with a line in its category.
+  final tie =
+      planned != null &&
+      (found.kind == RowKind.simple ||
+          found.splitLines.any((l) => l.accountId == planned));
+  final short = bill.amount.abs() - found.amount.abs();
+  final rest = act.keepRest && short > 0 && bill.kind == RowKind.simple
+      ? bill.amount - found.amount
+      : null;
+  final notItKey = billNotItKey(bill.txnId);
+  final prefs = (await db.loadLedger()).prefs;
+  final notItBefore = prefs[notItKey];
+  final notIt = rest == null
+      ? null
+      : tie
+      ? notItBefore
+      : {...billNotIt(prefs, bill.txnId), found.txnId}.join(',');
+  final tiedBefore = found.planCategoryId;
+  final billBefore = await db.snapshot(bill.txnId);
+  final done = await db.payBill(
+    billId: bill.txnId,
+    billAccountId: bill.accountId,
+    foundId: found.txnId,
+    today: now,
+    planCategoryId: planned,
+    tie: tie,
+    rest: rest,
+    notIt: notIt,
+    bills: act.bills,
+  );
+  final billAfter = await db.snapshot(bill.txnId);
+  // Bills scheduled before and skipped with this one come back on undo.
+  final hadSkipped = [
+    for (final id in done.skipped)
+      if (!done.made.contains(id)) id,
+  ];
+  return (
+    undo: () async {
+      await db.transaction(() async {
+        await db.dropPlanBills(done.made);
+        if (hadSkipped.isNotEmpty) await db.restoreMany(hadSkipped);
+        // Only its tie: whatever was done to the row since stays.
+        if (tie) await db.setPlanBill(found.txnId, tiedBefore);
+        await db.restoreSnapshot(billBefore);
+        await db.setPreference(notItKey, notItBefore);
+        for (final k in done.wrote.keys) {
+          await db.setPreference(k, null);
+        }
+      });
+    },
+    redo: () async {
+      await db.transaction(() async {
+        await db.restoreSnapshot(billAfter);
+        if (tie) await db.setPlanBill(found.txnId, planned);
+        if (planned != null) await db.bringBackPlanBills(done.made, planned);
+        if (done.skipped.isNotEmpty) await db.softDeleteMany(done.skipped);
+        await db.setPreference(notItKey, notIt);
+        for (final e in done.wrote.entries) {
+          await db.setPreference(e.key, e.value);
+        }
+      });
+    },
+  );
+}
+
+/// Writes a bank file's rows into an account (#531) with its undo and redo,
+/// as the computer's `_startImport` does once Import is clicked: the rows,
+/// then each bill one of them paid, tied now and undone with the rows; the
+/// columns are kept for the account's next file. Shared by the phone's
+/// ledger and the tests' stand-in, so there is one copy.
+Future<PhoneActed> actOnImport(
+  AppDatabase db,
+  PhoneImport act,
+  DateTime now,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  final record = await db.applyImport(
+    accountId: act.account,
+    plan: act.plan,
+    moveOpening: act.moveOpening,
+    today: dateOnly(now),
+    uncategorizedNames: {act.uncategorized, ...uncategorizedNames}.toList(),
+  );
+  final ties =
+      <({Future<void> Function() undo, Future<void> Function() redo})>[];
+  var toCheck = 0;
+  if (record.added.isNotEmpty) {
+    try {
+      final data = await db.loadLedger();
+      final payments = billPayments(
+        data,
+        dateOnly(now),
+        uncategorizedId: data.categories.where(isUncategorized).firstOrNull?.id,
+      );
+      for (final p in payments.values) {
+        if (!record.added.containsKey(p.row.txnId) ||
+            p.bill.planCategoryId == null) {
+          continue;
+        }
+        // Not near its bill: left for the person, who is asked on the row.
+        if (p.fit != BillFit.paid) {
+          toCheck++;
+          continue;
+        }
+        // One that can't be tied is left to be asked about, and the rest
+        // go on, as on the computer.
+        try {
+          ties.add(await tieBill(db, PhoneBillPaid(p.bill, p.row), now));
+        } catch (e) {
+          debugPrint('Tying an imported row to its bill failed: $e');
+          toCheck++;
+        }
+      }
+    } catch (e) {
+      debugPrint('Looking for bills an import paid failed: $e');
+    }
+  }
+  // The rows are in either way, so a failure here only costs guessing the
+  // columns again next time.
+  if (act.mapping case final mapping?) {
+    try {
+      await db.setPreference(
+        AppDatabase.importMappingKey(act.account),
+        mapping,
+      );
+    } catch (e) {
+      debugPrint('Saving the import columns failed: $e');
+    }
+  }
+  act.done = (record: record, billsPaid: ties.length, billsToCheck: toCheck);
+  return (
+    snapshot: await again(),
+    // One write each way: a tie undone and the import refused would leave
+    // half of it.
+    undo: () async {
+      await db.transaction(() async {
+        for (final tie in ties.reversed) {
+          await tie.undo();
+        }
+        await db.undoImport(record);
+      });
+      return again();
+    },
+    redo: () async {
+      await db.transaction(() async {
+        await db.redoImport(record, act.account);
+        for (final tie in ties) {
+          await tie.redo();
+        }
+      });
       return again();
     },
   );

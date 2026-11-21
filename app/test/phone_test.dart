@@ -37,6 +37,7 @@ import 'package:betterbudget/domain/payee_rules.dart' show Remembered;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/readiness.dart' show ReadyKeys, isGoal;
 import 'package:betterbudget/domain/sync.dart' show MadeHow;
+import 'package:betterbudget/import/mapping.dart' show ImportRow;
 import 'package:betterbudget/l10n/app_localizations.dart';
 import 'package:betterbudget/phone_preview.dart';
 import 'package:betterbudget/ui/ledger_screen.dart' show phonePlanNotes;
@@ -48,6 +49,7 @@ import 'package:betterbudget/ui/schemes.dart';
 import 'package:betterbudget/ui/theme.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
+import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -483,6 +485,8 @@ class _ActingSource {
         return actOnAccount(db, act, now(), _after);
       case PhoneReconcile() || PhoneUndoReconcile():
         return actOnReconcile(db, act, now(), _after);
+      case PhoneImport():
+        return actOnImport(db, act, now(), _after);
       case PhoneMoveRow() ||
           PhoneNoBill() ||
           PhoneBillPaid() ||
@@ -496,6 +500,13 @@ class _ActingSource {
 class _FakeSource implements PhoneLedgerSource {
   @override
   Future<int> categoryRows(int id) => throw UnsupportedError('no ledger');
+
+  @override
+  Future<ImportPlan> planImport(
+    int account,
+    List<ImportRow> rows,
+    List<String> keys,
+  ) => throw UnsupportedError('no ledger');
 
   /// This stand-in has no ledger to take entries into: they wait for the
   /// computer in the folder, as before the phone's own ledger.
@@ -7726,6 +7737,171 @@ void main() {
       expect(find.text('₮53,500.00'), findsOneWidget);
     });
   });
+
+  group('importing a bank file on the phone (#531)', () {
+    /// The bank's file, saved where the stand-in picker hands it over.
+    String bankFile(String name, String text) {
+      final dir = Directory.systemTemp.createTempSync('bb-phone-import');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      return (File('${dir.path}/$name')..writeAsStringSync(text)).path;
+    }
+
+    const statement =
+        'Огноо;Орлого;Зарлага;Харьцсан данс;Үлдэгдэл;Гүйлгээний утга\n'
+        '2026.10.01;100 000,00;0,00;Ажил олгогч;100 000,00;Цалин\n'
+        '2026.10.02;0,00;30 000,00;Номин;70 000,00;Худалдан авалт\n'
+        '2026.10.03;0,00;8 000,00;Юнител;62 000,00;Төлбөр\n';
+
+    testWidgets('Import transactions… in a bank account\'s header picks a '
+        'file; the page shows the file\'s table with a choice over each '
+        'column and the two counts; Import writes the rows with Undo, and '
+        'the next file skips the columns', (tester) async {
+      late AppDatabase db;
+      late LedgerData data;
+      late int bank, cash;
+      await tester.runAsync(() async {
+        db = AppDatabase(NativeDatabase.memory());
+        await seedDemoIfEmpty(db, _now);
+        bank = await db.addAccount(name: 'Statement', type: AccountType.asset);
+        cash = await db.createAccount(
+          name: 'Pocket',
+          type: AccountType.asset,
+          currency: Currency.mnt,
+          cash: true,
+        );
+        final food = await db.createCategory('Food');
+        // Typed before the bank had it: the file's row clears it.
+        await db.postTransaction(
+          date: DateTime(2026, 10, 3),
+          payee: 'Unitel',
+          lines: [
+            (accountId: bank, amount: -800000, cleared: Cleared.uncleared),
+            (accountId: food, amount: 800000, cleared: Cleared.uncleared),
+          ],
+        );
+        data = await db.loadLedger();
+      });
+      addTearDown(() => tester.runAsync(db.close));
+      final dialogs = _FakePicker();
+      final before = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = dialogs;
+      addTearDown(() => FileSelectorPlatform.instance = before);
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+      );
+      final source = _ActingSource(db, () => _now, (d) => data = d);
+      store.actRowIn = (act) => source.act(act);
+      store.planImportIn = db.planImport;
+
+      Future<void> run(Finder f) async {
+        await tester.runAsync(() async {
+          await tester.tap(f);
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        });
+        for (var i = 0; i < 3; i++) {
+          await tester.pump();
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 200)),
+          );
+        }
+        await tester.pumpAndSettle();
+      }
+
+      List<RegisterRow> rows() => data.registerFor(bank).posted;
+
+      // A cash account has no bank file, so no Import.
+      store.registerRequest.value = cash;
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('account-import')), findsNothing);
+      store.registerRequest.value = bank;
+      await tester.pumpAndSettle();
+      expect(find.text('Import transactions…'), findsOneWidget);
+      expect(find.byKey(const ValueKey('account-reconcile')), findsOneWidget);
+
+      // The picker closed with nothing chosen: nothing opens.
+      await run(find.byKey(const ValueKey('account-import')));
+      expect(find.byKey(const ValueKey('import-page')), findsNothing);
+
+      // A file with no dated rows says so, in the computer's words.
+      dialogs.openPath = bankFile('notes.txt', 'Shopping list\nMilk\nBread\n');
+      await run(find.byKey(const ValueKey('account-import')));
+      expect(find.byKey(const ValueKey('import-page')), findsNothing);
+      expect(
+        find.text('notes.txt has no rows with a date in them.'),
+        findsOneWidget,
+      );
+
+      dialogs.openPath = bankFile('statement.csv', statement);
+      await run(find.byKey(const ValueKey('account-import')));
+      expect(find.text('Import into Statement'), findsOneWidget);
+      expect(find.text('statement.csv'), findsOneWidget);
+      // The first file into the account: its own columns, a choice on each.
+      expect(find.byKey(const ValueKey('import-columns')), findsOneWidget);
+      expect(find.byKey(const ValueKey('import-role-0')), findsOneWidget);
+      expect(find.text('Огноо'), findsOneWidget);
+      expect(find.text('3 rows to import'), findsOneWidget);
+      expect(
+        find.text(
+          'After this, the cleared balance matches the bank: ₮62,000.00.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Import 2 rows · clear 1'), findsOneWidget);
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_import.png'),
+      );
+
+      // The date column taken away: it says what is missing, and nothing
+      // can be imported until it is back.
+      await tester.tap(find.byKey(const ValueKey('import-role-0')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Not used').last);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('import-need')), findsOneWidget);
+      expect(find.byKey(const ValueKey('import-summary')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('import-role-0')));
+      await tester.pumpAndSettle();
+      await run(find.text('Date').last);
+      expect(find.byKey(const ValueKey('import-need')), findsNothing);
+      expect(find.text('3 rows to import'), findsOneWidget);
+
+      await run(find.byKey(const ValueKey('import-do')));
+      expect(find.byKey(const ValueKey('import-page')), findsNothing);
+      expect(
+        find.text(
+          'Imported 2 rows · 1 typed row now cleared · 2 in “Not categorized”',
+        ),
+        findsOneWidget,
+      );
+      expect(rows(), hasLength(3));
+      expect(rows().every((r) => r.cleared == Cleared.cleared), isTrue);
+
+      // One Undo takes the file's rows out and the typed row back to
+      // uncleared.
+      await run(find.text('Undo'));
+      expect(rows(), hasLength(1));
+      expect(rows().single.cleared, Cleared.uncleared);
+
+      // The same shape again: read with the columns kept, which Change
+      // columns opens.
+      await run(find.byKey(const ValueKey('account-import')));
+      expect(
+        find.text('Read with the columns you set for this account last time.'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('import-columns')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('import-change-columns')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('import-columns')), findsOneWidget);
+      // Cancel leaves the ledger as it was.
+      await tester.tap(find.byKey(const ValueKey('import-cancel')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('import-page')), findsNothing);
+      expect(rows(), hasLength(1));
+    });
+  });
 }
 
 bool _same(Uint8List a, Uint8List b) {
@@ -7758,4 +7934,16 @@ String _stamp(DateTime at) {
   String two(int n) => n.toString().padLeft(2, '0');
   return '${at.year}-${two(at.month)}-${two(at.day)} '
       '${two(at.hour)}:${two(at.minute)}';
+}
+
+/// Stands in for the phone's own file picker.
+class _FakePicker extends FileSelectorPlatform {
+  String? openPath;
+
+  @override
+  Future<XFile?> openFile({
+    List<XTypeGroup>? acceptedTypeGroups,
+    String? initialDirectory,
+    String? confirmButtonText,
+  }) async => openPath == null ? null : XFile(openPath!);
 }

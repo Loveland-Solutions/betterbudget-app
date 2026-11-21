@@ -17,6 +17,7 @@ import '../data/cloud_folder.dart';
 import '../data/database.dart';
 import '../data/demo_seed.dart';
 import '../data/encryption.dart';
+import '../data/import_figures.dart';
 import '../data/keys.dart';
 import '../data/phone_inbox.dart';
 import '../data/problem_log.dart';
@@ -56,6 +57,7 @@ import 'schemes.dart';
 import 'combined_label.dart';
 import 'language.dart';
 import 'headed_section.dart';
+import 'import_words.dart';
 import 'brand.dart';
 import 'savings_steps.dart';
 import 'budget_sum_words.dart';
@@ -6353,33 +6355,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (picked == null || !mounted) return;
-    final Sheet sheet;
-    final FileKind kind;
-    final bool fits;
-    final ImportMapping mapping;
+    final OpenedBankFile opened;
     try {
-      final bytes = await picked.readAsBytes();
-      kind =
-          fileKindOf(bytes, picked.name) ??
-          (throw const UnreadableFileException('unknown kind'));
-      sheet = readSheet(bytes, picked.name);
-      fits =
-          saved != null &&
-          saved.current &&
-          saved.proven &&
-          mappingFits(sheet, saved);
-      mapping = fits ? saved.mapping : guessMapping(sheet);
+      opened = openBankFile(await picked.readAsBytes(), picked.name, saved);
     } catch (e) {
       debugPrint('Import read failed: $e');
       // A kind of file it reads, that didn't read: the file is the problem,
       // and the list of kinds would only repeat what it is.
-      final readable = RegExp(
-        r'\.(xlsx?|csv|txt|tsv|ofx|qfx|qbo)$',
-        caseSensitive: false,
-      ).hasMatch(picked.name);
       if (mounted) {
         _showFailure(
-          readable
+          isBankFileName(picked.name)
               ? t.importCouldntReadDamaged(picked.name)
               : t.importCouldntRead(picked.name),
           error: e,
@@ -6387,6 +6372,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       }
       return;
     }
+    final (:sheet, :kind, :fits, :mapping) = opened;
     if (!fits && !mapping.hasDate) {
       _showFailure(t.importNoDates(picked.name));
       return;
@@ -6440,14 +6426,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     if (!mounted) return;
-    final newlyCleared = record.matched
-        .where((m) => m.before == Cleared.uncleared)
-        .length;
-    // A bank row joined to the other account's row is a row brought in.
-    final brought = record.added.length + record.joined.length;
-    final label = brought > 0
-        ? t.importDone(brought)
-        : t.importMatchedToast(record.matched.length);
+    final label = importDoneLabel(t, record);
     // The file's rows in a bill's category pay it (owner, 2026-10-21),
     // in the same undo as the import.
     final settled = record.added.isEmpty
@@ -6458,12 +6437,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
           )
         : await _settleIncoming(record.added.keys.toSet());
     if (!mounted) return;
-    // Rows joined to another account's own row, by that account.
-    final joinedIn = <int, int>{};
-    for (final j in record.joined) {
-      joinedIn[j.otherAccountId] = (joinedIn[j.otherAccountId] ?? 0) + 1;
-    }
-    String nameOf(int id) => _data?.accounts[id]?.name ?? '';
     final doubt = record.doubts.firstOrNull;
     _did(
       label,
@@ -6493,45 +6466,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
           await tie.redo();
         }
       }),
-      message: [
-        label,
-        if (brought > 0 && newlyCleared > 0) t.importMatchedToast(newlyCleared),
-        for (final MapEntry(:key, :value) in joinedIn.entries)
-          t.importJoined(value, nameOf(key)),
-        if (doubt != null)
-          record.doubts.length == 1
-              ? t.importTransferDoubt(
-                  nameOf(doubt.accountId),
-                  _accountMoney(doubt.accountId, doubt.amount),
-                  sayDate(t, doubt.date),
-                  doubt.category,
-                )
-              : t.importTransferDoubts(
-                  record.doubts.length,
-                  nameOf(doubt.accountId),
-                ),
-        if (record.uncategorizedCount > 0)
-          t.importUncategorizedToast(record.uncategorizedCount, uncategorized),
-        if (settled.ties.isNotEmpty)
-          t.ledgerBillsPaidCount(settled.ties.length),
-        if (settled.unsure.isNotEmpty)
-          t.ledgerBillsToCheck(settled.unsure.length),
-        // Same purchase on a row taken out of the opening balance: the
-        // balance followed it.
-        if (record.openingFixes.lastOrNull case (_, final f)?)
-          t.ledgerOpeningNow(
-            _accountMoney(account.id, f.move.toAmount),
-            sayDate(t, f.move.toDate),
-          ),
-        if (record.openingMove case final o?)
-          t.importOpeningMovedToast(
-            sayDate(t, o.toDate),
-            formatMoney(
-              account.isOwed ? -o.toAmount : o.toAmount,
-              currency: account.currency,
-            ),
-          ),
-      ].join(' · '),
+      message: importSays(
+        t,
+        record: record,
+        account: account,
+        accounts: _data?.accounts ?? data.accounts,
+        uncategorized: uncategorized,
+        billsPaid: settled.ties.length,
+        billsToCheck: settled.unsure.length,
+      ),
     );
     // Remembered for the next file into this account. The rows are in
     // either way, so a failure here only costs guessing again next time.

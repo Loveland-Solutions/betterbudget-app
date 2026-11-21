@@ -154,6 +154,9 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     // rows arriving under the statement would move the sum being matched.
     // Looked at again the moment it is locked or left.
     if (_store?.reconciling.value ?? false) return Future.value();
+    // And while a bank file is picked and its import page is open (#531):
+    // its counts are of the ledger as it stood.
+    if (_store?.importing.value ?? false) return Future.value();
     return _reading ??= _read().whenComplete(() => _reading = null);
   }
 
@@ -338,6 +341,11 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
           unawaited(_load());
         }
       });
+      made.importing.addListener(() {
+        if (!made.importing.value && mounted && _step == _Step.ready) {
+          unawaited(_load());
+        }
+      });
       _store!.settle = () => _keeping;
       _store!.undoTake = (take) async {
         final source = _source;
@@ -370,6 +378,11 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         final source = _source;
         if (source == null) throw StateError('The phone has no ledger open');
         return source.categoryRows(id);
+      };
+      _store!.planImportIn = (account, rows, keys) async {
+        final source = _source;
+        if (source == null) throw StateError('The phone has no ledger open');
+        return source.planImport(account, rows, keys);
       };
       _store!.restoreRowIn = (row, remembered) async {
         final source = _source;

@@ -183,27 +183,8 @@ class _ImportDialogState extends State<_ImportDialog> {
 
   /// New rows the opening balance already holds, and where it would move
   /// so today's balance stays: the day before them, less what they add.
-  ({List<ImportPlanRow> rows, DateTime date, int amount})? get _beforeOpening {
-    final plan = _plan;
-    final opening = plan?.opening;
-    if (plan == null || opening == null) return null;
-    final rows = [
-      for (final p in plan.rows)
-        if (p.fate == ImportFate.add &&
-            !dateOnly(p.row.date).isAfter(opening.asOf))
-          p,
-    ];
-    if (rows.isEmpty) return null;
-    final first = rows
-        .map((p) => dateOnly(p.row.date))
-        .reduce((a, b) => a.isBefore(b) ? a : b);
-    final before = first.subtract(const Duration(days: 1));
-    return (
-      rows: rows,
-      date: before.isBefore(opening.date) ? before : opening.date,
-      amount: opening.amount - rows.fold(0, (s, p) => s + p.row.amount),
-    );
-  }
+  ({List<ImportPlanRow> rows, DateTime date, int amount})? get _beforeOpening =>
+      heldByOpening(_plan);
 
   ({DateTime date, int amount})? get _openingMove {
     final b = _beforeOpening;
@@ -424,51 +405,27 @@ class _ImportDialogState extends State<_ImportDialog> {
   /// one column holds the amount.
   List<Widget> _choices(Words t) {
     final out = <Widget>[];
-    final dateCol = _mapping.columnOf(ColumnRole.date);
-    if (dateCol != null) {
-      final texts = [
-        for (
-          var r = (_mapping.headerRow ?? -1) + 1;
-          r < widget.sheet.rows.length;
-          r++
-        )
-          if (widget.sheet.cell(r, dateCol) case final String s)
-            if (parseDateText(s, DateOrder.dmy) != null ||
-                parseDateText(s, DateOrder.mdy) != null)
-              s,
-      ];
-      final fits = fittingOrders(texts);
-      final ambiguous = texts
-          .where(
-            (s) =>
-                parseDateText(s, DateOrder.dmy) !=
-                parseDateText(s, DateOrder.mdy),
-          )
-          .firstOrNull;
-      if (fits.contains(DateOrder.dmy) &&
-          fits.contains(DateOrder.mdy) &&
-          ambiguous != null) {
-        out.add(
-          _choiceRow(t.importDateOrder, [
-            (
-              t.importDayFirst(
-                sayFullDate(t, parseDateText(ambiguous, DateOrder.dmy)!),
-              ),
-              _mapping.dateOrder == DateOrder.dmy,
-              () => _set(_mapping.copyWith(dateOrder: DateOrder.dmy)),
-              'import-dmy',
+    if (dateReadBothWays(widget.sheet, _mapping) case final ambiguous?) {
+      out.add(
+        _choiceRow(t.importDateOrder, [
+          (
+            t.importDayFirst(
+              sayFullDate(t, parseDateText(ambiguous, DateOrder.dmy)!),
             ),
-            (
-              t.importMonthFirst(
-                sayFullDate(t, parseDateText(ambiguous, DateOrder.mdy)!),
-              ),
-              _mapping.dateOrder == DateOrder.mdy,
-              () => _set(_mapping.copyWith(dateOrder: DateOrder.mdy)),
-              'import-mdy',
+            _mapping.dateOrder == DateOrder.dmy,
+            () => _set(_mapping.copyWith(dateOrder: DateOrder.dmy)),
+            'import-dmy',
+          ),
+          (
+            t.importMonthFirst(
+              sayFullDate(t, parseDateText(ambiguous, DateOrder.mdy)!),
             ),
-          ]),
-        );
-      }
+            _mapping.dateOrder == DateOrder.mdy,
+            () => _set(_mapping.copyWith(dateOrder: DateOrder.mdy)),
+            'import-mdy',
+          ),
+        ]),
+      );
     }
     if (_mapping.columnOf(ColumnRole.amount) != null) {
       out.add(
@@ -790,30 +747,17 @@ class _ImportDialogState extends State<_ImportDialog> {
     }
     // What the account's cleared balance will be, against the bank's: the
     // balance on the file's last row, or the one balance an OFX file gives.
-    var bank = check?.closing ?? read.closing;
-    if (bank != null && start == null) {
-      var ours = widget.cleared;
-      if (_openingMove case final m?) ours += m.amount - opening!.amount;
-      for (final p in plan.rows) {
-        if (p.fate == ImportFate.add) ours += p.row.amount;
-        if (p.fate == ImportFate.match &&
-            p.match!.cleared == Cleared.uncleared) {
-          ours += p.row.amount;
-        }
-      }
-      // Banks write what a card owes with either sign; take the one nearer.
-      if (check == null &&
-          widget.owed &&
-          (ours + bank).abs() < (ours - bank).abs()) {
-        bank = -bank;
-      }
-      final day = check == null ? read.closingDay : null;
-      // Apart from the bank, what's skipped may be why: a row the same day
-      // as the opening balance, after it was true, is new money.
-      final held = [
-        for (final p in plan.rows)
-          if (p.held && p.fate == ImportFate.leftOut) p.row.amount,
-      ];
+    final against = start != null
+        ? null
+        : clearedAgainstBank(
+            read: read,
+            plan: plan,
+            cleared: widget.cleared,
+            owed: widget.owed,
+            openingMove: _openingMove,
+          );
+    if (against != null) {
+      final (:ours, :bank, :day, :held) = against;
       final heldWords = ours == bank || held.isEmpty
           ? ''
           : ' ${t.importHeldCome(held.length, _money(_shown(held.fold(0, (s, v) => s + v))))}';
@@ -914,19 +858,7 @@ class _ImportDialogState extends State<_ImportDialog> {
       );
     }
 
-    // Typed rows a same purchase took aren't left out any more, and one
-    // offered above is said there.
-    final taken = {
-      for (final p in plan.rows)
-        if (p.fate == ImportFate.match)
-          ?p.match?.entryId
-        else if (p.fate == ImportFate.add)
-          ?p.near?.entryId,
-    };
-    final unmatched = [
-      for (final u in plan.unmatched)
-        if (!taken.contains(u.entryId)) u,
-    ];
+    final unmatched = typedNotInFile(plan);
     if (unmatched.isNotEmpty) {
       const shown = 4;
       final u = unmatched;

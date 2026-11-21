@@ -1,7 +1,9 @@
 // The phone as a member of the folder (ADR 0005, #526 piece 3): its own ledger
 // takes in the computers' changes through their change files and writes its
 // own, and never writes the folder's whole ledger.
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:betterbudget/domain/budget_amounts.dart' show billSwitches;
 import 'package:betterbudget/data/backup.dart';
@@ -11,6 +13,7 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/encryption.dart';
 import 'package:betterbudget/data/folder_io.dart';
+import 'package:betterbudget/data/import_figures.dart';
 import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_sync.dart';
@@ -21,6 +24,7 @@ import 'package:betterbudget/domain/ledger.dart'
     show CategoryPlan, Cleared, PlanKind, RegisterRow;
 import 'package:betterbudget/domain/ledger.dart' show AccountType;
 import 'package:betterbudget/domain/phone.dart';
+import 'package:betterbudget/import/mapping.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -534,6 +538,63 @@ void main() {
     // And its Undo locks them again.
     await undone.undo();
     expect((await there(phone.db!)).cleared, Cleared.reconciled);
+  });
+
+  test('a bank file imported on the phone brings its rows to the computer '
+      'under the same ids, and the phone\'s Undo takes them out there too '
+      '(#531)', () async {
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    final bank = ledger.balanceSheetAccounts.first.id;
+    final opened = openBankFile(
+      Uint8List.fromList(
+        utf8.encode(
+          'Огноо;Орлого;Зарлага;Харьцсан данс;Гүйлгээний утга\n'
+          '2026.10.05;0,00;41 000,00;Туршилтын дэлгүүр;Худалдан авалт\n'
+          '2026.10.06;0,00;7 000,00;Туршилтын кофе;Худалдан авалт\n',
+        ),
+      ),
+      'statement.csv',
+      null,
+    );
+    final read = readRows(opened.sheet, opened.mapping);
+    final plan = await phone.planImport(
+      bank,
+      read.rows,
+      importKeys(bank, read.rows),
+    );
+    final act = PhoneImport(
+      bank,
+      plan: plan.rows,
+      uncategorized: 'Not categorized',
+    );
+    final done = await phone.actOnRow(act, tuesday);
+    final ids = act.done!.record.added.keys.toSet();
+    expect(ids, hasLength(2));
+    Future<Set<int>> there(AppDatabase db) async => {
+      for (final r in (await db.loadLedger()).registerFor(bank).posted)
+        if (ids.contains(r.txnId)) r.txnId,
+    };
+    expect(await there(macDb), isEmpty);
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect(await there(macDb), ids);
+    // The same file on the computer now has nothing new in it.
+    final again = await macDb.planImport(
+      bank,
+      read.rows,
+      importKeys(bank, read.rows),
+    );
+    expect(again.rows.every((p) => p.fate == ImportFate.already), isTrue);
+
+    await done.undo();
+    expect(await there(phone.db!), isEmpty);
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect(await there(macDb), isEmpty);
   });
 
   test('a category edited on the phone gets its name, plan and type as the '

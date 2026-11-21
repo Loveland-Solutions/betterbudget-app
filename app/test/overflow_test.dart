@@ -13,6 +13,7 @@ import 'package:betterbudget/ui/phone/phone_app.dart';
 import 'package:betterbudget/ui/theme.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
+import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show kDoubleTapMinTime;
 import 'package:flutter/material.dart';
@@ -639,8 +640,125 @@ void main() {
         expect(overflows.toSet().toList(), isEmpty);
         expect(cut.toList(), isEmpty, reason: 'text cut off without "…"');
       });
+
+      testWidgets('nothing overflows on the phone\'s import page: $words, '
+          '${size.width.toInt()} × ${size.height.toInt()}', (tester) async {
+        final overflows = <String>[];
+        final cut = <String>{};
+        var page = 'an account\'s header';
+        addTearDown(_catchOverflows(overflows, () => page));
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final today = DateTime(2026, 9, 16, 10);
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(() => tester.runAsync(db.close));
+        final data = (await tester.runAsync(() async {
+          await seedDemoIfEmpty(db, today);
+          await _fillIn(db, today);
+          await _stretch(db, mongolian: mongolian);
+          return db.loadLedger();
+        }))!;
+        // A bank's file with a long name, long column names and huge
+        // amounts, some of its rows from before the account's opening
+        // balance.
+        final dir = Directory.systemTemp.createTempSync('bb-overflow-import');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final file =
+            File(
+              '${dir.path}/Харилцах дансны дэлгэрэнгүй хуулга 2026.08.01-2026.09.16.csv',
+            )..writeAsStringSync(
+              'Гүйлгээний огноо;Орлого гүйлгээ;Зарлага гүйлгээ;'
+              'Харьцсан дансны дугаар ба нэр;Эцсийн үлдэгдэл;Гүйлгээний утга\n'
+              '2026.08.01;999 999 999 999,00;0,00;Ажил олгогч ХХК;'
+              '999 999 999 999,00;Цалин\n'
+              '2026.09.14;0,00;999 999 999,00;Номин супермаркет;'
+              '999 000 000 000,00;Худалдан авалт\n'
+              '2026.09.15;0,00;12 500,00;Номин супермаркет;'
+              '998 999 987 500,00;Худалдан авалт\n',
+            );
+        final picker = _FilePicker(file.path);
+        final before = FileSelectorPlatform.instance;
+        FileSelectorPlatform.instance = picker;
+        addTearDown(() => FileSelectorPlatform.instance = before);
+        final store = PhoneStore(snapshotOf(data, today: today, madeAt: today));
+        store.planImportIn = db.planImport;
+        await tester.pumpWidget(
+          LanguageScope(
+            controller: LanguageController(
+              initial: mongolian ? Language.mongolian : Language.english,
+            ),
+            child: PhoneApp(store: store, now: () => today),
+          ),
+        );
+        await tester.pumpAndSettle();
+        void look() => cut.addAll(_cutText(tester).map((w) => '$w, on $page'));
+        Future<void> tap(Finder f) async {
+          expect(f, findsWidgets, reason: 'on $page');
+          await tester.ensureVisible(f.first);
+          await tester.pumpAndSettle();
+          await tester.tap(f.first);
+          await tester.pumpAndSettle();
+          look();
+        }
+
+        await tap(find.byKey(const ValueKey('to-budget')));
+        await tap(find.byKey(const ValueKey('to-accounts')));
+        await tap(_keyed('open-account-'));
+        look();
+        page = 'the import page';
+        // The file is read off the disk, and the plan from the ledger.
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('account-import')),
+        );
+        await tester.pumpAndSettle();
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(const ValueKey('account-import')));
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        });
+        for (var i = 0; i < 3; i++) {
+          await tester.pump();
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 200)),
+          );
+        }
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('import-page')), findsOneWidget);
+        expect(find.byKey(const ValueKey('import-summary')), findsOneWidget);
+        look();
+        await tester.drag(
+          find.byKey(const ValueKey('import-page')),
+          const Offset(0, -900),
+        );
+        await tester.pumpAndSettle();
+        look();
+        // A column's menu, over the table.
+        await tester.drag(
+          find.byKey(const ValueKey('import-page')),
+          const Offset(0, 900),
+        );
+        await tester.pumpAndSettle();
+        await tap(find.byKey(const ValueKey('import-role-0')));
+        look();
+
+        expect(overflows.toSet().toList(), isEmpty);
+        expect(cut.toList(), isEmpty, reason: 'text cut off without "…"');
+      });
     }
   }
+}
+
+/// Stands in for the phone's own file picker: it hands over [path].
+class _FilePicker extends FileSelectorPlatform {
+  _FilePicker(this.path);
+  final String path;
+
+  @override
+  Future<XFile?> openFile({
+    List<XTypeGroup>? acceptedTypeGroups,
+    String? initialDirectory,
+    String? confirmButtonText,
+  }) async => XFile(path);
 }
 
 /// Collects each overflow Flutter reports, with where it was drawn and on

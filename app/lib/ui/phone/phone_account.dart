@@ -34,10 +34,15 @@ class _AccountHeader extends StatefulWidget {
     required this.account,
     required this.today,
     this.onReconcile,
+    this.onImport,
   });
   final PhoneStore store;
   final AccountInfo account;
   final DateTime today;
+
+  /// Picks a bank file to import into this account (#531); null on a cash
+  /// account, which has no bank file.
+  final VoidCallback? onImport;
 
   /// Starts a reconcile of this account (#530); null on a cash account,
   /// which is counted.
@@ -206,30 +211,57 @@ class _AccountHeaderState extends State<_AccountHeader> {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    summary.reconciledOn == null
-                        ? t.planNeverReconciled
-                        : t.planLastReconciled(
-                            sayDate(t, summary.reconciledOn!),
-                          ),
-                    key: const ValueKey('account-reconciled'),
-                    style: onest(13, color: Mid.ink2),
-                  ),
-                ),
-                if (widget.onReconcile != null) ...[
-                  const SizedBox(width: 8),
-                  _headerButton(
-                    'account-reconcile',
-                    t.planReconcile,
-                    widget.onReconcile!,
-                  ),
-                ],
-              ],
+            const SizedBox(height: 10),
+            Text(
+              summary.reconciledOn == null
+                  ? t.planNeverReconciled
+                  : t.planLastReconciled(sayDate(t, summary.reconciledOn!)),
+              key: const ValueKey('account-reconciled'),
+              style: onest(13, color: Mid.ink2),
             ),
+            // Both are about matching the bank: its file brought in, and
+            // its statement checked (#531, #530).
+            if (widget.onImport != null || widget.onReconcile != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (widget.onImport != null)
+                    Expanded(
+                      flex: 3,
+                      child: FilledButton.icon(
+                        key: const ValueKey('account-import'),
+                        onPressed: widget.onImport,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(44, 44),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          backgroundColor: Mid.blue,
+                          foregroundColor: Mid.onAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: onest(14, weight: 600),
+                        ),
+                        icon: const Icon(Icons.download_rounded, size: 18),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(t.importButton),
+                        ),
+                      ),
+                    ),
+                  if (widget.onImport != null && widget.onReconcile != null)
+                    const SizedBox(width: 10),
+                  if (widget.onReconcile != null)
+                    Expanded(
+                      flex: 2,
+                      child: _headerButton(
+                        'account-reconcile',
+                        t.planReconcile,
+                        widget.onReconcile!,
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ] else if (_phoneAccount case final cash?) ...[
             // Cash is counted, not reconciled (#119): the newest count and
             // Count the cash, where Reconcile is on a bank account.
