@@ -1575,8 +1575,9 @@ What's known so far:
       two in a row; a bill paid from the register or an import without
       confirming the scheduled row leaves that row to delete (it hits the
       TDB import hardest: every Paid-from bill becomes a stale overdue
-      row until it's deleted; the import matching a scheduled row is a
-      feature for the owner to call); a scheduled bill left unconfirmed
+      row until it's deleted; the import matching a scheduled row was
+      the owner's to call, and is called: see "An import pays a bill
+      waiting for Confirm"); a scheduled bill left unconfirmed
       past its date gets the next one scheduled beside it, as a payday
       does; late in a period a repeating bill's note still names the date
       this period saved for ("due 11.01" on 11.25) while the forecast
@@ -7735,3 +7736,43 @@ the import's bar replaces it.
 Not built with this, on #531: a file sent to BetterBudget from another app (the bank's
 app, Files, mail), which asks "Which account is this file for?" and picks nothing for the
 person.
+
+## An import pays a bill waiting for Confirm (owner, 2026-11-21, #597)
+
+The owner's case: Tithing's bill was due on the 16th, waiting for Confirm; the bank paid
+it on the 20th, the same amount, and the import brought the bank's row in beside the
+bill, in Not categorized, the bill still waiting ("the bank didn't mark it as cleared").
+An import matched only typed rows; a scheduled one was left for the owner to call
+(the budget's "Left for later"). Three choices drawn as the import window and the rows
+after; the owner: **pay the bill**.
+
+- **Chosen: the bank's row pays it.** A bank row with no typed match, of exactly a bill's
+  amount, on the bill's account, from 3 days before the bill's date to 10 days after
+  (the typed-row window), is that bill: confirmed, dated the bank's day, cleared, keeping
+  its payee and category, with no second row. A typed row of the amount wins. The
+  window counts it with the rows it clears and says "Tithing, due 11.16, is paid by the
+  bank's row on 11.20: it's confirmed and cleared, with no second row." (a category's
+  bill is named by its category; several are counted); the sentence after says "1 bill
+  paid." The next bill is scheduled as Confirm does it, and one Undo puts the bill back
+  waiting and takes the next one out. Paydays aren't matched.
+- *Rejected:* bringing the bank's row in as now and asking under it, "This may be
+  Tithing, due 11.16. Pay the bill with it?"; and paying exact amounts while asking
+  about near ones (an electricity bill that came in higher).
+
+After the two review passes (decided by me, along the owner's call):
+
+- **A category's bill only.** A bill scheduled by hand keeps its question under the row
+  ("Paid on 09.14? …"); a row typed ahead and a scheduled transfer are never taken for a
+  bill (a stranger's payment of the same sum would put money in Savings that never came).
+- **What the person said goes first:** a bank row whose payee is remembered for
+  something else (an ATM withdrawal remembered as money moved to Cash) comes in as the
+  payee says, and pays no bill.
+- **A payment already typed** for the bill, in its category within ten days of its date
+  at any amount, keeps the bill from being paid twice; the typed row keeps Same purchase.
+- **The oldest bill already due is paid first**, then the nearest one ahead, so a weekly
+  bill left past its date isn't skipped for next week's.
+- **Each paid bill is its own line in the window**, with its amount and the bank's words
+  ("Tithing −₮500,000.00, due 11.16, was paid on 11.20 by “POS Purchase”: it's confirmed
+  and cleared."), three at most and then how many more; the button says "Clear 1 row",
+  not "typed row", when a bill is among them; Undo's name is "1 bill paid". An Undo
+  refuses a bill reconciled since.

@@ -1,4 +1,4 @@
-import '../data/database.dart' show ImportRecord;
+import '../data/database.dart' show ImportFate, ImportPlanRow, ImportRecord;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import 'language.dart';
@@ -11,9 +11,13 @@ import 'language.dart';
 /// a row brought in.
 String importDoneLabel(Words t, ImportRecord record) {
   final brought = record.added.length + record.joined.length;
+  final typed = record.matched.where((m) => !m.confirmed).length;
   return brought > 0
       ? t.importDone(brought)
-      : t.importMatchedToast(record.matched.length);
+      : typed > 0
+      ? t.importMatchedToast(typed)
+      // Only bills waiting for Confirm, now paid (#597).
+      : t.importBillsPaidLabel(record.matched.length);
 }
 
 /// Everything an import did, one part after another: the rows, the typed
@@ -44,8 +48,13 @@ String importSays(
 
   final brought = record.added.length + record.joined.length;
   final newlyCleared = record.matched
-      .where((m) => m.before == Cleared.uncleared)
+      .where((m) => m.before == Cleared.uncleared && !m.confirmed)
       .length;
+  // Bills that were waiting for Confirm, which the file's rows paid (#597),
+  // with those its rows paid in a category's bill.
+  final confirmed = record.matched.where((m) => m.confirmed).length;
+  final typed = record.matched.length - confirmed;
+  final paid = billsPaid + (brought > 0 || typed > 0 ? confirmed : 0);
   // Rows joined to another account's own row, by that account.
   final joinedIn = <int, int>{};
   for (final j in record.joined) {
@@ -71,7 +80,7 @@ String importSays(
             ),
     if (record.uncategorizedCount > 0)
       t.importUncategorizedToast(record.uncategorizedCount, uncategorized),
-    if (billsPaid > 0) t.ledgerBillsPaidCount(billsPaid),
+    if (paid > 0) t.ledgerBillsPaidCount(paid),
     if (billsToCheck > 0) t.ledgerBillsToCheck(billsToCheck),
     // Same purchase on a row taken out of the opening balance: the
     // balance followed it.
@@ -89,4 +98,33 @@ String importSays(
         ),
       ),
   ].join(' · ');
+}
+
+/// The import window's lines for the bills waiting for Confirm that the
+/// file's rows pay (#597): each bill by name, amount, due date, the bank's
+/// day and the bank's words for the row, so a withdrawal that only looks
+/// like the bill can be seen before Import; past three, how many more.
+List<String> importBillsPaidLines(
+  Words t,
+  List<ImportPlanRow> rows,
+  Currency currency,
+) {
+  final paid = [
+    for (final p in rows)
+      if (p.fate == ImportFate.match && (p.match?.bill ?? false)) p,
+  ];
+  return [
+    for (final p in paid.take(3))
+      t.importBillPaid(
+        p.match!.payee.trim(),
+        formatMoney(p.row.amount, currency: currency),
+        sayFullDate(t, p.match!.date),
+        sayFullDate(t, dateOnly(p.row.date)),
+        [
+          p.row.payee,
+          p.row.memo ?? '',
+        ].map((w) => w.trim()).where((w) => w.isNotEmpty).join(' · '),
+      ),
+    if (paid.length > 3) t.importBillsPaidMore(paid.length - 3),
+  ];
 }

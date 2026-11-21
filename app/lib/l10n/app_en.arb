@@ -5502,6 +5502,38 @@
       "zero": {}
     }
   },
+  "importBillPaid": "{name} {amount}, due {due}, was paid on {paid} by “{bank}”: it’s confirmed and cleared.",
+  "@importBillPaid": {
+    "description": "Import window: a bill waiting for Confirm that a bank row of exactly its amount pays (#597). bank is the bank's words for the row.",
+    "placeholders": {
+      "name": {"type": "String"},
+      "amount": {"type": "String"},
+      "due": {"type": "String"},
+      "paid": {"type": "String"},
+      "bank": {"type": "String"}
+    }
+  },
+  "importBillsPaidMore": "{count, plural, =1{1 more bill waiting for Confirm is paid the same way.} other{{count} more bills waiting for Confirm are paid the same way.}}",
+  "@importBillsPaidMore": {
+    "description": "Import window: after three named bills, how many more the file's rows pay (#597).",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "importBillsPaidLabel": "{count, plural, =1{1 bill paid} other{{count} bills paid}}",
+  "@importBillsPaidLabel": {
+    "description": "What an import that only paid bills waiting for Confirm did, as the name of the action Undo takes back (#597).",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "importDoOnlyClearRows": "{count, plural, =1{Clear 1 row} other{Clear {count} rows}}",
+  "@importDoOnlyClearRows": {
+    "description": "Import button when the file brings nothing new and clears rows, a bill waiting for Confirm among them (#597).",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "importDo": "{count, plural, =1{Import 1 row} other{Import {count} rows}}",
   "@importDo": {
     "description": "Import window, main button. count is new rows plus matched ones.",

@@ -330,7 +330,11 @@ class _ImportDialogState extends State<_ImportDialog> {
                                 _count(ImportFate.match),
                               )) {
                                 (final n, 0) => t.importDo(n),
-                                (0, final c) => t.importDoOnlyClear(c),
+                                (0, final c) =>
+                                  // A bill isn't a typed row (#597).
+                                  _plan!.rows.any((p) => p.match?.bill ?? false)
+                                      ? t.importDoOnlyClearRows(c)
+                                      : t.importDoOnlyClear(c),
                                 (final n, final c) => t.importDoClear(n, c),
                               },
                               icon: Icons.download_rounded,
@@ -664,6 +668,19 @@ class _ImportDialogState extends State<_ImportDialog> {
       );
     }
 
+    // Bills waiting for Confirm that the file's rows pay (#597).
+    for (final (i, paid) in importBillsPaidLines(
+      t,
+      plan.rows,
+      widget.currency,
+    ).indexed) {
+      notes.add(
+        KeyedSubtree(
+          key: ValueKey('import-bill-paid-$i'),
+          child: _note(Icons.check_rounded, Mid.green, paid),
+        ),
+      );
+    }
     final start = _start;
     if (start != null) {
       notes
