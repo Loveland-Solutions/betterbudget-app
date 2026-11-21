@@ -7511,3 +7511,75 @@ phone. Rejected: B and C as above; dropping *It varies* for twice a month (it wo
 a pay that varies). One line was added over the sketch: "Each payday above comes from one
 of these." under the list's heading, since the reader took the list as the paydays entered
 twice. The Mongolian is a draft until Tanan checks it (#90).
+
+## Accounts on the phone: the header on the Ledger tab (owner, 2026-11-21, #529)
+
+Three sketches at phone size for the computer's account header, forecast, Net worth and
+account menu: **A** an account opens in place on the Accounts list, its forecast a page of
+its own; **B** an account is its own page (header, forecast, then its rows); **C** the
+Ledger tab carries the header when one account is chosen, the forecast opening there, and
+the Accounts page is only for Net worth and managing accounts. The owner chose **C**
+("Let's use C"). A and B are not built. The reason it won: the register already narrows to
+one account, so B would list the same rows twice, and the header is where Reconcile (#530)
+belongs.
+
+Built (0.134.0): **Accounts** (the button beside Budget's title) has **Net worth**, each
+currency on its own line with what archived accounts hold under it, then **Bank**, **Cash**
+and **Credit** with each balance and, in coral under it, "Runs out on 12.01" when it goes
+below zero within sixty days (the sidebar's rule, `shortSoon`), then **Add account**. A tap on
+an account opens the Ledger narrowed to it. With one account chosen the Ledger's rows start
+with a card: **Working** (**Owed** on a card), **Cleared** and **Uncleared**, "Last
+reconciled on 10.31" or "Never reconciled" (none of the three on a cash account), and the
+forecast's own headline in the computer's words ("Runs out on 12.01 · up to ₮500,000 short",
+"Lowest ₮… on …", what a card will owe), coral when it runs short, with **Forecast**
+beside it. That opens the range (To income while there is pay · 30 days · 90 days · 1 year ·
+Custom…, the one choice for every account, kept in the ledger as on the computer and a
+quiet view with no Undo), a small chart (a step at each bill or money in, coral below zero, its
+lowest day marked), the detail line and the first eight bills with their dates. The card and
+the tabs under it scroll with the rows, so a long forecast can't push them off a small
+screen. `forecastOf`, `shortSoon` and `forecastSays` are the computer's, lifted out of its
+screen (`domain/forecast.dart`, `ui/forecast_words.dart`) so the two say the same thing.
+
+**Add account** is the computer's page on one scroll with Cancel and Add account pinned: Name
+(empty is "New account"), Type (Bank account · Cash · Credit card or loan, each with its hint),
+Currency (can't be changed later), for a card or loan its interest rate with a month or a year
+(a rate that looks typed under the wrong period is said with its numbers and kept as typed),
+and what it starts with and on which day, which the computer asks on the next screen. A
+number that can't be read is said, not stopped at. The ⋯ beside the account chosen has
+**Rename**, **Change to bank account / credit card or loan**, **Payments come out of** (a card or
+loan), **Archive…** and **Delete…**; the last two say exactly what they leave behind first
+(`archiveWarnings`, `deleteWarnings`, lifted out of the computer's accounts page into
+`ui/account_words.dart`) and then go ahead. Each has an Undo in a snack bar (the computer's
+Delete has none on its toast; the phone has no ⌘Z, so it gets one) and reaches the
+computers as an ordinary change. Left for #530: Reconcile and Count the cash in this
+header. The Mongolian is a draft until Tanan checks it (#90).
+
+After the two review passes (owner, 2026-11-21; decided by me, along the owner's rules):
+Add account's write is one change (the account, its rate and what it starts with, so a
+failure leaves none of them) and its Undo is all or nothing: a row entered in the account
+since leaves it and its opening balance as they are and says "couldn't save" instead of
+removing only the opening balance. Rename and Change to… on an account another computer
+deleted say so. **Archived accounts** are listed at the foot of Accounts ("Archived
+accounts", each with what it holds and **Show again**, with Undo), the way back the
+computer has in Settings; they still count in Net worth. The Accounts page's "Runs out" and the
+header share one worked-out spending per ledger, as the computer's do. A card's header
+reads as the computer's does: what is owed, positive, never coral. Owner, on the review's questions: Delete on the phone keeps its Undo in the snack bar
+("You can't undo a delete on the phone?"), and the computer's Delete gets one on its toast
+too ("We should probably have an undo button on the computer then"; it had only ⌘Z), and what an account starts with is asked as on the
+computer, with no warning about its date ("whatever the desktop app has"). Left on the board
+(#589): Change to… runs at once as on the computer (its warning is in the toast), and Count
+the cash and Reconcile belong in this header with #530.
+
+**An account's ⋯ is Edit…, Archive…, Delete…** (owner, 2026-11-21: "Yes, 'Edit...' is what's
+expected in a program"), on the computer (beside the account's name and on a right-click in
+the sidebar) and on the phone. Rename, Change to… and Payments come out of went into **Edit**:
+Name, Type (Bank account or Cash, as it was made · Credit card or loan), for a card or loan its
+Interest rate (a month or a year) and Payments come out of, then Cancel and Save, all saved
+as one change with Undo (`editAccount` in `data/account_edit.dart`, which both apps call).
+A changed Type says what it does before Save, with the real numbers (owner: "there should
+probably be a warning here"): "Khan Bank becomes a credit card or loan. Its starting balance
+of ₮400,000 becomes ₮400,000 owed, so Net worth goes from ₮3,120,000 to ₮2,320,000.", or that
+its rows keep their amounts and Net worth stays the same when nothing turns round
+(`openingThatFlips`, `accountKindSays`). Save is never held back. A click on the account's
+name on the computer still renames it in place. *Rejected:* "Change to…" as its own item,
+which ran at once with its warning only in the toast afterwards.

@@ -21,12 +21,16 @@ import '../../data/database.dart'
 import '../../data/phone_sync.dart'
     show
         PhoneActed,
+        PhoneAddAccount,
+        PhoneArchiveAccount,
         PhoneArchiveCategory,
         PhoneAssign,
         PhoneAsking,
         PhoneBillPaid,
+        PhoneDeleteAccount,
         PhoneDeleteCategory,
         PhoneDeleteRow,
+        PhoneEditAccount,
         PhoneEditCategory,
         PhoneEdited,
         PhoneMarkCleared,
@@ -41,11 +45,14 @@ import '../../data/phone_sync.dart'
         PhoneRowConfirm,
         PhoneRowEdit,
         PhoneSavePay,
+        PhoneSetSpan,
         PhoneStopPay;
+import '../../data/account_edit.dart' show AccountEdit;
 import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
 import '../../domain/budget_amounts.dart' show billSwitches;
 import '../../domain/budget.dart';
+import '../../domain/forecast.dart';
 import '../../domain/ledger.dart';
 import '../../domain/money.dart';
 import '../../domain/pay.dart';
@@ -55,9 +62,11 @@ import '../../domain/readiness.dart';
 import '../language.dart';
 import '../plan_form.dart';
 import '../schemes.dart';
+import '../account_words.dart';
 import '../amount_input.dart';
 import '../combined_label.dart';
 import '../data_words.dart';
+import '../forecast_words.dart';
 import '../brand.dart';
 import '../budget_sum_words.dart';
 import '../category_types.dart';
@@ -66,8 +75,11 @@ import '../savings_steps.dart';
 import '../theme.dart';
 import 'phone_asking.dart';
 
+part 'phone_account.dart';
+part 'phone_account_edit.dart';
 part 'phone_bill_ask.dart';
 part 'phone_count.dart';
+part 'phone_form_rows.dart';
 part 'phone_income.dart';
 part 'phone_move.dart';
 part 'phone_new_category.dart';
@@ -96,6 +108,10 @@ class PhoneStore extends ChangeNotifier {
 
   /// This phone's name for itself in the folder.
   final String device;
+
+  /// An account the Ledger tab is asked to narrow to (#529): the Accounts
+  /// page sets it and the register takes it, and the home shows the tab.
+  final registerRequest = ValueNotifier<int?>(null);
 
   /// What this phone has for the computer.
   PhoneInbox get inbox => PhoneInbox(
@@ -838,11 +854,20 @@ class _PhoneHomeState extends State<PhoneHome> {
     widget.store.now = widget.now;
     widget.store.news.addListener(_brought);
     widget.store.asking.addListener(_asked);
+    widget.store.registerRequest.addListener(_showRegister);
     // What the first look brought in was set before this screen was up.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _brought();
       _asked();
     });
+  }
+
+  /// The Accounts page asked the Ledger tab to narrow to an account (#529):
+  /// the tab is shown; the register takes the account.
+  void _showRegister() {
+    if (widget.store.registerRequest.value != null && mounted && _budget) {
+      setState(() => _budget = false);
+    }
   }
 
   /// What was last opened by itself, so a question is put once and the line
@@ -915,6 +940,7 @@ class _PhoneHomeState extends State<PhoneHome> {
   void dispose() {
     widget.store.news.removeListener(_brought);
     widget.store.asking.removeListener(_asked);
+    widget.store.registerRequest.removeListener(_showRegister);
     _draft.dispose();
     super.dispose();
   }
@@ -1277,6 +1303,7 @@ class _BudgetScreenState extends State<_BudgetScreen> {
                   color: Mid.ink2,
                 ),
                 TextButton(
+                  key: const ValueKey('to-accounts'),
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => _AccountsScreen(store: store, now: now),
@@ -4670,10 +4697,35 @@ class _PayeeDialogState extends State<_PayeeDialog> {
   }
 }
 
-class _AccountsScreen extends StatelessWidget {
+class _AccountsScreen extends StatefulWidget {
   const _AccountsScreen({required this.store, required this.now});
   final PhoneStore store;
   final DateTime Function() now;
+
+  @override
+  State<_AccountsScreen> createState() => _AccountsScreenState();
+}
+
+class _AccountsScreenState extends State<_AccountsScreen> {
+  PhoneStore get store => widget.store;
+
+  /// Which accounts run out within sixty days, worked out once per ledger.
+  LedgerData? _runsFor;
+  Map<int, ({DateTime date, int low})> _runs = const {};
+  Map<int, ({DateTime date, int low})> _runsOut(LedgerData data) {
+    if (identical(_runsFor, data)) return _runs;
+    _runsFor = data;
+    final today = widget.now();
+    return _runs = {
+      for (final a in data.openAccounts)
+        a.id: ?shortSoon(
+          data,
+          a,
+          today: today,
+          spending: _spendingOf(data, a, today),
+        ),
+    };
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -4681,9 +4733,232 @@ class _AccountsScreen extends StatelessWidget {
     builder: (context, _) => _page(context),
   );
 
+  /// An archived account is shown again, with an Undo.
+  Future<void> _showAgain(AccountInfo a) async {
+    final done = await _doAccount(
+      context,
+      store,
+      PhoneArchiveAccount(a.id, false),
+    );
+    if (done == null || !mounted) return;
+    _accountSaid(
+      context,
+      store,
+      _AccountDone(done, context.t.phoneAccountShown(a.name)),
+    );
+  }
+
+  /// Add account: after it, the Ledger shows the new account.
+  Future<void> _add() async {
+    final done = await _openNewAccount(
+      context,
+      store: store,
+      today: widget.now(),
+    );
+    if (done == null || !mounted) return;
+    _accountSaid(context, store, done);
+    store.registerRequest.value = done.show;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+  }
+
+  /// Bank accounts, then cash, then credit, as the computer's sidebar has
+  /// them.
+  List<(String, List<PhoneAccount>)> _groups(Words t, PhoneSnapshot s) {
+    final bank = [
+      for (final a in s.accounts)
+        if (!a.cash && !a.owes) a,
+    ];
+    final cash = [
+      for (final a in s.accounts)
+        if (a.cash) a,
+    ];
+    final credit = [
+      for (final a in s.accounts)
+        if (a.owes) a,
+    ];
+    return [
+      if (bank.isNotEmpty) (t.ledgerGroupBank, bank),
+      if (cash.isNotEmpty) (t.ledgerGroupCash, cash),
+      if (credit.isNotEmpty) (t.ledgerGroupCredit, credit),
+    ];
+  }
+
+  /// Net worth, each currency on its own line, with what archived accounts
+  /// hold said under it so it isn't a mystery sum.
+  Widget _netWorth(Words t, LedgerData data) {
+    final net = data.balancesByCurrency(data.balanceSheetAccounts);
+    final archived = data.balancesByCurrency(data.archivedAccounts)
+      ..removeWhere((_, v) => v == 0);
+    return Container(
+      key: const ValueKey('net-worth'),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: Mid.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Mid.rule),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t.ledgerNetWorth, style: onest(13, color: Mid.ink2)),
+          const SizedBox(height: 2),
+          for (final e in net.entries)
+            Shrink(
+              Text(
+                formatMoney(e.value, currency: e.key),
+                key: ValueKey('net-worth-${e.key.code}'),
+                maxLines: 1,
+                style: onest(
+                  net.length > 1 ? 18 : 26,
+                  weight: 700,
+                  tabular: true,
+                  color: e.value < 0 ? Mid.coral : Mid.ink,
+                ),
+              ),
+            ),
+          if (archived.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                t.ledgerInclArchived(
+                  [
+                    for (final e in archived.entries)
+                      formatMoney(e.value, currency: e.key),
+                  ].join(' · '),
+                ),
+                key: const ValueKey('net-worth-archived'),
+                style: onest(13, color: Mid.ink2, tabular: true),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _account(
+    BuildContext context,
+    PhoneAccount a,
+    ({DateTime date, int low})? runsOut,
+  ) {
+    final t = context.t;
+    // This phone's waiting entries are counted, as they are in what each
+    // category has left.
+    final balance = store.balanceOf(a);
+    final amount = formatMoney(balance.abs(), currency: a.currency);
+    final line = Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(
+          child: Text(
+            a.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: onest(17, weight: 500),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          flex: 2,
+          child: Shrink(
+            end: true,
+            Text(
+              a.owes
+                  ? (balance < 0
+                        ? t.phoneInCredit(amount)
+                        : t.phoneOwed(amount))
+                  : formatMoney(balance, currency: a.currency),
+              maxLines: 1,
+              style: onest(
+                17,
+                weight: 600,
+                tabular: true,
+                color: !a.owes && balance < 0 ? Mid.coral : Mid.ink,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+    final says = runsOut == null
+        ? null
+        : runsOut.date == dateOnly(widget.now())
+        ? t.planRunsOutToday
+        : t.planRunsOutZero(sayDate(t, runsOut.date));
+    return Container(
+      key: ValueKey('account-${a.id}'),
+      decoration: BoxDecoration(
+        color: Mid.card,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // A tap opens the Ledger on this account, its header over its rows.
+          InkWell(
+            key: ValueKey('open-account-${a.id}'),
+            onTap: () {
+              final id = int.tryParse(a.id);
+              if (id == null || store.snapshot.data == null) return;
+              store.registerRequest.value = id;
+              Navigator.of(context).popUntil((r) => r.isFirst);
+            },
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    line,
+                    if (says != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          says,
+                          key: ValueKey('runs-out-${a.id}'),
+                          style: onest(13, color: Mid.coral),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Cash is counted here too (#119, owner: "Both").
+          if (a.cash)
+            Padding(
+              padding: const EdgeInsets.only(left: 16, bottom: 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  key: ValueKey('count-${a.id}'),
+                  onPressed: () =>
+                      _openCount(context, store: store, account: a),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(44, 44),
+                    padding: EdgeInsets.zero,
+                    foregroundColor: Mid.blue,
+                    textStyle: onest(15, weight: 500),
+                  ),
+                  child: Text(t.countTitle),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _page(BuildContext context) {
     final t = context.t;
     final snapshot = store.snapshot;
+    final data = snapshot.data;
+    final runs = data == null
+        ? const <int, ({DateTime date, int low})>{}
+        : _runsOut(data);
+    final groups = _groups(t, snapshot);
     return Scaffold(
       backgroundColor: Mid.ground,
       appBar: AppBar(
@@ -4693,79 +4968,105 @@ class _AccountsScreen extends StatelessWidget {
         scrolledUnderElevation: 0,
         title: Text(t.ledgerGroupAccounts, style: onest(20, weight: 600)),
       ),
-      body: ListView.separated(
+      body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        itemCount: snapshot.accounts.length + 1,
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, at) {
-          if (at == 0) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: _FromMac(made: snapshot.madeAt, today: now()),
-            );
-          }
-          final a = snapshot.accounts[at - 1];
-          // This phone's waiting entries are counted, as they are in what
-          // each category has left.
-          final balance = store.balanceOf(a);
-          final amount = formatMoney(balance.abs(), currency: a.currency);
-          final line = Row(
-            children: [
-              Expanded(
-                child: Text(
-                  a.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: onest(17, weight: 500),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                a.owes
-                    ? (balance < 0
-                          ? t.phoneInCredit(amount)
-                          : t.phoneOwed(amount))
-                    : formatMoney(balance, currency: a.currency),
-                style: onest(
-                  17,
-                  weight: 600,
-                  tabular: true,
-                  color: !a.owes && balance < 0 ? Mid.coral : Mid.ink,
-                ),
-              ),
-            ],
-          );
-          return Container(
-            key: ValueKey('account-${a.id}'),
-            constraints: const BoxConstraints(minHeight: 56),
-            padding: EdgeInsets.fromLTRB(16, 0, 16, a.cash ? 4 : 0),
-            decoration: BoxDecoration(
-              color: Mid.card,
-              borderRadius: BorderRadius.circular(14),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _FromMac(made: snapshot.madeAt, today: widget.now()),
+          ),
+          if (data != null && data.balanceSheetAccounts.isNotEmpty) ...[
+            _netWorth(t, data),
+            const SizedBox(height: 8),
+          ],
+          for (final (name, accounts) in groups) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(2, 12, 2, 6),
+              child: Text(name, style: onest(13, weight: 700, color: Mid.ink2)),
             ),
-            child: a.cash
-                // Cash is counted here too (#119, owner: "Both").
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 52, child: line),
-                      TextButton(
-                        key: ValueKey('count-${a.id}'),
-                        onPressed: () =>
-                            _openCount(context, store: store, account: a),
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(44, 44),
-                          padding: EdgeInsets.zero,
-                          foregroundColor: Mid.blue,
-                          textStyle: onest(15, weight: 500),
-                        ),
-                        child: Text(t.countTitle),
+            for (final a in accounts) ...[
+              _account(context, a, runs[int.tryParse(a.id)]),
+              const SizedBox(height: 8),
+            ],
+          ],
+          // Put away, with what they hold still in Net worth: a way back.
+          if (data != null && data.archivedAccounts.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(2, 12, 2, 6),
+              child: Text(
+                t.setupArchived,
+                style: onest(13, weight: 700, color: Mid.ink2),
+              ),
+            ),
+            for (final a in data.archivedAccounts)
+              Container(
+                key: ValueKey('archived-${a.id}'),
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+                constraints: const BoxConstraints(minHeight: 56),
+                decoration: BoxDecoration(
+                  color: Mid.card,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            a.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: onest(16, weight: 500),
+                          ),
+                          Text(
+                            a.isOwed
+                                ? t.setupAmountOwed(
+                                    formatShort(
+                                      -data.balanceOf(a.id),
+                                      currency: a.currency,
+                                    ),
+                                  )
+                                : formatShort(
+                                    data.balanceOf(a.id),
+                                    currency: a.currency,
+                                  ),
+                            style: onest(13, color: Mid.ink2, tabular: true),
+                          ),
+                        ],
                       ),
-                    ],
-                  )
-                : line,
-          );
-        },
+                    ),
+                    TextButton(
+                      key: ValueKey('show-again-${a.id}'),
+                      onPressed: () => unawaited(_showAgain(a)),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(44, 44),
+                        foregroundColor: Mid.blue,
+                        textStyle: onest(15, weight: 600),
+                      ),
+                      child: Text(t.phoneShowAgain),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          if (data != null) ...[
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              key: const ValueKey('add-account'),
+              onPressed: _add,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(t.setupAddAccount),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                backgroundColor: Mid.green,
+                foregroundColor: Colors.white,
+                textStyle: onest(16, weight: 600),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

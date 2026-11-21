@@ -72,7 +72,28 @@ void _saidWithUndo(
         action: SnackBarAction(
           label: context.t.ledgerUndo,
           textColor: Mid.blue,
-          onPressed: () => unawaited(store.replay(change.undo)),
+          onPressed: () async {
+            // An undo the ledger refuses (a row entered since) says so.
+            try {
+              await store.replay(change.undo);
+            } catch (e) {
+              debugPrint('Undoing on the phone failed: $e');
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(
+                    persist: false,
+                    duration: phoneSnackTime,
+                    backgroundColor: Mid.raised,
+                    content: Text(
+                      context.t.ledgerCouldntSave,
+                      style: onest(15, color: Mid.ink),
+                    ),
+                  ),
+                );
+            }
+          },
         ),
       ),
     );
@@ -123,7 +144,7 @@ class _PayPage extends StatefulWidget {
   State<_PayPage> createState() => _PayPageState();
 }
 
-class _PayPageState extends State<_PayPage> {
+class _PayPageState extends State<_PayPage> with _FormRows<_PayPage> {
   PhoneStore get _store => widget.store;
   LedgerData get _data => _store.snapshot.data!;
   PaySchedule? get _existing => widget.existing;
@@ -149,12 +170,8 @@ class _PayPageState extends State<_PayPage> {
     text: _typed(_split ? _existing!.byDay.last.amount : null),
   );
   late final PlanAnswers _how = _initialHow();
-  final _focuses = <String, FocusNode>{};
   bool _tried = false, _busy = false;
   late final String _opened;
-
-  FocusNode _focus(String key) =>
-      _focuses.putIfAbsent(key, () => FocusNode(debugLabel: key));
 
   String _typed(int? v) =>
       v == null ? '' : typedAmount(v, _currencyOf(_existing?.accountId));
@@ -164,7 +181,11 @@ class _PayPageState extends State<_PayPage> {
       _accounts.firstOrNull?.currency ??
       Currency.mnt;
 
+  @override
   Currency get _currency => _account.currency;
+
+  @override
+  DateTime get _today => widget.today;
 
   PlanAnswers _initialHow() {
     final p = PlanAnswers(today: widget.today, currency: _account.currency);
@@ -213,9 +234,7 @@ class _PayPageState extends State<_PayPage> {
       c.dispose();
     }
     _how.dispose();
-    for (final f in _focuses.values) {
-      f.dispose();
-    }
+    _disposeFocuses();
     super.dispose();
   }
 
@@ -342,52 +361,6 @@ class _PayPageState extends State<_PayPage> {
       _split = false;
     }
   });
-
-  Future<T?> _pick<T>(
-    String title,
-    List<(T, String)> items, {
-    required T chosen,
-    String keyPrefix = 'pick',
-  }) => showModalBottomSheet<T>(
-    context: context,
-    backgroundColor: Mid.panel,
-    isScrollControlled: true,
-    builder: (context) => SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.7,
-        ),
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text(title, style: onest(14, color: Mid.ink2)),
-            ),
-            for (final (i, (value, label)) in items.indexed)
-              ListTile(
-                key: ValueKey('$keyPrefix-$i'),
-                title: Text(label, style: onest(16, weight: 500)),
-                trailing: value == chosen
-                    ? Icon(Icons.check, color: Mid.blue)
-                    : null,
-                onTap: () => Navigator.of(context).pop(value),
-              ),
-          ],
-        ),
-      ),
-    ),
-  );
-
-  Future<DateTime?> _pickDay(DateTime? from) {
-    final first = DateTime(widget.today.year - 1);
-    return showDatePicker(
-      context: context,
-      initialDate: from == null || from.isBefore(first) ? widget.today : from,
-      firstDate: first,
-      lastDate: DateTime(widget.today.year + 30),
-    );
-  }
 
   Future<void> _pickAccount(Words t) async {
     final picked = await _pick<int>(
@@ -664,203 +637,6 @@ class _PayPageState extends State<_PayPage> {
     );
     if (leave == true && mounted) Navigator.of(context).pop();
   }
-
-  // ---------- rows ----------
-
-  Widget _card(List<Widget> rows) => Material(
-    color: Mid.card,
-    borderRadius: BorderRadius.circular(14),
-    clipBehavior: Clip.antiAlias,
-    child: Column(
-      children: [
-        for (final (i, r) in rows.indexed) ...[
-          if (i > 0) Divider(height: 1, thickness: 1, color: Mid.rule),
-          r,
-        ],
-      ],
-    ),
-  );
-
-  Widget _choiceRow(
-    String key,
-    String label,
-    String value,
-    VoidCallback onTap, {
-    bool wrong = false,
-  }) => InkWell(
-    key: ValueKey(key),
-    onTap: onTap,
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 52),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            Text(label, style: onest(15, color: wrong ? Mid.coral : Mid.ink2)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                value,
-                textAlign: TextAlign.end,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: onest(16, weight: 500, tabular: true),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right_rounded, color: Mid.ink3),
-          ],
-        ),
-      ),
-    ),
-  );
-
-  /// A row with a field to type in: text, an amount or a number.
-  Widget _fieldRow(
-    String key,
-    String label,
-    TextEditingController controller, {
-    bool money = false,
-    bool number = false,
-    bool text = false,
-    bool wrong = false,
-    String? hint,
-    String? after,
-    TextInputAction? action,
-  }) => GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: () => _focus(key).requestFocus(),
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 52),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            Flexible(
-              child: Text(
-                label,
-                style: onest(15, color: wrong ? Mid.coral : Mid.ink2),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (money && controller.text.isNotEmpty)
-                    Text(_currency.prefix, style: onest(16, color: Mid.ink3)),
-                  Flexible(
-                    child: IntrinsicWidth(
-                      child: TextField(
-                        key: ValueKey(key),
-                        controller: controller,
-                        focusNode: _focus(key),
-                        onChanged: (_) => setState(() {}),
-                        textInputAction: action,
-                        textCapitalization: text
-                            ? TextCapitalization.sentences
-                            : TextCapitalization.none,
-                        inputFormatters: [if (money) GroupedAmount(_currency)],
-                        textAlign: TextAlign.end,
-                        keyboardType: text
-                            ? TextInputType.text
-                            : money
-                            ? TextInputType.numberWithOptions(
-                                decimal: _currency.decimals > 0,
-                              )
-                            : number
-                            ? TextInputType.number
-                            : TextInputType.datetime,
-                        style: onest(16, weight: 500, tabular: !text),
-                        cursorColor: Mid.blue,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          hintText: hint,
-                          hintStyle: onest(16, color: Mid.ink3),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (after != null) ...[
-              const SizedBox(width: 8),
-              Text(after, style: onest(15, color: Mid.ink2)),
-            ],
-          ],
-        ),
-      ),
-    ),
-  );
-
-  /// Answers one under another, the one picked lit: full width, so a long
-  /// answer wraps instead of being cut at a larger text size.
-  Widget _choices(List<(String, String, bool, VoidCallback)> items) => Padding(
-    padding: const EdgeInsets.all(6),
-    child: Column(
-      children: [
-        for (final (key, label, on, onTap) in items)
-          Padding(
-            padding: const EdgeInsets.all(2),
-            child: Material(
-              color: on ? Mid.blueWash : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              child: InkWell(
-                key: ValueKey(key),
-                borderRadius: BorderRadius.circular(10),
-                onTap: onTap,
-                child: Semantics(
-                  selected: on,
-                  button: true,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 44),
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 6,
-                        ),
-                        child: Text(
-                          label,
-                          textAlign: TextAlign.center,
-                          style: onest(
-                            15,
-                            weight: on ? 600 : 400,
-                            color: on ? Mid.blue : Mid.ink2,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    ),
-  );
-
-  Widget _asked(String label, Widget answers) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: Text(label, style: onest(15, color: Mid.ink2)),
-      ),
-      answers,
-    ],
-  );
-
-  Widget _aside(String text, {String? key, Color? color}) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-    child: Text(
-      text,
-      key: key == null ? null : ValueKey(key),
-      style: onest(14, color: color ?? Mid.ink3),
-    ),
-  );
 
   String _dayText(Words t, DateTime? d) => switch (d) {
     final d? => d.year == widget.today.year ? sayDate(t, d) : sayFullDate(t, d),

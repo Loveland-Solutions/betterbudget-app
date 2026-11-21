@@ -755,3 +755,113 @@ Forecast buildForecast({
     fixedEnd: until != null,
   );
 }
+
+/// How far the sidebar's "Runs out on …" looks: sixty days.
+const forecastWarnSpan = ForecastSpan.days60;
+
+/// The next payday after [row], a paycheck row of a pay schedule: its date
+/// and amount, or null when the pay is stopped or ends.
+({DateTime date, int amount})? paydayAfter(LedgerData data, RegisterRow row) {
+  final plan = data.paySchedules
+      .where((p) => p.id == row.payScheduleId)
+      .firstOrNull;
+  if (plan == null) return null;
+  // From the payday it was planned as, by amount for split pay: one moved
+  // a few days by hand mustn't make that same payday the next.
+  final next = plan.nextAfter(plan.plannedFor(row.date, paid: row.amount));
+  // A pay that ends has no next payday after its last.
+  if (next == payNever) return null;
+  return (date: next, amount: plan.amountOn(next));
+}
+
+/// What the budget expects spent from [account], and what it expects to
+/// fund it, day by day through [until] (the next four months when null):
+/// the forecast's spending (#179). Slow enough to keep once per ledger.
+List<({DateTime date, int amount})> forecastSpending(
+  LedgerData data,
+  AccountInfo account, {
+  required DateTime today,
+  DateTime? until,
+}) {
+  final to = until ?? today.add(const Duration(days: 120));
+  return [
+    ...projectSpending(data, accountId: account.id, today: today, until: to),
+    ...projectFunding(data, accountId: account.id, today: today, until: to),
+  ]..sort((a, b) => a.date.compareTo(b.date));
+}
+
+/// An account's forecast, as its header shows it: through the next pay
+/// period, or to the date the chosen span ends on ([span] overrides the
+/// ledger's choice), with the paydays and plan bills after the scheduled
+/// ones projected that far. [spending] is [forecastSpending] when the
+/// caller keeps it; worked out here when null.
+Forecast forecastOf(
+  LedgerData data,
+  AccountInfo account, {
+  required DateTime today,
+  ForecastSpan? span,
+  List<({DateTime date, int amount})>? Function(DateTime? until)? spending,
+}) {
+  final scheduled = data.registerFor(account.id).scheduled;
+  final chosen = span ?? ForecastSpan.parse(data.prefs[ForecastSpan.prefKey]);
+  final customEnd = ForecastSpan.parseCustomEnd(
+    data.prefs[ForecastSpan.customEndKey],
+    today,
+  );
+  final until = chosen.endFrom(today, customEnd: customEnd);
+  // A day picked with Custom… is a day something has to be paid, so money
+  // due that day isn't counted as arrived (#410). Without a day picked,
+  // Custom… looks 30 days ahead, and that end is nobody's deadline.
+  final untilChosen = chosen == ForecastSpan.custom && customEnd != null;
+  return buildForecast(
+    working: data.summaryFor(account.id).working,
+    today: today,
+    scheduled: scheduled,
+    owed: account.isOwed,
+    owedAccounts: {
+      for (final a in data.balanceSheetAccounts)
+        if (a.isOwed) a.name,
+    },
+    paydayAfter: (row) => paydayAfter(data, row),
+    payIsSetUp: data.paySchedules.isNotEmpty,
+    until: until,
+    untilChosen: untilChosen,
+    projected: until == null
+        ? const []
+        : projectScheduled(
+            scheduled,
+            until: until,
+            payById: data.payScheduleById,
+            planOf: (id) => data.plans[id],
+            skipped: (plan) => Budget.skippedBills(data, plan),
+          ),
+    // What the budget expects spent from it (#179): far enough for any pay
+    // period; the forecast stops at its own end. The account pay goes into
+    // also pays out for the wallet and a card nothing scheduled pays.
+    spending:
+        spending?.call(until) ??
+        forecastSpending(data, account, today: today, until: until),
+    cash: account.isCash,
+  );
+}
+
+/// The first day within [forecastWarnSpan] an open account's balance goes
+/// to zero or below, and the balance that day; null for a card, an account
+/// already below zero (its balance says so) or one that holds up.
+({DateTime date, int low})? shortSoon(
+  LedgerData data,
+  AccountInfo account, {
+  required DateTime today,
+  List<({DateTime date, int amount})>? Function(DateTime? until)? spending,
+}) {
+  if (account.isOwed) return null;
+  final f = forecastOf(
+    data,
+    account,
+    today: today,
+    span: forecastWarnSpan,
+    spending: spending,
+  );
+  if (!f.isShort || f.shortNow) return null;
+  return (date: f.firstShort!, low: f.firstShortBalance);
+}

@@ -544,6 +544,88 @@ void main() {
         expect(overflows.toSet().toList(), isEmpty);
         expect(cut.toList(), isEmpty, reason: 'text cut off without "…"');
       });
+
+      testWidgets('nothing overflows on the phone\'s Accounts, an account\'s '
+          'header and forecast, and Add account: $words, '
+          '${size.width.toInt()} × ${size.height.toInt()}', (tester) async {
+        final overflows = <String>[];
+        final cut = <String>{};
+        var page = 'Accounts';
+        addTearDown(_catchOverflows(overflows, () => page));
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final today = DateTime(2026, 9, 16, 10);
+        final db = AppDatabase(NativeDatabase.memory());
+        final data = (await tester.runAsync(() async {
+          await seedDemoIfEmpty(db, today);
+          await _fillIn(db, today);
+          await _stretch(db, mongolian: mongolian);
+          final data = await db.loadLedger();
+          await db.close();
+          return data;
+        }))!;
+        final store = PhoneStore(snapshotOf(data, today: today, madeAt: today));
+        await tester.pumpWidget(
+          LanguageScope(
+            controller: LanguageController(
+              initial: mongolian ? Language.mongolian : Language.english,
+            ),
+            child: PhoneApp(store: store, now: () => today),
+          ),
+        );
+        await tester.pumpAndSettle();
+        void look() => cut.addAll(_cutText(tester).map((w) => '$w, on $page'));
+        Future<void> tap(Finder f) async {
+          expect(f, findsWidgets, reason: 'on $page');
+          await tester.ensureVisible(f.first);
+          await tester.pumpAndSettle();
+          await tester.tap(f.first);
+          await tester.pumpAndSettle();
+          look();
+        }
+
+        await tap(find.byKey(const ValueKey('to-budget')));
+        await tap(find.byKey(const ValueKey('to-accounts')));
+        page = 'an account\'s header';
+        await tap(_keyed('open-account-'));
+        await tap(find.byKey(const ValueKey('account-forecast-toggle')));
+        await tester.drag(find.byType(Scrollable).last, const Offset(0, -600));
+        await tester.pumpAndSettle();
+        look();
+        page = 'Add account';
+        await tap(find.byKey(const ValueKey('to-budget')));
+        await tap(find.byKey(const ValueKey('to-accounts')));
+        await tester.dragUntilVisible(
+          find.byKey(const ValueKey('add-account')),
+          find.byType(Scrollable).first,
+          const Offset(0, -100),
+        );
+        await tap(find.byKey(const ValueKey('add-account')));
+        await tester.enterText(
+          find.byKey(const ValueKey('account-name')),
+          'Хүүхдийн цэцэрлэгийн хоол ба сургалтын төлбөр',
+        );
+        await tap(find.byKey(const ValueKey('kind-owed')));
+        await tester.dragUntilVisible(
+          find.byKey(const ValueKey('account-balance')),
+          find.byKey(const ValueKey('new-account-page')),
+          const Offset(0, -100),
+        );
+        await tester.enterText(
+          find.byKey(const ValueKey('account-balance')),
+          '999999999999',
+        );
+        await tester.enterText(
+          find.byKey(const ValueKey('account-rate')),
+          '30',
+        );
+        await tester.pumpAndSettle();
+        look();
+
+        expect(overflows.toSet().toList(), isEmpty);
+        expect(cut.toList(), isEmpty, reason: 'text cut off without "…"');
+      });
     }
   }
 }

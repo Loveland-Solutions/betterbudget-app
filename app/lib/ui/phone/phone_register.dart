@@ -41,7 +41,27 @@ class _RegisterState extends State<_RegisterScreen> {
   ({int txn, int entry})? _open;
 
   @override
+  void initState() {
+    super.initState();
+    widget.store.registerRequest.addListener(_requested);
+    // An account asked for before this tab was built.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _requested());
+  }
+
+  /// The Accounts page asked for one account (#529).
+  void _requested() {
+    final id = widget.store.registerRequest.value;
+    if (id == null || !mounted) return;
+    widget.store.registerRequest.value = null;
+    setState(() {
+      _account = id;
+      _open = null;
+    });
+  }
+
+  @override
   void dispose() {
+    widget.store.registerRequest.removeListener(_requested);
     _search.dispose();
     super.dispose();
   }
@@ -103,13 +123,33 @@ class _RegisterState extends State<_RegisterScreen> {
           _Show.scheduled => rows.scheduled,
           _Show.uncategorized => rows.posted.reversed.where(_waiting).toList(),
         }.where((r) => _matches(t, r, _search.text)).toList();
+        // One account chosen: its header leads the rows, with the tabs
+        // under it, so a long forecast scrolls away with them.
+        final account = _account == null
+            ? null
+            : _data.accounts[_account]?.deleted == false
+            ? _data.accounts[_account]
+            : null;
+        final tabs = shows.length > 1 ? _tabs(t, shows, show, waiting) : null;
+        final lead = account == null
+            ? null
+            : Column(
+                children: [
+                  _AccountHeader(
+                    store: widget.store,
+                    account: account,
+                    today: widget.now(),
+                  ),
+                  ?tabs,
+                ],
+              );
         return Stack(
           children: [
             Column(
               children: [
                 _top(t),
-                if (shows.length > 1) _tabs(t, shows, show, waiting),
-                Expanded(child: _list(t, shown)),
+                if (lead == null) ?tabs,
+                Expanded(child: _list(t, shown, lead: lead)),
               ],
             ),
             Positioned(
@@ -128,6 +168,19 @@ class _RegisterState extends State<_RegisterScreen> {
         );
       },
     );
+  }
+
+  /// The ⋯ beside the account chosen: after an archive or a delete the
+  /// account is gone from view, so the Ledger shows all of them.
+  Future<void> _accountAct(AccountInfo a, _AccountAct act) async {
+    final left = await _runAccountAct(
+      context,
+      store: widget.store,
+      account: a,
+      act: act,
+      today: widget.now(),
+    );
+    if (left && mounted) setState(() => _account = null);
   }
 
   Widget _top(Words t) {
@@ -169,9 +222,13 @@ class _RegisterState extends State<_RegisterScreen> {
               )
             : Row(
                 children: [
-                  Text(
-                    t.ledgerSectionLedger,
-                    style: onest(22, weight: 600, color: Mid.ink),
+                  Flexible(
+                    child: Text(
+                      t.ledgerSectionLedger,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: onest(22, weight: 600, color: Mid.ink),
+                    ),
                   ),
                   const Spacer(),
                   PopupMenuButton<int?>(
@@ -206,7 +263,7 @@ class _RegisterState extends State<_RegisterScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 150),
+                            constraints: const BoxConstraints(maxWidth: 130),
                             child: Text(
                               chosen?.name ?? t.ledgerAllAccounts,
                               maxLines: 1,
@@ -219,6 +276,12 @@ class _RegisterState extends State<_RegisterScreen> {
                       ),
                     ),
                   ),
+                  if (_data.accounts[_account] case final a?
+                      when !a.deleted && !a.archived)
+                    _AccountMenu(
+                      account: a,
+                      onPick: (act) => _accountAct(a, act),
+                    ),
                   IconButton(
                     key: const ValueKey('register-search-open'),
                     icon: Icon(Icons.search_rounded, color: Mid.ink2),
@@ -266,10 +329,18 @@ class _RegisterState extends State<_RegisterScreen> {
     );
   }
 
-  Widget _list(Words t, List<RegisterRow> rows) {
-    if (rows.isEmpty) return const SizedBox.shrink();
+  Widget _list(Words t, List<RegisterRow> rows, {Widget? lead}) {
+    if (rows.isEmpty) {
+      return lead == null
+          ? const SizedBox.shrink()
+          : ListView(
+              key: const ValueKey('register-list'),
+              padding: const EdgeInsets.only(bottom: 88),
+              children: [lead],
+            );
+    }
     final today = widget.now();
-    final children = <Widget>[];
+    final children = <Widget>[?lead];
     // The rows already in that may have paid a bill, by bill and by row.
     final payments = billPayments(
       _data,
