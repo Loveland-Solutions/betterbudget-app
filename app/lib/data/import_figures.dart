@@ -155,3 +155,90 @@ List<UnmatchedTyped> typedNotInFile(ImportPlan plan) {
       if (!taken.contains(u.entryId)) u,
   ];
 }
+
+/// A new account's start, from its bank file (owner, 2026-10-06): the day
+/// before the first row coming in and what the account held then, with the
+/// balance the file ends at, and its day, when the file gives one.
+typedef ImportStart = ({DateTime date, int amount, int? end, DateTime? endDay});
+
+/// The first and last days of the rows [read], or null with none.
+(DateTime, DateTime)? fileSpan(ReadResult? read) {
+  final rows = read?.rows;
+  if (rows == null || rows.isEmpty) return null;
+  var first = dateOnly(rows.first.date), last = first;
+  for (final r in rows) {
+    final d = dateOnly(r.date);
+    if (d.isBefore(first)) first = d;
+    if (d.isAfter(last)) last = d;
+  }
+  return (first, last);
+}
+
+/// The day a new account's rows come in from at first: the budget period
+/// it's in, [periodStart], when the file reaches back before it (older
+/// rows change nothing the budget shows and would all wait to be
+/// categorized), else the file's first row.
+DateTime startDayFor((DateTime, DateTime) span, DateTime? periodStart) =>
+    periodStart != null &&
+        periodStart.isAfter(span.$1) &&
+        !periodStart.isAfter(span.$2)
+    ? periodStart
+    : span.$1;
+
+/// The day rows come in from, [from], when it's after the file's first:
+/// rows before it stay out and the account starts there. Null otherwise.
+DateTime? startCut((DateTime, DateTime)? span, DateTime? from) =>
+    span == null || from == null || !from.isAfter(span.$1) ? null : from;
+
+/// A new account's start from [read]. A table's comes from its first and
+/// last rows; an OFX file's one balance is worked back through every row;
+/// with neither, [typed] (what's in it today, as typed: what's owed,
+/// positive, on a card) is worked back through the rows [plan] adds, and
+/// with nothing typed it starts at zero. [cut] is [startCut]'s day.
+ImportStart? importStart({
+  required ReadResult? read,
+  required ImportPlan? plan,
+  required DateTime? cut,
+  required bool owed,
+  int? typed,
+}) {
+  final span = fileSpan(read);
+  if (read == null || span == null) return null;
+  final (first, last) = span;
+  final date = (cut ?? first).subtract(const Duration(days: 1));
+  // What the rows left out before the start day add up to.
+  final earlier = cut == null
+      ? 0
+      : read.rows
+            .where((r) => dateOnly(r.date).isBefore(cut))
+            .fold<int>(0, (s, r) => s + r.amount);
+  if (read.check case final c?) {
+    return (
+      date: date,
+      amount: c.opening + earlier,
+      end: c.closing,
+      endDay: last,
+    );
+  }
+  if (read.closing case final c?) {
+    // Banks write what a card owes with either sign.
+    final end = owed && c > 0 ? -c : c;
+    return (
+      date: date,
+      amount: end - read.rows.fold<int>(0, (s, r) => s + r.amount) + earlier,
+      end: end,
+      endDay: read.closingDay ?? last,
+    );
+  }
+  if (typed == null) return (date: date, amount: 0, end: null, endDay: null);
+  var before = owed ? -typed : typed;
+  for (final p in plan?.rows ?? const <ImportPlanRow>[]) {
+    if (p.fate == ImportFate.add) before -= p.row.amount;
+  }
+  return (date: date, amount: before, end: null, endDay: null);
+}
+
+/// How many of [read]'s rows fall before [cut], left out of a new account.
+int rowsBefore(ReadResult read, DateTime? cut) => cut == null
+    ? 0
+    : read.rows.where((r) => dateOnly(r.date).isBefore(cut)).length;

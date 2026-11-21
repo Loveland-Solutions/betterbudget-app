@@ -429,11 +429,16 @@ class PhoneImport extends PhoneRowAct {
     required this.plan,
     required this.uncategorized,
     this.moveOpening,
+    this.start,
     this.mapping,
   });
   final int account;
   final List<ImportPlanRow> plan;
   final ({DateTime date, int amount})? moveOpening;
+
+  /// A new account's opening balance, from its file: the day before its
+  /// first row coming in and what it held then.
+  final ({DateTime date, int amount})? start;
 
   /// Not categorized's name in the language showing, for the category the
   /// rows no payee files go to when the ledger has none yet.
@@ -1836,6 +1841,7 @@ Future<PhoneActed> actOnImport(
     accountId: act.account,
     plan: act.plan,
     moveOpening: act.moveOpening,
+    start: act.start,
     today: dateOnly(now),
     uncategorizedNames: {act.uncategorized, ...uncategorizedNames}.toList(),
   );

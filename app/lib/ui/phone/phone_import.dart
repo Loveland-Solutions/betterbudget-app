@@ -17,27 +17,35 @@ const _importSnackTime = Duration(seconds: 15);
 
 /// **Import transactions…** in [account]'s header: the phone's own file
 /// picker, then the page; after an import, says what it did with an Undo.
-Future<void> _openImport(
+/// Whether rows came in.
+Future<bool> _openImport(
   BuildContext context, {
   required PhoneStore store,
   required AccountInfo account,
+  required DateTime today,
 }) async {
   // One at a time, and the folder isn't looked at meanwhile: rows arriving
   // under the page would make its counts untrue (as the computer holds the
   // folder under its import window).
-  if (store.importing.value) return;
+  if (store.importing.value) return false;
   store.importing.value = true;
   try {
-    await _pickAndImport(context, store: store, account: account);
+    return await _pickAndImport(
+      context,
+      store: store,
+      account: account,
+      today: dateOnly(today),
+    );
   } finally {
     store.importing.value = false;
   }
 }
 
-Future<void> _pickAndImport(
+Future<bool> _pickAndImport(
   BuildContext context, {
   required PhoneStore store,
   required AccountInfo account,
+  required DateTime today,
 }) async {
   final t = context.t;
   final messenger = ScaffoldMessenger.of(context);
@@ -61,11 +69,11 @@ Future<void> _pickAndImport(
   } catch (e) {
     debugPrint('The phone\'s file picker failed: $e');
     say(t.ledgerCouldntOpenFileDialog);
-    return;
+    return false;
   }
-  if (picked == null || !context.mounted) return;
+  if (picked == null || !context.mounted) return false;
   final data = store.snapshot.data;
-  if (data == null) return;
+  if (data == null) return false;
   final saved = SavedMapping.decode(
     data.prefs[AppDatabase.importMappingKey(account.id)],
   );
@@ -81,16 +89,20 @@ Future<void> _pickAndImport(
           ? t.importCouldntReadDamaged(picked.name)
           : t.importCouldntRead(picked.name),
     );
-    return;
+    return false;
   }
   if (!opened.fits && !opened.mapping.hasDate) {
     say(t.importNoDates(picked.name));
-    return;
+    return false;
   }
-  if (!context.mounted) return;
+  if (!context.mounted) return false;
   // What an earlier try said has no place over the page.
   messenger.hideCurrentSnackBar();
   final name = picked.name;
+  // Nothing in it yet: the file answers what was in it, as the computer's
+  // "Or import a file from your bank" does (owner, 2026-10-06).
+  final register = data.registerFor(account.id);
+  final starting = register.posted.isEmpty && register.scheduled.isEmpty;
   final done = await Navigator.of(context).push(
     MaterialPageRoute<_Imported>(
       builder: (_) => _ImportPage(
@@ -98,10 +110,15 @@ Future<void> _pickAndImport(
         account: account,
         fileName: name,
         opened: opened,
+        starting: starting,
+        today: today,
+        periodStart: starting
+            ? budgetPeriod(today, data.periodSchedule).start
+            : null,
       ),
     ),
   );
-  if (done == null) return;
+  if (done == null) return false;
   messenger
     ..hideCurrentSnackBar()
     ..showSnackBar(
@@ -127,6 +144,7 @@ Future<void> _pickAndImport(
         ),
       ),
     );
+  return true;
 }
 
 /// The picker's copy of the file, in the app's own folder, is deleted once
@@ -151,11 +169,22 @@ class _ImportPage extends StatefulWidget {
     required this.account,
     required this.fileName,
     required this.opened,
+    required this.today,
+    this.starting = false,
+    this.periodStart,
   });
   final PhoneStore store;
   final AccountInfo account;
   final String fileName;
   final OpenedBankFile opened;
+  final DateTime today;
+
+  /// An account with nothing in it yet: what the file says it held before
+  /// its first row becomes the opening balance, and its rows come in from
+  /// [periodStart], the budget period's first day, unless the person picks
+  /// another (owner, 2026-10-06).
+  final bool starting;
+  final DateTime? periodStart;
 
   @override
   State<_ImportPage> createState() => _ImportPageState();
@@ -185,6 +214,38 @@ class _ImportPageState extends State<_ImportPage> {
   /// The ledger the plan was worked out against.
   LedgerData? _plannedOn;
 
+  /// The account still has nothing in it. Rows another computer made in
+  /// it, brought in while the page is open, end that: its file then can't
+  /// start it a second time.
+  late bool _starting = widget.starting;
+  bool get _stillEmpty {
+    final r = widget.store.snapshot.data?.registerFor(_a.id);
+    return r == null || (r.posted.isEmpty && r.scheduled.isEmpty);
+  }
+
+  /// A new account: the day its rows come in from, set once the file is
+  /// read, and what's in it today, typed when the file gives no balance.
+  DateTime? _from;
+  final _todayHeld = TextEditingController();
+  final _todayFocus = FocusNode(debugLabel: 'import-today');
+  bool _todayTried = false;
+
+  (DateTime, DateTime)? get _span => fileSpan(_read);
+  DateTime? get _cut => _starting ? startCut(_span, _from) : null;
+  int? get _todayTyped => parseAmount(_todayHeld.text, _a.currency);
+  bool get _todayWrong =>
+      _todayHeld.text.trim().isNotEmpty && _todayTyped == null;
+
+  ImportStart? get _start => _starting
+      ? importStart(
+          read: _read,
+          plan: _plan,
+          cut: _cut,
+          owed: _owed,
+          typed: _todayTyped,
+        )
+      : null;
+
   @override
   void initState() {
     super.initState();
@@ -195,6 +256,8 @@ class _ImportPageState extends State<_ImportPage> {
   @override
   void dispose() {
     widget.store.removeListener(_ledgerMoved);
+    _todayHeld.dispose();
+    _todayFocus.dispose();
     super.dispose();
   }
 
@@ -204,6 +267,7 @@ class _ImportPageState extends State<_ImportPage> {
   void _ledgerMoved() {
     if (_busy || !mounted) return;
     if (identical(widget.store.snapshot.data, _plannedOn)) return;
+    if (_starting && !_stillEmpty) _starting = false;
     unawaited(_reread());
   }
 
@@ -219,12 +283,27 @@ class _ImportPageState extends State<_ImportPage> {
       _failed = null;
     });
     if (read == null) return;
+    if (_starting && _from == null) {
+      if (fileSpan(read) case final span?) {
+        _from = startDayFor(span, widget.periodStart);
+      }
+    }
+    final cut = _cut;
+    // Keys are numbered over the whole file, so they're the same whatever
+    // day the rows come in from.
+    final keys = importKeys(_a.id, read.rows);
     final ImportPlan plan;
     try {
       plan = await widget.store.planImport(
         _a.id,
-        read.rows,
-        importKeys(_a.id, read.rows),
+        [
+          for (final r in read.rows)
+            if (cut == null || !dateOnly(r.date).isBefore(cut)) r,
+        ],
+        [
+          for (final (i, r) in read.rows.indexed)
+            if (cut == null || !dateOnly(r.date).isBefore(cut)) keys[i],
+        ],
       );
     } catch (e) {
       debugPrint('Planning an import on the phone failed: $e');
@@ -260,13 +339,25 @@ class _ImportPageState extends State<_ImportPage> {
   Future<void> _import() async {
     final plan = _plan, read = _read;
     if (plan == null || read == null || _toWrite == 0 || _busy) return;
+    if (_todayWrong) {
+      setState(() => _todayTried = true);
+      return _todayFocus.requestFocus();
+    }
     final t = context.t;
     final check = read.check;
+    if (_starting && !_stillEmpty) {
+      // Rows came into it since the plan: worked out again as an account
+      // that has some, before anything is written.
+      _starting = false;
+      return _reread();
+    }
+    final start = _start;
     final act = PhoneImport(
       _a.id,
       plan: plan.rows,
       uncategorized: t.importUncategorized,
       moveOpening: _openingMove,
+      start: start == null ? null : (date: start.date, amount: start.amount),
       // Remembered for the next file into this account.
       mapping: SavedMapping(
         shape: fileShape(_sheet, _mapping),
@@ -719,6 +810,12 @@ class _ImportPageState extends State<_ImportPage> {
         ),
       );
     }
+    final start = _start;
+    if (start != null) {
+      notes
+        ..add(_fromLine(t, read))
+        ..add(_startNote(t, start));
+    }
     // Said only when it doesn't add up: the line below answers the rest.
     final check = read.check;
     if (check != null && !check.ok) {
@@ -739,13 +836,16 @@ class _ImportPageState extends State<_ImportPage> {
       );
     }
     final cleared = widget.store.snapshot.data?.summaryFor(_a.id).cleared ?? 0;
-    final against = clearedAgainstBank(
-      read: read,
-      plan: plan,
-      cleared: cleared,
-      owed: _owed,
-      openingMove: _openingMove,
-    );
+    // A new account's start already says where the file ends.
+    final against = start != null
+        ? null
+        : clearedAgainstBank(
+            read: read,
+            plan: plan,
+            cleared: cleared,
+            owed: _owed,
+            openingMove: _openingMove,
+          );
     if (against != null) {
       final (:ours, :bank, :day, :held) = against;
       final heldWords = ours == bank || held.isEmpty
@@ -886,6 +986,172 @@ class _ImportPageState extends State<_ImportPage> {
           style: onest(21, weight: 700),
         ),
         for (final n in notes) ...[const SizedBox(height: 14), n],
+      ],
+    );
+  }
+
+  /// A new account: the day its rows come in from, a tap away from the
+  /// phone's day picker, how many earlier rows that leaves out, and the way
+  /// back to all of them.
+  Widget _fromLine(Words t, ReadResult read) {
+    final cut = _cut, span = _span, from = _from;
+    final left = rowsBefore(read, cut);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Material(
+          color: Mid.card,
+          borderRadius: BorderRadius.circular(14),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: const ValueKey('import-from'),
+            onTap: span == null
+                ? null
+                : () async {
+                    final last = span.$2.isAfter(widget.today)
+                        ? widget.today
+                        : span.$2;
+                    final initial = from == null || from.isBefore(span.$1)
+                        ? span.$1
+                        : from.isAfter(last)
+                        ? last
+                        : from;
+                    final d = await showDatePicker(
+                      context: context,
+                      initialDate: initial,
+                      firstDate: span.$1.isAfter(last) ? last : span.$1,
+                      lastDate: last,
+                    );
+                    if (d == null || !mounted) return;
+                    _from = dateOnly(d);
+                    unawaited(_reread());
+                  },
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 52),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Text(t.importStartFrom, style: onest(15, color: Mid.ink2)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        from == null ? '' : sayFullDate(t, from),
+                        textAlign: TextAlign.end,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: onest(16, weight: 500, tabular: true),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.chevron_right_rounded, color: Mid.ink3),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (cut != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            t.importEarlierLeftOut(left),
+            key: const ValueKey('import-earlier'),
+            style: onest(14, color: Mid.ink2),
+          ),
+          const SizedBox(height: 8),
+          _button('import-whole-file', t.importWholeFile, () {
+            if (span == null) return;
+            _from = span.$1;
+            unawaited(_reread());
+          }),
+        ],
+      ],
+    );
+  }
+
+  /// A new account: where its file says it starts and ends, or, when the
+  /// file gives no balance, the question the file couldn't answer, with a
+  /// field for it.
+  Widget _startNote(Words t, ImportStart start) {
+    final from = sayFullDate(t, start.date.add(const Duration(days: 1)));
+    if (start.end case final end?) {
+      final a = _money(_shown(start.amount)), b = _money(_shown(end));
+      final to = sayFullDate(t, start.endDay!);
+      return _note(
+        Icons.check_rounded,
+        Mid.green,
+        switch ((_cut != null, _owed)) {
+          (false, false) => t.importStartsEnds(a, from, b, to),
+          (false, true) => t.importStartsEndsOwed(a, from, b, to),
+          (true, false) => t.importStartsOn(from, a, b, to),
+          (true, true) => t.importStartsOnOwed(from, a, b, to),
+        },
+        ink: Mid.ink,
+        key: 'import-start',
+      );
+    }
+    final zero = formatRounded(0, currency: _a.currency);
+    final wrong = _todayWrong && _todayTried;
+    return Column(
+      key: const ValueKey('import-start'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _note(
+          Icons.info_outline_rounded,
+          Mid.ink,
+          t.importNoBalance(
+            _owed ? t.setupStartOwedToday : t.setupStartInToday,
+          ),
+          big: true,
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          key: const ValueKey('import-today'),
+          controller: _todayHeld,
+          focusNode: _todayFocus,
+          inputFormatters: [GroupedAmount(_a.currency)],
+          keyboardType: const TextInputType.numberWithOptions(
+            decimal: true,
+            signed: true,
+          ),
+          textInputAction: TextInputAction.done,
+          textAlign: TextAlign.end,
+          style: onest(17, weight: 500, tabular: true),
+          onChanged: (_) => setState(() => _todayTried = false),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: Mid.card,
+            hintText: zero,
+            hintStyle: onest(17, color: Mid.ink3, tabular: true),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: wrong ? Mid.coral : Mid.rule,
+                width: wrong ? 1.5 : 1,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: wrong ? Mid.coral : Mid.blue,
+                width: 1.5,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _todayWrong
+              ? t.setupCantRead(_todayHeld.text.trim())
+              : t.importNoBalanceHint(zero),
+          key: const ValueKey('import-today-says'),
+          style: onest(14, color: _todayWrong ? Mid.coral : Mid.ink2),
+        ),
       ],
     );
   }

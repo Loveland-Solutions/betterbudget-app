@@ -11,10 +11,14 @@ part of 'phone_app.dart';
 /// What an account act did: the change to undo, what to say, and the
 /// account the Ledger should show next.
 class _AccountDone {
-  const _AccountDone(this.change, this.said, {this.show});
+  const _AccountDone(this.change, this.said, {this.show, this.import = false});
   final PhoneActed change;
   final String said;
   final int? show;
+
+  /// Add account's "Or import a file from your bank": the bank's file is
+  /// opened into [show] next, and answers what was in it.
+  final bool import;
 }
 
 /// Opens Add account; the page hands back what was done.
@@ -302,10 +306,12 @@ class _NewAccountPageState extends State<_NewAccountPage>
   bool get _rateWrong =>
       _owed && _rate.text.trim().isNotEmpty && _ratePercent == null;
 
-  Future<void> _add() async {
+  /// [import]: "Or import a file from your bank", the account added with
+  /// no balance and its bank's file opened next, as on the computer.
+  Future<void> _add({bool import = false}) async {
     final t = context.t;
     if (_busy) return;
-    if (_balanceWrong || _rateWrong) {
+    if ((_balanceWrong && !import) || _rateWrong) {
       setState(() => _tried = true);
       return;
     }
@@ -326,7 +332,7 @@ class _NewAccountPageState extends State<_NewAccountPage>
       currency: _currencyChosen,
       cash: _cash,
       rate: rate,
-      balance: _balanceValue,
+      balance: import ? null : _balanceValue,
       date: _date,
     );
     setState(() => _busy = true);
@@ -336,8 +342,9 @@ class _NewAccountPageState extends State<_NewAccountPage>
       setState(() => _busy = false);
       return;
     }
-    Navigator.of(context)
-        .pop(_AccountDone(done, t.ledgerAdded(name), show: act.made));
+    Navigator.of(context).pop(
+      _AccountDone(done, t.ledgerAdded(name), show: act.made, import: import),
+    );
   }
 
   @override
@@ -516,6 +523,34 @@ class _NewAccountPageState extends State<_NewAccountPage>
                     ? t.setupStartOwedHint(zero())
                     : t.setupStartBankHint(zero()),
               ),
+              // The bank's file can answer what's in it instead (owner,
+              // 2026-10-06): offered while nothing is typed there. Cash
+              // has no file.
+              if (!_cash && _balance.text.trim().isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton(
+                      key: const ValueKey('new-account-import'),
+                      onPressed: () => _add(import: true),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(44, 44),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        foregroundColor: Mid.blue,
+                        side: BorderSide(color: Mid.blue, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        textStyle: onest(14, weight: 600),
+                      ),
+                      child: Text(t.setupStartImport),
+                    ),
+                  ),
+                ),
             ],
           ),
           bottomNavigationBar: SafeArea(
