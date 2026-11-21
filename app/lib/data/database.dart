@@ -6210,13 +6210,16 @@ class AppDatabase extends _$AppDatabase {
   /// With [adjust], a statement that doesn't match is made to: the difference
   /// is posted as a cleared "Reconcile adjustment" on the statement date,
   /// against the "Balance adjustments" account (not spending), and locked
-  /// with the rest.
+  /// with the rest. With [adjustBy], only when the difference is still that
+  /// one, the one the person was shown: a row cleared since (a tap not yet
+  /// drawn, another computer's change) and it is refused like a mismatch.
   Future<ReconcileRecord> reconcile({
     required int accountId,
     required DateTime statementDate,
     required DateTime today,
     required int balance,
     bool adjust = false,
+    int? adjustBy,
   }) => transaction(() async {
     final through = dateKey(dateOnly(statementDate));
     if (dateOnly(statementDate).isAfter(dateOnly(today))) {
@@ -6249,6 +6252,9 @@ class AppDatabase extends _$AppDatabase {
     final cleared = rows.fold(0, (s, r) => s + r.read<int>('amount_minor'));
     int? adjustmentTxnId;
     final adjustmentIds = <int>[];
+    if (adjust && adjustBy != null && balance - cleared != adjustBy) {
+      throw ReconcileMismatchException(balance - cleared);
+    }
     if (cleared != balance) {
       if (!adjust) throw ReconcileMismatchException(balance - cleared);
       adjustmentTxnId = await postTransaction(

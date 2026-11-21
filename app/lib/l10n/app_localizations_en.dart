@@ -8052,4 +8052,26 @@ class WordsEn extends Words {
   String accountToBank(String name, String before) {
     return '$name becomes a bank account. Its rows keep their amounts, and Net worth stays $before.';
   }
+
+  @override
+  String reconcileStayUncleared(int count, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count transactions through $date aren’t cleared, and stay that way.',
+      one: '1 transaction through $date isn’t cleared, and stays that way.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reconcileWorkingWillBe(String amount) {
+    return 'Working will be $amount.';
+  }
+
+  @override
+  String reconcileOwedWillBe(String amount) {
+    return 'Owed will be $amount.';
+  }
 }

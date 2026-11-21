@@ -66,6 +66,7 @@ import 'database.dart'
         NotFoundException,
         PayChange,
         PhoneTake,
+        ReconcileRecord,
         SplitPart,
         TxnSnapshot;
 import 'folder_io.dart';
@@ -373,6 +374,36 @@ class PhoneDeleteAccount extends PhoneRowAct {
 class PhoneDeleteRow extends PhoneRowAct {
   const PhoneDeleteRow(this.txn);
   final int txn;
+}
+
+/// An account reconciled against a statement (#530), as the computer's
+/// Lock does: [balance] is the statement's in the account's own sign, and
+/// with [adjustBy], the difference the person was shown, that much goes in
+/// as a Reconcile adjustment first (and nothing does when the difference is
+/// no longer that).
+class PhoneReconcile extends PhoneRowAct {
+  PhoneReconcile(
+    this.account, {
+    required this.date,
+    required this.balance,
+    this.adjustBy,
+  });
+  final int account;
+  final DateTime date;
+  final int balance;
+  final int? adjustBy;
+
+  /// What it locked, once done: the snack bar says how many.
+  ReconcileRecord? done;
+}
+
+/// The account's newest reconcile taken back, whenever it was done.
+class PhoneUndoReconcile extends PhoneRowAct {
+  PhoneUndoReconcile(this.account);
+  final int account;
+
+  /// What went back to cleared, once done.
+  ReconcileRecord? done;
 }
 
 /// An act done: the ledger after it, and what Undo and Redo do, each
@@ -1304,6 +1335,8 @@ class PhoneSync implements PhoneLedgerSource {
             return again();
           },
         );
+      case PhoneReconcile() || PhoneUndoReconcile():
+        return actOnReconcile(db, act, now, again);
     }
   }
 
@@ -1707,6 +1740,58 @@ Future<PhoneActed> actOnSpan(
       return again();
     },
   );
+}
+
+/// Reconciles an account or takes its newest reconcile back (#530), each
+/// with its undo and redo, as the computer's header does. Shared by the
+/// phone's ledger and the tests' stand-in, so there is one copy. Throws
+/// what the ledger refuses: a statement that no longer matches, a date it
+/// can't take, no reconcile to take back.
+Future<PhoneActed> actOnReconcile(
+  AppDatabase db,
+  PhoneRowAct act,
+  DateTime now,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  switch (act) {
+    case PhoneReconcile():
+      final done = await db.reconcile(
+        accountId: act.account,
+        statementDate: act.date,
+        today: now,
+        balance: act.balance,
+        adjust: act.adjustBy != null,
+        adjustBy: act.adjustBy,
+      );
+      act.done = done;
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.unreconcile(done);
+          return again();
+        },
+        redo: () async {
+          await db.relock(done);
+          return again();
+        },
+      );
+    case PhoneUndoReconcile():
+      final done = await db.unreconcileLast(act.account);
+      act.done = done;
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.relock(done);
+          return again();
+        },
+        redo: () async {
+          await db.unreconcile(done);
+          return again();
+        },
+      );
+    default:
+      throw ArgumentError('Not a reconcile: $act');
+  }
 }
 
 /// Does an account's act (#529), each with its undo and redo, as the

@@ -7796,4 +7796,25 @@ class WordsMn extends Words {
   String accountToBank(String name, String before) {
     return '$name банкны данс болно. Гүйлгээнүүдийн дүн өөрчлөгдөхгүй, цэвэр хөрөнгө $before хэвээр үлдэнэ.';
   }
+
+  @override
+  String reconcileStayUncleared(int count, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$date хүртэлх $count гүйлгээ баталгаажаагүй бөгөөд хэвээр үлдэнэ.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reconcileWorkingWillBe(String amount) {
+    return 'Үлдэгдэл $amount болно.';
+  }
+
+  @override
+  String reconcileOwedWillBe(String amount) {
+    return 'Өр $amount болно.';
+  }
 }

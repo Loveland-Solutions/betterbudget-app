@@ -1677,6 +1677,21 @@ class LedgerData {
     );
   }
 
+  /// The newest count of cash account [accountId] (#119): its day and what
+  /// was counted. Null before the first.
+  ({DateTime date, int counted})? lastCount(int accountId) {
+    RegisterRow? last;
+    for (final r in registerFor(accountId).posted) {
+      if (r.counted == null) continue;
+      if (last == null ||
+          r.date.isAfter(last.date) ||
+          (r.date == last.date && r.txnId > last.txnId)) {
+        last = r;
+      }
+    }
+    return last == null ? null : (date: last.date, counted: last.counted!);
+  }
+
   /// What the bank should show on [date] if the cleared rows are right:
   /// cleared and reconciled entries dated on or before it.
   ({int balance, int toLock}) clearedThrough(int accountId, DateTime date) {

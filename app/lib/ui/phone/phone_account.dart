@@ -33,10 +33,15 @@ class _AccountHeader extends StatefulWidget {
     required this.store,
     required this.account,
     required this.today,
+    this.onReconcile,
   });
   final PhoneStore store;
   final AccountInfo account;
   final DateTime today;
+
+  /// Starts a reconcile of this account (#530); null on a cash account,
+  /// which is counted.
+  final VoidCallback? onReconcile;
 
   @override
   State<_AccountHeader> createState() => _AccountHeaderState();
@@ -201,13 +206,53 @@ class _AccountHeaderState extends State<_AccountHeader> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              summary.reconciledOn == null
-                  ? t.planNeverReconciled
-                  : t.planLastReconciled(sayDate(t, summary.reconciledOn!)),
-              key: const ValueKey('account-reconciled'),
-              style: onest(13, color: Mid.ink2),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    summary.reconciledOn == null
+                        ? t.planNeverReconciled
+                        : t.planLastReconciled(
+                            sayDate(t, summary.reconciledOn!),
+                          ),
+                    key: const ValueKey('account-reconciled'),
+                    style: onest(13, color: Mid.ink2),
+                  ),
+                ),
+                if (widget.onReconcile != null) ...[
+                  const SizedBox(width: 8),
+                  _headerButton(
+                    'account-reconcile',
+                    t.planReconcile,
+                    widget.onReconcile!,
+                  ),
+                ],
+              ],
+            ),
+          ] else if (_phoneAccount case final cash?) ...[
+            // Cash is counted, not reconciled (#119): the newest count and
+            // Count the cash, where Reconcile is on a bank account.
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: switch (_data.lastCount(_a.id)) {
+                    null => const SizedBox.shrink(),
+                    final last => _figure(
+                      t.countHeaderCounted(sayDate(t, last.date)),
+                      formatShort(last.counted, currency: _a.currency),
+                      'account-counted',
+                    ),
+                  },
+                ),
+                const SizedBox(width: 8),
+                _headerButton(
+                  'account-count',
+                  t.countTitle,
+                  () => _openCount(context, store: widget.store, account: cash),
+                ),
+              ],
             ),
           ],
           const Divider(height: 20, thickness: 1),
@@ -332,6 +377,30 @@ class _AccountHeaderState extends State<_AccountHeader> {
       ),
     );
   }
+
+  /// The account as the count page takes it; null when it isn't a cash
+  /// account the phone can count.
+  PhoneAccount? get _phoneAccount => widget.store.snapshot.accounts
+      .where((a) => a.id == '${_a.id}' && a.cash)
+      .firstOrNull;
+
+  /// Reconcile, or Count the cash: outlined, beside the line it is about.
+  Widget _headerButton(String key, String label, VoidCallback onTap) =>
+      OutlinedButton(
+        key: ValueKey(key),
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(44, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          foregroundColor: Mid.blue,
+          side: BorderSide(color: Mid.blue, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: onest(14, weight: 600),
+        ),
+        child: Text(label),
+      );
 
   Widget _figure(String label, String value, String key) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,

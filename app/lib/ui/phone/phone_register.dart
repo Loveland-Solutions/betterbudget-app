@@ -40,6 +40,16 @@ class _RegisterState extends State<_RegisterScreen> {
   /// The row opened in place, by its entry.
   ({int txn, int entry})? _open;
 
+  /// A reconcile in progress (#530), if any.
+  _Reconciling? _rec;
+
+  /// Lock pressed twice before the first is written locks once.
+  var _locking = false;
+
+  /// The rows whose symbol was tapped and whose write isn't drawn yet: a
+  /// second tap waits for the first, and so does Lock.
+  final _ticking = <int>{};
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +63,7 @@ class _RegisterState extends State<_RegisterScreen> {
     final id = widget.store.registerRequest.value;
     if (id == null || !mounted) return;
     widget.store.registerRequest.value = null;
+    _endReconcile();
     setState(() {
       _account = id;
       _open = null;
@@ -63,6 +74,8 @@ class _RegisterState extends State<_RegisterScreen> {
   void dispose() {
     widget.store.registerRequest.removeListener(_requested);
     _search.dispose();
+    _rec?.dispose();
+    _rec = null;
     super.dispose();
   }
 
@@ -130,6 +143,16 @@ class _RegisterState extends State<_RegisterScreen> {
             : _data.accounts[_account]?.deleted == false
             ? _data.accounts[_account]
             : null;
+        if (_rec case final rec?) {
+          if (account != null &&
+              account.id == rec.accountId &&
+              !account.isCash) {
+            return _reconcileView(t, rec, account, rows.posted);
+          }
+          // Its account went, or became cash (another computer's change):
+          // nothing is left to reconcile.
+          WidgetsBinding.instance.addPostFrameCallback((_) => _endReconcile());
+        }
         final tabs = shows.length > 1 ? _tabs(t, shows, show, waiting) : null;
         final lead = account == null
             ? null
@@ -139,6 +162,9 @@ class _RegisterState extends State<_RegisterScreen> {
                     store: widget.store,
                     account: account,
                     today: widget.now(),
+                    onReconcile: account.isCash
+                        ? null
+                        : () => _startReconcile(account),
                   ),
                   ?tabs,
                 ],
@@ -152,20 +178,364 @@ class _RegisterState extends State<_RegisterScreen> {
                 Expanded(child: _list(t, shown, lead: lead)),
               ],
             ),
-            Positioned(
-              right: 16,
-              bottom: 16,
-              child: FloatingActionButton.extended(
-                key: const ValueKey('add-transaction'),
-                backgroundColor: Mid.fill,
-                foregroundColor: Mid.onFill,
-                onPressed: widget.onAdd,
-                icon: const Icon(Icons.add_rounded),
-                label: Text(t.ledgerAdd, style: onest(16, weight: 600)),
-              ),
-            ),
+            Positioned(right: 16, bottom: 16, child: _addButton(t)),
           ],
         );
+      },
+    );
+  }
+
+  Widget _addButton(Words t) => FloatingActionButton.extended(
+    key: const ValueKey('add-transaction'),
+    backgroundColor: Mid.fill,
+    foregroundColor: Mid.onFill,
+    onPressed: widget.onAdd,
+    icon: const Icon(Icons.add_rounded),
+    label: Text(t.ledgerAdd, style: onest(16, weight: 600)),
+  );
+
+  // ---------- reconcile (#530) ----------
+
+  void _startReconcile(AccountInfo account) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    final session = _Reconciling(
+      accountId: account.id,
+      date: dateOnly(widget.now()),
+    );
+    // Off by follows the number as it's typed.
+    void again() {
+      if (mounted && _rec == session) setState(() {});
+    }
+
+    session.balance.addListener(again);
+    // The way out of a difference is offered once the number is typed.
+    session.focus.addListener(again);
+    setState(() {
+      _rec?.dispose();
+      _rec = session;
+      _open = null;
+      _searching = false;
+      _search.clear();
+    });
+    widget.store.reconciling.value = true;
+  }
+
+  void _endReconcile() {
+    final s = _rec;
+    if (s == null) return;
+    if (mounted) setState(() => _rec = null);
+    widget.store.reconciling.value = false;
+    // The card's field still holds the controller until this frame ends.
+    WidgetsBinding.instance.addPostFrameCallback((_) => s.dispose());
+  }
+
+  /// The account's rows while it is reconciled: the card stays put and the
+  /// rows not yet reconciled through the statement's date scroll under it.
+  Widget _reconcileView(
+    Words t,
+    _Reconciling rec,
+    AccountInfo account,
+    List<RegisterRow> posted,
+  ) {
+    final data = _data;
+    final today = dateOnly(widget.now());
+    final cleared = data.clearedThrough(account.id, rec.date);
+    final statement = rec.statement(account);
+    final _ReconcileCheck check = (
+      statement: statement,
+      cleared: cleared.balance,
+      toLock: cleared.toLock,
+      hint: statement == null
+          ? null
+          : data.reconcileHint(
+              account.id,
+              rec.date,
+              statement - cleared.balance,
+            ),
+    );
+    final rows = posted.reversed
+        .where(
+          (r) => r.cleared != Cleared.reconciled && !r.date.isAfter(rec.date),
+        )
+        .toList();
+    final last = data.summaryFor(account.id).reconciledOn;
+    Future<void> pickDate() async {
+      // Not before the last statement, not after today: the ledger takes
+      // neither.
+      final first = last != null && !last.isAfter(today)
+          ? last
+          : DateTime(2000);
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: rec.date.isBefore(first) ? first : rec.date,
+        firstDate: first,
+        lastDate: today,
+      );
+      if (picked == null || !mounted || _rec != rec) return;
+      setState(() => rec.date = dateOnly(picked));
+    }
+
+    return PopScope(
+      // Back leaves the reconcile, not the app.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _endReconcile();
+      },
+      child: Column(
+        children: [
+          _top(t, reconciling: account),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, box) => Column(
+                children: [
+                  // The card stays in view while rows are cleared; on a screen the
+                  // keyboard has left too short for it, it scrolls in its own box.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: box.maxHeight * 0.62,
+                    ),
+                    child: SingleChildScrollView(
+                      child: _ReconcileCard(
+                        session: rec,
+                        account: account,
+                        check: check,
+                        onPickDate: () => unawaited(pickDate()),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    // A row the bank shows and the ledger lacks is added
+                    // from here, the reconcile kept as it is, as on the
+                    // computer.
+                    child: Stack(
+                      children: [
+                        _list(
+                          t,
+                          rows,
+                          reconciling: true,
+                          lead: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 30, 0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    t.rowsNotReconciledThrough(
+                                      sayDate(t, rec.date),
+                                    ),
+                                    key: const ValueKey('reconcile-through'),
+                                    style: onest(13, color: Mid.ink2),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  t.rowsColumnClearedBalance,
+                                  style: onest(13, color: Mid.ink2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Positioned(right: 16, bottom: 12, child: _addButton(t)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          _ReconcileBar(
+            account: account,
+            check: check,
+            onCancel: _endReconcile,
+            onLock: () => unawaited(_lock(account, rec, check)),
+            onAdjust: () => unawaited(_adjust(account, rec, check, rows)),
+            typing: rec.focus.hasFocus,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A row's symbol tapped while reconciling: cleared, or back to uncleared.
+  /// The symbol changing is the confirmation; a second tap takes it back.
+  Future<void> _tick(RegisterRow r) async {
+    if (_locking || !_ticking.add(r.entryId)) return;
+    final t = context.t;
+    // As the ledger has it now, not as the row was drawn.
+    final now =
+        _data
+            .registerFor(r.accountId)
+            .posted
+            .where((x) => x.entryId == r.entryId)
+            .firstOrNull
+            ?.cleared ??
+        r.cleared;
+    final to = now == Cleared.uncleared ? Cleared.cleared : Cleared.uncleared;
+    try {
+      await widget.store.actRow(PhoneMarkCleared(r.entryId, to));
+    } on DbException catch (e) {
+      _say(dbProblem(t, e));
+    } catch (e) {
+      debugPrint('Clearing a row while reconciling failed: $e');
+      _say(t.ledgerCouldntSave);
+    } finally {
+      _ticking.remove(r.entryId);
+    }
+  }
+
+  /// The difference added as an adjustment, then locked. While rows through
+  /// the statement's date are still uncleared, what that does is said first,
+  /// with the numbers: on a phone most rows start uncleared, and an
+  /// adjustment for all of them leaves the balance wrong by as much.
+  Future<void> _adjust(
+    AccountInfo account,
+    _Reconciling rec,
+    _ReconcileCheck c,
+    List<RegisterRow> rows,
+  ) async {
+    final statement = c.statement;
+    if (statement == null) return;
+    final waiting = rows.where((r) => r.cleared == Cleared.uncleared).length;
+    if (waiting > 0) {
+      final t = context.t;
+      final off = statement - c.cleared;
+      final after = _data.summaryFor(account.id).working + off;
+      String money(int v) => formatShort(v, currency: account.currency);
+      final bankOff = account.isOwed ? -off : off;
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          key: const ValueKey('reconcile-adjust-ask'),
+          backgroundColor: Mid.panel,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                t.reconcileStayUncleared(waiting, sayDate(t, rec.date)),
+                style: onest(15),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                account.isOwed
+                    ? t.reconcileOwedWillBe(money(-after))
+                    : t.reconcileWorkingWillBe(money(after)),
+                style: onest(15),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey('reconcile-adjust-ask-cancel'),
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(t.rowsCancel),
+            ),
+            TextButton(
+              key: const ValueKey('reconcile-adjust-ask-go'),
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Mid.blue),
+              child: Text(switch ((account.isOwed, bankOff > 0)) {
+                (false, true) => t.rowsAdjustUpAndLock(money(bankOff)),
+                (false, false) => t.rowsAdjustDownAndLock(money(-bankOff)),
+                (true, true) => t.rowsAdjustOwedUpAndLock(money(bankOff)),
+                (true, false) => t.rowsAdjustOwedDownAndLock(money(-bankOff)),
+              }, textAlign: TextAlign.end),
+            ),
+          ],
+        ),
+      );
+      if (go != true || !mounted || _rec != rec) return;
+    }
+    await _lock(account, rec, c, adjust: true);
+  }
+
+  /// Locks the statement; with [adjust], the difference goes in as a
+  /// Reconcile adjustment first.
+  Future<void> _lock(
+    AccountInfo account,
+    _Reconciling rec,
+    _ReconcileCheck c, {
+    bool adjust = false,
+  }) async {
+    final statement = c.statement;
+    // A tick still being written would change the sum this was pressed on.
+    if (statement == null || _locking || _ticking.isNotEmpty) return;
+    final t = context.t;
+    final store = widget.store;
+    final act = PhoneReconcile(
+      account.id,
+      date: rec.date,
+      balance: statement,
+      // Only the difference that was on the button.
+      adjustBy: adjust ? statement - c.cleared : null,
+    );
+    final PhoneActed done;
+    _locking = true;
+    try {
+      done = await store.actRow(act);
+    } on ReconcileMismatchException {
+      _say(t.ledgerClearedRowsChanged);
+      return;
+    } on ReconcileDateException catch (e) {
+      _say(dbProblem(t, e));
+      return;
+    } catch (e) {
+      debugPrint('Locking a reconcile on the phone failed: $e');
+      _say(t.ledgerCouldntSave);
+      return;
+    } finally {
+      _locking = false;
+    }
+    if (!mounted) return;
+    _endReconcile();
+    final record = act.done;
+    if (record == null) return;
+    final n = record.entryIds.length - (record.adjustmentTxnId == null ? 0 : 1);
+    final off = statement - c.cleared;
+    final shownOff = account.isOwed ? -off : off;
+    // The computer's toast, in its words.
+    final said = [
+      t.ledgerReconciledThrough(account.name, sayDate(t, rec.date)),
+      if (n != 0) t.ledgerLocked(n),
+      if (record.adjustmentTxnId != null)
+        t.ledgerAdjustmentAdded(
+          formatShort(shownOff.abs(), currency: account.currency),
+        ),
+    ].join(' · ');
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          persist: false,
+          duration: phoneSnackTime,
+          key: const ValueKey('reconcile-locked'),
+          backgroundColor: Mid.raised,
+          content: Text(said, style: onest(15, color: Mid.ink)),
+          action: SnackBarAction(
+            label: t.ledgerUndo,
+            textColor: Mid.blue,
+            onPressed: () => unawaited(store.replay(done.undo)),
+          ),
+        ),
+      );
+  }
+
+  /// Undo this reconcile, on a row its account's newest reconcile locked:
+  /// that reconcile's rows go back to cleared, whenever it was done.
+  Future<void> _unreconcile(RegisterRow r) {
+    final t = context.t;
+    final act = PhoneUndoReconcile(r.accountId);
+    return _act(
+      r,
+      act,
+      '',
+      said: (e) => e is DbException ? dbProblem(t, e) : t.ledgerCouldntSave,
+      then: (_) {
+        final record = act.done;
+        if (record == null) return t.rowsUndoThisReconcile;
+        final label = t.ledgerReconcileUndone(sayDate(t, record.date));
+        final n = record.entryIds.length;
+        return n == 0 ? label : '$label · ${t.ledgerBackToCleared(n)}';
       },
     );
   }
@@ -183,7 +553,30 @@ class _RegisterState extends State<_RegisterScreen> {
     if (left && mounted) setState(() => _account = null);
   }
 
-  Widget _top(Words t) {
+  Widget _top(Words t, {AccountInfo? reconciling}) {
+    // While reconciling the account can't be changed and nothing is searched:
+    // its name alone.
+    if (reconciling != null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: SizedBox(
+          height: 48,
+          child: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  reconciling.name,
+                  key: const ValueKey('reconcile-account'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(22, weight: 600, color: Mid.ink),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final accounts = widget.store.snapshot.accounts;
     final chosen = accounts
         .where((a) => a.id == '${_account ?? ''}')
@@ -329,7 +722,12 @@ class _RegisterState extends State<_RegisterScreen> {
     );
   }
 
-  Widget _list(Words t, List<RegisterRow> rows, {Widget? lead}) {
+  Widget _list(
+    Words t,
+    List<RegisterRow> rows, {
+    Widget? lead,
+    bool reconciling = false,
+  }) {
     if (rows.isEmpty) {
       return lead == null
           ? const SizedBox.shrink()
@@ -368,17 +766,21 @@ class _RegisterState extends State<_RegisterScreen> {
           ),
         );
       }
-      children.add(_row(t, r));
+      children.add(_row(t, r, reconciling: reconciling));
     }
     return ListView(
       key: const ValueKey('register-list'),
       // Room for Add under the last row.
       padding: const EdgeInsets.only(bottom: 88),
+      // While reconciling, a drag puts the keyboard away.
+      keyboardDismissBehavior: reconciling
+          ? ScrollViewKeyboardDismissBehavior.onDrag
+          : ScrollViewKeyboardDismissBehavior.manual,
       children: children,
     );
   }
 
-  Widget _row(Words t, RegisterRow r) {
+  Widget _row(Words t, RegisterRow r, {bool reconciling = false}) {
     final key = (txn: r.txnId, entry: r.entryId);
     final open = _open == key;
     final all = _account == null;
@@ -404,16 +806,60 @@ class _RegisterState extends State<_RegisterScreen> {
             borderRadius: BorderRadius.circular(12),
             onTap: () => setState(() => _open = open ? null : key),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: reconciling
+                  ? const EdgeInsets.fromLTRB(4, 6, 14, 6)
+                  : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 44),
                 child: Row(
                   children: [
-                    StatusGlyph(
-                      r.cleared,
-                      color: r.cleared == Cleared.reconciled ? Mid.gold : null,
-                    ),
-                    const SizedBox(width: 12),
+                    if (reconciling)
+                      // The symbol is the button here: a tap clears the row
+                      // or takes that back; the rest of the row still opens.
+                      Semantics(
+                        button: true,
+                        label: r.cleared == Cleared.uncleared
+                            ? t.rowsMarkCleared
+                            : t.rowsMarkUncleared,
+                        child: InkResponse(
+                          key: ValueKey('reconcile-tick-${r.entryId}'),
+                          onTap: () => unawaited(_tick(r)),
+                          radius: 24,
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Center(
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: Mid.raised,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Transform.scale(
+                                  scale: 1.4,
+                                  child: Center(
+                                    child: StatusGlyph(
+                                      r.cleared,
+                                      color: r.cleared == Cleared.cleared
+                                          ? Mid.ink
+                                          : null,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      StatusGlyph(
+                        r.cleared,
+                        color: r.cleared == Cleared.reconciled
+                            ? Mid.gold
+                            : null,
+                      ),
+                    SizedBox(width: reconciling ? 6 : 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -436,13 +882,40 @@ class _RegisterState extends State<_RegisterScreen> {
                     const SizedBox(width: 12),
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 140),
-                      child: Money(
-                        r.amount,
-                        currency: r.currency,
-                        size: 16,
-                        weight: 600,
-                        sign: MoneySign.plusForPositive,
-                        color: r.amount > 0 ? Mid.green : Mid.ink,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Money(
+                            r.amount,
+                            currency: r.currency,
+                            size: 16,
+                            weight: 600,
+                            sign: MoneySign.plusForPositive,
+                            color: r.amount > 0 ? Mid.green : Mid.ink,
+                          ),
+                          // The cleared balance after this row, to set
+                          // against the statement's line by line; an
+                          // uncleared row has none.
+                          if (reconciling && r.cleared != Cleared.uncleared)
+                            Shrink(
+                              Text(
+                                formatShort(
+                                  _data.accounts[r.accountId]?.isOwed == true
+                                      ? -r.clearedBalance
+                                      : r.clearedBalance,
+                                  currency: r.currency,
+                                ),
+                                key: ValueKey('reconcile-balance-${r.entryId}'),
+                                maxLines: 1,
+                                style: onest(
+                                  13,
+                                  tabular: true,
+                                  color: Mid.ink2,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ],
@@ -463,9 +936,13 @@ class _RegisterState extends State<_RegisterScreen> {
               today: widget.now(),
               onSave: (edit) => _save(r, edit),
               onConfirm: (edit, keepOwed) => _confirm(r, edit, keepOwed),
+              onUnreconcile: r.latestReconcile
+                  ? () => unawaited(_unreconcile(r))
+                  : null,
               more: _more(t, r),
             ),
-          ?_paidLine(t, r),
+          // A bill isn't asked about in the middle of a reconcile.
+          if (!reconciling) ?_paidLine(t, r),
         ],
       ),
     );
@@ -928,9 +1405,13 @@ class _RowEdit extends StatefulWidget {
     required this.onConfirm,
     required this.today,
     required this.more,
+    this.onUnreconcile,
   });
   final RegisterRow row;
   final PhoneStore store;
+
+  /// Undo this reconcile, on a row the account's newest reconcile locked.
+  final VoidCallback? onUnreconcile;
 
   /// The ⋯ button.
   final Widget more;
@@ -1340,8 +1821,31 @@ class _RowEditState extends State<_RowEdit> {
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: Text(
-                t.rowsReconciledLocked,
+                switch (_r.reconciledOn) {
+                  final on? when _r.cleared == Cleared.reconciled =>
+                    t.rowsReconciledOnLocked(sayDate(t, on)),
+                  _ => t.rowsReconciledLocked,
+                },
+                key: const ValueKey('row-locked'),
                 style: onest(13, color: Mid.ink2),
+              ),
+            ),
+          if (_locked && widget.onUnreconcile != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: OutlinedButton(
+                  key: const ValueKey('row-unreconcile'),
+                  onPressed: widget.onUnreconcile,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(44, 44),
+                    foregroundColor: Mid.ink,
+                    side: BorderSide(color: Mid.ink2),
+                    textStyle: onest(14, weight: 600),
+                  ),
+                  child: Text(t.rowsUndoThisReconcile),
+                ),
               ),
             ),
           if (_said != null)

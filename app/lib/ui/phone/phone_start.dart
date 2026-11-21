@@ -150,6 +150,10 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
 
   Future<void> _load() {
     if (_answering) return Future.value();
+    // Held while a reconcile is open, as the computer holds it (ADR 0005):
+    // rows arriving under the statement would move the sum being matched.
+    // Looked at again the moment it is locked or left.
+    if (_store?.reconciling.value ?? false) return Future.value();
     return _reading ??= _read().whenComplete(() => _reading = null);
   }
 
@@ -328,6 +332,12 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         made: kept.categories,
         counts: kept.counts,
       )..addListener(_keep);
+      final made = _store!;
+      made.reconciling.addListener(() {
+        if (!made.reconciling.value && mounted && _step == _Step.ready) {
+          unawaited(_load());
+        }
+      });
       _store!.settle = () => _keeping;
       _store!.undoTake = (take) async {
         final source = _source;

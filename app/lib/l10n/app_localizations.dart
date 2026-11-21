@@ -11168,6 +11168,24 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{name} becomes a bank account. Its rows keep their amounts, and Net worth stays {before}.'**
   String accountToBank(String name, String before);
+
+  /// The phone's reconcile, asked before a difference is added as an adjustment while rows through the statement's date are still uncleared.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 transaction through {date} isn’t cleared, and stays that way.} other{{count} transactions through {date} aren’t cleared, and stay that way.}}'**
+  String reconcileStayUncleared(int count, String date);
+
+  /// Under reconcileStayUncleared: the account's Working balance once the adjustment is in.
+  ///
+  /// In en, this message translates to:
+  /// **'Working will be {amount}.'**
+  String reconcileWorkingWillBe(String amount);
+
+  /// Under reconcileStayUncleared, on a card or loan: what is owed once the adjustment is in.
+  ///
+  /// In en, this message translates to:
+  /// **'Owed will be {amount}.'**
+  String reconcileOwedWillBe(String amount);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

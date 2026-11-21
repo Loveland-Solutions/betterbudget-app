@@ -452,6 +452,90 @@ void main() {
     expect(await there(phone.db!), isNotNull);
   });
 
+  test('a reconcile on the phone locks its rows on the computer too, and '
+      'Undo this reconcile there takes the locks off both (#530)', () async {
+    await spend('Nomin');
+    await mac.check(monday);
+    await phone.look(drive.path, monday);
+    final ledger = await phone.db!.loadLedger();
+    final row = ledger.registerAll().posted.firstWhere(
+      (r) => r.payee == 'Nomin',
+    );
+    await phone.actOnRow(
+      PhoneMarkCleared(row.entryId, Cleared.cleared),
+      tuesday,
+    );
+    final cleared = (await phone.db!.loadLedger()).clearedThrough(
+      row.accountId,
+      tuesday,
+    );
+    Future<RegisterRow> there(AppDatabase db) async => (await db.loadLedger())
+        .registerAll()
+        .posted
+        .firstWhere((r) => r.txnId == row.txnId);
+    // The demo's account already has a statement.
+    Future<int> statements(AppDatabase db) async => (await db.loadLedger())
+        .reconciliations
+        .where((r) => r.accountId == row.accountId)
+        .length;
+    final before = await statements(macDb);
+    // A statement that doesn't match is refused, as on the computer.
+    await expectLater(
+      phone.actOnRow(
+        PhoneReconcile(
+          row.accountId,
+          date: tuesday,
+          balance: cleared.balance + 100,
+        ),
+        tuesday,
+      ),
+      throwsA(isA<ReconcileMismatchException>()),
+    );
+    // An adjustment is only ever the difference the person was shown: the
+    // rows cleared since, and nothing is posted or locked.
+    await expectLater(
+      phone.actOnRow(
+        PhoneReconcile(
+          row.accountId,
+          date: tuesday,
+          balance: cleared.balance + 100,
+          adjustBy: 300,
+        ),
+        tuesday,
+      ),
+      throwsA(isA<ReconcileMismatchException>()),
+    );
+    expect((await there(phone.db!)).cleared, Cleared.cleared);
+    final act = PhoneReconcile(
+      row.accountId,
+      date: tuesday,
+      balance: cleared.balance,
+    );
+    await phone.actOnRow(act, tuesday);
+    expect(act.done!.entryIds, contains(row.entryId));
+    expect((await there(phone.db!)).cleared, Cleared.reconciled);
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect((await there(macDb)).cleared, Cleared.reconciled);
+    expect(await statements(macDb), before + 1);
+
+    // Taken back on the phone, whenever: the computer's rows are cleared
+    // again and it has no statement.
+    final back = PhoneUndoReconcile(row.accountId);
+    final undone = await phone.actOnRow(back, tuesday);
+    expect(back.done!.entryIds, contains(row.entryId));
+    expect((await there(phone.db!)).cleared, Cleared.cleared);
+    await phone.look(drive.path, tuesday);
+    await mac.check(tuesday);
+    await mac.bringIn(tuesday);
+    expect((await there(macDb)).cleared, Cleared.cleared);
+    expect(await statements(macDb), before);
+    // And its Undo locks them again.
+    await undone.undo();
+    expect((await there(phone.db!)).cleared, Cleared.reconciled);
+  });
+
   test('a category edited on the phone gets its name, plan and type as the '
       'computer\'s Edit writes them, reaches the computer, and Undo takes it '
       'back (#528)', () async {
