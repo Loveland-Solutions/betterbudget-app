@@ -3020,18 +3020,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       .fold(0, (sum, r) => sum + r.amount);
 
   /// The newest count of [accountId]: its day and what was counted.
-  ({DateTime date, int counted})? _lastCount(LedgerData data, int accountId) {
-    RegisterRow? last;
-    for (final r in data.registerFor(accountId).posted) {
-      if (r.counted == null) continue;
-      if (last == null ||
-          r.date.isAfter(last.date) ||
-          (r.date == last.date && r.txnId > last.txnId)) {
-        last = r;
-      }
-    }
-    return last == null ? null : (date: last.date, counted: last.counted!);
-  }
+  ({DateTime date, int counted})? _lastCount(LedgerData data, int accountId) =>
+      data.lastCount(accountId);
 
   /// The categories a count's difference can go to: spending first, then
   /// Income (money found), in the account's currency.

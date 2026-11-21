@@ -481,6 +481,8 @@ class _ActingSource {
           PhoneArchiveAccount() ||
           PhoneDeleteAccount():
         return actOnAccount(db, act, now(), _after);
+      case PhoneReconcile() || PhoneUndoReconcile():
+        return actOnReconcile(db, act, now(), _after);
       case PhoneMoveRow() ||
           PhoneNoBill() ||
           PhoneBillPaid() ||
@@ -1677,6 +1679,435 @@ void main() {
       expect(data.prefs['forecast.span'], 'days90');
     },
   );
+
+  group('reconcile on the phone (#530)', () {
+    /// A bank account, Statement, with ₮100,000 in and ₮30,000 out cleared
+    /// and ₮8,000 out not cleared: ₮70,000 cleared here.
+    Future<({AppDatabase db, int bank, int cash})> ledger(
+      WidgetTester tester,
+    ) async {
+      late AppDatabase db;
+      late int bank, cash;
+      await tester.runAsync(() async {
+        db = AppDatabase(NativeDatabase.memory());
+        await seedDemoIfEmpty(db, _now);
+        bank = await db.addAccount(name: 'Statement', type: AccountType.asset);
+        cash = await db.createAccount(
+          name: 'Pocket',
+          type: AccountType.asset,
+          currency: Currency.mnt,
+          cash: true,
+        );
+        final food = await db.createCategory('Food');
+        Future<int> row(int day, String payee, int amount, Cleared c) =>
+            db.postTransaction(
+              date: DateTime(2026, 10, day),
+              payee: payee,
+              lines: [
+                (accountId: bank, amount: amount, cleared: c),
+                (accountId: food, amount: -amount, cleared: Cleared.uncleared),
+              ],
+            );
+        await row(1, 'Pay', 10000000, Cleared.cleared);
+        await row(2, 'Nomin', -3000000, Cleared.cleared);
+        await row(3, 'Unitel', -800000, Cleared.uncleared);
+        await db.postTransaction(
+          date: DateTime(2026, 10, 4),
+          payee: 'Taxi',
+          lines: [
+            (accountId: cash, amount: -500000, cleared: Cleared.uncleared),
+            (accountId: food, amount: 500000, cleared: Cleared.uncleared),
+          ],
+        );
+        await db.postCount(
+          accountId: cash,
+          date: DateTime(2026, 10, 5),
+          counted: 2000000,
+          categoryId: food,
+        );
+      });
+      addTearDown(() => tester.runAsync(db.close));
+      return (db: db, bank: bank, cash: cash);
+    }
+
+    /// Types the bank's balance and puts the keyboard away, as Done does.
+    /// The Food category's id.
+    int data0(LedgerData d) =>
+        d.categories.firstWhere((c) => c.name == 'Food').id;
+
+    Future<void> typeBalance(WidgetTester tester, String typed) async {
+      await tester.enterText(
+        find.byKey(const ValueKey('reconcile-balance')),
+        typed,
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+    }
+
+    testWidgets('Reconcile in the header: the bank\'s balance typed, a row '
+        'cleared by its symbol until it matches, Lock with Undo, and Undo '
+        'this reconcile on a locked row', (tester) async {
+      final made = await ledger(tester);
+      final db = made.db, bank = made.bank;
+      late LedgerData data;
+      await tester.runAsync(() async => data = await db.loadLedger());
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+      );
+      final source = _ActingSource(db, () => _now, (d) => data = d);
+      store.actRowIn = (act) => source.act(act);
+      Future<void> settle() async {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 300)),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      List<RegisterRow> rows() => data.registerFor(bank).posted;
+      store.registerRequest.value = bank;
+      await tester.pumpAndSettle();
+      expect(find.text('Never reconciled'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('account-reconcile')));
+      await tester.pumpAndSettle();
+      // The card takes the header's place, and Cancel and Lock the tabs'.
+      expect(find.byKey(ValueKey('reconcile-card-$bank')), findsOneWidget);
+      expect(find.byKey(ValueKey('account-header-$bank')), findsNothing);
+      expect(find.byKey(const ValueKey('to-budget')), findsNothing);
+      // Nothing typed: the bank's number is asked for, and nothing locks.
+      expect(find.text('Not the “available” balance'), findsOneWidget);
+      expect(find.text('Not reconciled, through 10.07'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const ValueKey('reconcile-lock')))
+            .onPressed,
+        isNull,
+      );
+      // While the number is being typed no way out is offered: every digit
+      // on the way is a difference.
+      await tester.enterText(
+        find.byKey(const ValueKey('reconcile-balance')),
+        '62',
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('reconcile-adjust')), findsNothing);
+      expect(find.byKey(const ValueKey('reconcile-lock')), findsOneWidget);
+      await typeBalance(tester, '62000');
+      expect(find.text('Bank is lower'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('reconcile-off'))).data,
+        '₮8,000',
+      );
+      expect(
+        find.text('Unitel on 10.03 is ₮8,000 and isn’t cleared'),
+        findsOneWidget,
+      );
+      // Not matching: the way out is named, with its amount.
+      expect(find.text('Take ₮8,000 off the balance and lock'), findsOneWidget);
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_reconcile.png'),
+      );
+      // A cleared row says the cleared balance after it; an uncleared one
+      // has none until its symbol is tapped.
+      final unitel = rows().firstWhere((r) => r.txnPayee == 'Unitel');
+      expect(
+        find.byKey(ValueKey('reconcile-balance-${unitel.entryId}')),
+        findsNothing,
+      );
+      await tester.tap(
+        find.byKey(ValueKey('reconcile-tick-${unitel.entryId}')),
+      );
+      await settle();
+      expect(
+        find.byKey(ValueKey('reconcile-balance-${unitel.entryId}')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('reconcile-matches')), findsOneWidget);
+      // No snack bar for a tick: the symbol changing says it.
+      expect(find.byKey(const ValueKey('row-acted')), findsNothing);
+      // A second tap takes it back, and a third clears it again.
+      await tester.tap(
+        find.byKey(ValueKey('reconcile-tick-${unitel.entryId}')),
+      );
+      await settle();
+      expect(find.byKey(const ValueKey('reconcile-matches')), findsNothing);
+      expect(find.byKey(const ValueKey('row-refused')), findsNothing);
+      await tester.tap(
+        find.byKey(ValueKey('reconcile-tick-${unitel.entryId}')),
+      );
+      await settle();
+      expect(find.byKey(const ValueKey('reconcile-matches')), findsOneWidget);
+      // Add is still there, for a row the bank shows and the ledger lacks.
+      expect(find.byKey(const ValueKey('add-transaction')), findsOneWidget);
+      expect(find.text('Lock 3 transactions'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('reconcile-lock')));
+      await settle();
+      expect(rows().every((r) => r.cleared == Cleared.reconciled), isTrue);
+      expect(
+        find.text('Statement reconciled through 10.07 · 3 locked'),
+        findsOneWidget,
+      );
+      // The header and the tabs are back.
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+      expect(find.text('Last reconciled on 10.07'), findsOneWidget);
+      // Its Undo takes the locks off.
+      await tester.tap(find.text('Undo'));
+      await settle();
+      expect(rows().every((r) => r.cleared == Cleared.cleared), isTrue);
+      expect(find.text('Never reconciled'), findsOneWidget);
+
+      // Locked again, then taken back from a locked row, whenever.
+      await tester.tap(find.byKey(const ValueKey('account-reconcile')));
+      await tester.pumpAndSettle();
+      await typeBalance(tester, '62000');
+      await tester.tap(find.byKey(const ValueKey('reconcile-lock')));
+      await settle();
+      expect(rows().every((r) => r.cleared == Cleared.reconciled), isTrue);
+      ScaffoldMessenger.of(tester.element(find.byType(Scaffold).first))
+          .hideCurrentSnackBar();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nomin'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Reconciled on 10.07 · date and amount locked'),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(find.byKey(const ValueKey('row-unreconcile')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('row-unreconcile')));
+      await settle();
+      expect(rows().every((r) => r.cleared == Cleared.cleared), isTrue);
+      expect(
+        find.text('Reconcile of 10.07 undone · 3 rows back to cleared'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a difference nobody can find goes in as an adjustment, and '
+        'Cancel leaves the reconcile with the rows as they are', (
+      tester,
+    ) async {
+      final made = await ledger(tester);
+      final db = made.db, bank = made.bank;
+      late LedgerData data;
+      await tester.runAsync(() async => data = await db.loadLedger());
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+      );
+      final source = _ActingSource(db, () => _now, (d) => data = d);
+      store.actRowIn = (act) => source.act(act);
+      Future<void> settle() async {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 300)),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      store.registerRequest.value = bank;
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('account-reconcile')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('reconcile-cancel')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey('account-header-$bank')), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+      // Back leaves the reconcile too, not the app.
+      await tester.tap(find.byKey(const ValueKey('account-reconcile')));
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey('account-header-$bank')), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('account-reconcile')));
+      await tester.pumpAndSettle();
+      await typeBalance(tester, '75000');
+      expect(find.text('Bank is higher'), findsOneWidget);
+      // No one row is ₮5,000.
+      expect(find.text('Clear the rows your bank shows'), findsOneWidget);
+      // Unitel is still uncleared: what the adjustment does is said first,
+      // with the numbers, and Cancel leaves everything as it is.
+      await tester.tap(find.byKey(const ValueKey('reconcile-adjust')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          '1 transaction through 10.07 isn’t cleared, and stays that way.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Working will be ₮67,000.'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('reconcile-adjust-ask-cancel')),
+      );
+      await tester.pumpAndSettle();
+      expect(data.registerFor(bank).posted, hasLength(3));
+      expect(find.byKey(ValueKey('reconcile-card-$bank')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('reconcile-adjust')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('reconcile-adjust-ask-go')));
+      await settle();
+      expect(
+        find.text(
+          'Statement reconciled through 10.07 · 2 locked · '
+          '₮5,000 adjustment added',
+        ),
+        findsOneWidget,
+      );
+      final rows = data.registerFor(bank).posted;
+      expect(rows, hasLength(4));
+      expect(rows.where((r) => r.cleared == Cleared.reconciled), hasLength(3));
+      expect(data.summaryFor(bank).cleared, 7500000);
+      await tester.tap(find.text('Undo'));
+      await settle();
+      expect(data.registerFor(bank).posted, hasLength(3));
+      expect(data.summaryFor(bank).cleared, 7000000);
+    });
+
+    testWidgets('the reconcile fits a small phone with large text', (
+      tester,
+    ) async {
+      final made = await ledger(tester);
+      late LedgerData data;
+      await tester.runAsync(() async => data = await made.db.loadLedger());
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+        size: const Size(360, 640),
+      );
+      store.registerRequest.value = made.bank;
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('account-reconcile')));
+      await tester.pumpAndSettle();
+      // The long way out, on two lines, and the hint under the card's sum.
+      // With the keyboard up there is still room for the bar.
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.enterText(
+        find.byKey(const ValueKey('reconcile-balance')),
+        '62000',
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const ValueKey('reconcile-cancel')), findsOneWidget);
+      tester.view.resetViewInsets();
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('reconcile-adjust')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a card is reconciled by what the bank says is owed', (
+      tester,
+    ) async {
+      final made = await ledger(tester);
+      final db = made.db;
+      late LedgerData data;
+      late int card;
+      await tester.runAsync(() async {
+        card = await db.addAccount(name: 'Card', type: AccountType.liability);
+        final food = data0(await db.loadLedger());
+        Future<int> row(int day, String payee, int amount, Cleared c) =>
+            db.postTransaction(
+              date: DateTime(2026, 10, day),
+              payee: payee,
+              lines: [
+                (accountId: card, amount: amount, cleared: c),
+                (accountId: food, amount: -amount, cleared: Cleared.uncleared),
+              ],
+            );
+        // ₮40,000 spent and cleared, ₮6,000 spent and not: ₮40,000 owed.
+        await row(1, 'Emart', -4000000, Cleared.cleared);
+        await row(2, 'Shell', -600000, Cleared.uncleared);
+        data = await db.loadLedger();
+      });
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+      );
+      final source = _ActingSource(db, () => _now, (d) => data = d);
+      store.actRowIn = (act) => source.act(act);
+      Future<void> settle() async {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 300)),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      store.registerRequest.value = card;
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('account-reconcile')));
+      await tester.pumpAndSettle();
+      expect(find.text('Bank says you owe'), findsOneWidget);
+      // What is owed is typed as the bank shows it, positive.
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('reconcile-cleared')))
+            .data,
+        '₮40,000',
+      );
+      await typeBalance(tester, '46000');
+      expect(find.text('Bank says you owe more'), findsOneWidget);
+      expect(
+        find.text('Shell on 10.02 is ₮6,000 and isn’t cleared'),
+        findsOneWidget,
+      );
+      expect(find.text('Add ₮6,000 to what you owe and lock'), findsOneWidget);
+      final shell = data
+          .registerFor(card)
+          .posted
+          .firstWhere((r) => r.txnPayee == 'Shell');
+      await tester.tap(find.byKey(ValueKey('reconcile-tick-${shell.entryId}')));
+      await settle();
+      // The cleared balance after it, as owed.
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(ValueKey('reconcile-balance-${shell.entryId}')),
+            )
+            .data,
+        '₮46,000',
+      );
+      await tester.tap(find.byKey(const ValueKey('reconcile-lock')));
+      await settle();
+      expect(
+        data
+            .registerFor(card)
+            .posted
+            .every((r) => r.cleared == Cleared.reconciled),
+        isTrue,
+      );
+      expect(data.reconciliations.last.balance, -4600000);
+    });
+
+    testWidgets('a cash account\'s header says its newest count and has '
+        'Count the cash where Reconcile is', (tester) async {
+      final made = await ledger(tester);
+      late LedgerData data;
+      await tester.runAsync(() async => data = await made.db.loadLedger());
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+      );
+      store.registerRequest.value = made.cash;
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('account-reconcile')), findsNothing);
+      expect(find.text('Counted on 10.05'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('account-counted'))).data,
+        '₮20,000',
+      );
+      await tester.tap(find.byKey(const ValueKey('account-count')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('count-save')), findsOneWidget);
+    });
+  });
 
   testWidgets('Add account makes an account with what it starts with, and the '
       'Ledger\'s ⋯ edits, archives and deletes it, each said first where it '

@@ -12056,5 +12056,35 @@
         "type": "String"
       }
     }
+  },
+  "reconcileStayUncleared": "{count, plural, =1{1 transaction through {date} isn’t cleared, and stays that way.} other{{count} transactions through {date} aren’t cleared, and stay that way.}}",
+  "@reconcileStayUncleared": {
+    "description": "The phone's reconcile, asked before a difference is added as an adjustment while rows through the statement's date are still uncleared.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "reconcileWorkingWillBe": "Working will be {amount}.",
+  "@reconcileWorkingWillBe": {
+    "description": "Under reconcileStayUncleared: the account's Working balance once the adjustment is in.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "reconcileOwedWillBe": "Owed will be {amount}.",
+  "@reconcileOwedWillBe": {
+    "description": "Under reconcileStayUncleared, on a card or loan: what is owed once the adjustment is in.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
   }
 }

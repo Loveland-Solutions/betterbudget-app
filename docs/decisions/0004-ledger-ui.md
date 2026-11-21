@@ -7583,3 +7583,72 @@ its rows keep their amounts and Net worth stays the same when nothing turns roun
 (`openingThatFlips`, `accountKindSays`). Save is never held back. A click on the account's
 name on the computer still renames it in place. *Rejected:* "Change to…" as its own item,
 which ran at once with its warning only in the toast afterwards.
+
+## Reconcile on the phone: in the account's header (owner, 2026-11-21, #530)
+
+Two sketches at phone size, both live
+(<https://claude.ai/artifact/J9thSQjtzk9ceErQrtC2jD>): **A**, the header's card becomes the
+reconcile as on the computer, the rows under it cleared by a tap; **B**, a page of its own
+like the phone's Count the cash, the bank's number first, the rows only behind "Show the 7
+rows not reconciled" when it doesn't match. The owner: "Let's go with A." *Rejected:* B. On
+the phone most rows are still uncleared when a reconcile starts (nothing imports there yet),
+so going down the list is the work, and B put the list behind a tap.
+
+Built (0.135.0), the computer's reconcile with its words, sums and hint (`clearedThrough`,
+`reconcileHint`, `db.reconcile`), no new words:
+
+- **Reconcile** is an outlined button beside "Last reconciled on 10.31" in the account's
+  header on the Ledger tab; not on a cash account.
+- The card turns gold-edged: **Statement date** (today; the picker stops at the last
+  statement and at today), **Bank balance** ("Bank says you owe" on a card), empty with the
+  cursor in it and "Not the “available” balance" until something is typed, **Cleared
+  here**, and **Off by**: "Matches" in green, or the amount in coral with "Bank is lower"
+  or "Bank is higher" and the computer's one-row hint, else "Clear the rows your bank shows".
+  The card stays put while the rows scroll under it.
+- The rows are those not yet reconciled through the statement's date, under "Not
+  reconciled, through 10.07" and "Cleared balance". **A row's symbol is the button**: a tap
+  clears it or takes that back, with no snack bar (the symbol changing says it); the rest of
+  the row still opens it to fix an amount. A cleared row says the cleared balance after it.
+  No tabs, search or bill questions while it is open; **Manually add a transaction** stays
+  over the rows, as the computer keeps Add, for a row the bank shows and the ledger lacks.
+- **Cancel** and the gold **Lock 3 transactions** (dimmed until it matches; "Mark
+  reconciled" when nothing is left to lock) take the place of the Ledger and Budget tabs.
+  While it is off, the button is outlined and names the way out with its amount: "Take
+  ₮8,000 off the balance and lock". Back on Android leaves the reconcile, not the app.
+  Cancel keeps the rows as they were ticked, as on the computer.
+- Locked: "TDB Checking reconciled through 10.07 · 3 locked" (and "· ₮5,000 adjustment
+  added") with Undo.
+- **Undo this reconcile** is in an opened locked row of the account's newest reconcile,
+  under "Reconciled on 10.07 · date and amount locked", whenever it was done; its snack bar
+  says "Reconcile of 10.07 undone · 3 rows back to cleared", with Undo.
+- **A cash account's header** has "Counted on 10.05" over what was counted, and **Count
+  the cash** where Reconcile is, opening the count page the phone already has. Count the
+  cash stays under the account on Accounts too.
+- A reconcile and its undo reach the computers as ordinary changes (`PhoneReconcile`,
+  `PhoneUndoReconcile`, `actOnReconcile` in `data/phone_sync.dart`).
+
+After the two review passes (decided by me, along the owner's rules):
+
+- **The adjustment says what it does first while rows are still uncleared** (warn, don't
+  block): on a phone nearly every row starts uncleared, so the bank's number typed against
+  thirty unticked rows offered "Take ₮310,000 off the balance and lock" as the only lit
+  button. With rows through the date still uncleared it asks first: "30 transactions through
+  10.07 aren’t cleared, and stay that way." and "Working will be ₮390,000." ("Owed will
+  be…" on a card), then Cancel or the same button again. With none left it is one tap, the
+  case nobody can find.
+- **No adjustment is offered while the number is being typed**: every digit on the way is
+  a difference. The dimmed Lock shows until the keyboard is put away, which a tap anywhere
+  else or a drag of the rows does (an iPhone's number pad has no Done). A minus can be
+  typed, for an overdrawn account.
+- **The adjustment is only ever the amount on the button**: a row cleared since (a tap not
+  yet drawn) and it is refused with "The cleared rows changed · check the difference
+  again" (`db.reconcile(adjustBy:)`). A second tap on a symbol waits for the first.
+- **The folder isn't looked at while a reconcile is open**, as on the computer (ADR 0005),
+  and is the moment it is locked or left.
+- **Undo this reconcile leaves its adjustment row in the account**, as the computer's does
+  (owner, 2026-11-21, asked whether the later undo should take a "Take ₮8,000 off the
+  balance and lock" row out with it: "parity with the machine"). The Undo on the message
+  right after locking removes it, on both.
+- Left on the board (#591): a row's cleared balance doesn't match the bank's line until
+  every older row is ticked; a snack bar covers Cancel and Lock for its six seconds; a
+  tick's symbol waits for its save.

@@ -589,6 +589,19 @@ void main() {
         await tap(find.byKey(const ValueKey('to-accounts')));
         page = 'an account\'s header';
         await tap(_keyed('open-account-'));
+        page = 'a reconcile';
+        await tap(find.byKey(const ValueKey('account-reconcile')));
+        await tester.enterText(
+          find.byKey(const ValueKey('reconcile-balance')),
+          '999999999999',
+        );
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pumpAndSettle();
+        look();
+        await tap(find.byKey(const ValueKey('reconcile-adjust')));
+        await tap(find.byKey(const ValueKey('reconcile-adjust-ask-cancel')));
+        await tap(find.byKey(const ValueKey('reconcile-cancel')));
+        page = 'an account\'s header';
         await tap(find.byKey(const ValueKey('account-forecast-toggle')));
         await tester.drag(find.byType(Scrollable).last, const Offset(0, -600));
         await tester.pumpAndSettle();

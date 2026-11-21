@@ -61,6 +61,9 @@ void main() {
       // A part of phone_app.dart: the register's reconciled mark, gold as on
       // the computer's (done and safe).
       'phone_register.dart',
+      // A part of phone_app.dart: the reconcile card's edge and its Lock,
+      // gold as the computer's Lock and diamond are (#530).
+      'phone_reconcile.dart',
       // The version in the ledger now, of a thing both computers changed:
       // settled, done and safe.
       'rows_dialog.dart',

@@ -16,6 +16,8 @@ import '../../data/database.dart'
         LockedException,
         NotFoundException,
         PhoneTake,
+        ReconcileDateException,
+        ReconcileMismatchException,
         SplitPart,
         TxnSnapshot;
 import '../../data/phone_sync.dart'
@@ -41,12 +43,14 @@ import '../../data/phone_sync.dart'
         PhoneNoPay,
         PhoneNotIt,
         PhoneNotTheBill,
+        PhoneReconcile,
         PhoneRowAct,
         PhoneRowConfirm,
         PhoneRowEdit,
         PhoneSavePay,
         PhoneSetSpan,
-        PhoneStopPay;
+        PhoneStopPay,
+        PhoneUndoReconcile;
 import '../../data/account_edit.dart' show AccountEdit;
 import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
@@ -84,6 +88,7 @@ part 'phone_income.dart';
 part 'phone_move.dart';
 part 'phone_new_category.dart';
 part 'phone_pay.dart';
+part 'phone_reconcile.dart';
 part 'phone_register.dart';
 
 /// How long a snack bar stays: a Flutter one with an action (Undo) stays
@@ -112,6 +117,10 @@ class PhoneStore extends ChangeNotifier {
   /// An account the Ledger tab is asked to narrow to (#529): the Accounts
   /// page sets it and the register takes it, and the home shows the tab.
   final registerRequest = ValueNotifier<int?>(null);
+
+  /// A reconcile is open on the Ledger tab (#530): its Cancel and Lock take
+  /// the place of the Ledger and Budget tabs until it is locked or left.
+  final reconciling = ValueNotifier<bool>(false);
 
   /// What this phone has for the computer.
   PhoneInbox get inbox => PhoneInbox(
@@ -851,6 +860,9 @@ class _PhoneHomeState extends State<PhoneHome> {
   @override
   void initState() {
     super.initState();
+    // A home built again (the key or the folder asked for anew) has no
+    // reconcile open, whatever the last one left: its tabs are there.
+    widget.store.reconciling.value = false;
     widget.store.now = widget.now;
     widget.store.news.addListener(_brought);
     widget.store.asking.addListener(_asked);
@@ -1060,22 +1072,32 @@ class _PhoneHomeState extends State<PhoneHome> {
                   ],
                 ),
               ),
-              Container(height: 1, color: Mid.rule),
-              Row(
-                children: [
-                  _SwitchItem(
-                    key: const ValueKey('to-ledger'),
-                    label: t.ledgerSectionLedger,
-                    chosen: !_budget,
-                    onTap: () => setState(() => _budget = false),
-                  ),
-                  _SwitchItem(
-                    key: const ValueKey('to-budget'),
-                    label: t.ledgerSectionBudget,
-                    chosen: _budget,
-                    onTap: () => setState(() => _budget = true),
-                  ),
-                ],
+              ValueListenableBuilder<bool>(
+                valueListenable: widget.store.reconciling,
+                builder: (context, reconciling, _) => reconciling && !_budget
+                    ? const SizedBox.shrink()
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(height: 1, color: Mid.rule),
+                          Row(
+                            children: [
+                              _SwitchItem(
+                                key: const ValueKey('to-ledger'),
+                                label: t.ledgerSectionLedger,
+                                chosen: !_budget,
+                                onTap: () => setState(() => _budget = false),
+                              ),
+                              _SwitchItem(
+                                key: const ValueKey('to-budget'),
+                                label: t.ledgerSectionBudget,
+                                chosen: _budget,
+                                onTap: () => setState(() => _budget = true),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
               ),
             ],
           ),

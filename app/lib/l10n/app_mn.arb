@@ -1828,5 +1828,8 @@
   "accountToOwedFlips": "{name} зээлийн карт эсвэл зээл болно. Эхний үлдэгдэл {amount} нь {amount} өр болж, цэвэр хөрөнгө {before}-аас {after} болно.",
   "accountToBankFlips": "{name} банкны данс болно. Эхэнд байсан {amount} өр нь {amount} мөнгө болж, цэвэр хөрөнгө {before}-аас {after} болно.",
   "accountToOwed": "{name} зээлийн карт эсвэл зээл болно. Гүйлгээнүүдийн дүн өөрчлөгдөхгүй, цэвэр хөрөнгө {before} хэвээр үлдэнэ.",
-  "accountToBank": "{name} банкны данс болно. Гүйлгээнүүдийн дүн өөрчлөгдөхгүй, цэвэр хөрөнгө {before} хэвээр үлдэнэ."
+  "accountToBank": "{name} банкны данс болно. Гүйлгээнүүдийн дүн өөрчлөгдөхгүй, цэвэр хөрөнгө {before} хэвээр үлдэнэ.",
+  "reconcileStayUncleared": "{count, plural, other{{date} хүртэлх {count} гүйлгээ баталгаажаагүй бөгөөд хэвээр үлдэнэ.}}",
+  "reconcileWorkingWillBe": "Үлдэгдэл {amount} болно.",
+  "reconcileOwedWillBe": "Өр {amount} болно."
 }
