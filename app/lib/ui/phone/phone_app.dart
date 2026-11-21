@@ -4,7 +4,12 @@
 // is the other screen. Entries and new categories wait in [PhoneStore] until
 // the Mac takes them in.
 import 'dart:async';
+import 'dart:io' show Directory;
 import 'dart:math';
+
+import 'package:file_selector/file_selector.dart' show XFile, openFile;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
@@ -12,7 +17,11 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../../data/database.dart'
     show
+        AppDatabase,
         DbException,
+        ImportFate,
+        ImportPlan,
+        ImportRecord,
         LockedException,
         NotFoundException,
         PhoneTake,
@@ -35,6 +44,7 @@ import '../../data/phone_sync.dart'
         PhoneEditAccount,
         PhoneEditCategory,
         PhoneEdited,
+        PhoneImport,
         PhoneMarkCleared,
         PhoneMove,
         PhoneMoveRow,
@@ -52,6 +62,10 @@ import '../../data/phone_sync.dart'
         PhoneStopPay,
         PhoneUndoReconcile;
 import '../../data/account_edit.dart' show AccountEdit;
+import '../../data/import_figures.dart';
+import '../../data/picked_copy.dart';
+import '../../import/mapping.dart';
+import '../../import/sheet.dart';
 import '../../data/problem_log.dart';
 import '../../data/report_problem.dart';
 import '../../domain/budget_amounts.dart' show billSwitches;
@@ -71,6 +85,7 @@ import '../amount_input.dart';
 import '../combined_label.dart';
 import '../data_words.dart';
 import '../forecast_words.dart';
+import '../import_words.dart';
 import '../brand.dart';
 import '../budget_sum_words.dart';
 import '../category_types.dart';
@@ -84,6 +99,7 @@ part 'phone_account_edit.dart';
 part 'phone_bill_ask.dart';
 part 'phone_count.dart';
 part 'phone_form_rows.dart';
+part 'phone_import.dart';
 part 'phone_income.dart';
 part 'phone_move.dart';
 part 'phone_new_category.dart';
@@ -121,6 +137,10 @@ class PhoneStore extends ChangeNotifier {
   /// A reconcile is open on the Ledger tab (#530): its Cancel and Lock take
   /// the place of the Ledger and Budget tabs until it is locked or left.
   final reconciling = ValueNotifier<bool>(false);
+
+  /// A bank file is being picked or its import page is open (#531): the
+  /// folder isn't looked at meanwhile, and a second tap starts nothing.
+  final importing = ValueNotifier<bool>(false);
 
   /// What this phone has for the computer.
   PhoneInbox get inbox => PhoneInbox(
@@ -218,6 +238,28 @@ class PhoneStore extends ChangeNotifier {
 
   /// Counts the rows filed under a category in the ledger as it is now.
   Future<int> Function(int id)? categoryRowsIn;
+
+  /// Set by whoever keeps the ledger: what each row of a bank file would do
+  /// in an account (#531).
+  Future<ImportPlan> Function(
+    int account,
+    List<ImportRow> rows,
+    List<String> keys,
+  )?
+  planImportIn;
+
+  /// What each of a bank file's [rows] would do in [account], as the ledger
+  /// is now; throws when this phone has no ledger to import into.
+  Future<ImportPlan> planImport(
+    int account,
+    List<ImportRow> rows,
+    List<String> keys,
+  ) async {
+    final plan = planImportIn;
+    if (plan == null) throw UnsupportedError('No ledger to import into');
+    await settle?.call();
+    return plan(account, rows, keys);
+  }
 
   /// How many rows are filed under category [id] right now; null when this
   /// phone has no ledger to count in.

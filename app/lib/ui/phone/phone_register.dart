@@ -165,6 +165,15 @@ class _RegisterState extends State<_RegisterScreen> {
                     onReconcile: account.isCash
                         ? null
                         : () => _startReconcile(account),
+                    onImport: account.isCash
+                        ? null
+                        : () => unawaited(
+                            _openImport(
+                              context,
+                              store: widget.store,
+                              account: account,
+                            ),
+                          ),
                   ),
                   ?tabs,
                 ],

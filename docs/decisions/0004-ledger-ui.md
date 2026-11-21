@@ -7652,3 +7652,73 @@ After the two review passes (decided by me, along the owner's rules):
 - Left on the board (#591): a row's cleared balance doesn't match the bank's line until
   every older row is ticked; a snack bar covers Cancel and Lock for its six seconds; a
   tick's symbol waits for its save.
+
+## Import on the phone: the file's table, as on the computer (owner, 2026-11-21, #531)
+
+Three sketches at 390 points, each for the first file into an account, when the columns
+have to be checked ([canvas](https://claude.ai/artifact/46oxg9YbZFyjcFqrPX33Eg)). The
+owner: "Let's go with A".
+
+- **A, the file's own table scrolled sideways (chosen).** The computer's import window as
+  a page: "Import into TDB Checking" with the file's name, "Choose what each column
+  holds…", the file's first rows in their own columns with a choice over each and the
+  file's name for the column under it, the table running off the right edge. Then the two
+  counts, what needs saying, and Cancel and Import pinned at the bottom.
+- *Rejected, B:* the file's columns as lines down the page, one row's values beside them
+  and arrows to step to another row (what I recommended: no sideways scrolling).
+- *Rejected, C:* two rows of the file drawn as the ledger would show them, the columns
+  opened only by "Not right? Change columns". It asks less than the computer does.
+
+The same in every sketch, and built with A:
+
+- **Import transactions…** is in the account's header card, filled blue, beside Reconcile,
+  under "Last reconciled on 10.31": at phone width there is no room for it beside the
+  green "Manually add a transaction", and both are about matching the bank. A cash account
+  has none, and All accounts has no header.
+- The phone's own file picker offers every file: a bank's file comes out of Drive or a
+  mail app under whatever type that app gives it, and the app tells the kinds apart by
+  what is in them. One it can't read, or one with no dated rows, is said in a bar in the
+  computer's words.
+- Columns set on the computer come to the phone with the ledger (they are a setting in
+  it), so a file shaped like the last one opens on "Read with the columns you set for
+  this account last time." and **Change columns**.
+- The counts and every line under them are the computer's, from the same sums
+  (`data/import_figures.dart`): rows the opening balance already counts with the choice
+  to move it, another currency, rows with no amount, a balance that doesn't add up, the
+  cleared balance against the bank's, an overlap with **Leave the new rows out**,
+  **Same purchase: take the bank's ₮…**, typed rows the file lacks.
+- After Import the person is back on the account's rows with the computer's sentence
+  ("Imported 3 rows · 2 typed rows now cleared · 1 in “Not categorized”") and **Undo**.
+  A row a remembered payee files in a bill's category pays the bill, in the same undo.
+  The import reaches the computers as ordinary changes (`PhoneImport`, `actOnImport` in
+  `data/phone_sync.dart`).
+- Nothing of the file is kept but the rows. A phone's picker hands the app a copy of the
+  file in the app's own storage (an iPhone's in its temporary folder, Android's in a
+  folder inside the app's cache), which is deleted once read, and never a file anywhere
+  else (`data/picked_copy.dart`). `PRIVACY.md`'s line ("the App reads it on your device.
+  The file is never sent anywhere") holds and is unchanged.
+
+After the two review passes (decided by me, along the owner's rules):
+
+- **The folder isn't looked at while a file is picked and its page is open**, as the
+  computer holds it under its import window: the counts are of the ledger as it stood.
+  It is looked at the moment the page closes. Should the ledger still change under the
+  page (a look already under way), what each row would do is worked out again, and after
+  an Import the ledger refuses.
+- **While the rows are being written the page can't be left** (Cancel is dimmed and Back
+  waits): left then, the rows would be in with nothing said and no Undo.
+- **The bar after an import stays 15 seconds**, not the 6 of an entry's: it is a whole
+  file's rows in a sentence of several parts, and its Undo is the phone's one way back.
+  An Undo the ledger refuses says so.
+- **A column's choice is on two lines** where it needs them, so "Amount (+ in, − out)"
+  keeps its signs at 150 points; the page's title takes a long account name on two lines,
+  and the file's name is whole under it.
+- A row that can't be tied to its bill is left to be asked about and the rest go on, as
+  on the computer.
+- Left on the board: the same days imported on two devices before they have seen each
+  other, where one cleared a typed receipt and the other brought the bank's row in as
+  new, ends in the whole-ledger question (#594).
+
+Not built with this, on #531: a file sent to BetterBudget from another app (the bank's
+app, Files, mail), which asks "Which account is this file for?" and picks nothing for the
+person; and "Or import a file from your bank" on the phone's Add account.
