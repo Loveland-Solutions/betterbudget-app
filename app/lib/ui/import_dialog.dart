@@ -92,17 +92,7 @@ class _ImportDialogState extends State<_ImportDialog> {
   }
 
   /// The file's first and last days.
-  (DateTime, DateTime)? get _span {
-    final rows = _read?.rows;
-    if (rows == null || rows.isEmpty) return null;
-    var first = dateOnly(rows.first.date), last = first;
-    for (final r in rows) {
-      final d = dateOnly(r.date);
-      if (d.isBefore(first)) first = d;
-      if (d.isAfter(last)) last = d;
-    }
-    return (first, last);
-  }
+  (DateTime, DateTime)? get _span => fileSpan(_read);
 
   DateTime? get _fromDay =>
       widget.today == null ? null : parseRowDate(_from.text, widget.today!);
@@ -111,11 +101,7 @@ class _ImportDialogState extends State<_ImportDialog> {
 
   /// The day rows come in from, when it's after the file's first: rows
   /// before it stay out and the account starts there.
-  DateTime? get _cut {
-    final span = _span, day = _fromDay;
-    if (!widget.starting || span == null || day == null) return null;
-    return day.isAfter(span.$1) ? day : null;
-  }
+  DateTime? get _cut => widget.starting ? startCut(_span, _fromDay) : null;
 
   void _fromChanged() {
     if (_fromDay != _fromUsed && _fromDay != null) _reread();
@@ -131,50 +117,17 @@ class _ImportDialogState extends State<_ImportDialog> {
       _today.text.trim().isNotEmpty &&
       parseAmount(_today.text, widget.currency) == null;
 
-  /// For a new account: the day before the file's first row and what the
-  /// account held then, with the balance the file ends at when it gives
-  /// one. A table's comes from its first and last rows; an OFX file's one
-  /// balance is worked back through every row; with neither, what's typed
-  /// as today's is worked back through the rows coming in.
-  ({DateTime date, int amount, int? end, DateTime? endDay})? get _start {
-    final read = _read;
-    final span = _span;
-    if (!widget.starting || read == null || span == null) return null;
-    final (first, last) = span;
-    final cut = _cut;
-    final date = (cut ?? first).subtract(const Duration(days: 1));
-    // What the rows left out before the start day add up to.
-    final earlier = cut == null
-        ? 0
-        : read.rows
-              .where((r) => dateOnly(r.date).isBefore(cut))
-              .fold<int>(0, (s, r) => s + r.amount);
-    if (read.check case final c?) {
-      return (
-        date: date,
-        amount: c.opening + earlier,
-        end: c.closing,
-        endDay: last,
-      );
-    }
-    if (read.closing case final c?) {
-      // Banks write what a card owes with either sign.
-      final end = widget.owed && c > 0 ? -c : c;
-      return (
-        date: date,
-        amount: end - read.rows.fold<int>(0, (s, r) => s + r.amount) + earlier,
-        end: end,
-        endDay: read.closingDay ?? last,
-      );
-    }
-    final typed = parseAmount(_today.text, widget.currency);
-    if (typed == null) return (date: date, amount: 0, end: null, endDay: null);
-    var before = widget.owed ? -typed : typed;
-    for (final p in _plan?.rows ?? const <ImportPlanRow>[]) {
-      if (p.fate == ImportFate.add) before -= p.row.amount;
-    }
-    return (date: date, amount: before, end: null, endDay: null);
-  }
+  /// For a new account: where it starts and what it held then
+  /// (`importStart`).
+  ImportStart? get _start => widget.starting
+      ? importStart(
+          read: _read,
+          plan: _plan,
+          cut: _cut,
+          owed: widget.owed,
+          typed: parseAmount(_today.text, widget.currency),
+        )
+      : null;
 
   /// Rows dated on or before the opening balance's day: move it before them
   /// (the default, owner 2026-09-30) or leave it and count them twice. A
@@ -217,11 +170,7 @@ class _ImportDialogState extends State<_ImportDialog> {
       _fromSet = true;
       final span = _span, period = widget.periodStart;
       if (span != null) {
-        _from.text = fullDate(
-          period != null && period.isAfter(span.$1) && !period.isAfter(span.$2)
-              ? period
-              : span.$1,
-        );
+        _from.text = fullDate(startDayFor(span, period));
       }
       _from.addListener(_fromChanged);
     }
@@ -506,9 +455,7 @@ class _ImportDialogState extends State<_ImportDialog> {
   /// that leaves out, and the way back to all of them.
   Widget _fromLine(Words t) {
     final cut = _cut;
-    final left = cut == null
-        ? 0
-        : _read!.rows.where((r) => dateOnly(r.date).isBefore(cut)).length;
+    final left = rowsBefore(_read!, cut);
     return Row(
       children: [
         Text(t.importStartFrom, style: onest(13, color: Mid.ink2)),
@@ -550,10 +497,7 @@ class _ImportDialogState extends State<_ImportDialog> {
 
   /// A new account: where its file says it starts and ends, or, when the
   /// file gives no balance, the question the file couldn't answer.
-  Widget _startNote(
-    Words t,
-    ({DateTime date, int amount, int? end, DateTime? endDay}) start,
-  ) {
+  Widget _startNote(Words t, ImportStart start) {
     final from = sayFullDate(t, start.date.add(const Duration(days: 1)));
     if (start.end case final end?) {
       final a = _money(_shown(start.amount)), b = _money(_shown(end));

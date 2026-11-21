@@ -7901,6 +7901,185 @@ void main() {
       expect(find.byKey(const ValueKey('import-page')), findsNothing);
       expect(rows(), hasLength(1));
     });
+
+    testWidgets('Add account\'s "Or import a file from your bank" adds the '
+        'account with no balance and opens its file, which says where the '
+        'account starts; a file with no balance asks what is in it today '
+        '(#531)', (tester) async {
+      late AppDatabase db;
+      late LedgerData data;
+      await tester.runAsync(() async {
+        db = AppDatabase(NativeDatabase.memory());
+        await seedDemoIfEmpty(db, _now);
+        data = await db.loadLedger();
+      });
+      addTearDown(() => tester.runAsync(db.close));
+      final dialogs = _FakePicker();
+      final before = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = dialogs;
+      addTearDown(() => FileSelectorPlatform.instance = before);
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+      );
+      final source = _ActingSource(db, () => _now, (d) => data = d);
+      store.actRowIn = (act) => source.act(act);
+      store.planImportIn = db.planImport;
+
+      Future<void> run(Finder f) async {
+        await tester.runAsync(() async {
+          await tester.tap(f);
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        });
+        for (var i = 0; i < 4; i++) {
+          await tester.pump();
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 200)),
+          );
+        }
+        await tester.pumpAndSettle();
+      }
+
+      AccountInfo? named(String n) => data.accounts.values
+          .where((a) => a.name == n && !a.deleted)
+          .firstOrNull;
+
+      Future<void> addAccount(String name) async {
+        // The import's bar would sit over the way back.
+        tester
+            .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger).first)
+            .removeCurrentSnackBar();
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('to-budget')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Accounts'));
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.byKey(const ValueKey('add-account')),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(find.byKey(const ValueKey('add-account')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('account-name')),
+          name,
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await _toBudget(tester);
+      await addAccount('Statement');
+      // Cash has no file to import.
+      await tester.tap(find.byKey(const ValueKey('kind-cash')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('new-account-import')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('kind-bank')));
+      await tester.pumpAndSettle();
+      // Offered while no balance is typed: the file answers it instead.
+      await tester.enterText(
+        find.byKey(const ValueKey('account-balance')),
+        '5000',
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('new-account-import')), findsNothing);
+      await tester.enterText(find.byKey(const ValueKey('account-balance')), '');
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('new-account-import')),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Or import a file from your bank'), findsOneWidget);
+
+      dialogs.openPath = bankFile('statement.csv', statement);
+      await run(find.byKey(const ValueKey('new-account-import')));
+      final made = named('Statement')!;
+      // The account is added, then the picker opens over its rows.
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('Import into Statement'), findsOneWidget);
+      // Nothing in the account yet: the file says where it starts, from
+      // the budget period's first day, and no cleared-balance line.
+      expect(find.byKey(const ValueKey('import-from')), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('import-start'))).data,
+        startsWith('This file starts at ₮0.00 on'),
+      );
+      expect(find.textContaining('the cleared balance'), findsNothing);
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_import_new_account.png'),
+      );
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('import-start')),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await run(find.byKey(const ValueKey('import-do')));
+      expect(find.byKey(const ValueKey('import-page')), findsNothing);
+      expect(data.registerFor(made.id).posted, hasLength(3));
+      expect(data.summaryFor(made.id).working, 6200000);
+
+      // A file with no balance column asks what's in the account today,
+      // and works the start back from it through the rows.
+      await addAccount('No balance');
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('new-account-import')),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      dialogs.openPath = bankFile(
+        'plain.csv',
+        'Огноо;Орлого;Зарлага;Гүйлгээний утга\n'
+            '2026.10.02;0,00;30 000,00;Номин\n'
+            '2026.10.03;0,00;8 000,00;Юнител\n',
+      );
+      await run(find.byKey(const ValueKey('new-account-import')));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+      final plain = named('No balance')!;
+      expect(
+        find.textContaining('This file doesn’t give a balance.'),
+        findsOneWidget,
+      );
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('import-today')),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('import-today')),
+        '62000',
+      );
+      await tester.pumpAndSettle();
+      await run(find.byKey(const ValueKey('import-do')));
+      expect(data.registerFor(plain.id).posted, hasLength(3));
+      expect(data.summaryFor(plain.id).working, 6200000);
+      // The opening balance worked back from it is in the import's one
+      // Undo: the account is empty again.
+      await run(find.text('Undo'));
+      expect(data.registerFor(plain.id).posted, isEmpty);
+      expect(data.summaryFor(plain.id).working, 0);
+      // What Undo says goes away on its own.
+      for (var i = 0; i < 3; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 300)),
+        );
+        await tester.pump(const Duration(seconds: 10));
+      }
+      await tester.pumpAndSettle();
+    });
   });
 }
 

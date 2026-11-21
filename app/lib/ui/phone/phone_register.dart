@@ -172,6 +172,7 @@ class _RegisterState extends State<_RegisterScreen> {
                               context,
                               store: widget.store,
                               account: account,
+                              today: widget.now(),
                             ),
                           ),
                   ),

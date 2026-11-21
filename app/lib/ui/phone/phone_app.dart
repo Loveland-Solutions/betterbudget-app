@@ -4822,7 +4822,26 @@ class _AccountsScreenState extends State<_AccountsScreen> {
     if (done == null || !mounted) return;
     _accountSaid(context, store, done);
     store.registerRequest.value = done.show;
-    Navigator.of(context).popUntil((r) => r.isFirst);
+    final nav = Navigator.of(context)..popUntil((r) => r.isFirst);
+    // "Or import a file from your bank": the picker opens over the new
+    // account's rows, from the navigator's own place, which stays when
+    // this page goes.
+    final made = store.snapshot.data?.accounts[done.show];
+    if (done.import && made != null) {
+      final place = nav.context;
+      if (!place.mounted) return;
+      final imported = await _openImport(
+        place,
+        store: store,
+        account: made,
+        today: widget.now(),
+      );
+      // Its bar was put away for the file: no file came in, so adding the
+      // account is said again with its Undo.
+      if (!imported && place.mounted) {
+        _accountSaid(place, store, done);
+      }
+    }
   }
 
   /// Bank accounts, then cash, then credit, as the computer's sidebar has

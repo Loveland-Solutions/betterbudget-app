@@ -7719,6 +7719,19 @@ After the two review passes (decided by me, along the owner's rules):
   other, where one cleared a typed receipt and the other brought the bank's row in as
   new, ends in the whole-ledger question (#594).
 
+**"Or import a file from your bank" on the phone's Add account** (0.137.0), as on the
+computer's new account (owner, 2026-10-06): an outlined blue button under the balance,
+for a bank account or a card, offered only while no balance is typed (with one typed,
+there is nothing for the file to answer). It adds the account with no balance and opens
+the picker over its rows. Any import into an account with no rows yet is the computer's
+new-account import, from the same sums (`importStart` in `data/import_figures.dart`): the
+rows come in from the budget period's first day when the file reaches back before it,
+**Start from** a tap away from the phone's day picker, "N earlier rows left out" with
+**Whole file**, and the green line "This file starts at … and ends at …"; a file with no
+balance asks what is in the account today, in a field under the question. The opening
+balance it writes is in the import's one Undo. The Added bar's Undo is the account's;
+the import's bar replaces it.
+
 Not built with this, on #531: a file sent to BetterBudget from another app (the bank's
 app, Files, mail), which asks "Which account is this file for?" and picks nothing for the
-person; and "Or import a file from your bank" on the phone's Add account.
+person.
