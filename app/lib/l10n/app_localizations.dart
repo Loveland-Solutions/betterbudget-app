@@ -5238,6 +5238,36 @@ abstract class Words {
   /// **'Empty starts the account at {zero} before the file’s first row'**
   String importNoBalanceHint(Object zero);
 
+  /// Import window: a bill waiting for Confirm that a bank row of exactly its amount pays (#597). bank is the bank's words for the row.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} {amount}, due {due}, was paid on {paid} by “{bank}”: it’s confirmed and cleared.'**
+  String importBillPaid(
+    String name,
+    String amount,
+    String due,
+    String paid,
+    String bank,
+  );
+
+  /// Import window: after three named bills, how many more the file's rows pay (#597).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 more bill waiting for Confirm is paid the same way.} other{{count} more bills waiting for Confirm are paid the same way.}}'**
+  String importBillsPaidMore(int count);
+
+  /// What an import that only paid bills waiting for Confirm did, as the name of the action Undo takes back (#597).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 bill paid} other{{count} bills paid}}'**
+  String importBillsPaidLabel(int count);
+
+  /// Import button when the file brings nothing new and clears rows, a bill waiting for Confirm among them (#597).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Clear 1 row} other{Clear {count} rows}}'**
+  String importDoOnlyClearRows(int count);
+
   /// Import window, main button. count is new rows plus matched ones.
   ///
   /// In en, this message translates to:

@@ -143,7 +143,9 @@ void main() {
 
     final act = await importOf(
       bank,
-      file(['2026.10.02;0,00;30 000,00;Мобиком;-30 000,00;Төлбөр']),
+      // Near the bill's amount, not exactly it: the row comes in and pays
+      // the bill (exactly the amount, the bill itself is paid: #597).
+      file(['2026.10.02;0,00;29 000,00;Мобиком;-29 000,00;Төлбөр']),
     );
     final done = await actOnImport(db, act, today, again);
     expect(act.done!.billsPaid, 1);

@@ -210,8 +210,17 @@ the file's columns once per account, and the app remembers. The screen is in
   amount, dated from 3 days after to 10 days before the bank's date. The closest date
   wins, and each typed row matches at most once. The match keeps the user's
   payee, category and date (the bank's date when it's in another month, owner
-  2026-09-30), takes the key, and becomes cleared. Scheduled rows (bills,
-  paydays) aren't matched yet.
+  2026-09-30), takes the key, and becomes cleared. Paydays aren't matched.
+- **A category's bill waiting for Confirm** (owner, 2026-11-21, #597): a bank row with
+  no typed match pays a category's scheduled bill on the same account of exactly its
+  amount, in the same window around the bill's date: the oldest bill already due first,
+  else the nearest ahead. Not when the bank row's payee is remembered for something
+  else, nor when a payment for that bill was typed already (in its category, within ten
+  days of its date, at any amount). A bill scheduled by hand, a row typed ahead and a
+  scheduled transfer are never taken for one. The bill
+  is confirmed, dated the bank's day, cleared, and takes the key; its payee and
+  category stay. A category's next bill is scheduled as Confirm schedules it. Undo
+  puts the bill back waiting on its own date and takes the next one out.
 - **Checked on the owner's real files (2026-09-30):** the plain and the formatted TDB
   export give identical rows, keys, payees and memos (79 of 79), both with an exact
   balance chain. Two different exports shared all 78 overlapping keys, the first

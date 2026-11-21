@@ -3746,6 +3746,50 @@ class WordsEn extends Words {
   }
 
   @override
+  String importBillPaid(
+    String name,
+    String amount,
+    String due,
+    String paid,
+    String bank,
+  ) {
+    return '$name $amount, due $due, was paid on $paid by “$bank”: it’s confirmed and cleared.';
+  }
+
+  @override
+  String importBillsPaidMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more bills waiting for Confirm are paid the same way.',
+      one: '1 more bill waiting for Confirm is paid the same way.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importBillsPaidLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bills paid',
+      one: '1 bill paid',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importDoOnlyClearRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Clear $count rows',
+      one: 'Clear 1 row',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String importDo(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

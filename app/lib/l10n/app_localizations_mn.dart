@@ -3641,6 +3641,32 @@ class WordsMn extends Words {
   }
 
   @override
+  String importBillPaid(
+    String name,
+    String amount,
+    String due,
+    String paid,
+    String bank,
+  ) {
+    return '$due-нд төлөх $name $amount-г $paid-нд “$bank” төлсөн: бүртгэгдэж баталгаажсан.';
+  }
+
+  @override
+  String importBillsPaidMore(int count) {
+    return 'Бүртгэхийг хүлээж буй өөр $count төлбөр мөн ийм байдлаар төлөгдсөн.';
+  }
+
+  @override
+  String importBillsPaidLabel(int count) {
+    return '$count төлбөр төлөгдсөн';
+  }
+
+  @override
+  String importDoOnlyClearRows(int count) {
+    return '$count мөр баталгаажуулах';
+  }
+
+  @override
   String importDo(int count) {
     return '$count мөр оруулах';
   }

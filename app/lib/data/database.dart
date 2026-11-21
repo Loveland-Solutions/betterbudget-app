@@ -774,7 +774,17 @@ class TypedMatch {
     required this.hasMemo,
     this.reconciledElsewhere = false,
     this.amount,
+    this.bill = false,
+    this.planCategoryId,
   });
+
+  /// A bill waiting for Confirm, which the bank's row pays (owner,
+  /// 2026-11-21, #597): confirmed, dated the bank's day, cleared.
+  final bool bill;
+
+  /// A category's bill: its category, whose next bill is scheduled as
+  /// Confirm schedules it.
+  final int? planCategoryId;
 
   /// The typed row's amount on the account, when it isn't the bank's: a
   /// "same purchase" the person said it is takes the bank's.
@@ -953,11 +963,15 @@ class MatchedImport {
     this.dateAfter,
     this.amountBefore,
     this.amountAfter,
+    this.confirmed = false,
   });
   final int transactionId;
   final int entryId;
   final Cleared before;
   final String key;
+
+  /// A bill that was waiting for Confirm: the match confirmed it.
+  final bool confirmed;
 
   /// Set when a "same purchase" took the bank's amount, on the account.
   final int? amountBefore;
@@ -986,7 +1000,12 @@ class ImportRecord {
     this.openingKept,
     this.joined = const [],
     this.doubts = const [],
+    this.nextBills = const [],
   });
+
+  /// The next bill of each category whose bill a bank row paid, scheduled
+  /// as Confirm schedules it: by category, the bills made.
+  final List<(int, List<int>)> nextBills;
 
   /// Transfers made apart where the other account already had a row of
   /// the same money filed under a category: never moved (the person filed
@@ -7620,6 +7639,57 @@ class AppDatabase extends _$AppDatabase {
       ],
       readsFrom: {entries, transactions, payees, accounts},
     ).get();
+    // Bills waiting for Confirm on this account in the same days, money
+    // out and not a payday: a bank row of exactly the amount pays one
+    // (owner, 2026-11-21, #597). A typed row of the amount wins.
+    final bills = await customSelect(
+      'SELECT e.id AS entry_id, e.amount_minor AS amount, e.cleared AS cleared, '
+      't.id AS txn_id, t.date AS date, t.memo AS memo, p.name AS payee, '
+      't.plan_category_id AS plan, '
+      // A category's bill has no payee: it is named by its category.
+      '(SELECT a.name FROM entries x JOIN accounts a ON a.id = x.account_id '
+      'WHERE x.transaction_id = t.id AND x.id != e.id LIMIT 1) AS other_name, '
+      '(SELECT x.account_id FROM entries x '
+      'WHERE x.transaction_id = t.id AND x.id != e.id LIMIT 1) AS other_id '
+      'FROM entries e JOIN transactions t ON t.id = e.transaction_id '
+      'LEFT JOIN payees p ON p.id = t.payee_id '
+      // A category's bill only: one scheduled by hand keeps its question
+      // under the row, and a row typed ahead or a scheduled transfer is
+      // never taken for it (code review of #597).
+      'WHERE e.account_id = ? AND t.deleted_at IS NULL AND t.scheduled = 1 '
+      'AND t.plan_category_id IS NOT NULL '
+      'AND t.pay_schedule_id IS NULL AND e.amount_minor < 0 '
+      'AND e.import_key IS NULL AND t.date BETWEEN ? AND ? '
+      // Its payment typed already, at another amount or on another day: it
+      // isn't paid twice, and the typed row keeps Same purchase.
+      'AND NOT EXISTS (SELECT 1 FROM transactions y '
+      'JOIN entries ya ON ya.transaction_id = y.id AND ya.account_id = e.account_id '
+      'JOIN entries yc ON yc.transaction_id = y.id '
+      'AND yc.account_id = t.plan_category_id '
+      'WHERE y.id != t.id AND y.deleted_at IS NULL AND y.scheduled = 0 '
+      'AND ya.import_key IS NULL AND ya.amount_minor < 0 '
+      "AND y.date BETWEEN date(t.date, '-$matchDaysAfter days') "
+      "AND date(t.date, '+$matchDaysAfter days'))",
+      variables: [
+        Variable.withInt(accountId),
+        Variable.withString(
+          dateKey(from.subtract(const Duration(days: matchDaysAfter))),
+        ),
+        Variable.withString(
+          dateKey(to.add(const Duration(days: matchDaysBefore))),
+        ),
+      ],
+      readsFrom: {entries, transactions, payees},
+    ).get();
+    // What the person said a payee is goes first: a bank row remembered as
+    // something else (an ATM withdrawal to Cash) never pays a bill
+    // (budget review of #597).
+    final billRules = bills.isEmpty
+        ? const <PayeeRuleInfo>[]
+        : [
+            for (final r in await allPayeeRules())
+              if (r.accountIds.contains(accountId)) r,
+          ];
     // Rows imported before that no key in this file claims, counted by day
     // and amount: the bank's table and its OFX file key the same row two
     // ways, so one brought in from each would be in twice. Deleted ones
@@ -7711,6 +7781,60 @@ class AppDatabase extends _$AppDatabase {
         }
       }
       if (best == null) {
+        final said = PayeeRuleInfo.pick(
+          billRules,
+          accountId,
+          r.payee,
+          r.memo,
+          amount: r.amount,
+        )?.categoryId;
+        // The oldest bill already due is paid first, so a bill left past
+        // its date isn't skipped for the next one; failing that, the
+        // nearest one a few days ahead.
+        QueryRow? bill;
+        int? billGap;
+        for (final b in bills) {
+          if (used.contains(b.read<int>('entry_id'))) continue;
+          if (b.read<int>('amount') != r.amount) continue;
+          if (said != null && b.read<int?>('other_id') != said) continue;
+          final gap = bankDay
+              .difference(parseDateKey(b.read<String>('date')))
+              .inDays;
+          if (gap < -matchDaysBefore || gap > matchDaysAfter) continue;
+          final g = billGap;
+          final better =
+              g == null ||
+              (gap >= 0 && (g < 0 || gap > g)) ||
+              (gap < 0 && g < 0 && gap > g);
+          if (better) {
+            billGap = gap;
+            bill = b;
+          }
+        }
+        if (bill != null) {
+          used.add(bill.read<int>('entry_id'));
+          plan.add(
+            ImportPlanRow(
+              row: r,
+              key: keys[i],
+              fate: ImportFate.match,
+              match: TypedMatch(
+                transactionId: bill.read<int>('txn_id'),
+                entryId: bill.read<int>('entry_id'),
+                date: parseDateKey(bill.read<String>('date')),
+                payee:
+                    bill.read<String?>('payee') ??
+                    bill.read<String?>('other_name') ??
+                    '',
+                cleared: Cleared.values[bill.read<int>('cleared')],
+                hasMemo: (bill.read<String?>('memo') ?? '').trim().isNotEmpty,
+                bill: true,
+                planCategoryId: bill.read<int?>('plan'),
+              ),
+            ),
+          );
+          continue;
+        }
         plan.add(ImportPlanRow(row: r, key: keys[i], fate: ImportFate.add));
         continue;
       }
@@ -8154,6 +8278,7 @@ class AppDatabase extends _$AppDatabase {
     final addedOn = <int, ({DateTime date, int amount})>{};
     final fixes = <(int, OpeningTake)>[];
     final matched = <MatchedImport>[];
+    final nextBills = <(int, List<int>)>[];
     for (final p in plan) {
       switch (p.fate) {
         case ImportFate.already || ImportFate.leftOut:
@@ -8270,7 +8395,10 @@ class AppDatabase extends _$AppDatabase {
         case ImportFate.match:
           final m = p.match!;
           final text = p.row.memo ?? p.row.payee;
-          final redated = matchedDate(m, p.row.date);
+          // A bill is paid on the day the bank paid it.
+          final redated = m.bill
+              ? dateOnly(p.row.date)
+              : matchedDate(m, p.row.date);
           matched.add(
             MatchedImport(
               m.transactionId,
@@ -8285,6 +8413,7 @@ class AppDatabase extends _$AppDatabase {
               amountAfter: m.amount != null && m.amount != p.row.amount
                   ? p.row.amount
                   : null,
+              confirmed: m.bill,
               // A reconciled row is locked: it takes the key and nothing else.
               memo:
                   m.hasMemo ||
@@ -8353,10 +8482,24 @@ class AppDatabase extends _$AppDatabase {
       openingKept: openingKept,
       joined: joined,
       doubts: doubts,
+      nextBills: nextBills,
     );
     await _keyAdded(accountId, record);
     await _applyJoins(accountId, record);
     await _applyMatches(record);
+    // A bill paid: its category's next one, as Confirm schedules it.
+    final paidPlans = <int>{
+      for (final p in plan)
+        if (p.fate == ImportFate.match && (p.match?.bill ?? false))
+          ?p.match!.planCategoryId,
+    };
+    for (final c in paidPlans) {
+      final made = await ensurePlanBills(
+        dateOnly(today ?? DateTime.now()),
+        only: c,
+      );
+      if (made.isNotEmpty) nextBills.add((c, made));
+    }
     // A typed row taken out of the opening balance, now at the bank's
     // amount: the balance takes out that instead, or the account is off
     // the bank by the difference.
@@ -8567,6 +8710,7 @@ class AppDatabase extends _$AppDatabase {
           date: m.dateAfter == null
               ? const Value.absent()
               : Value(dateKey(m.dateAfter!)),
+          scheduled: m.confirmed ? const Value(false) : const Value.absent(),
           updatedAt: Value(_now),
         ),
       );
@@ -8598,6 +8742,9 @@ class AppDatabase extends _$AppDatabase {
   /// bank, and go back to uncleared; a category it made goes if nothing else
   /// uses it.
   Future<void> undoImport(ImportRecord r) => transaction(() async {
+    for (final (_, made) in r.nextBills) {
+      await _dropPlanBills(made);
+    }
     for (final (a, f) in r.openingFixes.reversed) {
       await redoTakeOutOfOpening(a, f, back: true);
     }
@@ -8658,6 +8805,15 @@ class AppDatabase extends _$AppDatabase {
         await (update(transactions)..where((t) => t.id.equals(m.transactionId)))
             .write(TransactionsCompanion(date: Value(dateKey(m.dateBefore!))));
       }
+      // A bill it paid waits for Confirm again; one reconciled since stays.
+      if (m.confirmed &&
+          (await _reconciledAmong([m.transactionId])).isNotEmpty) {
+        throw LockedException(DbProblem.reconciled);
+      }
+      if (m.confirmed) {
+        await (update(transactions)..where((t) => t.id.equals(m.transactionId)))
+            .write(const TransactionsCompanion(scheduled: Value(true)));
+      }
       // The typed amount back; a statement since holds the bank's.
       if (m.amountBefore case final a?) {
         if ((await _reconciledAmong([m.transactionId])).isNotEmpty) {
@@ -8700,6 +8856,9 @@ class AppDatabase extends _$AppDatabase {
         }
         for (final p in r.paid) {
           await _retakePayday(p);
+        }
+        for (final (c, made) in r.nextBills) {
+          await bringBackPlanBills(made, c);
         }
       });
 

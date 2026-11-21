@@ -596,7 +596,11 @@ class _ImportPageState extends State<_ImportPage> {
                               _count(ImportFate.match),
                             )) {
                               (final n, 0) => t.importDo(n),
-                              (0, final c) => t.importDoOnlyClear(c),
+                              (0, final c) =>
+                                // A bill isn't a typed row (#597).
+                                _plan!.rows.any((p) => p.match?.bill ?? false)
+                                    ? t.importDoOnlyClearRows(c)
+                                    : t.importDoOnlyClear(c),
                               (final n, final c) => t.importDoClear(n, c),
                             }, textAlign: TextAlign.center),
                           ),
@@ -807,6 +811,19 @@ class _ImportPageState extends State<_ImportPage> {
           Mid.coral,
           t.importNoAmountRows(noAmount.length, noAmount.join(', ')),
           big: true,
+        ),
+      );
+    }
+    // Bills waiting for Confirm that the file's rows pay (#597).
+    for (final (i, paid) in importBillsPaidLines(
+      t,
+      plan.rows,
+      _a.currency,
+    ).indexed) {
+      notes.add(
+        KeyedSubtree(
+          key: ValueKey('import-bill-paid-$i'),
+          child: _note(Icons.check_rounded, Mid.green, paid, ink: Mid.ink),
         ),
       );
     }
