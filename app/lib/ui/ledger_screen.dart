@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../data/account_edit.dart';
 import '../data/backup.dart';
 import '../data/cloud_folder.dart';
 import '../data/database.dart';
@@ -40,6 +41,7 @@ import '../domain/setup.dart';
 import '../domain/sync.dart' show MadeHow, SyncKeys, sharedRowId;
 import '../import/mapping.dart';
 import '../import/sheet.dart';
+import 'account_words.dart';
 import 'amount_input.dart';
 import 'balance_header.dart';
 import 'category_types.dart';
@@ -2341,73 +2343,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
   DateTime? _customEnd(LedgerData data) =>
       ForecastSpan.parseCustomEnd(data.prefs[ForecastSpan.customEndKey], today);
 
-  /// An account's forecast, as its header shows it: through the next pay
-  /// period, or to the date the chosen span ends on ([span] overrides the
-  /// ledger's choice), with the paydays and plan bills after the scheduled
-  /// ones projected that far.
+  /// An account's forecast, as its header shows it (`forecastOf`, which the
+  /// phone calls too); what the budget expects spent is worked out once per
+  /// ledger, not on every hover.
   Forecast _forecastFor(
     LedgerData data,
     AccountInfo account, {
     ForecastSpan? span,
-  }) {
-    final scheduled = data.registerFor(account.id).scheduled;
-    final chosen = span ?? _span(data);
-    final customEnd = _customEnd(data);
-    final until = chosen.endFrom(today, customEnd: customEnd);
-    // A day picked with Custom… is a day something has to be paid, so money
-    // due that day isn't counted as arrived (#410). Without a day picked,
-    // Custom… looks 30 days ahead, and that end is nobody's deadline.
-    final untilChosen = chosen == ForecastSpan.custom && customEnd != null;
-    return buildForecast(
-      working: data.summaryFor(account.id).working,
-      today: today,
-      scheduled: scheduled,
-      owed: account.isOwed,
-      owedAccounts: {
-        for (final a in data.balanceSheetAccounts)
-          if (a.isOwed) a.name,
-      },
-      paydayAfter: (row) => _paydayAfter(data, row),
-      payIsSetUp: data.paySchedules.isNotEmpty,
-      until: until,
-      untilChosen: untilChosen,
-      projected: until == null
-          ? const []
-          : projectScheduled(
-              scheduled,
-              until: until,
-              payById: data.payScheduleById,
-              planOf: (id) => data.plans[id],
-              skipped: (plan) => Budget.skippedBills(data, plan),
-            ),
-      // What the budget expects spent from it (#179): far enough for any
-      // pay period; the forecast stops at its own end. Worked out once per
-      // ledger, not on every hover.
-      // The account pay goes into also pays out for the wallet and a card
-      // nothing scheduled pays (owner, 2026-10-28).
-      spending: (_spending[data] ??= {}).putIfAbsent(
-        (account.id, until, dateOnly(today)),
-        () {
-          final to = until ?? today.add(const Duration(days: 120));
-          return [
-            ...projectSpending(
-              data,
-              accountId: account.id,
-              today: today,
-              until: to,
-            ),
-            ...projectFunding(
-              data,
-              accountId: account.id,
-              today: today,
-              until: to,
-            ),
-          ]..sort((a, b) => a.date.compareTo(b.date));
-        },
-      ),
-      cash: account.isCash,
-    );
-  }
+  }) => forecastOf(
+    data,
+    account,
+    today: today,
+    span: span,
+    spending: (until) => (_spending[data] ??= {}).putIfAbsent((
+      account.id,
+      until,
+      dateOnly(today),
+    ), () => forecastSpending(data, account, today: today, until: until)),
+  );
 
   /// The Source column was turned on or off: a view, kept quietly.
   Future<void> _setShowSource(bool on) async {
@@ -2616,22 +2569,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
   LedgerData? _runsOutFor;
   Words? _runsOutWords;
   Map<int, ({String line, String more})> _runsOutCache = const {};
-
-  ({DateTime date, int amount})? _paydayAfter(
-    LedgerData data,
-    RegisterRow row,
-  ) {
-    final plan = data.paySchedules
-        .where((p) => p.id == row.payScheduleId)
-        .firstOrNull;
-    if (plan == null) return null;
-    // From the payday it was planned as, by amount for split pay: one moved
-    // a few days by hand mustn't make that same payday the next.
-    final next = plan.nextAfter(plan.plannedFor(row.date, paid: row.amount));
-    // A pay that ends has no next payday after its last.
-    if (next == payNever) return null;
-    return (date: next, amount: plan.amountOn(next));
-  }
 
   /// Esc on the new-transaction row: it closes, and ⌘Z works again at
   /// once. The row drops focus on its way out, which left the screen's keys
@@ -5907,22 +5844,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// The loan's payments come out of [category] (null: of the money not
   /// assigned).
-  Future<void> _setLoanCategory(AccountInfo loan, AccountInfo? category) async {
-    final t = context.t;
-    final key = '${BudgetKeys.loanPrefix}${loan.id}';
-    final old = _data?.prefs[key];
-    final value = category?.id.toString();
-    if (old == value) return;
-    if (!await _accountWrite(() => db.setPreference(key, value))) return;
-    _did(
-      category == null
-          ? t.setupLoanNoCategoryUndo(loan.name)
-          : t.setupLoanPaidFromUndo(loan.name, category.name),
-      undo: () => db.setPreference(key, old),
-      redo: () => db.setPreference(key, value),
-    );
-  }
-
   /// "₮150,000 assigned to Dining out goes back to not assigned", when [c]
   /// holds money in this period's budget; null when it holds none.
   String? _moneyBack(LedgerData data, AccountInfo c) {
@@ -6383,26 +6304,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
             if (mounted) setState(() => _renameRequest++);
           });
         },
-        changeKind: () => _changeKind(account),
+        edit: () => _editAccount(data, account),
         archive: () => _archive(data, account),
         delete: () => _deleteAccount(data, account),
-        loanPaidFrom: account.isOwed
-            ? (
-                // In the card's currency: a payment is counted against no
-                // other (and the one picked before, so its tick shows).
-                categories: data.categories
-                    .where(
-                      (c) =>
-                          !c.isIncome &&
-                          !isUncategorized(c) &&
-                          (c.currency == account.currency ||
-                              c.id == Budget.loanCategory(data, account.id)),
-                    )
-                    .toList(),
-                current: Budget.loanCategory(data, account.id),
-                pick: (c) => _setLoanCategory(account, c),
-              )
-            : null,
       );
 
   /// Import a bank file into [account] (ADR 0002): pick it, read it, show
@@ -6823,29 +6727,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  Future<void> _changeKind(AccountInfo account) async {
+  /// Edit…: the account's name, type, rate and what its payments come out
+  /// of, saved as one change with Undo (owner, 2026-11-21).
+  Future<void> _editAccount(LedgerData data, AccountInfo account) async {
     final t = context.t;
-    final old = account.type;
-    final next = account.isOwed ? AccountType.asset : AccountType.liability;
-    var flipped = false;
+    final edit = await showDialog<AccountEdit>(
+      context: context,
+      builder: (_) => _EditAccountDialog(data: data, account: account),
+    );
+    if (edit == null || !mounted) return;
+    late AccountEdited done;
     if (!await _accountWrite(
-      () async => flipped = await db.setAccountType(account.id, next),
+      () async => done = await editAccount(db, account.id, edit),
     )) {
       return;
     }
-    final label = next == AccountType.liability
-        ? t.ledgerIsNowCardOrLoan(account.name)
-        : t.ledgerIsNowBankAccount(account.name);
-    _did(
-      label,
-      message: flipped ? '$label · ${t.ledgerOpeningBalanceFlipped}' : null,
-      undo: () => db.setAccountType(account.id, old),
-      redo: () => db.setAccountType(account.id, next),
-    );
+    _did(t.accountEdited(edit.name), undo: done.undo, redo: done.redo);
   }
 
   Future<void> _archive(LedgerData data, AccountInfo account) async {
-    final warnings = _archiveWarnings(
+    final warnings = archiveWarnings(
       account,
       data.balanceOf(account.id),
       data.registerFor(account.id).scheduled,
@@ -6895,7 +6796,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               context: context,
               builder: (_) => _AccountWarning(
                 title: t.ledgerDeleteTitle(account.name),
-                lines: _deleteWarnings(
+                lines: deleteWarnings(
                   account,
                   data.balanceOf(account.id),
                   preview,
@@ -6913,15 +6814,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
     )) {
       return;
     }
-    // Final, as the warning says: no Undo on the toast. ⌘Z still works, as
-    // it does for everything this session.
+    // Undo on the toast, as for every change the person makes (owner,
+    // 2026-11-21: "We should probably have an undo button on the computer
+    // then"), as well as ⌘Z.
     _did(
       t.ledgerDeleted(account.name),
       undo: () => db.undeleteAccount(done),
       redo: () async => done = await db.deleteAccount(account.id),
-      toast: false,
     );
-    _showToast(t.ledgerDeleted(account.name));
   }
 
   /// Saves a copy of everything where the user picks: another drive, a USB

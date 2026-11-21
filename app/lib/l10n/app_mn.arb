@@ -1818,5 +1818,15 @@
   "phoneLeaveIt": "Гарах",
   "phoneStopPayNext": "{name} зогсоно. {date}-нд орох {amount} цаашид тооцогдохгүй. Орсон орлого хэвээр үлдэнэ.",
   "phoneStopPayNoNext": "{name} зогсоно. Орсон орлого хэвээр үлдэнэ.",
-  "phoneStopPayMonth": "Одооноос тэдгээр сараар төлөвлөгдөнө."
+  "phoneStopPayMonth": "Одооноос тэдгээр сараар төлөвлөгдөнө.",
+  "phoneShowAgain": "Дахин харуулах",
+  "phoneAccountShown": "{name} буцаж гарлаа",
+  "accountEditMenu": "Засах…",
+  "accountEditTitle": "{name} засах",
+  "accountEdited": "{name}-н өөрчлөлт хадгалагдлаа",
+  "accountKindBankOrCash": "Банкны данс эсвэл бэлэн мөнгө",
+  "accountToOwedFlips": "{name} зээлийн карт эсвэл зээл болно. Эхний үлдэгдэл {amount} нь {amount} өр болж, цэвэр хөрөнгө {before}-аас {after} болно.",
+  "accountToBankFlips": "{name} банкны данс болно. Эхэнд байсан {amount} өр нь {amount} мөнгө болж, цэвэр хөрөнгө {before}-аас {after} болно.",
+  "accountToOwed": "{name} зээлийн карт эсвэл зээл болно. Гүйлгээнүүдийн дүн өөрчлөгдөхгүй, цэвэр хөрөнгө {before} хэвээр үлдэнэ.",
+  "accountToBank": "{name} банкны данс болно. Гүйлгээнүүдийн дүн өөрчлөгдөхгүй, цэвэр хөрөнгө {before} хэвээр үлдэнэ."
 }

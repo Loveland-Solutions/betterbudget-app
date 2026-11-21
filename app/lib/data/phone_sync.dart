@@ -17,8 +17,10 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import '../domain/budget.dart' show Budget, BudgetKeys, CategoryType;
 import '../domain/budget_amounts.dart';
 import '../domain/combine.dart' show Ask, Pick;
+import '../domain/forecast.dart' show ForecastSpan;
 import '../domain/ledger.dart'
     show
+        AccountType,
         BudgetAmount,
         CategoryPlan,
         Cleared,
@@ -46,8 +48,10 @@ import '../domain/pay.dart'
         payNever;
 import '../domain/payee_rules.dart' show Remembered;
 import '../domain/phone.dart';
+import '../domain/money.dart' show Currency;
 import '../domain/readiness.dart' show ReadyKeys;
 import '../domain/sync.dart' show appliedMarkerOp, sharedRowId;
+import 'account_edit.dart';
 import 'backup.dart';
 import 'cloud_folder.dart';
 import 'database.dart'
@@ -55,6 +59,7 @@ import 'database.dart'
         AppDatabase,
         CategoryMoney,
         ChangedSinceException,
+        DeletedAccount,
         PlanChange,
         DbProblem,
         LockedException,
@@ -306,6 +311,63 @@ class PhoneStopPay extends PhoneRowAct {
 class PhoneNoPay extends PhoneRowAct {
   const PhoneNoPay(this.none);
   final bool none;
+}
+
+/// How far every forecast looks, picked on the Ledger tab's header (#529):
+/// one choice for every account, kept in the ledger's preferences quietly
+/// as on the computer; [customEnd] is the day Custom… runs to.
+class PhoneSetSpan extends PhoneRowAct {
+  const PhoneSetSpan(this.span, {this.customEnd});
+  final ForecastSpan span;
+  final DateTime? customEnd;
+}
+
+/// An account added on the Accounts page (#529): its name, what it is,
+/// its currency, a card's or loan's [rate] (kept for Savings), and what it
+/// starts with, [balance] as typed (a card's is what is owed), on [date].
+/// [made] is filled in by the ledger.
+class PhoneAddAccount extends PhoneRowAct {
+  PhoneAddAccount({
+    required this.name,
+    required this.type,
+    required this.currency,
+    this.cash = false,
+    this.rate,
+    this.balance,
+    required this.date,
+  });
+  final String name;
+  final AccountType type;
+  final Currency currency;
+  final bool cash;
+  final String? rate;
+  final int? balance;
+  final DateTime date;
+  int? made;
+}
+
+/// An account's Edit… saved (#529): its name, type, rate and what its
+/// payments come out of, as one change (`editAccount`, the computer's too).
+/// [flipped] is filled in: its opening balance turned round with the type.
+class PhoneEditAccount extends PhoneRowAct {
+  PhoneEditAccount(this.account, this.edit);
+  final int account;
+  final AccountEdit edit;
+  bool flipped = false;
+}
+
+/// An account put away, or brought back.
+class PhoneArchiveAccount extends PhoneRowAct {
+  const PhoneArchiveAccount(this.account, this.archived);
+  final int account;
+  final bool archived;
+}
+
+/// An account deleted with the rows that are only its own, as the
+/// computer's Delete does.
+class PhoneDeleteAccount extends PhoneRowAct {
+  const PhoneDeleteAccount(this.account);
+  final int account;
 }
 
 class PhoneDeleteRow extends PhoneRowAct {
@@ -1221,6 +1283,13 @@ class PhoneSync implements PhoneLedgerSource {
         );
       case PhoneSavePay() || PhoneStopPay() || PhoneNoPay():
         return actOnPay(db, act, now, again);
+      case PhoneSetSpan():
+        return actOnSpan(db, act, again);
+      case PhoneAddAccount() ||
+          PhoneEditAccount() ||
+          PhoneArchiveAccount() ||
+          PhoneDeleteAccount():
+        return actOnAccount(db, act, now, again);
       case PhoneDeleteRow(:final txn):
         final deleted = await db.softDeleteMany([txn]);
         if (deleted.isEmpty) throw LockedException(DbProblem.reconciled);
@@ -1595,5 +1664,160 @@ Future<PhoneActed> actOnPay(
       );
     default:
       throw ArgumentError('Not a regular income act: $act');
+  }
+}
+
+/// A forecast range picked (#529): the choice, and with Custom… its day,
+/// written as the computer writes them, with the earlier choice put back by
+/// Undo (the page offers none: it is a view).
+Future<PhoneActed> actOnSpan(
+  AppDatabase db,
+  PhoneSetSpan act,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  final prefs = (await db.loadLedger()).prefs;
+  final before = (
+    span: prefs[ForecastSpan.prefKey],
+    end: prefs[ForecastSpan.customEndKey],
+  );
+  Future<void> write(String? span, String? end) async {
+    await db.transaction(() async {
+      if (end != null || act.customEnd != null) {
+        await db.setPreference(ForecastSpan.customEndKey, end);
+      }
+      await db.setPreference(ForecastSpan.prefKey, span);
+    });
+  }
+
+  final end = act.customEnd == null
+      ? null
+      : dateOnly(act.customEnd!).toIso8601String();
+  await db.transaction(() async {
+    if (end != null) await db.setPreference(ForecastSpan.customEndKey, end);
+    await db.setPreference(ForecastSpan.prefKey, act.span.name);
+  });
+  return (
+    snapshot: await again(),
+    undo: () async {
+      await write(before.span, before.end);
+      return again();
+    },
+    redo: () async {
+      await write(act.span.name, end);
+      return again();
+    },
+  );
+}
+
+/// Does an account's act (#529), each with its undo and redo, as the
+/// computer's accounts page does. Shared by the phone's ledger and the
+/// tests' stand-in, so there is one copy.
+Future<PhoneActed> actOnAccount(
+  AppDatabase db,
+  PhoneRowAct act,
+  DateTime now,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  switch (act) {
+    case PhoneAddAccount():
+      late int id;
+      int? opening;
+      // The account, its rate and what it starts with are one write: none of
+      // them is left behind when another fails.
+      await db.transaction(() async {
+        id = await db.createAccount(
+          name: act.name,
+          type: act.type,
+          currency: act.currency,
+          cash: act.cash,
+        );
+        // Kept for Savings, step 2.
+        if (act.rate != null) {
+          await db.setPreference(ReadyKeys.rate(id), act.rate);
+        }
+        final typed = act.balance;
+        if (typed != null && typed != 0) {
+          // A card's balance is typed as what's owed, positive, as the bank
+          // shows it.
+          opening = await db.postOpeningBalance(
+            accountId: id,
+            date: act.date,
+            balance: act.type == AccountType.liability ? -typed : typed,
+          );
+        }
+      });
+      act.made = id;
+      return (
+        snapshot: await again(),
+        undo: () async {
+          // Only while it is still empty: undo never deletes rows unasked.
+          // All or nothing: a row entered since leaves the opening balance
+          // where it is, and the refusal is said.
+          await db.transaction(() async {
+            if (opening != null) {
+              final gone = await db.softDeleteMany([opening!]);
+              if (gone.length != 1) {
+                throw LockedException(DbProblem.reconciled);
+              }
+            }
+            if (!await db.deleteEmptyAccount(id)) {
+              throw LockedException(DbProblem.stillHasRows);
+            }
+          });
+          return again();
+        },
+        redo: () async {
+          await db.transaction(() async {
+            await db.undeleteAccount(DeletedAccount(id, const []));
+            if (opening != null) await db.restoreMany([opening!]);
+            if (act.rate != null) {
+              await db.setPreference(ReadyKeys.rate(id), act.rate);
+            }
+          });
+          return again();
+        },
+      );
+    case PhoneEditAccount(:final account, :final edit):
+      final done = await editAccount(db, account, edit);
+      act.flipped = done.flipped;
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await done.undo();
+          return again();
+        },
+        redo: () async {
+          await done.redo();
+          return again();
+        },
+      );
+    case PhoneArchiveAccount(:final account, :final archived):
+      await db.setArchived(account, archived);
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.setArchived(account, !archived);
+          return again();
+        },
+        redo: () async {
+          await db.setArchived(account, archived);
+          return again();
+        },
+      );
+    case PhoneDeleteAccount(:final account):
+      var deleted = await db.deleteAccount(account);
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.undeleteAccount(deleted);
+          return again();
+        },
+        redo: () async {
+          deleted = await db.deleteAccount(account);
+          return again();
+        },
+      );
+    default:
+      throw ArgumentError('Not an account act: $act');
   }
 }

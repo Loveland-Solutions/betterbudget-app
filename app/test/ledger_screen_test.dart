@@ -7086,15 +7086,15 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/account_right_click.png'),
       );
-      // Rename opens that account with its name ready to edit.
-      await tester.tap(find.byKey(const ValueKey('menu-rename')));
+      // Edit… opens with its name, type, and a Save (owner, 2026-11-21).
+      await tester.tap(find.byKey(const ValueKey('menu-edit')));
       await tester.pumpAndSettle();
-      final field = find.byKey(const ValueKey('account-name-field'));
+      final field = find.byKey(const ValueKey('edit-account-name'));
       expect(tester.widget<TextField>(field).controller!.text, 'Khan Savings');
       await tester.enterText(field, 'Khan Goal');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.tap(find.byKey(const ValueKey('edit-account-save')));
       await settle(tester);
-      expect(find.text('Khan Goal'), findsNWidgets(2)); // title, sidebar
+      expect(find.text('Khan Goal'), findsWidgets); // sidebar, and the toast
 
       // Archive from the menu, on an account that isn't open.
       await tester.tap(find.text('Cash wallet'), buttons: kSecondaryButton);
@@ -7179,7 +7179,8 @@ void main() {
       await tapAndWait(tester, find.byKey(const ValueKey('warning-confirm')));
 
       expect(find.text('TDB Checking deleted'), findsOneWidget);
-      expect(find.text('Undo'), findsNothing); // final, as it said
+      // Undo on its toast, as the phone's has (owner, 2026-11-21).
+      expect(find.text('Undo'), findsOneWidget);
       await tester.tap(find.text('Khan Savings').first);
       await tester.pumpAndSettle();
       expect(find.text('TDB Checking (deleted)'), findsWidgets);
@@ -11056,7 +11057,9 @@ void main() {
       },
     );
 
-    testWidgets('Rename from the sidebar opens that account', (tester) async {
+    testWidgets('Edit… from the sidebar opens with that account\'s name', (
+      tester,
+    ) async {
       final db = await pumpLedger(tester);
       await tester.tap(find.byKey(const ValueKey('all-accounts')));
       await tester.pumpAndSettle();
@@ -11065,9 +11068,9 @@ void main() {
         buttons: kSecondaryButton,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('menu-rename')));
+      await tester.tap(find.byKey(const ValueKey('menu-edit')));
       await tester.pumpAndSettle();
-      final field = find.byKey(const ValueKey('account-name-field'));
+      final field = find.byKey(const ValueKey('edit-account-name'));
       expect(tester.widget<TextField>(field).controller!.text, 'Khan Savings');
       await tidy(tester, db);
     });

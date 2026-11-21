@@ -474,6 +474,13 @@ class _ActingSource {
         );
       case PhoneSavePay() || PhoneStopPay() || PhoneNoPay():
         return actOnPay(db, act, now(), _after);
+      case PhoneSetSpan():
+        return actOnSpan(db, act, _after);
+      case PhoneAddAccount() ||
+          PhoneEditAccount() ||
+          PhoneArchiveAccount() ||
+          PhoneDeleteAccount():
+        return actOnAccount(db, act, now(), _after);
       case PhoneMoveRow() ||
           PhoneNoBill() ||
           PhoneBillPaid() ||
@@ -1599,6 +1606,258 @@ void main() {
     await tester.tap(find.text('Undo'));
     await settle();
     expect(data.paySchedules, hasLength(1));
+  });
+
+  testWidgets(
+    'Accounts shows Net worth and which account runs out; a tap opens '
+    'the Ledger on it with its header, whose Forecast opens and keeps the '
+    'range chosen (#529)',
+    (tester) async {
+      late AppDatabase db;
+      late LedgerData data;
+      late int tight;
+      await tester.runAsync(() async {
+        db = AppDatabase(NativeDatabase.memory());
+        await seedDemoIfEmpty(db, _now);
+        tight = await db.addAccount(name: 'Tight', type: AccountType.asset);
+        final rent = await db.createCategory('Rent');
+        // A bill ten days ahead the account can't meet.
+        await db.postTransaction(
+          date: DateTime(2026, 10, 17),
+          scheduled: true,
+          lines: [
+            (accountId: tight, amount: -50000000, cleared: Cleared.uncleared),
+            (accountId: rent, amount: 50000000, cleared: Cleared.uncleared),
+          ],
+        );
+        data = await db.loadLedger();
+      });
+      addTearDown(() => tester.runAsync(db.close));
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+      );
+      final source = _ActingSource(db, () => _now, (d) => data = d);
+      store.actRowIn = (act) => source.act(act);
+      await _toBudget(tester);
+      await tester.tap(find.text('Accounts'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('net-worth')), findsOneWidget);
+      expect(find.byKey(const ValueKey('net-worth-MNT')), findsOneWidget);
+      expect(find.text('Bank'), findsOneWidget);
+      expect(find.byKey(ValueKey('runs-out-$tight')), findsOneWidget);
+      expect(find.text('Runs out on 10.17'), findsOneWidget);
+      // A tap opens the Ledger on that account, its header over its rows.
+      await tester.tap(find.byKey(ValueKey('open-account-$tight')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey('account-header-$tight')), findsOneWidget);
+      expect(find.byKey(const ValueKey('account-working')), findsOneWidget);
+      expect(find.byKey(const ValueKey('account-cleared')), findsOneWidget);
+      expect(find.text('Never reconciled'), findsOneWidget);
+      expect(find.textContaining('10.17'), findsWidgets);
+      // Its Forecast opens, with the computer's ranges.
+      expect(find.byKey(const ValueKey('forecast-chart')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('account-forecast-toggle')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('forecast-chart')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('forecast-span-days90')),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_account.png'),
+      );
+      await tester.tap(find.byKey(const ValueKey('forecast-span-days90')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+      expect(data.prefs['forecast.span'], 'days90');
+    },
+  );
+
+  testWidgets('Add account makes an account with what it starts with, and the '
+      'Ledger\'s ⋯ edits, archives and deletes it, each said first where it '
+      'leaves something behind and each with an Undo (#529)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    AccountInfo? named(String n) => data.accounts.values
+        .where((a) => a.name == n && !a.deleted)
+        .firstOrNull;
+
+    await _toBudget(tester);
+    await tester.tap(find.text('Accounts'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('add-account')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('add-account')));
+    await tester.pumpAndSettle();
+    // A balance that can't be read is said, not stopped at the door.
+    await tester.enterText(
+      find.byKey(const ValueKey('account-name')),
+      'Golomt Savings',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('account-balance')),
+      '500000',
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_new_account.png'),
+    );
+    await tester.tap(find.byKey(const ValueKey('new-account-create')));
+    await settle();
+    final made = named('Golomt Savings')!;
+    expect(data.summaryFor(made.id).working, 50000000);
+    expect(find.byKey(const ValueKey('account-done')), findsOneWidget);
+    // The Ledger shows the new account, its header over its rows.
+    expect(find.byKey(ValueKey('account-header-${made.id}')), findsOneWidget);
+    // Undo takes it away while it is still empty.
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(named('Golomt Savings'), isNull);
+
+    // Again, then Rename from the ⋯.
+    await tester.tap(find.byKey(const ValueKey('to-budget')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Accounts'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('add-account')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('add-account')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('account-name')),
+      'Golomt Savings',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('account-balance')),
+      '500000',
+    );
+    await tester.tap(find.byKey(const ValueKey('new-account-create')));
+    await settle();
+    final id = named('Golomt Savings')!.id;
+    await tester.tap(find.byKey(const ValueKey('account-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('account-act-edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-account-name')),
+      'Golomt Main',
+    );
+    // A changed Type says what it does before Save, with the numbers.
+    await tester.tap(find.byKey(const ValueKey('edit-kind-owed')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('edit-account-says')), findsOneWidget);
+    expect(find.textContaining('becomes ₮500,000 owed'), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_edit_account.png'),
+    );
+    await tester.tap(find.byKey(const ValueKey('edit-account-save')));
+    await settle();
+    expect(data.accounts[id]!.name, 'Golomt Main');
+    expect(data.accounts[id]!.isOwed, isTrue);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.accounts[id]!.name, 'Golomt Savings');
+    expect(data.accounts[id]!.isOwed, isFalse);
+
+    // Archive: it holds money, so it says so first, then goes ahead.
+    await tester.tap(find.byKey(const ValueKey('account-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('account-act-archive')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('account-ask')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('account-ask-cancel')));
+    await tester.pumpAndSettle();
+    expect(data.accounts[id]!.archived, isFalse);
+    await tester.tap(find.byKey(const ValueKey('account-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('account-act-archive')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('account-ask-go')));
+    await settle();
+    expect(data.accounts[id]!.archived, isTrue);
+    // Gone from view: the Ledger shows every account again.
+    expect(find.byKey(ValueKey('account-header-$id')), findsNothing);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.accounts[id]!.archived, isFalse);
+  });
+
+  testWidgets('an archived account is listed on Accounts, with what it holds, '
+      'and Show again brings it back (#529)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int old;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      old = await db.addAccount(name: 'Old savings', type: AccountType.asset);
+      await db.postOpeningBalance(
+        accountId: old,
+        date: DateTime(2026, 9, 1),
+        balance: 30000000,
+      );
+      await db.setArchived(old, true);
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('to-accounts')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(ValueKey('archived-$old')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Archived accounts'), findsOneWidget);
+    expect(find.text('₮300,000'), findsWidgets);
+    await tester.tap(find.byKey(ValueKey('show-again-$old')));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pumpAndSettle();
+    expect(data.accounts[old]!.archived, isFalse);
+    expect(find.byKey(ValueKey('archived-$old')), findsNothing);
+    expect(find.byKey(ValueKey('account-$old')), findsOneWidget);
   });
 
   testWidgets('Budget opens with the sum, the computer\'s terms with their '

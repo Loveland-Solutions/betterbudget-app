@@ -11957,5 +11957,104 @@
   "phoneStopPayMonth": "They will be budgeted by the month from now.",
   "@phoneStopPayMonth": {
     "description": "Phone, under the list of categories set by a regular income's pay periods, when it is stopped."
+  },
+  "phoneShowAgain": "Show again",
+  "@phoneShowAgain": {
+    "description": "Phone Accounts page, beside an archived account: puts it back in the lists (#529)."
+  },
+  "phoneAccountShown": "{name} is back",
+  "@phoneAccountShown": {
+    "description": "Phone: the snack bar, with Undo, after an archived account is shown again.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountEditMenu": "Edit…",
+  "@accountEditMenu": {
+    "description": "An account's ⋯ menu, on the computer and the phone: opens Edit, which holds its name, its type, a card's rate and what its payments come out of (owner, 2026-11-21)."
+  },
+  "accountEditTitle": "Edit {name}",
+  "@accountEditTitle": {
+    "description": "The title of an account's Edit. {name} is the account's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountEdited": "Changes to {name} saved",
+  "@accountEdited": {
+    "description": "The toast or snack bar, with Undo, after an account's Edit is saved.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountKindBankOrCash": "Bank account or cash",
+  "@accountKindBankOrCash": {
+    "description": "An account's Edit, Type: the choice that keeps it money you hold, when it is a card or loan now and was made as a bank account or cash."
+  },
+  "accountToOwedFlips": "{name} becomes a credit card or loan. Its starting balance of {amount} becomes {amount} owed, so Net worth goes from {before} to {after}.",
+  "@accountToOwedFlips": {
+    "description": "An account's Edit, said before Save when Type changes to a card or loan and its opening balance turns into a debt. {amount} like ₮400,000; {before} and {after} are Net worth in its currency.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "accountToBankFlips": "{name} becomes a bank account. The {amount} it owed at the start becomes {amount} in it, so Net worth goes from {before} to {after}.",
+  "@accountToBankFlips": {
+    "description": "An account's Edit, said before Save when Type changes from a card or loan and its opening balance turns into money held.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "accountToOwed": "{name} becomes a credit card or loan. Its rows keep their amounts, and Net worth stays {before}.",
+  "@accountToOwed": {
+    "description": "An account's Edit, said before Save when Type changes to a card or loan and nothing it holds changes.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "before": {
+        "type": "String"
+      }
+    }
+  },
+  "accountToBank": "{name} becomes a bank account. Its rows keep their amounts, and Net worth stays {before}.",
+  "@accountToBank": {
+    "description": "An account's Edit, said before Save when Type changes from a card or loan and nothing it holds changes.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "before": {
+        "type": "String"
+      }
+    }
   }
 }

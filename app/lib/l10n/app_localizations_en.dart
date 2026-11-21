@@ -7998,4 +7998,58 @@ class WordsEn extends Words {
   @override
   String get phoneStopPayMonth =>
       'They will be budgeted by the month from now.';
+
+  @override
+  String get phoneShowAgain => 'Show again';
+
+  @override
+  String phoneAccountShown(String name) {
+    return '$name is back';
+  }
+
+  @override
+  String get accountEditMenu => 'Edit…';
+
+  @override
+  String accountEditTitle(String name) {
+    return 'Edit $name';
+  }
+
+  @override
+  String accountEdited(String name) {
+    return 'Changes to $name saved';
+  }
+
+  @override
+  String get accountKindBankOrCash => 'Bank account or cash';
+
+  @override
+  String accountToOwedFlips(
+    String name,
+    String amount,
+    String before,
+    String after,
+  ) {
+    return '$name becomes a credit card or loan. Its starting balance of $amount becomes $amount owed, so Net worth goes from $before to $after.';
+  }
+
+  @override
+  String accountToBankFlips(
+    String name,
+    String amount,
+    String before,
+    String after,
+  ) {
+    return '$name becomes a bank account. The $amount it owed at the start becomes $amount in it, so Net worth goes from $before to $after.';
+  }
+
+  @override
+  String accountToOwed(String name, String before) {
+    return '$name becomes a credit card or loan. Its rows keep their amounts, and Net worth stays $before.';
+  }
+
+  @override
+  String accountToBank(String name, String before) {
+    return '$name becomes a bank account. Its rows keep their amounts, and Net worth stays $before.';
+  }
 }

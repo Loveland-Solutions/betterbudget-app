@@ -897,6 +897,32 @@ typedef ReconcileHint = ({
   ReconcileCause cause,
 });
 
+/// What changing [accountId] between a bank account and a card or loan
+/// turns round: its opening balances not yet reconciled, in its own sign
+/// (`AppDatabase.setAccountType` flips their sign, since they were typed in
+/// the kind's own sign). 0 when there is none. Net worth moves by twice it.
+int openingThatFlips(LedgerData data, int accountId) {
+  var sum = 0;
+  for (final t in data.txns) {
+    if (t.entries.length != 2) continue;
+    final mine = [
+      for (final e in t.entries)
+        if (e.accountId == accountId) e,
+    ];
+    if (mine.length != 1) continue;
+    final other = t.entries.firstWhere((e) => e.accountId != accountId);
+    final o = data.accounts[other.accountId];
+    if (o == null ||
+        o.type != AccountType.equity ||
+        o.name != openingBalancesAccountName) {
+      continue;
+    }
+    if (mine.single.cleared == Cleared.reconciled) continue;
+    sum += mine.single.amount;
+  }
+  return sum;
+}
+
 class AccountSummary {
   const AccountSummary({
     required this.working,

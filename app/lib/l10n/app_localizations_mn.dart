@@ -7742,4 +7742,58 @@ class WordsMn extends Words {
 
   @override
   String get phoneStopPayMonth => 'Одооноос тэдгээр сараар төлөвлөгдөнө.';
+
+  @override
+  String get phoneShowAgain => 'Дахин харуулах';
+
+  @override
+  String phoneAccountShown(String name) {
+    return '$name буцаж гарлаа';
+  }
+
+  @override
+  String get accountEditMenu => 'Засах…';
+
+  @override
+  String accountEditTitle(String name) {
+    return '$name засах';
+  }
+
+  @override
+  String accountEdited(String name) {
+    return '$name-н өөрчлөлт хадгалагдлаа';
+  }
+
+  @override
+  String get accountKindBankOrCash => 'Банкны данс эсвэл бэлэн мөнгө';
+
+  @override
+  String accountToOwedFlips(
+    String name,
+    String amount,
+    String before,
+    String after,
+  ) {
+    return '$name зээлийн карт эсвэл зээл болно. Эхний үлдэгдэл $amount нь $amount өр болж, цэвэр хөрөнгө $before-аас $after болно.';
+  }
+
+  @override
+  String accountToBankFlips(
+    String name,
+    String amount,
+    String before,
+    String after,
+  ) {
+    return '$name банкны данс болно. Эхэнд байсан $amount өр нь $amount мөнгө болж, цэвэр хөрөнгө $before-аас $after болно.';
+  }
+
+  @override
+  String accountToOwed(String name, String before) {
+    return '$name зээлийн карт эсвэл зээл болно. Гүйлгээнүүдийн дүн өөрчлөгдөхгүй, цэвэр хөрөнгө $before хэвээр үлдэнэ.';
+  }
+
+  @override
+  String accountToBank(String name, String before) {
+    return '$name банкны данс болно. Гүйлгээнүүдийн дүн өөрчлөгдөхгүй, цэвэр хөрөнгө $before хэвээр үлдэнэ.';
+  }
 }

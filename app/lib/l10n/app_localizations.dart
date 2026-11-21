@@ -11098,6 +11098,76 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'They will be budgeted by the month from now.'**
   String get phoneStopPayMonth;
+
+  /// Phone Accounts page, beside an archived account: puts it back in the lists (#529).
+  ///
+  /// In en, this message translates to:
+  /// **'Show again'**
+  String get phoneShowAgain;
+
+  /// Phone: the snack bar, with Undo, after an archived account is shown again.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is back'**
+  String phoneAccountShown(String name);
+
+  /// An account's ⋯ menu, on the computer and the phone: opens Edit, which holds its name, its type, a card's rate and what its payments come out of (owner, 2026-11-21).
+  ///
+  /// In en, this message translates to:
+  /// **'Edit…'**
+  String get accountEditMenu;
+
+  /// The title of an account's Edit. {name} is the account's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit {name}'**
+  String accountEditTitle(String name);
+
+  /// The toast or snack bar, with Undo, after an account's Edit is saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes to {name} saved'**
+  String accountEdited(String name);
+
+  /// An account's Edit, Type: the choice that keeps it money you hold, when it is a card or loan now and was made as a bank account or cash.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank account or cash'**
+  String get accountKindBankOrCash;
+
+  /// An account's Edit, said before Save when Type changes to a card or loan and its opening balance turns into a debt. {amount} like ₮400,000; {before} and {after} are Net worth in its currency.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} becomes a credit card or loan. Its starting balance of {amount} becomes {amount} owed, so Net worth goes from {before} to {after}.'**
+  String accountToOwedFlips(
+    String name,
+    String amount,
+    String before,
+    String after,
+  );
+
+  /// An account's Edit, said before Save when Type changes from a card or loan and its opening balance turns into money held.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} becomes a bank account. The {amount} it owed at the start becomes {amount} in it, so Net worth goes from {before} to {after}.'**
+  String accountToBankFlips(
+    String name,
+    String amount,
+    String before,
+    String after,
+  );
+
+  /// An account's Edit, said before Save when Type changes to a card or loan and nothing it holds changes.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} becomes a credit card or loan. Its rows keep their amounts, and Net worth stays {before}.'**
+  String accountToOwed(String name, String before);
+
+  /// An account's Edit, said before Save when Type changes from a card or loan and nothing it holds changes.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} becomes a bank account. Its rows keep their amounts, and Net worth stays {before}.'**
+  String accountToBank(String name, String before);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

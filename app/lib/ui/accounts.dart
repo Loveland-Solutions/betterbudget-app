@@ -9,18 +9,9 @@ part of 'ledger_screen.dart';
 String _money(int v, [Currency currency = Currency.mnt]) =>
     formatShort(v, currency: currency);
 
-/// What an account's balance is, in words that fit its kind and sign.
-String _balanceWords(Words t, AccountInfo a, int balance) => a.isOwed
-    ? (balance <= 0
-          ? t.setupOwedStill(_money(-balance, a.currency))
-          : t.setupInCredit(_money(balance, a.currency)))
-    : (balance >= 0
-          ? t.setupStillIn(_money(balance, a.currency))
-          : t.setupOverdrawn(_money(-balance, a.currency)));
-
 /// A line said in the reader's language, for lists built where there's no
 /// [BuildContext] to ask for the words.
-typedef _Say = String Function(Words t);
+typedef _Say = Say;
 
 /// Quiet, under the accounts in the sidebar.
 class _AddAccountTile extends StatelessWidget {
@@ -562,29 +553,20 @@ class _AccountStartState extends State<_AccountStart> {
 }
 
 /// What can be done to an account, from ⋯ beside its name or a right-click
-/// on it in the sidebar.
+/// on it in the sidebar: Edit…, Archive…, Delete… (owner, 2026-11-21:
+/// "'Edit...' is what's expected in a program"). [rename] is the title's
+/// rename in place, a click on the account's name.
 class _AccountActions {
   _AccountActions({
     required this.rename,
-    required this.changeKind,
+    required this.edit,
     required this.archive,
     required this.delete,
-    this.loanPaidFrom,
   });
   final VoidCallback rename;
-  final VoidCallback changeKind;
+  final VoidCallback edit;
   final VoidCallback archive;
   final VoidCallback delete;
-
-  /// A mortgage or student loan: the spending categories its payments can
-  /// come out of in the budget, the one they do (null: none), and picking
-  /// one (null: none). Rule 26.
-  final ({
-    List<AccountInfo> categories,
-    int? current,
-    ValueChanged<AccountInfo?> pick,
-  })?
-  loanPaidFrom;
 }
 
 MenuStyle get _menuStyle => MenuStyle(
@@ -612,41 +594,7 @@ List<Widget> _accountMenu(AccountInfo a, _AccountActions act) {
         ),
       );
   return [
-    item((t) => t.setupRename, 'menu-rename', act.rename),
-    item(
-      (t) => a.isOwed ? t.setupToBank : t.setupToOwed,
-      'menu-kind',
-      act.changeKind,
-    ),
-    if (act.loanPaidFrom case final loan?)
-      SubmenuButton(
-        key: const ValueKey('menu-loan-category'),
-        menuStyle: _menuStyle,
-        menuChildren: focusFirstOnKeys([
-          for (final c in [null, ...loan.categories])
-            MenuItemButton(
-              key: ValueKey('loan-category-${c?.id ?? 'none'}'),
-              onPressed: () => loan.pick(c),
-              leadingIcon: Icon(
-                Icons.check_rounded,
-                size: 16,
-                color: c?.id == loan.current ? Mid.blue : Colors.transparent,
-              ),
-              child: Builder(
-                builder: (context) => Text(
-                  c?.name ?? context.t.setupLoanNoCategory,
-                  style: onest(13, color: Mid.ink2),
-                ),
-              ),
-            ),
-        ]),
-        child: Builder(
-          builder: (context) => Text(
-            context.t.setupLoanPaidFrom,
-            style: onest(13, color: Mid.ink2),
-          ),
-        ),
-      ),
+    item((t) => t.accountEditMenu, 'menu-edit', act.edit),
     Divider(height: 9, color: Mid.rule),
     item((t) => t.setupArchiveMenu, 'menu-archive', act.archive),
     item((t) => t.setupDeleteMenu, 'menu-delete', act.delete, color: Mid.coral),
@@ -798,10 +746,9 @@ class _AccountTitleState extends State<_AccountTitle> {
               a,
               _AccountActions(
                 rename: _startRename,
-                changeKind: widget.actions.changeKind,
+                edit: widget.actions.edit,
                 archive: widget.actions.archive,
                 delete: widget.actions.delete,
-                loanPaidFrom: widget.actions.loanPaidFrom,
               ),
             ),
           ),
@@ -913,68 +860,6 @@ class _AccountWarning extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// What archiving leaves behind, or nothing if it leaves nothing.
-List<_Say> _archiveWarnings(
-  AccountInfo a,
-  int balance,
-  List<RegisterRow> scheduled,
-) {
-  String list(Words t, Iterable<RegisterRow> rows) =>
-      '${rows.take(3).map((r) => '${rowPayee(t, r)} ${sayDate(t, r.date)}').join(', ')}'
-      '${rows.length > 3 ? ', …' : ''}';
-  final own = scheduled.where((r) => r.kind != RowKind.transfer).toList();
-  // A scheduled transfer still shows on the other account, as money coming
-  // or going there.
-  final transfers = scheduled.where((r) => r.kind == RowKind.transfer).toList();
-  return [
-    if (balance != 0)
-      (t) => t.setupArchiveBalance(_balanceWords(t, a, balance)),
-    if (own.isNotEmpty)
-      (t) => t.setupArchiveScheduled(own.length, list(t, own)),
-    if (transfers.isNotEmpty)
-      (t) => t.setupArchiveTransfers(transfers.length, list(t, transfers)),
-  ];
-}
-
-List<_Say> _deleteWarnings(AccountInfo a, int balance, AccountDeletePreview p) {
-  String rows(Words t) => p.rows == 0
-      ? t.setupDeleteNoRows
-      : p.reconciled == 0
-      ? t.setupDeleteRows(p.rows)
-      : t.setupDeleteRowsReconciled(p.rows, p.reconciled);
-  // Net worth loses the account's balance: an asset takes it down, a debt
-  // no longer counted takes it up.
-  final _Say? worth = balance == 0
-      ? null
-      : (t) => balance > 0
-            ? t.setupWorthDown(_money(balance.abs(), a.currency))
-            : a.isOwed
-            ? t.setupWorthUpOwed(_money(balance.abs(), a.currency))
-            : t.setupWorthUp(_money(balance.abs(), a.currency));
-  final pending = p.keptScheduled;
-  final _Say? pendingLine = pending.isEmpty
-      ? null
-      : (t) => t.setupDeletePending(
-          pending.length,
-          '${pending.take(3).map((k) => '${k.on} ${sayDate(t, k.date)}').join(', ')}'
-          '${pending.length > 3 ? ', …' : ''}',
-        );
-  final kept = p.keptOn.entries.toList();
-  final _Say? keptLine = switch (kept.length) {
-    0 => null,
-    1 => (t) => t.setupKeptOne(
-      kept.single.value,
-      kept.single.key.name,
-      t.startDeletedAccount(a.name),
-    ),
-    _ => (t) => t.setupKeptMany(
-      t.startDeletedAccount(a.name),
-      kept.map((e) => t.setupKeptOn(e.value, e.key.name)).join(', '),
-    ),
-  };
-  return [rows, ?worth, ?keptLine, ?pendingLine];
 }
 
 /// Settings: accounts taken out of the sidebar, to put back.
@@ -1093,4 +978,228 @@ class _FilterChip extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// An account's Edit…: its name, whether it is money held or a card or loan,
+/// a card's interest rate and the category its payments come out of, saved
+/// together (owner, 2026-11-21). A changed Type says what it does, with the
+/// real numbers, before Save (warn, don't block). Hands back the edit, or
+/// null on Cancel or Esc.
+class _EditAccountDialog extends StatefulWidget {
+  const _EditAccountDialog({required this.data, required this.account});
+  final LedgerData data;
+  final AccountInfo account;
+
+  @override
+  State<_EditAccountDialog> createState() => _EditAccountDialogState();
+}
+
+class _EditAccountDialogState extends State<_EditAccountDialog> {
+  AccountInfo get _a => widget.account;
+  late final _name = TextEditingController(text: _a.name);
+  late var _owed = _a.isOwed;
+  late final DebtRate? _rateWas = parseDebtRate(
+    widget.data.prefs[ReadyKeys.rate(_a.id)],
+  );
+  late final _rate = TextEditingController(
+    text: _rateWas == null ? '' : ratePercent(_rateWas.percent),
+  );
+  late bool _perYear = _rateWas?.perYear ?? ratePerYearFor(_a.currency);
+  late int? _loan = Budget.loanCategory(widget.data, _a.id);
+  var _rateWrong = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _rate.dispose();
+    super.dispose();
+  }
+
+  /// The categories a card's payments can come out of: in its currency (and
+  /// the one picked before, so it shows).
+  List<AccountInfo> get _categories => [
+    for (final c in widget.data.categories)
+      if (!c.isIncome &&
+          !isUncategorized(c) &&
+          (c.currency == _a.currency || c.id == _loan))
+        c,
+  ];
+
+  void _save() {
+    String? rate;
+    final typed = _rate.text.trim();
+    if (_owed && typed.isNotEmpty) {
+      final percent = parseRatePercent(typed);
+      if (percent == null) return setState(() => _rateWrong = true);
+      final DebtRate r = (percent: percent, perYear: _perYear);
+      rate = r.value;
+    }
+    final AccountEdit edit = (
+      name: _name.text.trim().isEmpty ? _a.name : _name.text.trim(),
+      owed: _owed,
+      rate: rate,
+      loan: _loan,
+    );
+    Navigator.of(context).pop(edit);
+  }
+
+  Widget _choice(
+    String label,
+    bool on,
+    VoidCallback onTap,
+    String key,
+  ) => Hoverable(
+    key: ValueKey(key),
+    onTap: onTap,
+    builder: (hover) => Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: on ? Mid.blueWash : (hover ? Mid.raised : Colors.transparent),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: on ? Mid.blue : Mid.ink2.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Center(
+        widthFactor: 1,
+        child: Text(label, style: onest(13, color: on ? Mid.ink : Mid.ink2)),
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final says = accountKindSays(t, widget.data, _a, _owed);
+    // What it is when it isn't a card: as it was made, cash or a bank.
+    final held = _a.isCash ? t.setupKindCash : t.setupKindBank;
+    return Dialog(
+      backgroundColor: Mid.panel,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: Mid.rule),
+      ),
+      child: SizedBox(
+        width: 520,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+          child: Column(
+            key: const ValueKey('edit-account'),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                t.accountEditTitle(_a.name),
+                style: onest(17, weight: 600, letterSpacing: -0.2),
+              ),
+              const SizedBox(height: 16),
+              _FormLine(
+                label: t.setupName,
+                child: SizedBox(
+                  width: 280,
+                  height: 34,
+                  child: TextField(
+                    key: const ValueKey('edit-account-name'),
+                    controller: _name,
+                    autofocus: true,
+                    style: onest(13.5),
+                    onSubmitted: (_) => _save(),
+                    decoration: _fieldDecoration(),
+                  ),
+                ),
+              ),
+              _FormLine(
+                label: t.setupKind,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _choice(
+                      held,
+                      !_owed,
+                      () => setState(() => _owed = false),
+                      'edit-kind-held',
+                    ),
+                    _choice(
+                      t.setupKindOwed,
+                      _owed,
+                      () => setState(() => _owed = true),
+                      'edit-kind-owed',
+                    ),
+                  ],
+                ),
+              ),
+              if (_owed) ...[
+                _FormLine(
+                  label: t.setupRate,
+                  child: _RateInput(
+                    fieldKey: const ValueKey('edit-account-rate'),
+                    currency: _a.currency,
+                    controller: _rate,
+                    perYear: _perYear,
+                    wrong: _rateWrong,
+                    onPerYear: (v) => setState(() => _perYear = v),
+                    onEdited: () {
+                      if (_rateWrong) setState(() => _rateWrong = false);
+                    },
+                    onSubmitted: _save,
+                  ),
+                ),
+                _FormLine(
+                  label: t.setupLoanPaidFrom,
+                  child: DropdownButton<int>(
+                    key: const ValueKey('edit-account-loan'),
+                    value: _loan ?? 0,
+                    isDense: true,
+                    underline: const SizedBox.shrink(),
+                    dropdownColor: Mid.raised,
+                    style: onest(13.5, color: Mid.ink),
+                    items: [
+                      DropdownMenuItem(
+                        value: 0,
+                        child: Text(t.setupLoanNoCategory),
+                      ),
+                      for (final c in _categories)
+                        DropdownMenuItem(value: c.id, child: Text(c.name)),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _loan = v == null || v == 0 ? null : v),
+                  ),
+                ),
+              ],
+              if (says != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 4),
+                  child: Text(
+                    says,
+                    key: const ValueKey('edit-account-says'),
+                    style: onest(13.5, weight: 600, height: 1.4),
+                  ),
+                ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Spacer(),
+                  BarButton(
+                    key: const ValueKey('edit-account-cancel'),
+                    label: t.setupCancel,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                  const SizedBox(width: 8),
+                  _PrimaryButton(
+                    key: const ValueKey('edit-account-save'),
+                    label: t.rowsSave,
+                    icon: Icons.check_rounded,
+                    tooltip: 'Enter',
+                    onTap: _save,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
