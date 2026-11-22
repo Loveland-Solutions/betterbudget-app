@@ -1,4 +1,5 @@
 import '../domain/goals.dart';
+import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/readiness.dart';
 import 'language.dart';
@@ -134,4 +135,98 @@ String? goalsBefore(Words t, Readiness r, Currency c) {
       : r.stateOf(ReadyStep.oneMonth) == ReadyState.current
       ? t.goalsNetNote
       : null;
+}
+
+/// The place [units] is said to with "about": two figures, so 53,412 is
+/// said to the thousand.
+int aboutUnit(int units) {
+  var step = 1;
+  while (units.abs() / step >= 100) {
+    step *= 10;
+  }
+  return step;
+}
+
+/// Interest as both ways' cards say it: to the place their difference
+/// needs, so the two figures and the sentence under them agree (budget
+/// review). [gap] is the difference between the two in minor units.
+String payoffInterest(int minor, int gap, Currency c) {
+  final unit = gap == 0 ? 0 : aboutUnit((gap / c.scale).round());
+  if (unit == 0) return interestAbout(minor, c);
+  final whole = ((minor / c.scale) / unit).round() * unit;
+  return formatShort(whole * c.scale, currency: c);
+}
+
+/// One to three sentences under the two ways: what one saves, which ends
+/// sooner, which pays off its first debt sooner. Empty when nothing differs
+/// that can be said.
+String payoffDifference(
+  Words t,
+  Currency c,
+  Readiness r,
+  PayoffPlan s,
+  PayoffPlan h,
+) {
+  final out = <String>[];
+  if ((s.months == null) != (h.months == null)) {
+    out.add(s.months == null ? t.planOnlyRateEnds : t.planOnlySmallestEnds);
+  }
+  if (s.months != null && h.months != null) {
+    final saved = s.interest - h.interest;
+    final about = roundAbout((saved.abs() / c.scale).round());
+    if (about > 0) {
+      final said = formatShort(about * c.scale, currency: c);
+      out.add(saved > 0 ? t.planRateSaves(said) : t.planSmallestSaves(said));
+    }
+    final sooner = s.months! - h.months!;
+    out.add(
+      sooner == 0
+          ? t.planBothEndSame
+          : sooner > 0
+          ? t.planRateEndsSooner(sooner)
+          : t.planSmallestEndsSooner(-sooner),
+    );
+  }
+  final fs = s.firstIn(r.orderOf(PayoffMethod.smallest));
+  final fh = h.firstIn(r.orderOf(PayoffMethod.highestRate));
+  if (fs != null && fh != null && fs.month != fh.month) {
+    out.add(
+      fs.month < fh.month
+          ? t.planSmallestFirstSooner(fh.month - fs.month)
+          : t.planRateFirstSooner(fs.month - fh.month),
+    );
+  }
+  return out.join(' ');
+}
+
+/// What the goals in [c] ask a month while kept up with (not a one-off
+/// rest), and the goal's name when there's one; null when none asks.
+(int, String?)? goalsAskOf(Readiness r, Currency c) {
+  final asking = [
+    for (final g in r.goals)
+      if (!g.ready && !g.finished && g.usual > 0 && g.currency == c) g,
+  ];
+  if (asking.isEmpty) return null;
+  final sum = asking.fold(0, (s, g) => s + g.usual);
+  return (sum, asking.length == 1 ? asking.single.category.name : null);
+}
+
+/// What Savings leaves out, said once: the accounts in another currency
+/// than Savings' [main], what each holds or owes ("Not counted here yet:
+/// …"). Null while every account is in it.
+String? otherCurrencySays(Words t, LedgerData data, Currency main) {
+  final others = [
+    for (final a in data.openAccounts)
+      if (a.currency != main)
+        if (data.balanceOf(a.id) case final b when a.isOwed && b < 0)
+          t.savingsOtherOwed(a.name, formatShort(-b, currency: a.currency))
+        else
+          t.savingsOtherHeld(
+            a.name,
+            formatShort(data.balanceOf(a.id), currency: a.currency),
+          ),
+  ].join(', ');
+  return others.isEmpty
+      ? null
+      : t.savingsOnlyOne(others, currencyName(t, main));
 }

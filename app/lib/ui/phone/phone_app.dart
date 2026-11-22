@@ -64,6 +64,7 @@ import '../../data/phone_sync.dart'
         PhoneRowEdit,
         PhoneSavePay,
         PhoneSetSpan,
+        PhoneSavingsAnswer,
         PhoneStopPay,
         PhoneUndoReconcile;
 import '../../data/account_edit.dart' show AccountEdit;
@@ -438,6 +439,7 @@ class PhoneStore extends ChangeNotifier {
     CategoryPlan? plan,
     String? paidFromId,
     CategoryType? type,
+    bool outOfMonth = false,
   }) {
     final already = categoryNamed(categories, name);
     if (already != null) return already;
@@ -451,6 +453,7 @@ class PhoneStore extends ChangeNotifier {
       plan: plan,
       paidFromId: paidFromId,
       type: type,
+      outOfMonth: outOfMonth,
       // A bill's date shows here as the computer's bills do.
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
@@ -924,6 +927,17 @@ class _PhoneHomeState extends State<PhoneHome> {
   /// The Savings stop Budget's step band asked for.
   final _savingsAt = ValueNotifier<int?>(null);
 
+  /// The Savings tab, from another: open on the step they're on, which a
+  /// change elsewhere may have moved on (code review, #533). Tapped again
+  /// while on it, it stays where it is.
+  void _openSavings() {
+    if (_tab != 2) {
+      final r = _readinessFor(widget.store.snapshot, widget.now());
+      if (r != null) _savingsAt.value = _savingsStopOf(r);
+    }
+    setState(() => _tab = 2);
+  }
+
   void _toSavings(ReadyStep step) {
     _savingsAt.value = step.index;
     setState(() => _tab = 2);
@@ -1229,7 +1243,7 @@ class _PhoneHomeState extends State<PhoneHome> {
                                   key: const ValueKey('to-savings'),
                                   label: t.ledgerSectionSavings,
                                   chosen: _tab == 2,
-                                  onTap: () => setState(() => _tab = 2),
+                                  onTap: _openSavings,
                                 ),
                             ],
                           ),
@@ -1419,6 +1433,7 @@ class _BudgetScreenState extends State<_BudgetScreen> {
       final band = _stepBandOf(
         snapshot,
         store.waiting,
+        today,
         onTap: widget.onSavings,
       );
       final listed = <Object?>[
@@ -1806,17 +1821,17 @@ final _readinessOf = Expando<(DateTime, Readiness)>('readiness');
 /// categories and track their progress"). Null with no ledger behind the
 /// figures (the preview) or every step done or set aside.
 ///
-/// It reads the period the rows under it read, the one the computer's copy
-/// was made in, and counts what this phone has recorded in the fund since,
-/// as the fund's own row does ([leftNow]). A debt paid from the phone moves
-/// step 2 once the computer has it.
+/// It reads the period the rows under it read, [now]'s, and counts what
+/// this phone has recorded in the fund and not yet taken in, as the fund's
+/// own row does ([leftNow]).
 _PhoneStepBand? _stepBandOf(
   PhoneSnapshot snapshot,
-  Iterable<PhoneEntry> waiting, {
+  Iterable<PhoneEntry> waiting,
+  DateTime now, {
   ValueChanged<ReadyStep>? onTap,
 }) {
   final data = snapshot.data;
-  final r = _readinessFor(snapshot);
+  final r = _readinessFor(snapshot, now);
   if (data == null || r == null) return null;
   final step = r.current;
   if (step == null) return null;

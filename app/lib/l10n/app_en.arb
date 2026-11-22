@@ -11017,6 +11017,19 @@
       }
     }
   },
+  "phoneCompareWays": "Compare the two ways",
+  "@phoneCompareWays": {
+    "description": "Phone's Savings tab, step 2: under Extra each month, the button that opens smallest first and highest rate first side by side on a page"
+  },
+  "phonePlanPicked": "You picked {name} to pay extra on first, so neither way is marked. Tap one to follow it instead.",
+  "@phonePlanPicked": {
+    "description": "Phone's Savings tab, step 2's two ways: when a debt was picked by hand with Pay extra on this one (the computer's says Click)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "planPlanNoRate": "No rate on {names}, so the dates may come too early.",
   "@planPlanNoRate": {
     "description": "Savings page, step 2: some debts have no rate and are counted as costing nothing",

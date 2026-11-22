@@ -28,6 +28,7 @@ import '../domain/combine.dart' show Ask, Pick;
 import '../domain/forecast.dart' show ForecastSpan;
 import '../domain/ledger.dart'
     show
+        AccountRole,
         AccountType,
         BudgetAmount,
         CategoryPlan,
@@ -58,7 +59,7 @@ import '../domain/payee_offers.dart';
 import '../domain/payee_rules.dart' show PayeeBefore, PayeeRuleInfo, Remembered;
 import '../domain/phone.dart';
 import '../domain/money.dart' show Currency;
-import '../domain/readiness.dart' show ReadyKeys;
+import '../domain/readiness.dart' show ReadyKeys, ReadyStep, Readiness;
 import '../domain/sync.dart' show appliedMarkerOp, sharedRowId;
 import 'account_edit.dart';
 import 'backup.dart';
@@ -335,6 +336,21 @@ class PhoneSetSpan extends PhoneRowAct {
   const PhoneSetSpan(this.span, {this.customEnd});
   final ForecastSpan span;
   final DateTime? customEnd;
+}
+
+/// A Savings answer or setting from the phone's Savings tab (#533):
+/// `ready.*` preferences written together, as the computer's Savings page
+/// writes them, undone together. [aside] skips a step or brings it back,
+/// worked out from what's stored when it's written, so two quick taps both
+/// count. [role] marks what a card or loan counts as on step 2 (an account's
+/// role, null for debt to pay off). [plan] is a goal's plan with its date
+/// moved, written as the computer's Move the date writes it.
+class PhoneSavingsAnswer extends PhoneRowAct {
+  const PhoneSavingsAnswer(this.values, {this.aside, this.role, this.plan});
+  final Map<String, String?> values;
+  final (ReadyStep, bool)? aside;
+  final (int, AccountRole?)? role;
+  final (int, CategoryPlan)? plan;
 }
 
 /// An account added on the Accounts page (#529): its name, what it is,
@@ -1414,6 +1430,8 @@ class PhoneSync implements PhoneLedgerSource {
         return actOnPay(db, act, now, again);
       case PhoneSetSpan():
         return actOnSpan(db, act, again);
+      case PhoneSavingsAnswer():
+        return actOnSavings(db, act, now, again);
       case PhoneAddAccount() ||
           PhoneEditAccount() ||
           PhoneArchiveAccount() ||
@@ -1786,6 +1804,72 @@ Future<PhoneActed> actOnSpan(
     },
     redo: () async {
       await write(act.span.name, end);
+      return again();
+    },
+  );
+}
+
+/// Writes a Savings answer (#533) and returns its Undo and Redo, which put
+/// back and write again every preference it changed, in one go. One that
+/// changes nothing writes nothing.
+Future<PhoneActed> actOnSavings(
+  AppDatabase db,
+  PhoneSavingsAnswer act,
+  DateTime now,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  final values = {...act.values};
+  if (act.aside case (final step, final aside)?) {
+    values[ReadyKeys.setAside] = Readiness.setAsideStored(
+      await db.preference(ReadyKeys.setAside),
+      step,
+      aside,
+    );
+  }
+  final before = <String, String?>{
+    for (final key in values.keys) key: await db.preference(key),
+  };
+  final role = act.role;
+  final roleWas = role == null
+      ? null
+      : (await db.loadLedger()).accounts[role.$1]?.role;
+  final changes =
+      values.entries.any((e) => before[e.key] != e.value) ||
+      (role != null && roleWas != role.$2);
+  Future<void> write(Map<String, String?> v, AccountRole? r) async {
+    if (!changes) return;
+    await db.transaction(() async {
+      for (final e in v.entries) {
+        await db.setPreference(e.key, e.value);
+      }
+      if (role != null) await db.setAccountRole(role.$1, r);
+    });
+  }
+
+  // The answers and a goal's moved plan in one transaction: a plan the
+  // ledger refuses (its category gone meanwhile) leaves the answers as they
+  // were too (code review, #533).
+  final plan = act.plan;
+  final change = await db.transaction(() async {
+    await write(values, role?.$2);
+    return plan == null
+        ? null
+        : await db.changeCategoryPlan(plan.$1, plan.$2, dateOnly(now));
+  });
+  return (
+    snapshot: await again(),
+    undo: () async {
+      await db.transaction(() async {
+        if (plan != null) await db.undoPlanChange(plan.$1, change!);
+        await write(before, roleWas);
+      });
+      return again();
+    },
+    redo: () async {
+      await db.transaction(() async {
+        await write(values, role?.$2);
+        if (plan != null) await db.redoPlanChange(plan.$1, plan.$2, change!);
+      });
       return again();
     },
   );

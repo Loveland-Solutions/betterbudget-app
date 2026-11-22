@@ -7114,6 +7114,10 @@ class AppDatabase extends _$AppDatabase {
     }
     if (isNew && c.type == CategoryType.goal && p?.kind == PlanKind.byDate) {
       await setPreference(ReadyKeys.goal(id), 'yes');
+      // Made by Savings' Add a goal: left out of a month of expenses, as
+      // the computer's Add a goal leaves it (a wedding would make the
+      // safety net look too small); one from Budget stays in, as there.
+      if (c.outOfMonth) await setPreference(ReadyKeys.leftOut(id), 'yes');
     }
     if (p == null) return true;
     if (p.payScheduleId != null && !pays.contains(p.payScheduleId)) {

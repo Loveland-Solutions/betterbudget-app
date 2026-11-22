@@ -13,7 +13,8 @@ part of 'phone_app.dart';
 /// entry's [currency] with no other offered, and no Add another; the
 /// category made, or the one already called that, comes back for the entry.
 /// [editing]: a category made here and still waiting, opened filled in to
-/// be changed, with Save in place of Add (#243).
+/// be changed, with Save in place of Add (#243). [type]: the card it opens
+/// on, as Savings' Add a goal opens it on Goal (#533).
 Future<PhoneCategory?> _openNewCategory(
   BuildContext context, {
   required PhoneStore store,
@@ -21,6 +22,8 @@ Future<PhoneCategory?> _openNewCategory(
   String name = '',
   bool forEntry = false,
   PhoneCategory? editing,
+  CategoryType? type,
+  bool outOfMonth = false,
 }) {
   final now = store.now();
   final today = DateTime(now.year, now.month, now.day);
@@ -35,6 +38,8 @@ Future<PhoneCategory?> _openNewCategory(
             name: editing?.name ?? name,
             forEntry: forEntry,
             editing: editing,
+            startType: type,
+            outOfMonth: outOfMonth,
           ),
         ),
       )
@@ -134,6 +139,8 @@ class _NewCategoryPage extends StatefulWidget {
     required this.name,
     required this.forEntry,
     this.editing,
+    this.startType,
+    this.outOfMonth = false,
     this.bills = const [],
     this.loan = false,
     this.groupable = false,
@@ -143,6 +150,12 @@ class _NewCategoryPage extends StatefulWidget {
     this.scheduled = 0,
     this.targets = const [],
   });
+
+  /// The card a new one opens on; null opens on none lit, as Budget's does.
+  final CategoryType? startType;
+
+  /// A goal made from Savings: left out of a month of expenses.
+  final bool outOfMonth;
 
   /// Edit of a ledger category: a Group when it is Day-to-day, the groups
   /// there are, how many rows are filed under it (and how many of those are
@@ -289,28 +302,29 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         when c.plan == null && c.type == CategoryType.fund) {
       _p.spentEach = false;
     }
+    if (widget.startType case final type?) _setType(type);
   }
 
   /// A type card picked: the answers it stands for. An amount, a date and
   /// Paid from stay for another card.
-  void _pickType(CategoryType type) {
+  void _pickType(CategoryType type) => setState(() => _setType(type));
+
+  void _setType(CategoryType type) {
     final dated = type == CategoryType.bill || type == CategoryType.goal;
-    setState(() {
-      _p.hasDate = dated;
-      if (!dated) _p.spentEach = type == CategoryType.dayToDay;
-      if (dated) _goal = type == CategoryType.goal;
-      // A new one's How often starts where its type usually is: a bill
-      // every month, a goal once. Until How often is picked.
-      if (widget.editing == null && _repeatNow == _repeatSet) {
-        if (type == CategoryType.bill) _p.preset(1, PlanUnit.months);
-        if (type == CategoryType.goal) {
-          _p.repeat = PlanRepeat.once;
-          _p.custom = false;
-        }
-        _repeatSet = _repeatNow;
+    _p.hasDate = dated;
+    if (!dated) _p.spentEach = type == CategoryType.dayToDay;
+    if (dated) _goal = type == CategoryType.goal;
+    // A new one's How often starts where its type usually is: a bill
+    // every month, a goal once. Until How often is picked.
+    if (widget.editing == null && _repeatNow == _repeatSet) {
+      if (type == CategoryType.bill) _p.preset(1, PlanUnit.months);
+      if (type == CategoryType.goal) {
+        _p.repeat = PlanRepeat.once;
+        _p.custom = false;
       }
-      _tried = false;
-    });
+      _repeatSet = _repeatNow;
+    }
+    _tried = false;
   }
 
   PlanAnswers _fresh(Currency currency) =>
@@ -470,6 +484,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       plan: _draft,
       paidFromId: _paidFromId?.toString(),
       type: _type,
+      outOfMonth: widget.outOfMonth,
     );
     if (!another) {
       Navigator.of(context).pop(made);

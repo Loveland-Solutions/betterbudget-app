@@ -21,6 +21,7 @@ import 'package:betterbudget/domain/combine.dart'
 import 'package:betterbudget/domain/ledger.dart'
     show
         AccountInfo,
+        AccountRole,
         LedgerGroups,
         AccountType,
         dateKey,
@@ -483,6 +484,8 @@ class _ActingSource {
         return actOnPay(db, act, now(), _after);
       case PhoneSetSpan():
         return actOnSpan(db, act, _after);
+      case PhoneSavingsAnswer():
+        return actOnSavings(db, act, now(), _after);
       case PhoneAddAccount() ||
           PhoneEditAccount() ||
           PhoneArchiveAccount() ||
@@ -2611,10 +2614,11 @@ void main() {
     final card = find.byKey(ValueKey('savings-debt-${visa.id}'));
     expect(card, findsOneWidget);
     expect(
-      tester
-          .widget<Text>(find.byKey(ValueKey('savings-debt-${visa.id}-rate')))
-          .data,
-      startsWith('3% a month · about '),
+      find.descendant(
+        of: find.byKey(ValueKey('savings-debt-${visa.id}-rate')),
+        matching: find.textContaining('3% a month · about '),
+      ),
+      findsOneWidget,
     );
     await expectLater(
       find.byType(PhoneApp),
@@ -2641,6 +2645,367 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('savings-pages')), findsNothing);
+  });
+
+  testWidgets('Savings: the month of expenses, Assign to Safety net, skip a '
+      'step, three to six months and step 4, each with Undo (#533)', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int net;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      net = await db.safetyNetCategory(
+        name: 'Safety net',
+        currency: Currency.mnt,
+      );
+      await db.setBudgetAmount(
+        net,
+        DateTime(2026, 10),
+        DateTime(2026, 10, 31),
+        80000000,
+      );
+      await db.setPreference(ReadyKeys.month, '200000000');
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<String?> pref(String key) async =>
+        tester.runAsync<String?>(() => db.preference(key));
+    Future<void> undo() async {
+      await tester.tap(find.text('Undo'));
+      await settle();
+    }
+
+    Future<void> tap(Key key) async {
+      await tester.ensureVisible(find.byKey(key));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(key));
+      await settle();
+    }
+
+    await tester.tap(find.byKey(const ValueKey('to-savings')));
+    await tester.pumpAndSettle();
+
+    // A month of expenses typed, then put back by Undo.
+    await tap(const ValueKey('savings-month-edit'));
+    await tester.enterText(
+      find.byKey(const ValueKey('savings-month-field')),
+      '2500000',
+    );
+    await tap(const ValueKey('savings-month-save'));
+    expect(await pref(ReadyKeys.month), 'MNT:250000000');
+    expect(
+      find.text('₮800,000 of ₮2,500,000 · ₮1,700,000 to go'),
+      findsOneWidget,
+    );
+    await undo();
+    expect(await pref(ReadyKeys.month), '200000000');
+
+    // Something not a number is said under the field, and nothing saved.
+    await tap(const ValueKey('savings-month-edit'));
+    await tester.enterText(
+      find.byKey(const ValueKey('savings-month-field')),
+      'abc',
+    );
+    await tap(const ValueKey('savings-month-save'));
+    expect(find.byKey(const ValueKey('savings-month-wrong')), findsOneWidget);
+    await tap(const ValueKey('savings-month-cancel'));
+    expect(await pref(ReadyKeys.month), '200000000');
+
+    // What isn't assigned goes to the Safety net, as much as fills it.
+    int assigned() => snapshotOf(
+      data,
+      today: _now,
+      madeAt: _now,
+    ).categories.firstWhere((c) => c.id == '$net').assignedMinor;
+    await tap(const ValueKey('savings-assign-oneMonth'));
+    expect(assigned(), greaterThan(80000000));
+    await undo();
+    expect(assigned(), 80000000);
+
+    // Skip this step for now, and Undo.
+    await tester.tap(find.byKey(const ValueKey('savings-oneMonth-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('savings-oneMonth-aside')));
+    await settle();
+    expect(await pref(ReadyKeys.setAside), 'oneMonth');
+    expect(find.text('Skipped for now'), findsOneWidget);
+    await undo();
+    expect(await pref(ReadyKeys.setAside), isNull);
+
+    // Step 3 aims for five months.
+    await tester.tap(find.byKey(const ValueKey('savings-stop-moreMonths')));
+    await tester.pumpAndSettle();
+    await tap(const ValueKey('savings-months-5'));
+    expect(await pref(ReadyKeys.months), '5');
+    // Two quick taps: the second waits for the first, so the Undo shown is
+    // the real one and puts back five.
+    await tester.tap(find.byKey(const ValueKey('savings-months-4')));
+    await tester.tap(find.byKey(const ValueKey('savings-months-4')));
+    await settle();
+    expect(await pref(ReadyKeys.months), '4');
+    await undo();
+    expect(await pref(ReadyKeys.months), '5');
+
+    // Step 4's answers.
+    await tester.tap(find.byKey(const ValueKey('savings-stop-future')));
+    await tester.pumpAndSettle();
+    await tap(const ValueKey('savings-retirement-yes'));
+    expect(await pref(ReadyKeys.retirement), 'yes');
+    await tap(const ValueKey('savings-longLoans-none'));
+    expect(await pref(ReadyKeys.longLoans), 'none');
+    await undo();
+    expect(await pref(ReadyKeys.longLoans), isNull);
+    expect(await pref(ReadyKeys.retirement), 'yes');
+  });
+
+  testWidgets('Savings step 2: a debt’s rate, payment and what it counts as, '
+      'Extra each month, and Compare the two ways, each with Undo (#533)', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int visa, loan;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      final first = await db.loadLedger();
+      visa = first.openAccounts.firstWhere((a) => a.name == 'Golomt Visa').id;
+      final checking = first.openAccounts.first.id;
+      loan = await db.createAccount(
+        name: 'Khan loan',
+        type: AccountType.liability,
+      );
+      // Borrowed into checking: the loan owes ₮5,000,000.
+      await db.postTransaction(
+        date: DateTime(2026, 8, 1),
+        lines: [
+          (accountId: loan, amount: -500000000, cleared: Cleared.cleared),
+          (accountId: checking, amount: 500000000, cleared: Cleared.cleared),
+        ],
+      );
+      await db.setPreference(ReadyKeys.rate(visa), '3 month');
+      await db.setPreference(ReadyKeys.rate(loan), '4 month');
+      await db.setPreference(ReadyKeys.pay(visa), '10000000');
+      await db.setPreference(ReadyKeys.pay(loan), '50000000');
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<String?> pref(String key) async =>
+        tester.runAsync<String?>(() => db.preference(key));
+    Future<void> undo() async {
+      await tester.tap(find.text('Undo'));
+      await settle();
+    }
+
+    Future<void> tap(Key key) async {
+      await tester.ensureVisible(find.byKey(key));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(key));
+      await settle();
+    }
+
+    await tester.tap(find.byKey(const ValueKey('to-savings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('savings-stop-consumerDebt')));
+    await tester.pumpAndSettle();
+
+    // The way followed, smallest first until picked, and Compare.
+    expect(find.byKey(const ValueKey('savings-way-smallest')), findsOneWidget);
+    await tap(const ValueKey('savings-compare'));
+    expect(
+      find.byKey(const ValueKey('savings-way-highestRate')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('savings-payoff-difference')),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_savings_compare.png'),
+    );
+    await tap(const ValueKey('savings-way-highestRate'));
+    expect(await pref(ReadyKeys.method), 'rate');
+    await undo();
+    expect(await pref(ReadyKeys.method), isNull);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // A rate that looks like a year's is said, and saved as typed.
+    await tap(ValueKey('savings-debt-$loan-rate'));
+    await tester.enterText(
+      find.byKey(ValueKey('savings-debt-$loan-rate-field')),
+      '30',
+    );
+    await tester.pump();
+    expect(
+      find.byKey(ValueKey('savings-debt-$loan-rate-warning')),
+      findsOneWidget,
+    );
+    await tap(ValueKey('savings-debt-$loan-rate-save'));
+    expect(await pref(ReadyKeys.rate(loan)), '30 month');
+    await undo();
+    expect(await pref(ReadyKeys.rate(loan)), '4 month');
+
+    // What's paid a month.
+    await tap(ValueKey('savings-debt-$visa-pay'));
+    await tester.enterText(
+      find.byKey(ValueKey('savings-debt-$visa-pay-field')),
+      '150000',
+    );
+    await tap(ValueKey('savings-debt-$visa-pay-save'));
+    expect(await pref(ReadyKeys.pay(visa)), '15000000');
+
+    // Extra each month.
+    await tap(const ValueKey('savings-extra-edit'));
+    await tester.enterText(
+      find.byKey(const ValueKey('savings-extra-field')),
+      '200000',
+    );
+    await tap(const ValueKey('savings-extra-save'));
+    expect(await pref(ReadyKeys.extra), 'MNT:20000000');
+
+    // Pay extra on the loan first, then the Visa counted as paid in full.
+    await tap(ValueKey('savings-debt-$loan-menu'));
+    await tap(ValueKey('savings-debt-$loan-target'));
+    expect(await pref(ReadyKeys.target), '$loan');
+    await tap(ValueKey('savings-debt-$visa-menu'));
+    await tap(ValueKey('savings-debt-$visa-paidMonthly'));
+    expect(data.accounts[visa]!.role, AccountRole.paidMonthly);
+    await undo();
+    expect(data.accounts[visa]!.role, isNull);
+  });
+
+  testWidgets('Savings goals: a date passed short asks what to do, Move the '
+      'date, Edit, and Add a goal opening on its Goal card (#533)', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int wedding, school;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      wedding = await db.createCategory('Wedding');
+      await db.setCategoryPlan(
+        wedding,
+        CategoryPlan(
+          categoryId: wedding,
+          kind: PlanKind.byDate,
+          amount: 300000000,
+          start: DateTime(2026, 6, 1),
+          due: DateTime(2026, 9, 30),
+        ),
+      );
+      await db.setPreference(ReadyKeys.goal(wedding), 'yes');
+      school = await db.createCategory('University');
+      await db.setCategoryPlan(
+        school,
+        CategoryPlan(
+          categoryId: school,
+          kind: PlanKind.byDate,
+          amount: 1000000000,
+          start: DateTime(2026, 9, 1),
+          due: DateTime(2027, 6, 30),
+        ),
+      );
+      await db.setPreference(ReadyKeys.goal(school), 'yes');
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<String?> pref(String key) async =>
+        tester.runAsync<String?>(() => db.preference(key));
+    Future<void> tap(Key key) async {
+      await tester.ensureVisible(find.byKey(key));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(key));
+      await settle();
+    }
+
+    await tester.tap(find.byKey(const ValueKey('to-savings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('savings-stop-goals')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('savings-goal-$wedding')), findsOneWidget);
+    expect(find.byKey(ValueKey('savings-goal-$school')), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_savings_goals.png'),
+    );
+
+    // The wedding happened, the family covering the rest.
+    await tap(ValueKey('savings-goal-done-$wedding'));
+    expect(await pref(ReadyKeys.goalLate(wedding)), 'done');
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(await pref(ReadyKeys.goalLate(wedding)), isNull);
+
+    // Its date moved to when the usual amount has it ready.
+    final due = data.plans[wedding]!.due;
+    await tap(ValueKey('savings-goal-move-$wedding'));
+    expect(data.plans[wedding]!.due!.isAfter(due!), isTrue);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.plans[wedding]!.due, due);
+
+    // Edit opens the category's Edit, as on Budget.
+    await tap(ValueKey('savings-goal-edit-$school'));
+    expect(find.text('University'), findsWidgets);
+    await tap(const ValueKey('new-category-cancel'));
+
+    // Add a goal opens New category on its Goal card.
+    await tap(const ValueKey('savings-goal-add'));
+    final goal = find.byKey(const ValueKey('plan-type-goal'));
+    expect(goal, findsOneWidget);
+    expect(
+      tester.widget<TypeCards>(find.byType(TypeCards)).type,
+      CategoryType.goal,
+    );
   });
 
   testWidgets('Budget: a tap on the step band opens Savings on that step '

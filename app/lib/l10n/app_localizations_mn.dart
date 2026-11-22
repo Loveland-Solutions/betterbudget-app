@@ -7186,6 +7186,14 @@ class WordsMn extends Words {
   }
 
   @override
+  String get phoneCompareWays => 'Хоёр аргыг харьцуулах';
+
+  @override
+  String phonePlanPicked(String name) {
+    return 'Та эхлээд $name-д илүү төлөхөөр сонгосон тул аль нь ч тэмдэглэгдээгүй. Аль нэгийг дарж түүнийг дагана уу.';
+  }
+
+  @override
   String planPlanNoRate(String names) {
     return '$names-д хүү оруулаагүй тул огноо хэт эрт гарч магадгүй.';
   }
