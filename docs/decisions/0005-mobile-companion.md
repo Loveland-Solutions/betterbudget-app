@@ -1666,3 +1666,33 @@ are the same. (3) A line above Save counts what is kept each way. (4) Every card
 version's accounts and amounts, split lines too, with the date and payee where the versions
 differ. (5) Each version says when it was last changed (`AskSide.changedAtMs`, from the
 change log's `at_ms` of the two computers' changes, through `combine(mineAt:, theirsAt:)`).
+
+**How #534 is cut** (a phone on its own, ADR 0004 "A phone with no ledger"). Five
+pieces, each its own PR: (1) the first screen and the ledger made on the phone: Start
+fresh with a new key, Restore from backup, Open ledger, and a phone with no folder
+running on its own ledger; (2) setup on the phone, the computer's steps in the phone's
+form (Your accounts, Your regular income, Money you have), walked as the computer's
+are; (3) backups on the phone: a copy a day, Back up to…, Restore from…; (4) moving the
+phone's ledger to a folder, and a computer or second phone joining it; (5) Settings on
+the phone, Check my recovery key among them. No build goes to the stores between (1)
+and (2): a ledger started on the phone opens with no accounts. PRIVACY.md is checked at
+(3) and (4), where data could go somewhere new.
+
+**Built, 2026-11-22 (0.147.0): #534 piece 1.** `PhoneOwnLedger.create` makes an empty
+ledger, and `restore` makes one from a backup file through the computer's `Backups`
+(`inspect`, then `restore`), each in a file or folder beside the phone's own that takes
+its place only once whole. A phone on its own is marked by `started-here` in its
+folder, and the mark alone decides it: a folder an earlier try left picked is
+forgotten, never read. `PhoneStart` then shows its own ledger as it stands
+(`asItStands`, with `PhoneSync.onItsOwn`, and `PhoneSnapshot.onItsOwn` on the
+screens) and makes the ledger if a launch was cut short after the key was kept. The
+mark is written before the key is kept and the ledger after it, and taken away when
+keeping the key fails, so every launch cut short ends either back at the first screen
+or with a ledger under the kept key. Open ledger takes the mark away when it keeps its
+key, so a phone that joined a folder and lost it is asked for the folder, never put
+on its own. A key typed under Open ledger is taken only once a folder is picked, and
+Start fresh and Restore drop any typed key, so a ledger is never made under a key
+that isn't kept. Restore reads what waits on the phone without setting anything
+aside until the key is known to open the backup. A ledger left by
+an earlier install, with no key here, is moved aside (`own.set-aside-…`), never
+deleted.

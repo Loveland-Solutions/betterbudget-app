@@ -75,7 +75,7 @@ Future<bool> _pickAndImport(
     debugPrint('Reading the picked file failed: $e');
     bytes = Uint8List(0);
   }
-  await _dropPickedCopy(picked.path);
+  await dropPhonePickedCopy(picked.path);
   if (!context.mounted) return false;
   return _importBytes(
     context,
@@ -211,7 +211,7 @@ Future<bool> _importBytes(
 /// The picker's copy of the file, in the app's own folder, is deleted once
 /// read (`data/picked_copy.dart`): an iPhone's is in its temporary folder,
 /// Android's in the app's cache.
-Future<void> _dropPickedCopy(String path) async {
+Future<void> dropPhonePickedCopy(String path) async {
   try {
     final own = switch (defaultTargetPlatform) {
       TargetPlatform.iOS => [Directory.systemTemp.path],

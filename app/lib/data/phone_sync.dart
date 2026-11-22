@@ -513,6 +513,9 @@ typedef PhoneActed = ({
   Future<PhoneSnapshot> Function() redo,
 });
 
+/// Where in the phone's folder [dir] its own ledger is kept.
+Directory phoneOwnDir(Directory dir) => Directory('${dir.path}/own');
+
 abstract class PhoneLedgerSource {
   /// Whether this phone already has a ledger of its own.
   bool get joined;
@@ -520,6 +523,20 @@ abstract class PhoneLedgerSource {
   /// Takes [folderLedger], the ledger as it sits in the folder, as this
   /// phone's own. Throws [WrongKeyException] when the key doesn't open it.
   Future<void> join(Uint8List folderLedger);
+
+  /// Makes a new, empty ledger as the phone's own, for a person who starts
+  /// on the phone (#534); one the phone already has is kept.
+  Future<void> startNew() =>
+      throw UnsupportedError('This source can’t make a ledger');
+
+  /// The phone keeps its ledger in no folder (#534): nothing it holds is
+  /// waiting for a computer, and no look at a folder is made.
+  bool onItsOwn = false;
+
+  /// Makes the phone's own ledger from the backup file at [path] (#534).
+  /// Throws a `RestoreException` for a file it refuses; nothing is kept.
+  Future<void> restoreFrom(String path, DateTime now) =>
+      throw UnsupportedError('This source can’t make a ledger');
 
   /// Looks at the folder and shows the phone's own ledger as of [now]: its
   /// change file written, the others' brought in. Never throws for the
@@ -645,7 +662,7 @@ class PhoneSync implements PhoneLedgerSource {
     required this.device,
     this.io = const PhoneFolderIo(),
     this.wait = const Duration(seconds: 5),
-  }) : _own = PhoneOwnLedger(Directory('${dir.path}/own'), dataKey),
+  }) : _own = PhoneOwnLedger(phoneOwnDir(dir), dataKey),
        _key = dataKey;
 
   /// This phone's id: its ledger's computer, its change file's name.
@@ -690,6 +707,20 @@ class PhoneSync implements PhoneLedgerSource {
   @override
   Future<void> join(Uint8List folderLedger) async {
     _db ??= await _own.join(folderLedger, device);
+  }
+
+  @override
+  bool onItsOwn = false;
+
+  @override
+  Future<void> startNew() async {
+    _db ??= await _own.create(device);
+  }
+
+  @override
+  Future<void> restoreFrom(String path, DateTime now) async {
+    if (_db != null) throw StateError('The phone already has a ledger open');
+    _db = await _own.restore(path, device, now);
   }
 
   Future<String> _name() async {
@@ -882,13 +913,14 @@ class PhoneSync implements PhoneLedgerSource {
     // changes since the last one all of them have seen. With no other
     // computer heard from, all of them.
     final seen = _cloud?.seenOfMine ?? 0;
-    final ids = (await _unapplied(db, seen)).entries;
+    final ids = onItsOwn ? const <int>{} : (await _unapplied(db, seen)).entries;
     return snapshotOf(
       await db.loadLedger(),
       today: now,
       madeAt: await _looked() ?? now,
       mineIds: ids,
       device: device,
+      onItsOwn: onItsOwn,
     );
   }
 

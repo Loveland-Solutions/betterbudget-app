@@ -4,6 +4,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:betterbudget/data/backup.dart' show RestoreException;
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/encryption.dart';
@@ -11,6 +12,7 @@ import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_ledger.dart';
 import 'package:betterbudget/data/phone_own_ledger.dart';
+import 'package:betterbudget/domain/ledger.dart' show AccountType;
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -108,6 +110,89 @@ void main() {
     addTearDown(db.close);
     expect((await db.loadLedger()).txns.length, before + 1);
     expect((await db.syncState()).lastSeq, last);
+  });
+
+  group('a person who starts on the phone (#534)', () {
+    test('Start fresh makes an empty ledger that opens as this phone, and '
+        'never writes over one there', () async {
+      final mine = own();
+      var db = await mine.create('bbbb');
+      expect(mine.exists, isTrue);
+      final ledger = await db.loadLedger();
+      expect(ledger.accounts.values.where((a) => a.isBalanceSheet), isEmpty);
+      expect(ledger.txns, isEmpty);
+      // Opened with this key alone.
+      expect(keyOpens(mine.file, key), isTrue);
+      // Only the ledger in its folder: nothing half-made.
+      expect(
+        mine.dir.listSync().map((e) => e.path.split('/').last),
+        everyElement(startsWith(ledgerFileName)),
+      );
+      expect(
+        mine.dir.listSync().map((e) => e.path),
+        isNot(contains(endsWith('.creating'))),
+      );
+      final checking = await db.addAccount(
+        name: 'Khan Checking',
+        type: AccountType.asset,
+      );
+      expect(checking, isPositive);
+      await db.close();
+
+      // Again by mistake: what is there stays.
+      db = await mine.create('bbbb');
+      addTearDown(db.close);
+      expect(
+        (await db.loadLedger()).accounts.values.map((a) => a.name),
+        contains('Khan Checking'),
+      );
+    });
+
+    test('Restore from backup puts the backup\'s rows in a new ledger; a file '
+        'it refuses leaves nothing', () async {
+      final backup = File('${root.path}/folder/$ledgerFileName');
+      final mine = own();
+      final db = await mine.restore(backup.path, 'bbbb', today);
+      addTearDown(db.close);
+      final names = {
+        for (final a in (await db.loadLedger()).accounts.values) a.name,
+      };
+      expect(names, containsAll(['TDB Checking', 'Groceries']));
+      expect(
+        Directory('${mine.dir.path}.restoring').existsSync(),
+        isFalse,
+      );
+      // A ledger the phone has is never written over.
+      await expectLater(
+        mine.restore(backup.path, 'bbbb', today),
+        throwsStateError,
+      );
+
+      // Another key: refused, nothing made.
+      final other = PhoneOwnLedger(
+        Directory('${root.path}/phone-other'),
+        deriveDataKey(RecoveryKey.generate()),
+      );
+      await expectLater(
+        other.restore(backup.path, 'bbbb', today),
+        throwsA(isA<RestoreException>()),
+      );
+      expect(other.exists, isFalse);
+      expect(
+        Directory('${other.dir.path}.restoring').existsSync(),
+        isFalse,
+      );
+
+      // Not a backup at all.
+      final junk = File('${root.path}/junk.betterbudget')
+        ..writeAsStringSync('not a ledger');
+      final third = PhoneOwnLedger(Directory('${root.path}/phone-third'), key);
+      await expectLater(
+        third.restore(junk.path, 'bbbb', today),
+        throwsA(isA<RestoreException>()),
+      );
+      expect(third.exists, isFalse);
+    });
   });
 
   test('another key is refused, and leaves no ledger and no scratch', () async {

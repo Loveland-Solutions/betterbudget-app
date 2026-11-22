@@ -444,17 +444,28 @@ class PhoneOutbox {
         return readPhoneInbox(_file, key);
       } catch (e) {
         debugPrint('The phone’s waiting entries couldn’t be read: $e');
-        // Set aside, not written over: what was waiting may be got back.
-        _file.renameSync('${_file.path}.unreadable');
+        setAside();
       }
     }
-    final random = Random.secure();
-    return PhoneInbox(
-      device: [
-        for (var i = 0; i < 4; i++)
-          random.nextInt(256).toRadixString(16).padLeft(2, '0'),
-      ].join(),
-    );
+    return PhoneInbox(device: newPhoneDevice());
+  }
+
+  /// What was waiting, or null when nothing was or [key] can't read it:
+  /// nothing is set aside, for a key not yet known to be the right one
+  /// (#534's Restore from backup).
+  PhoneInbox? peek() {
+    if (!_file.existsSync()) return null;
+    try {
+      return readPhoneInbox(_file, key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Sets the file aside, not written over: what was waiting may be got
+  /// back.
+  void setAside() {
+    if (_file.existsSync()) _file.renameSync('${_file.path}.unreadable');
   }
 
   /// Keeps [inbox] on the phone and gives the bytes of the file for the
@@ -471,4 +482,13 @@ class PhoneOutbox {
       sending.deleteSync();
     }
   }
+}
+
+/// A new name for a phone: four random bytes in hex.
+String newPhoneDevice() {
+  final random = Random.secure();
+  return [
+    for (var i = 0; i < 4; i++)
+      random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ].join();
 }

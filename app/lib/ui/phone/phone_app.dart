@@ -1482,8 +1482,10 @@ class _BudgetScreenState extends State<_BudgetScreen> {
                             : t.phoneLeftUntil(shortDate(snapshot.periodEnd!)),
                         style: onest(20, weight: 600),
                       ),
-                      const SizedBox(height: 4),
-                      _FromMac(made: snapshot.madeAt, today: today),
+                      if (!snapshot.onItsOwn) ...[
+                        const SizedBox(height: 4),
+                        _FromMac(made: snapshot.madeAt, today: today),
+                      ],
                     ],
                   ),
                 ),
@@ -5207,10 +5209,11 @@ class _AccountsScreenState extends State<_AccountsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: _FromMac(made: snapshot.madeAt, today: widget.now()),
-          ),
+          if (!snapshot.onItsOwn)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _FromMac(made: snapshot.madeAt, today: widget.now()),
+            ),
           if (data != null && data.balanceSheetAccounts.isNotEmpty) ...[
             _netWorth(t, data),
             const SizedBox(height: 8),

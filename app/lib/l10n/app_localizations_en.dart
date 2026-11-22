@@ -8350,4 +8350,40 @@ class WordsEn extends Words {
   @override
   String get walkAssignShort =>
       'You’ve assigned more than you have, as the sum above says. Take some back from a category, or wait for more money to come in.';
+
+  @override
+  String get phoneStartRestoreNote =>
+      'I have a backup file, saved with Back up to… in Settings. This phone gets its own copy.';
+
+  @override
+  String get phoneStartOpenNote =>
+      'My household already uses BetterBudget on a computer or another phone, and the ledger is in a folder, such as Google Drive. This phone shares it.';
+
+  @override
+  String get phoneNewKeyIntro =>
+      'BetterBudget encrypts your ledger and its backups. This key opens them on a computer or another phone, and on a new phone if this one is lost. This is the only time it’s shown: BetterBudget doesn’t keep a copy, and it can’t be replaced.';
+
+  @override
+  String get phoneNewKeyWhere =>
+      'Keep it away from this phone, where the other person who manages the money can find it: printed with your important papers, or in a password manager.';
+
+  @override
+  String get phoneNewKeyCopiedWarning =>
+      'Copied · paste it somewhere off this phone before you continue. The clipboard is cleared in a minute.';
+
+  @override
+  String get phoneNewKeyNotKeptWarning =>
+      'If you continue without copying it, it’s gone: BetterBudget can’t show it again, and if this phone is lost, your ledger and its backups can’t be opened.';
+
+  @override
+  String get phoneNewLedgerFailed => 'Couldn’t make a ledger on this phone';
+
+  @override
+  String get phoneRestoreFailed => 'Couldn’t restore that backup on this phone';
+
+  @override
+  String get phoneOwnCantOpen => 'The ledger on this phone couldn’t be opened';
+
+  @override
+  String get phoneOtherWays => 'Other ways to start';
 }

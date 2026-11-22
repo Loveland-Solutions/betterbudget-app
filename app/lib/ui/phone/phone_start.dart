@@ -1,14 +1,19 @@
-// The phone app's first minute (ADR 0005): the recovery key, once; the folder
-// the ledger was moved to, once; then the ledger read from that folder, and
-// read again whenever the app comes back to the front, and every half minute
-// while it is open. What is typed here is kept on the phone and written to the
-// same folder, in the phone's own file, for the computer to take in.
+// The phone app's first minute (ADR 0005). A phone with no key asks how to
+// start, as a computer does (#534, the owner's pick of sketch A): Start fresh
+// makes a ledger on the phone and shows its recovery key once; Restore from
+// backup makes it from a backup file; Open ledger takes the key, then the
+// folder the ledger was moved to. A phone on a folder reads it again whenever
+// the app comes back to the front, and every half minute while it is open; a
+// phone on its own keeps its ledger here and looks at no folder.
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' show Random;
 import 'dart:typed_data';
 
+import 'package:file_selector/file_selector.dart' show XFile, openFile;
 import 'package:flutter/material.dart';
 
+import '../../data/backup.dart' show RestoreException, RestoreProblem;
 import '../../data/incoming_file.dart';
 import '../../data/keys.dart';
 import '../../data/ledger_file.dart';
@@ -19,6 +24,7 @@ import '../../data/problem_log.dart';
 import '../../domain/phone.dart';
 import '../data_words.dart';
 import '../language.dart';
+import '../recovery_key_screen.dart' show RecoveryKeyDisplay, copyRecoveryKey;
 import '../theme.dart';
 import 'phone_app.dart';
 import 'phone_asking.dart' show PhoneAnswer;
@@ -45,7 +51,23 @@ PhoneLedgerSource _openPhoneSync({
   io: PhoneFolderIo(folder),
 );
 
-enum _Step { loading, key, folder, noLedger, wrongKey, cantRead, ready }
+enum _Step {
+  loading,
+  // How do you want to start? (#534)
+  welcome,
+  // Start fresh's recovery key, shown once.
+  newKey,
+  // Start fresh's ledger couldn't be made.
+  newFailed,
+  // The ledger kept on a phone on its own couldn't be opened.
+  ownCantOpen,
+  key,
+  folder,
+  noLedger,
+  wrongKey,
+  cantRead,
+  ready,
+}
 
 /// How long the folder is given to answer before the phone stops waiting:
 /// with no signal a cloud provider may never answer at all.
@@ -61,7 +83,12 @@ class PhoneStart extends StatefulWidget {
     this.now = DateTime.now,
     this.every = const Duration(seconds: 30),
     this.problems,
+    this.random,
   });
+
+  /// Where Start fresh's recovery key comes from: secure, unless a test
+  /// needs the same key every time.
+  final Random? random;
 
   /// Recent problems (#294); by default the file `problems` in [dir].
   final ProblemLog? problems;
@@ -101,6 +128,21 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   Uint8List? _typedKey;
   final _keyText = TextEditingController();
   String? _keyError;
+
+  /// Start fresh's recovery key, on screen until Continue.
+  RecoveryKey? _newKey;
+
+  /// Written when the ledger is made on this phone (#534): with no folder
+  /// kept, the phone is on its own, and its ledger is shown as it stands.
+  /// A phone that joined a folder and lost it is asked for the folder.
+  File get _startedHere => File('${widget.dir.path}/started-here');
+
+  /// No folder: the phone holds the only ledger.
+  var _onItsOwn = false;
+
+  /// No key is kept on this phone yet: its problem screens offer the way
+  /// back to "How do you want to start?".
+  var _noKeyKept = true;
 
   late final ProblemLog _problems =
       widget.problems ?? ProblemLog(File('${widget.dir.path}/problems'));
@@ -166,26 +208,34 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   /// in and this phone's own file written (`phone_sync.dart`). A phone with
   /// no signal shows its own ledger as it stands, which says how old it is.
   Future<void> _read() async {
-    final Uint8List? key;
+    final Uint8List? stored;
     try {
-      key = _typedKey ?? await widget.keys.readDataKey();
+      stored = await widget.keys.readDataKey();
     } on NoSecureStoreException {
       return _go(_Step.key);
     }
-    if (key == null) return _go(_Step.key);
-    final String? folder;
-    try {
-      folder = await widget.folder.kept();
-    } catch (e) {
-      debugPrint('Asking for the kept folder failed: $e');
-      // Figures already up stay up: they say how old they are.
-      if (_step != _Step.ready) {
-        _record((t) => t.phoneProblemFolderLost, e);
-        _go(_Step.folder);
+    _noKeyKept = stored == null;
+    final key = _typedKey ?? stored;
+    if (key == null) return _go(_Step.welcome);
+    // The ledger was made here (#534): the phone is on its own whatever
+    // folder an earlier try left picked. A key being typed is Open ledger's.
+    final onItsOwn = _typedKey == null && _startedHere.existsSync();
+    _onItsOwn = onItsOwn;
+    String? folder;
+    if (!onItsOwn) {
+      try {
+        folder = await widget.folder.kept();
+      } catch (e) {
+        debugPrint('Asking for the kept folder failed: $e');
+        // Figures already up stay up: they say how old they are.
+        if (_step != _Step.ready) {
+          _record((t) => t.phoneProblemFolderLost, e);
+          _go(_Step.folder);
+        }
+        return;
       }
-      return;
+      if (folder == null) return _go(_Step.folder);
     }
-    if (folder == null) return _go(_Step.folder);
     try {
       // What is waiting on the phone, and the phone's id, which its ledger
       // is opened as: read once, since a phone with nothing kept makes a
@@ -201,9 +251,38 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         device: kept.device,
         folder: widget.folder,
       );
+      source.onItsOwn = onItsOwn;
+      if (onItsOwn) {
+        if (!source.joined) {
+          // Start fresh's ledger: made the first time it is opened, so a
+          // launch cut short after the key was kept still makes it.
+          try {
+            await source.startNew();
+          } catch (e) {
+            debugPrint('Making a ledger on the phone failed: $e');
+            _record((t) => t.phoneNewLedgerFailed, e);
+            _go(_Step.newFailed);
+            return;
+          }
+        }
+        final PhoneSnapshot own;
+        try {
+          own = await source.asItStands(widget.now());
+        } catch (e) {
+          debugPrint('Opening the ledger on the phone failed: $e');
+          if (_step != _Step.ready) {
+            _record((t) => t.phoneOwnCantOpen, e);
+            _go(_Step.ownCantOpen);
+          }
+          return;
+        }
+        _show(own, key, null);
+        return;
+      }
+      final inFolder = folder!;
       if (!source.joined) {
         final found = await widget.folder
-            .read(folder, ledgerFileName)
+            .read(inFolder, ledgerFileName)
             .timeout(phoneFolderPatience);
         if (found == null) {
           // Not there yet (the folder is still arriving): what is up, and an
@@ -217,8 +296,8 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       // A folder that never answers (no signal) isn't waited for: the
       // phone's own ledger is shown as it stands, and the look, when it
       // finishes, brings the figures up to date.
-      final looking = source.look(folder, now);
-      final dataKey = key, at = folder, generation = ++_looks;
+      final looking = source.look(inFolder, now);
+      final dataKey = key, at = inFolder, generation = ++_looks;
       PhoneSnapshot snapshot;
       try {
         snapshot = await looking.timeout(phoneFolderPatience);
@@ -236,8 +315,12 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       if (_typedKey != null) {
         await widget.keys.writeDataKey(key);
         _typedKey = null;
+        _noKeyKept = false;
+        // On a folder now: a mark a Start fresh cut short left isn't this
+        // phone's, or losing the folder later would put it on its own.
+        _dropStartedHere();
       }
-      _show(snapshot, key, folder);
+      _show(snapshot, key, inFolder);
     } on WrongKeyException catch (e) {
       if (_typedKey == null) {
         // The key kept here has opened this ledger before, so it is the
@@ -321,7 +404,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
 
   /// Puts [snapshot] up, the waiting entries and the half-minute look with
   /// it the first time.
-  void _show(PhoneSnapshot snapshot, Uint8List key, String folder) {
+  void _show(PhoneSnapshot snapshot, Uint8List key, String? folder) {
     if (!mounted) return;
     _folder = folder;
     final store = _store;
@@ -422,7 +505,8 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   /// next read.
   void _keep() {
     final store = _store, outbox = _outbox, folder = _folder;
-    if (store == null || outbox == null || folder == null) return;
+    if (store == null || outbox == null) return;
+    if (folder == null && !_onItsOwn) return;
     final inbox = store.inbox;
     final send = store.sending;
     // What is kept and what goes: entries held behind a count go once it is
@@ -468,7 +552,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
             if (identical(_source, source) && mounted) {
               store.snapshot = took.snapshot;
             }
-            await _dropOwnFile(folder, inbox.device);
+            if (folder != null) await _dropOwnFile(folder, inbox.device);
             unawaited(_load());
             return;
           }
@@ -480,10 +564,12 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
           if (_sent == saying) _sent = null;
           return;
         }
-        await _writeOwnFile(folder, inbox, bytes, saying);
+        if (folder != null) await _writeOwnFile(folder, inbox, bytes, saying);
       });
       return;
     }
+    // On its own the phone has no folder to write its entries to.
+    if (folder == null) return;
     _keeping = _keeping.then(
       (_) => _writeOwnFile(folder, inbox, bytes, saying),
     );
@@ -520,17 +606,19 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   /// The demo key was typed: invented figures, nothing read or kept.
   var _demo = false;
 
+  /// Made-up figures, nothing read or kept: for Play's review (#303).
+  void _openDemo() {
+    _keyText.clear();
+    setState(() {
+      _demo = true;
+      _keyError = null;
+      _store = PhoneStore(previewSnapshot(widget.now()));
+      _step = _Step.ready;
+    });
+  }
+
   void _useKey() {
-    if (isPhoneDemoKey(_keyText.text)) {
-      _keyText.clear();
-      setState(() {
-        _demo = true;
-        _keyError = null;
-        _store = PhoneStore(previewSnapshot(widget.now()));
-        _step = _Step.ready;
-      });
-      return;
-    }
+    if (isPhoneDemoKey(_keyText.text)) return _openDemo();
     final problem = RecoveryKey.check(_keyText.text);
     final key = problem == null ? RecoveryKey.parse(_keyText.text) : null;
     if (key == null) {
@@ -550,7 +638,171 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     _load();
   }
 
-  Future<void> _pickFolder() async {
+  /// The phone's own ledger as an earlier install left it, with no key to
+  /// open it: moved aside, never deleted, before a new one is made here, as
+  /// a computer sets aside the ledger it can't open.
+  Future<void> _setAsideOwn() async {
+    final own = phoneOwnDir(widget.dir);
+    if (!own.existsSync()) return;
+    final stamp = widget.now().toIso8601String().replaceAll(':', '-');
+    await own.rename('${own.path}.set-aside-$stamp');
+  }
+
+  void _dropStartedHere() {
+    try {
+      if (_startedHere.existsSync()) _startedHere.deleteSync();
+    } catch (e) {
+      debugPrint('The mark of a ledger made here couldn’t be removed: $e');
+    }
+  }
+
+  /// A folder an earlier try picked: a ledger made here isn't that folder's.
+  Future<void> _forgetFolder() async {
+    try {
+      final before = await widget.folder.kept();
+      if (before != null) await widget.folder.forget(before);
+    } catch (e) {
+      debugPrint('Forgetting the folder picked before failed: $e');
+    }
+  }
+
+  /// Leaves a way that didn't work for "How do you want to start?": nothing
+  /// typed or opened on the way is kept.
+  Future<void> _backToStart() async {
+    _typedKey = null;
+    _keyText.clear();
+    _keyError = null;
+    await _reading;
+    final leaving = _source;
+    _source = null;
+    _outbox = null;
+    _kept = null;
+    await leaving?.close();
+    await _forgetFolder();
+    _go(_Step.welcome);
+  }
+
+  /// Start fresh: a new key, shown once before anything is kept.
+  void _startFresh() => setState(() {
+    _typedKey = null;
+    _newKey = RecoveryKey.generate(random: widget.random);
+    _step = _Step.newKey;
+  });
+
+  /// Continue under the new key ([copied]: Copy was tapped): the phone is
+  /// marked as on its own, the key kept, and the ledger made by the look
+  /// that follows, so a launch cut short between them still ends with a
+  /// ledger under the kept key, or back at the first screen. A failure
+  /// takes the mark back and keeps the key on screen, so Try again uses
+  /// the key the person may have written down.
+  Future<void> _keepNewKey({bool copied = false}) async {
+    final recovery = _newKey;
+    if (recovery == null) return;
+    _typedKey = null;
+    try {
+      await _setAsideOwn();
+      await widget.dir.create(recursive: true);
+      await _startedHere.writeAsString('1', flush: true);
+      await widget.keys.writeDataKey(deriveDataKey(recovery));
+    } catch (e) {
+      debugPrint('Keeping the new key on the phone failed: $e');
+      _dropStartedHere();
+      _record((t) => t.phoneNewLedgerFailed, e);
+      _go(_Step.newFailed);
+      return;
+    }
+    await _keptCopied(copied);
+    _newKey = null;
+    await _forgetFolder();
+    _go(_Step.loading);
+    await _load();
+  }
+
+  /// Whether Copy was tapped, as the computer keeps it, for Check my
+  /// recovery key later; nothing is lost when it can't be kept.
+  Future<void> _keptCopied(bool copied) async {
+    try {
+      await widget.keys.writeKeySaved(copied);
+    } catch (e) {
+      debugPrint('Keeping whether the key was copied failed: $e');
+    }
+  }
+
+  /// Restore from backup with [recovery]: the file picked, then made the
+  /// phone's own ledger as a computer with no ledger restores one. Returns
+  /// what to say under the row when it can't be, or null.
+  Future<String?> _restore(RecoveryKey recovery) async {
+    final t = context.t;
+    final XFile? picked;
+    try {
+      picked = await openFile();
+    } catch (e) {
+      debugPrint('The phone\'s file picker failed: $e');
+      return t.ledgerCouldntOpenFileDialog;
+    }
+    if (picked == null) return null;
+    _typedKey = null;
+    final key = deriveDataKey(recovery);
+    PhoneLedgerSource? source;
+    var marked = false;
+    try {
+      await _setAsideOwn();
+      // Read, nothing set aside, until the key is known to open the backup:
+      // what waits from before may be this key's on the next try.
+      final outbox = PhoneOutbox(Directory('${widget.dir.path}/waiting'), key);
+      final waiting = outbox.peek();
+      final device = waiting?.device ?? newPhoneDevice();
+      source = widget.open(
+        dir: widget.dir,
+        key: key,
+        device: device,
+        folder: widget.folder,
+      );
+      await source.restoreFrom(picked.path, widget.now());
+      await widget.dir.create(recursive: true);
+      await _startedHere.writeAsString('1', flush: true);
+      marked = true;
+      await widget.keys.writeDataKey(key);
+      // The key opens the backup: a file it can't read isn't this ledger's.
+      if (waiting == null) outbox.setAside();
+      _outbox = outbox;
+      _kept = waiting ?? PhoneInbox(device: device);
+      _source = source;
+      _noKeyKept = false;
+    } on RestoreException catch (e) {
+      await source?.close();
+      // Its own key isn't asked for here: the one typed is the only one.
+      return restoreProblem(
+        t,
+        e.problem == RestoreProblem.needsKey
+            ? RestoreProblem.wrongKey
+            : e.problem,
+      );
+    } catch (e) {
+      debugPrint('Restoring a backup on the phone failed: $e');
+      await source?.close();
+      if (marked) _dropStartedHere();
+      _record((t) => t.phoneRestoreFailed, e);
+      return t.phoneRestoreFailed;
+    } finally {
+      await dropPhonePickedCopy(picked.path);
+    }
+    await _forgetFolder();
+    _go(_Step.loading);
+    await _load();
+    return null;
+  }
+
+  /// Open ledger with [recovery]: the key is tried on the folder's ledger
+  /// once the folder is picked, as before.
+  Future<String?> _openWith(RecoveryKey recovery) async {
+    await _pickFolder(withKey: deriveDataKey(recovery));
+    return null;
+  }
+
+  /// [withKey]: the key typed under Open ledger, taken only once a folder
+  /// is picked, so a picker cancelled leaves no key behind for Start fresh.
+  Future<void> _pickFolder({Uint8List? withKey}) async {
     final String? picked;
     try {
       final before = await widget.folder.kept();
@@ -570,6 +822,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       return;
     }
     if (picked == null) return;
+    if (withKey != null) _typedKey = withKey;
     _go(_Step.loading);
     await _load();
   }
@@ -577,44 +830,70 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    // Before any key is kept, a way that didn't work can be left for
+    // another.
+    final back = _noKeyKept ? () => unawaited(_backToStart()) : null;
     return switch (_step) {
       _Step.loading => Scaffold(backgroundColor: Mid.ground),
       _Step.ready => PhoneHome(
         store: _store!,
         now: widget.now,
-        onRefresh: _demo ? null : _load,
+        // On its own there is no folder to look at again.
+        onRefresh: _demo || _onItsOwn ? null : _load,
         onAnswer: _demo ? null : _answer,
         problems: _problems,
         note: _demo ? t.phoneDemoNote : null,
       ),
+      _Step.welcome => _Welcome(
+        onFresh: _startFresh,
+        onRestore: _restore,
+        onOpen: _openWith,
+        onDemo: _openDemo,
+      ),
+      _Step.newKey => _NewKey(
+        recoveryKey: _newKey!,
+        onContinue: (copied) => _keepNewKey(copied: copied),
+        onCancel: () => setState(() {
+          _newKey = null;
+          _step = _Step.welcome;
+        }),
+      ),
+      _Step.newFailed => _Ask(
+        title: t.phoneNewLedgerFailed,
+        action: t.phoneTryAgain,
+        // The same key while it is still on hand: it may be written down.
+        onAction: _newKey != null
+            ? () => _keepNewKey()
+            : () {
+                _go(_Step.loading);
+                _load();
+              },
+        report: true,
+      ),
+      _Step.ownCantOpen => _Ask(
+        title: t.phoneOwnCantOpen,
+        action: t.phoneTryAgain,
+        onAction: () {
+          _go(_Step.loading);
+          _load();
+        },
+        report: true,
+      ),
       _Step.key => _Ask(
+        onBack: back,
         title: t.phoneKeyTitle,
         body: t.phoneKeyBody,
-        field: TextField(
-          key: const ValueKey('phone-key'),
+        field: _PhoneKeyField(
+          fieldKey: const ValueKey('phone-key'),
           controller: _keyText,
-          autofocus: true,
-          autocorrect: false,
-          enableSuggestions: false,
-          // The keyboard isn't to learn the key or offer it back.
-          keyboardType: TextInputType.visiblePassword,
-          enableIMEPersonalizedLearning: false,
-          textCapitalization: TextCapitalization.characters,
-          style: onest(16, letterSpacing: 0.5),
-          cursorColor: Mid.blue,
-          decoration: InputDecoration(
-            hintText: 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ0',
-            hintStyle: onest(16, color: Mid.ink3, letterSpacing: 0.5),
-            errorText: _keyError,
-            errorMaxLines: 3,
-            errorStyle: onest(14, color: Mid.coral),
-          ),
-          onSubmitted: (_) => _useKey(),
+          error: _keyError,
+          onSubmitted: _useKey,
         ),
         action: t.startContinue,
         onAction: _useKey,
       ),
       _Step.folder => _Ask(
+        onBack: back,
         title: t.phoneFolderTitle,
         body: t.phoneFolderBody,
         action: t.phoneFolderChoose,
@@ -622,6 +901,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         report: true,
       ),
       _Step.noLedger => _Ask(
+        onBack: back,
         title: t.phoneNoLedger,
         body: t.phoneNoLedgerBody(ledgerFileName),
         action: t.phoneTryAgain,
@@ -634,6 +914,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         report: true,
       ),
       _Step.wrongKey => _Ask(
+        onBack: back,
         title: t.phoneKeyDoesntOpen,
         action: t.phoneEnterKeyAgain,
         onAction: () => _go(_Step.key),
@@ -642,6 +923,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         report: true,
       ),
       _Step.cantRead => _Ask(
+        onBack: back,
         title: t.phoneCantRead,
         body: t.phoneCantReadBody,
         action: t.phoneTryAgain,
@@ -654,6 +936,390 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         report: true,
       ),
     };
+  }
+}
+
+/// The box a recovery key is typed into on the phone: one line at the phone's
+/// width, and a keyboard that neither learns the key nor offers it back.
+class _PhoneKeyField extends StatelessWidget {
+  const _PhoneKeyField({
+    required this.fieldKey,
+    required this.controller,
+    required this.onSubmitted,
+    this.error,
+    this.onChanged,
+  });
+  final Key fieldKey;
+  final TextEditingController controller;
+  final VoidCallback onSubmitted;
+  final VoidCallback? onChanged;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    key: fieldKey,
+    controller: controller,
+    autofocus: true,
+    autocorrect: false,
+    enableSuggestions: false,
+    keyboardType: TextInputType.visiblePassword,
+    enableIMEPersonalizedLearning: false,
+    textCapitalization: TextCapitalization.characters,
+    // The whole key on one line inside Open ledger's card.
+    style: onest(16),
+    cursorColor: Mid.blue,
+    decoration: InputDecoration(
+      hintText: 'ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ0',
+      hintStyle: onest(16, color: Mid.ink3),
+      errorText: error,
+      errorMaxLines: 3,
+      errorStyle: onest(14, color: Mid.coral),
+    ),
+    onSubmitted: (_) => onSubmitted(),
+    onChanged: (_) => onChanged?.call(),
+  );
+}
+
+/// The ways a ledger comes to a phone with none (#534, the owner's pick of
+/// sketch A: "let's do a"), the computer's three in its words: Start fresh,
+/// Restore from backup, Open ledger. The two that need the recovery key open
+/// where they are tapped, with the box and the button that picks, as on the
+/// computer; a tap on the open one's name closes it.
+class _Welcome extends StatefulWidget {
+  const _Welcome({
+    required this.onFresh,
+    required this.onRestore,
+    required this.onOpen,
+    required this.onDemo,
+  });
+  final VoidCallback onFresh;
+
+  /// With the key typed; each returns what to say under the box, or null.
+  final Future<String?> Function(RecoveryKey key) onRestore;
+  final Future<String?> Function(RecoveryKey key) onOpen;
+
+  /// The demo key typed in either box (#303).
+  final VoidCallback onDemo;
+
+  @override
+  State<_Welcome> createState() => _WelcomeState();
+}
+
+enum _Way { restore, open }
+
+class _WelcomeState extends State<_Welcome> {
+  final _controller = TextEditingController();
+  _Way? _open;
+  String? _error;
+  var _busy = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final way = _open;
+    if (_busy || way == null) return;
+    final t = context.t;
+    if (isPhoneDemoKey(_controller.text)) return widget.onDemo();
+    final problem = RecoveryKey.check(_controller.text);
+    final key = problem == null ? RecoveryKey.parse(_controller.text) : null;
+    if (key == null) {
+      setState(
+        () => _error = problem == null
+            ? t.startKeyChecksum
+            : keyProblem(t, problem),
+      );
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final said = await (way == _Way.restore
+        ? widget.onRestore(key)
+        : widget.onOpen(key));
+    if (mounted) {
+      setState(() {
+        _busy = false;
+        _error = said;
+      });
+    }
+  }
+
+  Widget _heading(String title, String note, {Color? ink, Color? ink2}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: onest(17, weight: 600, color: ink)),
+          const SizedBox(height: 4),
+          Text(note, style: onest(14, color: ink2 ?? Mid.ink2, height: 1.4)),
+        ],
+      );
+
+  Widget _keyed(_Way way, String key, String title, String note, String act) {
+    final t = context.t;
+    final open = _open == way;
+    return Material(
+      color: Mid.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: open
+            ? BorderSide(color: Mid.blue, width: 1.5)
+            : BorderSide(color: Mid.rule),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            key: ValueKey(key),
+            onTap: _busy
+                ? null
+                : () => setState(() {
+                    _open = open ? null : way;
+                    _error = null;
+                  }),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 76),
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: _heading(title, note),
+              ),
+            ),
+          ),
+          if (open)
+            Padding(
+              key: ValueKey('$key-open'),
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(t.startKeyLabel, style: onest(14, color: Mid.ink3)),
+                  _PhoneKeyField(
+                    fieldKey: const ValueKey('phone-key'),
+                    controller: _controller,
+                    error: _error,
+                    onSubmitted: _submit,
+                    onChanged: () {
+                      if (_error != null) setState(() => _error = null);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    t.startKeyHint,
+                    style: onest(14, color: Mid.ink3, height: 1.4),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    key: ValueKey('$key-choose'),
+                    onPressed: _busy ? null : _submit,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      backgroundColor: Mid.fill,
+                      foregroundColor: Mid.onFill,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      textStyle: onest(17, weight: 600),
+                    ),
+                    child: Text(act),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Scaffold(
+      backgroundColor: Mid.ground,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(t.startHowTitle, style: onest(28, weight: 600, height: 1.2)),
+              const SizedBox(height: 24),
+              // The way most people with only a phone take, filled.
+              Material(
+                color: Mid.fill,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  key: const ValueKey('start-fresh'),
+                  onTap: _busy ? null : widget.onFresh,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 76),
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: _heading(
+                        t.startFresh,
+                        t.startFreshNote,
+                        ink: Mid.onFill,
+                        ink2: Mid.onFill,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _keyed(
+                _Way.restore,
+                'start-restore',
+                t.startRestore,
+                t.phoneStartRestoreNote,
+                t.startChooseBackup,
+              ),
+              const SizedBox(height: 12),
+              _keyed(
+                _Way.open,
+                'start-open',
+                t.startOpen,
+                t.phoneStartOpenNote,
+                t.startChooseFolder,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Start fresh's recovery key, shown once before anything is kept (#534),
+/// as the computer shows it: what it is, the key, where to keep it, Copy,
+/// and a warning while it hasn't been copied. Continue goes on either way
+/// (warn, don't block); Cancel goes back with nothing kept.
+class _NewKey extends StatefulWidget {
+  const _NewKey({
+    required this.recoveryKey,
+    required this.onContinue,
+    required this.onCancel,
+  });
+  final RecoveryKey recoveryKey;
+
+  /// With whether Copy was tapped.
+  final Future<void> Function(bool copied) onContinue;
+  final VoidCallback onCancel;
+
+  @override
+  State<_NewKey> createState() => _NewKeyState();
+}
+
+class _NewKeyState extends State<_NewKey> {
+  var _copied = false;
+  var _busy = false;
+
+  Future<void> _continue() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.onContinue(_copied);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Scaffold(
+      backgroundColor: Mid.ground,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(t.startKeyTitle, style: onest(28, weight: 600, height: 1.2)),
+              const SizedBox(height: 12),
+              Text(
+                t.phoneNewKeyIntro,
+                style: onest(16, color: Mid.ink2, height: 1.4),
+              ),
+              const SizedBox(height: 20),
+              RecoveryKeyDisplay(display: widget.recoveryKey.display),
+              const SizedBox(height: 8),
+              Text(
+                t.phoneNewKeyWhere,
+                style: onest(14, color: Mid.ink3, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  key: const ValueKey('copy-recovery-key'),
+                  onPressed: () async {
+                    await copyRecoveryKey(widget.recoveryKey.display);
+                    if (mounted) setState(() => _copied = true);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    foregroundColor: Mid.blue,
+                    side: BorderSide(color: Mid.rule),
+                    textStyle: onest(16),
+                  ),
+                  icon: Icon(
+                    _copied ? Icons.check_rounded : Icons.copy_rounded,
+                    size: 18,
+                    color: _copied ? Mid.green : Mid.blue,
+                  ),
+                  label: Text(_copied ? t.startCopied : t.startCopy),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _copied
+                    ? t.phoneNewKeyCopiedWarning
+                    : t.phoneNewKeyNotKeptWarning,
+                key: const ValueKey('recovery-key-warning'),
+                style: onest(
+                  14,
+                  color: _copied ? Mid.ink2 : Mid.coral,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                key: const ValueKey('recovery-key-continue'),
+                onPressed: _busy ? null : _continue,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  backgroundColor: Mid.fill,
+                  foregroundColor: Mid.onFill,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  textStyle: onest(17, weight: 600),
+                ),
+                child: Text(t.startContinue),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                key: const ValueKey('recovery-key-cancel'),
+                onPressed: _busy ? null : widget.onCancel,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: Mid.blue,
+                  textStyle: onest(16),
+                ),
+                child: Text(t.ledgerCancel),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -670,7 +1336,11 @@ class _Ask extends StatelessWidget {
     this.other,
     this.onOther,
     this.report = false,
+    this.onBack,
   });
+
+  /// Other ways to start, under a problem reached before any key is kept.
+  final VoidCallback? onBack;
   final String title;
   final String? body;
   final Widget? field;
@@ -719,6 +1389,19 @@ class _Ask extends StatelessWidget {
                   textStyle: onest(16),
                 ),
                 child: Text(other!),
+              ),
+            ],
+            if (onBack != null) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                key: const ValueKey('other-ways'),
+                onPressed: onBack,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: Mid.blue,
+                  textStyle: onest(16),
+                ),
+                child: Text(context.t.phoneOtherWays),
               ),
             ],
             if (report) const ReportProblemLine(),

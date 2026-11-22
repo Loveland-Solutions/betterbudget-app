@@ -289,7 +289,12 @@ class PhoneSnapshot {
     this.budgetCurrency,
     this.income = const PhoneIncome(),
     this.walk,
+    this.onItsOwn = false,
   });
+
+  /// The phone holds the only ledger, kept in no folder (#534): no line says
+  /// when a computer's copy came, and nothing waits for a computer.
+  final bool onItsOwn;
 
   /// The first steps after setup (#475), as the computer's Budget page
   /// shows them: null when this ledger isn't walked or the steps are done.
@@ -796,6 +801,7 @@ PhoneSnapshot snapshotOf(
   required DateTime madeAt,
   Set<int> mineIds = const {},
   String? device,
+  bool onItsOwn = false,
 }) {
   // The period the Mac's Budget page opens on, so the two agree.
   final by = data.periodSchedule;
@@ -936,7 +942,10 @@ PhoneSnapshot snapshotOf(
           ),
       ],
     ),
-    mine: device == null ? const [] : ownEntriesOf(data, mineIds, device),
+    mine: device == null || onItsOwn
+        ? const []
+        : ownEntriesOf(data, mineIds, device),
+    onItsOwn: onItsOwn,
     taken: PhoneTaken.decode(data.prefs[phoneTakenKey]),
     periodEnd: by == null ? null : period.end,
     walk: walkOf(data, budget, today),

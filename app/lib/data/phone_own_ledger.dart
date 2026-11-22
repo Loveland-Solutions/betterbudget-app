@@ -4,12 +4,14 @@
 // the folder keeps a ledger of its own: written to here, with its own
 // `changes` log, kept from one launch to the next. This is that ledger and
 // the way into it; the phone's change file and the taking in of the others'
-// are piece 3.
+// are piece 3. A person who starts on the phone (#534) makes it here new, or
+// from a backup file.
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 
+import 'backup.dart' show Backups;
 import 'database.dart';
 import 'encryption.dart';
 import 'keys.dart';
@@ -55,6 +57,76 @@ class PhoneOwnLedger {
       rethrow;
     }
     return db;
+  }
+
+  /// Makes a new, empty ledger as this phone's own, for a person who starts
+  /// on the phone (#534, "Start fresh"), and returns it opened as [device].
+  /// A ledger this phone already has is never written over: it returns that
+  /// one, opened. The file takes its name only once it is whole, as a join's
+  /// does.
+  Future<AppDatabase> create(String device) async {
+    final kept = await open(device);
+    if (kept != null) return kept;
+    await dir.create(recursive: true);
+    final made = File('${dir.path}/$ledgerFileName.creating');
+    void clear() {
+      for (final f in [
+        made,
+        File('${made.path}-wal'),
+        File('${made.path}-shm'),
+      ]) {
+        if (f.existsSync()) f.deleteSync();
+      }
+    }
+
+    clear();
+    try {
+      final db = _open(made, null);
+      try {
+        await db.syncState();
+        await db.customStatement('PRAGMA wal_checkpoint(TRUNCATE)');
+      } finally {
+        await db.close();
+      }
+      await made.rename(file.path);
+    } finally {
+      clear();
+    }
+    return (await open(device))!;
+  }
+
+  /// Makes this phone's own ledger from the backup file at [backupPath], as
+  /// a computer with no ledger restores one (#534, "Restore from backup"): a
+  /// new ledger is made and the backup put into it by [Backups], which
+  /// refuses what it refuses on a computer (from a newer app, not a backup,
+  /// not this key, damaged, no accounts) with a `RestoreException`. It is
+  /// made in a folder beside [dir] and takes its place only once whole, so a
+  /// refusal leaves nothing behind. Throws [StateError] when this phone
+  /// already has a ledger: one is never written over.
+  Future<AppDatabase> restore(
+    String backupPath,
+    String device,
+    DateTime now,
+  ) async {
+    if (exists) throw StateError('This phone already has a ledger');
+    final scratch = Directory('${dir.path}.restoring');
+    if (scratch.existsSync()) await scratch.delete(recursive: true);
+    final made = PhoneOwnLedger(scratch, dataKey);
+    try {
+      final db = await made.create(device);
+      try {
+        final backups = Backups(db, dataKey: dataKey);
+        await backups.restore(await backups.inspect(backupPath, now), now);
+        await db.customStatement('PRAGMA wal_checkpoint(TRUNCATE)');
+      } finally {
+        await db.close();
+      }
+      await dir.create(recursive: true);
+      await made.file.rename(file.path);
+    } finally {
+      if (scratch.existsSync()) await scratch.delete(recursive: true);
+    }
+    return (await open(device))!;
   }
 
   /// Takes [folderLedger], the ledger as it sits in the folder, as this

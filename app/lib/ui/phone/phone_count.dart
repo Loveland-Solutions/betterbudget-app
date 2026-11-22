@@ -188,10 +188,11 @@ class _CountPageState extends State<_CountPage> {
                         // The rows are the computer's last copy: from an
                         // earlier day, it says so, and that the computer
                         // works the difference out again.
-                        if (!_sameDay(
-                          widget.store.snapshot.madeAt,
-                          widget.store.now(),
-                        )) ...[
+                        if (!widget.store.snapshot.onItsOwn &&
+                            !_sameDay(
+                              widget.store.snapshot.madeAt,
+                              widget.store.now(),
+                            )) ...[
                           const SizedBox(height: 4),
                           _FromMac(
                             made: widget.store.snapshot.madeAt,
