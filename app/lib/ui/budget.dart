@@ -55,7 +55,17 @@ class _BudgetPage extends StatefulWidget {
     required this.keep,
     required this.onAssignStep,
     required this.onShowSavings,
+    required this.onAddPaying,
+    required this.onWalkPass,
   });
+
+  /// The walkthrough's Add the bill that pays a credit card or loan: the
+  /// category made, and the account's payments come out of it, one undo.
+  final Future<_Added> Function(AccountInfo loan, _CategoryEdit e) onAddPaying;
+
+  /// The walkthrough's That's all or Not now: the setting it writes, and
+  /// what undo calls it.
+  final void Function(String key, String label) onWalkPass;
 
   /// The step band's Assign: the Safety net's new total in the period
   /// today is in, what undo calls it, and what the popup says when that
@@ -239,7 +249,9 @@ class _BudgetPageState extends State<_BudgetPage> {
   /// The New category window (owner, 2026-10-22, #237): everything a new
   /// category can have, set before it's made, and Add another for the
   /// next. Made, its row is in the list behind; nothing opens under it.
-  void _newCategory() {
+  /// [type] is the card it opens on; [paying] a credit card or loan whose
+  /// payments come out of what's made (#475).
+  void _newCategory({CategoryType? type, AccountInfo? paying}) {
     final data = widget.data;
     final currencies = [
       for (final c in Currency.values)
@@ -260,7 +272,11 @@ class _BudgetPageState extends State<_BudgetPage> {
             ? budget
             : currencies.first,
         nameNote: widget.nameNote,
-        onAdd: widget.onAdd,
+        startType: type,
+        offerAnother: paying == null,
+        onAdd: paying == null
+            ? widget.onAdd
+            : (e) => widget.onAddPaying(paying, e),
       ),
     );
   }
@@ -568,6 +584,35 @@ class _BudgetPageState extends State<_BudgetPage> {
     // #468): no Assign on a row, no Assign what's planned. Typing an
     // amount still works.
     final finished = period.end.isBefore(dateOnly(widget.today));
+    // The first steps after setup (#475): in the Savings band's spot, in
+    // the period today is in, until they're done.
+    final walkCurrency = Budget.currencyOf(data);
+    final owing = walkDebts(data, walkCurrency);
+    final unpaid = [
+      for (final a in owing)
+        if (Budget.loanCategory(data, a.id) == null &&
+            data.prefs[WalkKeys.debtPassed(a.id)] == null)
+          a,
+    ];
+    final walk = !isCurrent
+        ? null
+        : walkStep(
+            data,
+            unpaidDebts: unpaid,
+            anyToAssign: spending.any(
+              (x) =>
+                  !saved.contains(x.id) &&
+                  (budget.lines[x.id]?.toAssign ?? 0) > 0,
+            ),
+          );
+    int countOf(CategoryType type) => listed
+        .where(
+          (c) =>
+              !saved.contains(c.id) &&
+              c.currency == walkCurrency &&
+              typeIn(c) == type,
+        )
+        .length;
     Widget row(AccountInfo c, {required bool striped}) {
       final line = budget.lines[c.id];
       final planLine = line?.plan;
@@ -1384,7 +1429,39 @@ class _BudgetPageState extends State<_BudgetPage> {
             // over, which only shows what happened, nor under the
             // first-period offer: one thing asked at a time.
             else if (!finished)
-              if (_readiness case final r)
+              if (walk case final w?)
+                _WalkBand(
+                  step: w,
+                  steps: [
+                    WalkStep.bills,
+                    if (owing.isNotEmpty) WalkStep.debts,
+                    WalkStep.dayToDay,
+                    WalkStep.assign,
+                  ],
+                  bills: countOf(CategoryType.bill),
+                  days: countOf(CategoryType.dayToDay),
+                  debt: unpaid.isEmpty
+                      ? null
+                      : (
+                          account: unpaid.first,
+                          owes: -data.balanceOf(unpaid.first.id),
+                        ),
+                  cardsNext: unpaid.isNotEmpty,
+                  waiting: budget.notAssigned <= 0,
+                  nextPay: nextPayday(data, widget.today),
+                  onAddBill: () => _newCategory(type: CategoryType.bill),
+                  onAddDay: () => _newCategory(type: CategoryType.dayToDay),
+                  onAddDebtBill: (a) =>
+                      _newCategory(type: CategoryType.bill, paying: a),
+                  // Not now on a card or loan passes that one only.
+                  onPass: (step, label) => widget.onWalkPass(
+                    step == WalkStep.debts && unpaid.isNotEmpty
+                        ? WalkKeys.debtPassed(unpaid.first.id)
+                        : WalkKeys.passed(step),
+                    label,
+                  ),
+                )
+              else if (_readiness case final r)
                 if (r.current case final step?)
                   _StepBand(
                     r: r,
@@ -3868,7 +3945,11 @@ class _NewCategoryWindow extends StatefulWidget {
     this.name = '',
     this.offerAnother = true,
     this.paidFrom,
+    this.startType,
   });
+
+  /// The type card each one opens on; null for the usual first.
+  final CategoryType? startType;
 
   /// The name it starts with: what was typed in the entry row's Category.
   final String name;
@@ -3975,6 +4056,7 @@ class _NewCategoryWindowState extends State<_NewCategoryWindow> {
                 offerAnother: widget.offerAnother,
                 nameNote: widget.nameNote,
                 paidFrom: _paidFrom,
+                startType: widget.startType,
               ),
             ],
           ),
@@ -4936,7 +5018,12 @@ class _CategoryEditor extends StatefulWidget {
     this.nameNote,
     this.keep,
     this.paidFrom,
+    this.startType,
   });
+
+  /// The type card a new one opens on (#475: the walkthrough's Add a
+  /// bill); null for the usual first card.
+  final CategoryType? startType;
 
   /// Where what's typed is kept while the page is left; null in the New
   /// category window, whose answers are its own.
@@ -5115,27 +5202,31 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   /// stays while it's typed in, emptied or not (code review).
   bool _capWas = false;
 
+  /// The answers [type] stands for, as its card sets them.
+  void _applyType(CategoryType type) {
+    final dated = type == CategoryType.bill || type == CategoryType.goal;
+    _p.hasDate = dated;
+    if (!dated) _p.spentEach = type == CategoryType.dayToDay;
+    if (dated) _goal = type == CategoryType.goal;
+    // A new one's How often starts where its type usually is: a bill
+    // every month, a goal once. Until How often is picked.
+    if (widget.isNew && _repeatNow == _repeatSet) {
+      if (type == CategoryType.bill) _p.preset(1, PlanUnit.months);
+      if (type == CategoryType.goal) {
+        _p.repeat = PlanRepeat.once;
+        _p.custom = false;
+      }
+      _repeatSet = _repeatNow;
+    }
+    _tried = false;
+  }
+
   /// A type card picked: the answers it stands for. Nothing else typed
   /// goes; an amount, a date and Paid from stay for another card.
   void _pickType(CategoryType type) {
     final dated = type == CategoryType.bill || type == CategoryType.goal;
     final was = _p.hasDate;
-    setState(() {
-      _p.hasDate = dated;
-      if (!dated) _p.spentEach = type == CategoryType.dayToDay;
-      if (dated) _goal = type == CategoryType.goal;
-      // A new one's How often starts where its type usually is: a bill
-      // every month, a goal once. Until How often is picked.
-      if (widget.isNew && _repeatNow == _repeatSet) {
-        if (type == CategoryType.bill) _p.preset(1, PlanUnit.months);
-        if (type == CategoryType.goal) {
-          _p.repeat = PlanRepeat.once;
-          _p.custom = false;
-        }
-        _repeatSet = _repeatNow;
-      }
-      _tried = false;
-    });
+    setState(() => _applyType(type));
     if (was != dated) {
       _p.amount.selection = TextSelection(
         baseOffset: 0,
@@ -5257,7 +5348,11 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         widget.data.prefs[BudgetKeys.fund(widget.category.id)] == 'yes') {
       _p.spentEach = false;
     }
+    final fresh = !_d.filled;
     _d.filled = true;
+    if (widget.startType case final type? when fresh && widget.isNew) {
+      _applyType(type);
+    }
     _capWas = _p.upTo.text.trim().isNotEmpty;
     final atPlan = widget.atPlan;
     final first = atPlan ? _p.amount : _name;

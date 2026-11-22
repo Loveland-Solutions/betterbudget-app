@@ -7904,3 +7904,76 @@ picked **B** ("go with B").
     a tap while a change is being written waits, so a second tap can't put a do-nothing
     Undo in place of the real one; Move the date and its answers are written in one
     transaction; a step's page keeps a field being typed in through a swipe.
+
+## The first-time walkthrough: the next step on the Budget page (owner, 2026-11-22, #475)
+
+The owner (2026-11-16): "we need to have a first time setup walkthrough." Setup had
+two steps, Accounts and Pay, and opened the ledger on an empty Budget page with no
+categories. The design committee and the budget expert read it as a newcomer would; the
+first-time reader's worst three were the empty Budget page after setup, an empty
+Category list on the first purchase, and not knowing what assigning does. Three
+sketches, each a different kind: **A** setup's window carries on (Money you have,
+Bills as a table, Day-to-day, From tomorrow) before the ledger opens; **B** setup
+stops after Money you have, and the real Budget page opens with one band naming the
+next step; **C** each empty page explains itself (the four type cards on an empty
+Spending tab). The owner picked **B** ("let's do B").
+
+- **A new last step in setup, Money you have**, in every shape: since #461 the budget
+  counts income from the day it began, never the bank, so what is already in the
+  accounts counts only as **Had before the budget**, which setup never asked. A
+  newcomer who assigned from it read Assigned too much in every period after.
+  - Heading "The money in your accounts today", and under it "Your budget uses the
+    income that comes in from today on. To use the money you already have too, add it
+    here." **The word is uses** (owner, 2026-11-22, on "counts": "Counts towards
+    what?"). Under the answers: "Your budget will use these ₮3,600,000 as well."
+  - **All of it** (the cash and bank total of the Accounts step, picked to begin with: a
+    default, not a required choice), **Part of it** with an amount, **None of it**;
+    one per currency. Savings included (the budget expert's pick): the saved part is
+    then given its job, so Savings step 1 shows real progress from the first day, and
+    spending from a savings account later isn't Over budget.
+  - While the budget uses some of its own currency's money, "Is any of this money
+    kept for emergencies?" with an amount, empty until typed (no guess); the button
+    then says where it goes, "Assign ₮2,000,000 to Safety net and finish setup",
+    else **Finish setup** ("Open my ledger" went: "ledger" is a word a newcomer may
+    not know). More than the budget uses, or Some of it more than the accounts hold,
+    is said in coral and let go ahead.
+  - Finishing setup writes Had before the budget, the day the budget began (today's
+    period, as a first amount would), the Safety net's money, and that setup said
+    where the budget starts (so the first-period offer isn't asked), in one write and
+    one undo, which opens setup again as it was.
+  - What a credit card owes is said beside the total as paid by a category made next,
+    not taken off it.
+- **B, chosen: the next step on the Budget page.** After setup the app opens on Budget.
+  Under the sum, in the Savings band's spot, a band names the steps (Bills, each credit
+  card or loan, Day-to-day, Assign) and shows one at a time: a sentence, one button and
+  **Not now**. Its button opens the real window (New category on its Bill card, and so
+  on). A step is done by what is in the ledger, so a quit comes back to it; Not now is
+  the person's own answer, with Undo. Assign can wait for payday: with no income yet it
+  says when pay is due, with no button. When the steps are done the Savings band takes
+  the spot. The phone's Budget tab gets the same band in the next piece of #475.
+- **Rejected:** A (it builds a second way to make a bill, kept in step with New
+  category on two platforms, about three times the work, and the person meets the real
+  Budget page only at the end; and Assign often can't happen on day one); C (nothing
+  puts the steps in order: someone can assign before their bills and never give a
+  credit card's payment a category); a checklist on every page (several targets at
+  once, and too wide for a phone).
+- **Checked, not a problem:** a payday earlier in the period than the balances' date
+  isn't counted as still to come (`periodPay` counts paydays from today on), so a
+  setup after payday doesn't count that pay twice.
+- **Built (0.145.0), the computer:** setup's Money you have step, and the band on
+  Budget. Only a ledger that finishes setup from now on is walked (`walk.started`);
+  the owner's, set up before, never is.
+- **From the reviews** (decided along the lines above):
+  - Not now on a credit card or loan passes that one only, and the next is asked: a
+    household may have a salary loan, a card and лизинг at once.
+  - The bills step's examples take in a Storepay instalment, which is seldom an
+    account; "Credit card and loan payments come next" only while that step is
+    coming.
+  - "Part of it" is **Some of it**; the day-to-day step's way past, once there's one,
+    is **That's all my everyday spending**, as the bills' is That's all my bills.
+  - A finished step's mark is green, as Savings' are; gold stays for what is saved.
+  - Add the bill that pays a card ties the card's payments to it in the same undo, and
+    its popup's Undo takes back both.
+  - Kept as decided: what a card owes isn't taken off All of it (the card's bill
+    holds the payment); Assign what's planned stays the one button, above, and the
+    band points to it.

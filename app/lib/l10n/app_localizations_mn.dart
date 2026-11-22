@@ -5268,7 +5268,7 @@ class WordsMn extends Words {
   String get setupAddCashAccount => 'Бэлэн мөнгөний данс нэмэх';
 
   @override
-  String get setupOpenLedger => 'Дэвтрээ нээх';
+  String get setupOpenLedger => 'Тохиргоог дуусгах';
 
   @override
   String setupRemoveAccount(String name) {
@@ -7912,5 +7912,143 @@ class WordsMn extends Words {
       other: '$count мөрийг ангилав',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get setupStepMoney => 'Мөнгө';
+
+  @override
+  String get setupMoneyHeading => 'Өнөөдөр дансанд тань байгаа мөнгө';
+
+  @override
+  String get setupMoneyLine =>
+      'Таны төсөв өнөөдрөөс хойш орж ирэх орлогыг ашиглана. Одоо байгаа мөнгөө ч ашиглах бол энд нэмээрэй.';
+
+  @override
+  String setupHadAll(String amount) {
+    return 'Бүгдийг нь: $amount';
+  }
+
+  @override
+  String get setupHadPart => 'Зарим хэсгийг нь';
+
+  @override
+  String get setupHadNone => 'Огт ашиглахгүй';
+
+  @override
+  String setupHadUses(String amount) {
+    return 'Таны төсөв энэ $amount-г бас ашиглана. Дараа нь Тохиргооны «Төсөв эхлэхэд байсан мөнгө» хэсэгт өөрчилж болно.';
+  }
+
+  @override
+  String get setupHadNoneLine =>
+      'Таны төсөв зөвхөн өнөөдрөөс хойш орж ирэх орлогыг ашиглана.';
+
+  @override
+  String get setupFromAccounts => 'Таны данснаас';
+
+  @override
+  String get setupOwedNote =>
+      'Зээлийн карт, зээлийн өр энд хасагдахгүй. Тус бүрийн төлбөр Төсөв хуудсанд ангилал болно.';
+
+  @override
+  String get setupEmergencyQ =>
+      'Энэ мөнгөний аль нэг хэсгийг гэнэтийн зардалд зориулж хадгалдаг уу?';
+
+  @override
+  String setupEmergencyHint(String name) {
+    return 'Энэ нь таны «$name»-д орох тул төсөв үүнийг зарцуулахаар санал болгохгүй.';
+  }
+
+  @override
+  String setupEmergencyMore(String amount) {
+    return 'Энэ нь таны төсвийн ашиглах мөнгөнөөс их тул төсөв $amount дутуу эхэлнэ.';
+  }
+
+  @override
+  String setupFinishAssign(String amount, String name) {
+    return '$name-д $amount хуваарилаад тохиргоог дуусгах';
+  }
+
+  @override
+  String get walkStepBills => 'Төлбөрүүд';
+
+  @override
+  String get walkStepDebts => 'Зээлийн карт, зээл';
+
+  @override
+  String get walkStepAssign => 'Хуваарилах';
+
+  @override
+  String get walkBills =>
+      'Тогтсон өдөр төлдөг төлбөрүүдээсээ эхлээрэй, жишээ нь түрээс, СӨХ, Storepay-н хуваан төлөлт.';
+
+  @override
+  String get walkBillsWhy =>
+      'Төлбөр бүр өдөртэйгөө ангилал болох тул урьдчилсан тооцоо түүнийг тооцоолно.';
+
+  @override
+  String get walkBillsWhyCards =>
+      'Төлбөр бүр өдөртэйгөө ангилал болох тул урьдчилсан тооцоо түүнийг тооцоолно. Зээлийн карт, зээлийн төлбөр дараа нь.';
+
+  @override
+  String walkBillsSome(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Танд $count төлбөр байна. Тогтсон өдөр төлдөг бүхнээ нэмээрэй.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get walkAddBill => 'Төлбөр нэмэх';
+
+  @override
+  String get walkAllBills => 'Бүх төлбөрөө нэмсэн';
+
+  @override
+  String get walkNotNow => 'Одоо биш';
+
+  @override
+  String walkDebt(String account, String amount) {
+    return '$account $amount өртэй. Үүнийг төлөх төлбөрийг нэмбэл таны төсөв төлбөрийг төлөвлөнө.';
+  }
+
+  @override
+  String walkAddDebtBill(String account) {
+    return '$account-г төлөх төлбөр нэмэх';
+  }
+
+  @override
+  String get walkDay =>
+      'Дараа нь өдөр тутмын зардал, жишээ нь хүнс, автобусны мөнгө.';
+
+  @override
+  String get walkDayWhy =>
+      'Тус бүрд зарцуулах дүн өгөх бөгөөд энэ хуудас үлдэгдлийг нь харуулна.';
+
+  @override
+  String get walkAddDay => 'Өдөр тутмын ангилал нэмэх';
+
+  @override
+  String get walkAllDay => 'Өдөр тутмын зардлаа бүгдийг нь нэмсэн';
+
+  @override
+  String get walkAssign =>
+      'Одоо ангилал бүрд мөнгийг нь өгөөрэй: дээрх «Төлөвлөснийг хуваарилах» нь тус бүрд төлөвлөсөн дүнг нь өгнө.';
+
+  @override
+  String walkAssignWait(String date) {
+    return 'Таны тогтмол орлого $date-нд орж ирнэ. Дараа нь дээрх «Төлөвлөснийг хуваарилах» нь ангилал бүрд мөнгийг нь өгнө.';
+  }
+
+  @override
+  String get walkAssignNoPay =>
+      'Мөнгө орж ирэхэд дээрх «Төлөвлөснийг хуваарилах» нь ангилал бүрд мөнгийг нь өгнө.';
+
+  @override
+  String setupHadMore(String amount) {
+    return 'Энэ нь өнөөдөр таны дансанд байгаагаас $amount-аар их тул төсөв байхгүй мөнгөөр эхэлнэ.';
   }
 }

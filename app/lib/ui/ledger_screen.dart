@@ -82,6 +82,7 @@ part 'savings_band.dart';
 part 'savings_goals.dart';
 part 'savings_payoff.dart';
 part 'setup.dart';
+part 'walk_band.dart';
 
 bool get _isMac =>
     defaultTargetPlatform == TargetPlatform.macOS ||
@@ -5180,12 +5181,101 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
-  /// Setup is left for the ledger, and doesn't open again.
-  Future<void> _finishSetup() async {
-    await _setPref(SetupKeys.done, '1', context.t.setupFinished);
+  /// Setup is left for the ledger, and doesn't open again. What the
+  /// budget uses of the money already in the accounts is Had before the
+  /// budget (#475), the budget begins in today's period, and what's kept
+  /// for emergencies is assigned to the Safety net, all in one write and
+  /// one undo, which opens setup again as it was.
+  Future<void> _finishSetup(Map<Currency, int> had, int emergency) async {
+    final t = context.t;
+    final data = _data!;
+    final period = budgetPeriod(today, data.periodSchedule);
+    final start = period.start, end = period.end;
+    final main = mainCurrency(data);
+    final using = {
+      for (final e in had.entries)
+        if (e.value > 0) e.key,
+      if (emergency > 0) main,
+    };
+    final keys = [
+      SetupKeys.done,
+      WalkKeys.started,
+      BudgetKeys.keptStart,
+      for (final c in had.keys) BudgetKeys.hadBefore(c),
+    ];
+    final old = {for (final k in keys) k: data.prefs[k]};
+    final began = beganBy(data, start, using);
+    int? net;
+    var before = const <BudgetAmount>[];
+    // All of it or none of it: a half-written finish would leave Had before
+    // and the day it began with nothing to undo them (code review).
+    Future<void> write() => db.transaction(() async {
+      for (final e in had.entries) {
+        await db.setPreference(
+          BudgetKeys.hadBefore(e.key),
+          e.value > 0 ? '${e.value}' : null,
+        );
+      }
+      await _writeBegan(began);
+      // Setup said where the budget starts: the first-period offer to start
+      // next period instead isn't asked (it would leave Had before counted
+      // a period late).
+      await db.setPreference(BudgetKeys.keptStart, '1');
+      if (net case final id?) {
+        final fresh = await db.loadLedger();
+        final c = fresh.accounts[id]!;
+        final rows = budgetRows(
+          fresh,
+          Budget.of(fresh, start: start, end: end, today: today),
+          c,
+          period,
+          emergency,
+          today: today,
+        );
+        before = await db.setBudgetAmount(
+          id,
+          start,
+          end,
+          emergency,
+          rows: rows,
+        );
+      }
+      // The Budget page walks a ledger set up from now on through its
+      // first steps (#475); one set up before is never walked.
+      await db.setPreference(WalkKeys.started, dateKey(today));
+      await db.setPreference(SetupKeys.done, '1');
+    });
+
+    final ok = await _accountWrite(() async {
+      // Built in, as Income is; made here rather than after setup, since
+      // its money is assigned now. Kept on undo: there is only ever one.
+      if (emergency > 0) {
+        net = await db.safetyNetCategory(
+          name: t.planFundCategoryName,
+          currency: main,
+        );
+      }
+      await write();
+    }, what: 'category');
+    if (!ok) return;
+    _did(
+      t.setupFinished,
+      toast: false,
+      undo: () async {
+        if (net case final id?) {
+          await db.restoreBudgetAmounts(id, start, end, before);
+        }
+        await _writeBegan(began, back: true);
+        for (final e in old.entries) {
+          await db.setPreference(e.key, e.value);
+        }
+      },
+      redo: write,
+    );
     if (!mounted) return;
+    // On to the Budget page, where the walkthrough's band says what's next.
     setState(() {
-      _section = AppSection.ledger;
+      _section = AppSection.budget;
       _all = false;
       _newAccount = false;
     });
@@ -6064,6 +6154,49 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
     made?.call(id);
     return _Added.made;
+  }
+
+  /// The walkthrough's Add the bill that pays [loan] (#475): the category
+  /// is made, and [loan]'s payments come out of it, as its Edit's
+  /// Payments come out of says, in one undo. One already called that is
+  /// opened, as Add does, and nothing is tied to it.
+  Future<_Added> _addCategoryPaying(AccountInfo loan, _CategoryEdit e) async {
+    final t = context.t;
+    final mark = _history.length;
+    int? made;
+    final added = await _addCategory(e, made: (id) => made = id);
+    final id = made;
+    if (added != _Added.made || id == null) return added;
+    final key = '${BudgetKeys.loanPrefix}${loan.id}';
+    String? was;
+    try {
+      was = await db.preference(key);
+      await db.setPreference(key, '$id');
+    } catch (err) {
+      _showFailure(t.ledgerCouldntSave, error: err);
+      return added;
+    }
+    _did(
+      e.name,
+      toast: false,
+      undo: () => db.setPreference(key, was),
+      redo: () => db.setPreference(key, '$id'),
+    );
+    _joinHistory(mark, t.ledgerAdded(e.name));
+    // The add's own popup undid only half: this one takes back both, and
+    // only while it's the newest change, as every popup's Undo does.
+    final joined = _history.last;
+    _showToast(
+      t.ledgerAdded(e.name),
+      undo: () async {
+        if (!identical(_history.lastOrNull, joined)) {
+          _showFailure(t.ledgerUndoNewerFirst(_isMac ? '⌘Z' : 'Ctrl+Z'));
+          return;
+        }
+        await _undo();
+      },
+    );
+    return added;
   }
 
   /// Renaming onto another category's name is what merging looks like, so
@@ -7340,6 +7473,21 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                       scheduleId: existing?.id,
                                       payee: payee,
                                     ),
+                                onHad: (c, v) => _setPref(
+                                  SetupKeys.had(c),
+                                  v,
+                                  context.t.setupStepMoney,
+                                ),
+                                onEmergency: (v) async {
+                                  try {
+                                    await db.setPreference(
+                                      SetupKeys.emergency,
+                                      v?.toString(),
+                                    );
+                                  } catch (e) {
+                                    debugPrint('Keeping the amount failed: $e');
+                                  }
+                                },
                                 onDone: _finishSetup,
                               )
                             : switch (_section) {
@@ -7477,6 +7625,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                       _selected = null;
                                     });
                                   },
+                                  onAddPaying: _addCategoryPaying,
+                                  onWalkPass: (key, label) =>
+                                      _setPref(key, 'yes', label),
                                   onStartLater: _startBudgetLater,
                                   onAssignPlanned: _assignPlanned,
                                   onClearAssigned: _clearAssigned,

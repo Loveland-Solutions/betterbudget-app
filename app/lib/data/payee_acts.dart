@@ -88,6 +88,7 @@ Future<PayeeSaved> writePayee(
 class WaitingFiling {
   WaitingFiling(this.db, this.data, this.rule, this.waiting, this.today);
   final AppDatabase db;
+
   /// The ledger when the offer was made; [write] reads it again, so a redo
   /// meets a pay or category changed since.
   LedgerData data;
