@@ -2560,6 +2560,117 @@ void main() {
     );
   });
 
+  testWidgets('Savings is a third tab: it opens on the step they are on, '
+      'and a tap on a stop shows that one (#533)', (tester) async {
+    final data = (await tester.runAsync(() async {
+      final db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      final net = await db.safetyNetCategory(
+        name: 'Safety net',
+        currency: Currency.mnt,
+      );
+      await db.setBudgetAmount(
+        net,
+        DateTime(2026, 10),
+        DateTime(2026, 10, 31),
+        80000000,
+      );
+      await db.setPreference(ReadyKeys.month, '200000000');
+      final visa = (await db.loadLedger()).openAccounts.firstWhere(
+        (a) => a.name == 'Golomt Visa',
+      );
+      await db.setPreference(ReadyKeys.rate(visa.id), '3 month');
+      final data = await db.loadLedger();
+      await db.close();
+      return data;
+    }))!;
+    await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    await tester.tap(find.byKey(const ValueKey('to-savings')));
+    await tester.pumpAndSettle();
+    // Step 1, the one they're on, with the computer's words.
+    expect(
+      find.byKey(const ValueKey('savings-oneMonth-progress')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('₮800,000 of ₮2,000,000 · ₮1,200,000 to go'),
+      findsOneWidget,
+    );
+    expect(find.text('Now'), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_savings.png'),
+    );
+    // Step 2's debts, each a card with its rate.
+    await tester.tap(find.byKey(const ValueKey('savings-stop-consumerDebt')));
+    await tester.pumpAndSettle();
+    final visa = data.openAccounts.firstWhere((a) => a.name == 'Golomt Visa');
+    final card = find.byKey(ValueKey('savings-debt-${visa.id}'));
+    expect(card, findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(ValueKey('savings-debt-${visa.id}-rate')))
+          .data,
+      startsWith('3% a month · about '),
+    );
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_savings_debt.png'),
+    );
+    // A swipe goes on to the next.
+    await tester.drag(
+      find.byKey(const ValueKey('savings-pages')),
+      const Offset(-300, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('savings-page-moreMonths')),
+      findsOneWidget,
+    );
+    // Goals, the fifth stop.
+    await tester.tap(find.byKey(const ValueKey('savings-stop-goals')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Things with a date: a wedding, school, a car, a home.'),
+      findsOneWidget,
+    );
+    // Back goes to Ledger, as it does from Budget.
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('savings-pages')), findsNothing);
+  });
+
+  testWidgets('Budget: a tap on the step band opens Savings on that step '
+      '(#533)', (tester) async {
+    final (data, _) = await _stepLedger(tester);
+    await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    // Savings left on another stop: the band still opens on its own step.
+    await tester.tap(find.byKey(const ValueKey('to-savings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('savings-stop-goals')));
+    await tester.pumpAndSettle();
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('step-band')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('savings-oneMonth-progress')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('No Savings tab without a ledger behind the figures: the demo '
+      '(#533)', (tester) async {
+    await _pump(tester);
+    expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+    expect(find.byKey(const ValueKey('to-savings')), findsNothing);
+  });
+
   testWidgets('Budget: the step band counts what this phone took from the '
       'Safety net, as its row does (#487)', (tester) async {
     final (data, net) = await _stepLedger(tester);
@@ -3400,6 +3511,12 @@ void main() {
     }
 
     await _toBudget(tester);
+    // Below the fold, past the sum and the step band: built once scrolled to.
+    await tester.dragUntilVisible(
+      find.text('Groceries'),
+      find.byKey(const ValueKey('step-band')),
+      const Offset(0, -100),
+    );
     await Scrollable.ensureVisible(
       tester.element(find.text('Groceries')),
       alignment: 0.2,

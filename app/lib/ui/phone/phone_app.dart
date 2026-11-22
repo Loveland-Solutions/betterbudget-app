@@ -77,6 +77,7 @@ import '../../data/report_problem.dart';
 import '../../domain/budget_amounts.dart' show billSwitches;
 import '../../domain/budget.dart';
 import '../../domain/forecast.dart';
+import '../../domain/goals.dart';
 import '../../domain/ledger.dart';
 import '../../domain/money.dart';
 import '../../domain/pay.dart';
@@ -99,6 +100,7 @@ import '../budget_sum_words.dart';
 import '../category_types.dart';
 import '../emoji_chooser.dart';
 import '../savings_steps.dart';
+import '../savings_words.dart';
 import '../theme.dart';
 import 'phone_asking.dart';
 
@@ -114,6 +116,7 @@ part 'phone_move.dart';
 part 'phone_new_category.dart';
 part 'phone_pay.dart';
 part 'phone_reconcile.dart';
+part 'phone_savings.dart';
 part 'phone_register.dart';
 
 /// How long a snack bar stays: a Flutter one with an action (Undo) stays
@@ -914,7 +917,17 @@ class PhoneHome extends StatefulWidget {
 
 class _PhoneHomeState extends State<PhoneHome> {
   final _draft = _Draft();
-  var _budget = false;
+
+  /// Ledger, Budget or Savings (#533), the tab shown.
+  var _tab = 0;
+
+  /// The Savings stop Budget's step band asked for.
+  final _savingsAt = ValueNotifier<int?>(null);
+
+  void _toSavings(ReadyStep step) {
+    _savingsAt.value = step.index;
+    setState(() => _tab = 2);
+  }
 
   @override
   void initState() {
@@ -971,8 +984,8 @@ class _PhoneHomeState extends State<PhoneHome> {
   /// The Accounts page asked the Ledger tab to narrow to an account (#529):
   /// the tab is shown; the register takes the account.
   void _showRegister() {
-    if (widget.store.registerRequest.value != null && mounted && _budget) {
-      setState(() => _budget = false);
+    if (widget.store.registerRequest.value != null && mounted && _tab != 0) {
+      setState(() => _tab = 0);
     }
   }
 
@@ -1060,6 +1073,7 @@ class _PhoneHomeState extends State<PhoneHome> {
       l.removeListener(_takeSent);
     }
     _draft.dispose();
+    _savingsAt.dispose();
     super.dispose();
   }
 
@@ -1093,11 +1107,13 @@ class _PhoneHomeState extends State<PhoneHome> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    // The phone's Back on Budget goes to Ledger, not out of the app.
+    // The phone's Back on Budget or Savings goes to Ledger, not out of the
+    // app.
+    final savings = widget.store.snapshot.data != null;
     return PopScope(
-      canPop: !_budget,
+      canPop: _tab == 0,
       onPopInvokedWithResult: (popped, _) {
-        if (!popped) setState(() => _budget = false);
+        if (!popped) setState(() => _tab = 0);
       },
       child: Scaffold(
         backgroundColor: Mid.ground,
@@ -1124,7 +1140,7 @@ class _PhoneHomeState extends State<PhoneHome> {
               ),
               Expanded(
                 child: IndexedStack(
-                  index: _budget ? 1 : 0,
+                  index: _tab == 2 && !savings ? 0 : _tab,
                   children: [
                     // With the ledger's rows to show, Ledger is the register
                     // and the amount pad opens from Add (#527); figures made
@@ -1171,16 +1187,22 @@ class _PhoneHomeState extends State<PhoneHome> {
                             widget.store.snapshot.accounts,
                           );
                         }
-                        setState(() => _budget = false);
+                        setState(() => _tab = 0);
                         if (widget.store.snapshot.data != null) _openPad();
                       },
+                      onSavings: _toSavings,
+                    ),
+                    _SavingsScreen(
+                      store: widget.store,
+                      now: widget.now,
+                      show: _savingsAt,
                     ),
                   ],
                 ),
               ),
               ValueListenableBuilder<bool>(
                 valueListenable: widget.store.reconciling,
-                builder: (context, reconciling, _) => reconciling && !_budget
+                builder: (context, reconciling, _) => reconciling && _tab == 0
                     ? const SizedBox.shrink()
                     : Column(
                         mainAxisSize: MainAxisSize.min,
@@ -1191,15 +1213,24 @@ class _PhoneHomeState extends State<PhoneHome> {
                               _SwitchItem(
                                 key: const ValueKey('to-ledger'),
                                 label: t.ledgerSectionLedger,
-                                chosen: !_budget,
-                                onTap: () => setState(() => _budget = false),
+                                chosen: _tab == 0,
+                                onTap: () => setState(() => _tab = 0),
                               ),
                               _SwitchItem(
                                 key: const ValueKey('to-budget'),
                                 label: t.ledgerSectionBudget,
-                                chosen: _budget,
-                                onTap: () => setState(() => _budget = true),
+                                chosen: _tab == 1,
+                                onTap: () => setState(() => _tab = 1),
                               ),
+                              // Only with the ledger's own figures to count
+                              // from: the demo and the preview have none.
+                              if (savings)
+                                _SwitchItem(
+                                  key: const ValueKey('to-savings'),
+                                  label: t.ledgerSectionSavings,
+                                  chosen: _tab == 2,
+                                  onTap: () => setState(() => _tab = 2),
+                                ),
                             ],
                           ),
                         ],
@@ -1255,12 +1286,16 @@ class _BudgetScreen extends StatefulWidget {
     required this.store,
     required this.now,
     required this.onCategory,
+    this.onSavings,
     this.onRefresh,
     this.problems,
   });
   final PhoneStore store;
   final DateTime Function() now;
   final ValueChanged<PhoneCategory> onCategory;
+
+  /// The step band's tap: Savings, on that step (#533).
+  final ValueChanged<ReadyStep>? onSavings;
   final Future<void> Function()? onRefresh;
   final ProblemLog? problems;
 
@@ -1381,7 +1416,11 @@ class _BudgetScreenState extends State<_BudgetScreen> {
       final t = context.t;
       final snapshot = store.snapshot;
       final today = now();
-      final band = _stepBandOf(snapshot, store.waiting);
+      final band = _stepBandOf(
+        snapshot,
+        store.waiting,
+        onTap: widget.onSavings,
+      );
       final listed = <Object?>[
         for (final sum in snapshot.sums)
           _PhoneSum(
@@ -1773,15 +1812,12 @@ final _readinessOf = Expando<(DateTime, Readiness)>('readiness');
 /// step 2 once the computer has it.
 _PhoneStepBand? _stepBandOf(
   PhoneSnapshot snapshot,
-  Iterable<PhoneEntry> waiting,
-) {
+  Iterable<PhoneEntry> waiting, {
+  ValueChanged<ReadyStep>? onTap,
+}) {
   final data = snapshot.data;
-  if (data == null) return null;
-  final day = dateOnly(snapshot.madeAt);
-  final kept = _readinessOf[data];
-  final r = kept != null && kept.$1 == day
-      ? kept.$2
-      : (_readinessOf[data] = (day, Readiness.of(data, day))).$2;
+  final r = _readinessFor(snapshot);
+  if (data == null || r == null) return null;
   final step = r.current;
   if (step == null) return null;
   final fund = {for (final c in r.fundCategories) '${c.id}'};
@@ -1797,6 +1833,7 @@ _PhoneStepBand? _stepBandOf(
     step: step,
     currency: savingsCurrency(data),
     fundChange: change,
+    onTap: onTap == null ? null : () => onTap(step),
   );
 }
 
@@ -1809,10 +1846,14 @@ class _PhoneStepBand extends StatelessWidget {
     required this.step,
     required this.currency,
     this.fundChange = 0,
+    this.onTap,
   });
   final Readiness r;
   final ReadyStep step;
   final Currency currency;
+
+  /// Opens Savings on this step (#533).
+  final VoidCallback? onTap;
 
   /// What this phone's waiting entries put into or took out of the fund.
   final int fundChange;
@@ -1827,47 +1868,65 @@ class _PhoneStepBand extends StatelessWidget {
       currency,
       fundChange: fundChange,
     );
-    return Container(
-      key: const ValueKey('step-band'),
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
-      decoration: BoxDecoration(
-        color: Mid.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Mid.rule),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ExcludeSemantics(child: SavingsPicture(stepPicture(step), size: 44)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                StepMarkers(r: r, step: step),
+    final tap = onTap;
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ExcludeSemantics(child: SavingsPicture(stepPicture(step), size: 44)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              StepMarkers(r: r, step: step),
+              const SizedBox(height: 6),
+              Text(
+                stepTitle(t, step),
+                key: const ValueKey('step-band-title'),
+                style: onest(16, weight: 600),
+              ),
+              if (value != null) ...[
+                const SizedBox(height: 8),
+                StepBar(value: value, done: false, muted: false, width: null),
+              ],
+              if (words != null) ...[
                 const SizedBox(height: 6),
                 Text(
-                  stepTitle(t, step),
-                  key: const ValueKey('step-band-title'),
-                  style: onest(16, weight: 600),
+                  words,
+                  key: const ValueKey('step-band-progress'),
+                  style: onest(14, color: Mid.ink2, tabular: true),
                 ),
-                if (value != null) ...[
-                  const SizedBox(height: 8),
-                  StepBar(value: value, done: false, muted: false, width: null),
-                ],
-                if (words != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    words,
-                    key: const ValueKey('step-band-progress'),
-                    style: onest(14, color: Mid.ink2, tabular: true),
-                  ),
-                ],
               ],
-            ),
+            ],
           ),
-        ],
+        ),
+        // It opens Savings on this step: said by the chevron, as a row
+        // that opens a page is.
+        if (tap != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 8, top: 12),
+            child: Icon(Icons.chevron_right_rounded, color: Mid.ink2),
+          ),
+      ],
+    );
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: BorderSide(color: Mid.rule),
+    );
+    return Padding(
+      key: const ValueKey('step-band'),
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: Mid.card,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: tap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
+            child: row,
+          ),
+        ),
       ),
     );
   }
