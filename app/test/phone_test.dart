@@ -485,7 +485,7 @@ class _ActingSource {
       case PhoneSetSpan():
         return actOnSpan(db, act, _after);
       case PhoneSavingsAnswer():
-        return actOnSavings(db, act, _after);
+        return actOnSavings(db, act, now(), _after);
       case PhoneAddAccount() ||
           PhoneEditAccount() ||
           PhoneArchiveAccount() ||
@@ -2897,6 +2897,107 @@ void main() {
     expect(data.accounts[visa]!.role, AccountRole.paidMonthly);
     await undo();
     expect(data.accounts[visa]!.role, isNull);
+  });
+
+  testWidgets('Savings goals: a date passed short asks what to do, Move the '
+      'date, Edit, and Add a goal opening on its Goal card (#533)', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int wedding, school;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      wedding = await db.createCategory('Wedding');
+      await db.setCategoryPlan(
+        wedding,
+        CategoryPlan(
+          categoryId: wedding,
+          kind: PlanKind.byDate,
+          amount: 300000000,
+          start: DateTime(2026, 6, 1),
+          due: DateTime(2026, 9, 30),
+        ),
+      );
+      await db.setPreference(ReadyKeys.goal(wedding), 'yes');
+      school = await db.createCategory('University');
+      await db.setCategoryPlan(
+        school,
+        CategoryPlan(
+          categoryId: school,
+          kind: PlanKind.byDate,
+          amount: 1000000000,
+          start: DateTime(2026, 9, 1),
+          due: DateTime(2027, 6, 30),
+        ),
+      );
+      await db.setPreference(ReadyKeys.goal(school), 'yes');
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<String?> pref(String key) async =>
+        tester.runAsync<String?>(() => db.preference(key));
+    Future<void> tap(Key key) async {
+      await tester.ensureVisible(find.byKey(key));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(key));
+      await settle();
+    }
+
+    await tester.tap(find.byKey(const ValueKey('to-savings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('savings-stop-goals')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('savings-goal-$wedding')), findsOneWidget);
+    expect(find.byKey(ValueKey('savings-goal-$school')), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_savings_goals.png'),
+    );
+
+    // The wedding happened, the family covering the rest.
+    await tap(ValueKey('savings-goal-done-$wedding'));
+    expect(await pref(ReadyKeys.goalLate(wedding)), 'done');
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(await pref(ReadyKeys.goalLate(wedding)), isNull);
+
+    // Its date moved to when the usual amount has it ready.
+    final due = data.plans[wedding]!.due;
+    await tap(ValueKey('savings-goal-move-$wedding'));
+    expect(data.plans[wedding]!.due!.isAfter(due!), isTrue);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.plans[wedding]!.due, due);
+
+    // Edit opens the category's Edit, as on Budget.
+    await tap(ValueKey('savings-goal-edit-$school'));
+    expect(find.text('University'), findsWidgets);
+    await tap(const ValueKey('new-category-cancel'));
+
+    // Add a goal opens New category on its Goal card.
+    await tap(const ValueKey('savings-goal-add'));
+    final goal = find.byKey(const ValueKey('plan-type-goal'));
+    expect(goal, findsOneWidget);
+    expect(
+      tester.widget<TypeCards>(find.byType(TypeCards)).type,
+      CategoryType.goal,
+    );
   });
 
   testWidgets('Budget: a tap on the step band opens Savings on that step '

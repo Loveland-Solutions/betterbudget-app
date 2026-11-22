@@ -343,12 +343,14 @@ class PhoneSetSpan extends PhoneRowAct {
 /// writes them, undone together. [aside] skips a step or brings it back,
 /// worked out from what's stored when it's written, so two quick taps both
 /// count. [role] marks what a card or loan counts as on step 2 (an account's
-/// role, null for debt to pay off).
+/// role, null for debt to pay off). [plan] is a goal's plan with its date
+/// moved, written as the computer's Move the date writes it.
 class PhoneSavingsAnswer extends PhoneRowAct {
-  const PhoneSavingsAnswer(this.values, {this.aside, this.role});
+  const PhoneSavingsAnswer(this.values, {this.aside, this.role, this.plan});
   final Map<String, String?> values;
   final (ReadyStep, bool)? aside;
   final (int, AccountRole?)? role;
+  final (int, CategoryPlan)? plan;
 }
 
 /// An account added on the Accounts page (#529): its name, what it is,
@@ -1429,7 +1431,7 @@ class PhoneSync implements PhoneLedgerSource {
       case PhoneSetSpan():
         return actOnSpan(db, act, again);
       case PhoneSavingsAnswer():
-        return actOnSavings(db, act, again);
+        return actOnSavings(db, act, now, again);
       case PhoneAddAccount() ||
           PhoneEditAccount() ||
           PhoneArchiveAccount() ||
@@ -1813,6 +1815,7 @@ Future<PhoneActed> actOnSpan(
 Future<PhoneActed> actOnSavings(
   AppDatabase db,
   PhoneSavingsAnswer act,
+  DateTime now,
   Future<PhoneSnapshot> Function() again,
 ) async {
   final values = {...act.values};
@@ -1844,14 +1847,20 @@ Future<PhoneActed> actOnSavings(
   }
 
   await write(values, role?.$2);
+  final plan = act.plan;
+  final change = plan == null
+      ? null
+      : await db.changeCategoryPlan(plan.$1, plan.$2, dateOnly(now));
   return (
     snapshot: await again(),
     undo: () async {
+      if (plan != null) await db.undoPlanChange(plan.$1, change!);
       await write(before, roleWas);
       return again();
     },
     redo: () async {
       await write(values, role?.$2);
+      if (plan != null) await db.redoPlanChange(plan.$1, plan.$2, change!);
       return again();
     },
   );

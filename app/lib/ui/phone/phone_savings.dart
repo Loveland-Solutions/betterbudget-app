@@ -201,6 +201,8 @@ class _SavingsScreenState extends State<_SavingsScreen> {
                   _SavingsGoalsPage(
                     key: const ValueKey('savings-page-goals'),
                     r: r,
+                    store: widget.store,
+                    act: _act,
                   ),
                 ],
               ),
@@ -1003,17 +1005,24 @@ class _DebtMenu extends StatelessWidget {
   }
 }
 
-/// Goals, the fifth stop: the computer's goal cards and the lines over them.
+/// Goals, the fifth stop: the computer's goal cards and the lines over
+/// them, and Add a goal, which opens New category on its Goal card.
 class _SavingsGoalsPage extends StatelessWidget {
-  const _SavingsGoalsPage({super.key, required this.r});
+  const _SavingsGoalsPage({
+    super.key,
+    required this.r,
+    required this.store,
+    required this.act,
+  });
   final Readiness r;
+  final PhoneStore store;
+  final Future<void> Function(PhoneRowAct act, String said) act;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final before = r.goals.isEmpty
-        ? null
-        : goalsBefore(t, r, CurrencyScope.of(context));
+    final c = CurrencyScope.of(context);
+    final before = r.goals.isEmpty ? null : goalsBefore(t, r, c);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       children: [
@@ -1042,24 +1051,93 @@ class _SavingsGoalsPage extends StatelessWidget {
           _PhoneGoalCard(
             key: ValueKey('savings-goal-${g.category.id}'),
             goal: g,
+            store: store,
+            act: act,
           ),
+        const SizedBox(height: 16),
+        FilledButton(
+          key: const ValueKey('savings-goal-add'),
+          style: FilledButton.styleFrom(
+            backgroundColor: Mid.blue,
+            minimumSize: const Size(0, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          // In Savings' currency, on the Goal card: the computer's panel
+          // asks the same name, amount and date.
+          onPressed: () => _openNewCategory(
+            context,
+            store: store,
+            currency: c,
+            type: CategoryType.goal,
+          ),
+          child: Text(
+            t.goalAdd,
+            style: onest(15, weight: 600, color: Mid.ground),
+          ),
+        ),
       ],
     );
   }
 }
 
 class _PhoneGoalCard extends StatelessWidget {
-  const _PhoneGoalCard({super.key, required this.goal});
+  const _PhoneGoalCard({
+    super.key,
+    required this.goal,
+    required this.store,
+    required this.act,
+  });
   final Goal goal;
+  final PhoneStore store;
+  final Future<void> Function(PhoneRowAct act, String said) act;
+
+  /// Its Edit on Budget's page, said with Undo as Budget's Edit is.
+  Future<void> _edit(BuildContext context) async {
+    final t = context.t;
+    final id = '${goal.category.id}';
+    final category = store.categories.where((c) => c.id == id).firstOrNull;
+    if (category == null) return;
+    final done = await _openEditCategory(
+      context,
+      store: store,
+      category: category,
+    );
+    if (done == null || !context.mounted) return;
+    _saidWithUndo(
+      context,
+      store,
+      done.change,
+      done.said ?? t.planEditedUndo(category.name),
+      'savings-goal-edited',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final g = goal;
+    final id = g.category.id;
+    final name = g.category.name;
     final line = goalLine(t, g);
+    final readyAt = g.readyAtUsual;
+    String money(int v) => formatShort(v, currency: g.currency);
+    Widget move() => _OutlineButton(
+      key: ValueKey('savings-goal-move-$id'),
+      label: t.goalMoveDate(goalMonth(t, readyAt!)),
+      onTap: () => act(
+        // Moving the date also clears a late answer, as on the computer.
+        PhoneSavingsAnswer(
+          {ReadyKeys.goalLate(id): null},
+          plan: (id, g.movedTo(readyAt)),
+        ),
+        t.goalMovedUndo(name, goalMonth(t, readyAt)),
+      ),
+    );
     return Container(
       margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      padding: const EdgeInsets.fromLTRB(14, 6, 6, 14),
       decoration: BoxDecoration(
         color: Mid.card,
         borderRadius: BorderRadius.circular(12),
@@ -1068,39 +1146,113 @@ class _PhoneGoalCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            g.category.name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: onest(15.5, weight: 600),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            t.goalBy(goalDate(t, g, g.due)),
-            style: onest(13.5, color: Mid.ink2),
-          ),
-          const SizedBox(height: 10),
-          StepBar(
-            value: g.amount == 0 ? 1 : g.saved / g.amount,
-            done: g.ready,
-            muted: false,
-            width: null,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            goalStatus(t, g),
-            key: ValueKey('savings-goal-status-${g.category.id}'),
-            style: onest(14.5, tabular: true),
-          ),
-          if (line != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                line,
-                key: ValueKey('savings-goal-line-${g.category.id}'),
-                style: onest(14, color: Mid.ink2, height: 1.4, tabular: true),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: onest(15.5, weight: 600),
+                ),
               ),
+              TextButton(
+                key: ValueKey('savings-goal-edit-$id'),
+                onPressed: () => _edit(context),
+                style: TextButton.styleFrom(minimumSize: const Size(56, 44)),
+                child: Text(t.planEdit, style: onest(15, color: Mid.blue)),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  t.goalBy(goalDate(t, g, g.due)),
+                  style: onest(13.5, color: Mid.ink2),
+                ),
+                const SizedBox(height: 10),
+                StepBar(
+                  value: g.amount == 0 ? 1 : g.saved / g.amount,
+                  done: g.ready,
+                  muted: false,
+                  width: null,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  goalStatus(t, g),
+                  key: ValueKey('savings-goal-status-$id'),
+                  style: onest(14.5, tabular: true),
+                ),
+                if (line != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      line,
+                      key: ValueKey('savings-goal-line-$id'),
+                      style: onest(
+                        14,
+                        color: Mid.ink2,
+                        height: 1.4,
+                        tabular: true,
+                      ),
+                    ),
+                  ),
+                // A date passed short is the person's choice (owner,
+                // 2026-10-27): keep the usual, ask the rest, or done.
+                if (!g.ready && g.late)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _SavingsChoice(
+                          key: ValueKey('savings-goal-keep-$id'),
+                          label: t.goalKeepUsual(money(g.usual)),
+                          on: !g.askAll && !g.finished,
+                          onTap: () => act(
+                            PhoneSavingsAnswer({ReadyKeys.goalLate(id): null}),
+                            t.goalKeepUsualUndo(name),
+                          ),
+                        ),
+                        _SavingsChoice(
+                          key: ValueKey('savings-goal-rest-$id'),
+                          label: t.goalAskRest,
+                          on: g.askAll,
+                          onTap: () => act(
+                            PhoneSavingsAnswer({ReadyKeys.goalLate(id): 'all'}),
+                            t.goalAskRestUndo(name),
+                          ),
+                        ),
+                        _SavingsChoice(
+                          key: ValueKey('savings-goal-done-$id'),
+                          label: t.goalDone,
+                          on: g.finished,
+                          onTap: () => act(
+                            PhoneSavingsAnswer({
+                              ReadyKeys.goalLate(id): 'done',
+                            }),
+                            t.goalDoneUndo(name),
+                          ),
+                        ),
+                        if (readyAt != null) move(),
+                      ],
+                    ),
+                  )
+                else if (!g.ready &&
+                    g.behind > 0 &&
+                    readyAt != null &&
+                    readyAt.isAfter(g.due))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: move(),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
