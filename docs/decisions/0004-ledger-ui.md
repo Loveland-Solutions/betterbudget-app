@@ -7858,3 +7858,29 @@ still in Not categorized). The owner picked **A**.
 - Saving, deleting and filing are `data/payee_acts.dart`, which the computer's page
   calls too; what a payee fits, would file and would name is `domain/payee_offers.dart`.
 
+
+## Savings on the phone: a third tab, one step at a time (owner, 2026-11-22, #533)
+
+Three sketches of the phone's Savings page, drawn with the computer's content (the four
+steps with their pictures, the safety net, paying off debts with Smallest first and
+Highest rate first, three to six months, saving for the future, goals). The owner
+picked **B** ("go with B").
+
+- **B, chosen: Savings is a third tab**, after Ledger and Budget at the foot of the
+  screen. Across its top, five stops: the four steps' pictures, each with its number
+  and state under it (✓ Done, Now, Skipped for now), and **Goals** a fifth. One stop
+  fills the screen under them; a tap on a stop, or a swipe, goes to the next. It opens
+  on the step the household is on. The step band on Budget opens the tab on that step.
+- **A step's page is the computer's step**: its title with Now, its progress line and
+  bar, its sentences, and its controls, with the step's ⋯ (Skip this step for now).
+- **Step 2 on one screen:** each debt as a card (name and what's owed, its rate and
+  interest a month, its payment, Pay extra here on the one getting the extra, with its
+  bar), then Extra each month, then one line comparing the two ways ("Smallest first:
+  all paid off October 2028. Highest rate first: September 2028, about ₮50,000 less
+  interest."), with **Compare ›** opening the computer's two cards and the sentence
+  under them on a page of their own, where a tap on a card picks that way.
+- **Goals** is the fifth stop: the computer's goal cards and its lines over them, Add a
+  goal at the foot.
+- **Rejected:** A, one page from the band with steps opened where they are (step 2 is
+  longer than a screen, and opening it pushes the rest out of sight); C, a list of the
+  steps from the band with a page for each (the owner's pick was the tab).
