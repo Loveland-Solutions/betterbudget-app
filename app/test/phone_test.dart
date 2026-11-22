@@ -2754,6 +2754,14 @@ void main() {
     await tester.pumpAndSettle();
     await tap(const ValueKey('savings-months-5'));
     expect(await pref(ReadyKeys.months), '5');
+    // Two quick taps: the second waits for the first, so the Undo shown is
+    // the real one and puts back five.
+    await tester.tap(find.byKey(const ValueKey('savings-months-4')));
+    await tester.tap(find.byKey(const ValueKey('savings-months-4')));
+    await settle();
+    expect(await pref(ReadyKeys.months), '4');
+    await undo();
+    expect(await pref(ReadyKeys.months), '5');
 
     // Step 4's answers.
     await tester.tap(find.byKey(const ValueKey('savings-stop-future')));

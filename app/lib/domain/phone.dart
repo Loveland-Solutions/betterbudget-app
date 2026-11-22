@@ -61,6 +61,7 @@ class PhoneCategory {
     this.usualMinor,
     this.payInto,
     this.type,
+    this.outOfMonth = false,
     this.coverMinor = 0,
     this.coverMonth,
     this.assignedMinor = 0,
@@ -95,6 +96,12 @@ class PhoneCategory {
   /// plan can't say: a Goal, or a Fund with no amount yet. Null from a
   /// phone before 0.89.0.
   final CategoryType? type;
+
+  /// Made by Savings' Add a goal (#533): left out of a month of expenses
+  /// when the phone's ledger takes it in, as the computer's Add a goal
+  /// leaves it. Only while it waits to be taken in, which is at once; not
+  /// kept in the phone's file.
+  final bool outOfMonth;
 
   /// A pay's paycheck, offered for money in as Income is (#187): the
   /// account the pay goes into, the only one it can come into.

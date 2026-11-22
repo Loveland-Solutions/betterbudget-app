@@ -1,4 +1,5 @@
 import '../domain/goals.dart';
+import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/readiness.dart';
 import 'language.dart';
@@ -208,4 +209,24 @@ String payoffDifference(
   if (asking.isEmpty) return null;
   final sum = asking.fold(0, (s, g) => s + g.usual);
   return (sum, asking.length == 1 ? asking.single.category.name : null);
+}
+
+/// What Savings leaves out, said once: the accounts in another currency
+/// than Savings' [main], what each holds or owes ("Not counted here yet:
+/// …"). Null while every account is in it.
+String? otherCurrencySays(Words t, LedgerData data, Currency main) {
+  final others = [
+    for (final a in data.openAccounts)
+      if (a.currency != main)
+        if (data.balanceOf(a.id) case final b when a.isOwed && b < 0)
+          t.savingsOtherOwed(a.name, formatShort(-b, currency: a.currency))
+        else
+          t.savingsOtherHeld(
+            a.name,
+            formatShort(data.balanceOf(a.id), currency: a.currency),
+          ),
+  ].join(', ');
+  return others.isEmpty
+      ? null
+      : t.savingsOnlyOne(others, currencyName(t, main));
 }

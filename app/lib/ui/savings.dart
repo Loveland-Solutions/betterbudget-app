@@ -173,17 +173,7 @@ class _SavingsPage extends StatelessWidget {
     final r = Readiness.of(data, today);
     actions.keep.onlyDebts({for (final d in r.consumerDebts) d.account.id});
     final main = savingsCurrency(data);
-    final others = [
-      for (final a in data.openAccounts)
-        if (a.currency != main)
-          if (data.balanceOf(a.id) case final b when a.isOwed && b < 0)
-            t.savingsOtherOwed(a.name, _money(-b, a.currency))
-          else
-            t.savingsOtherHeld(
-              a.name,
-              _money(data.balanceOf(a.id), a.currency),
-            ),
-    ].join(', ');
+    final others = otherCurrencySays(t, data, main);
     return CurrencyScope(
       currency: main,
       child: Padding(
@@ -243,11 +233,11 @@ class _SavingsPage extends StatelessWidget {
                           today: today,
                           actions: actions,
                         ),
-                        if (others.isNotEmpty)
+                        if (others != null)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
                             child: Text(
-                              t.savingsOnlyOne(others, currencyName(t, main)),
+                              others,
                               key: const ValueKey('savings-one-currency'),
                               style: onest(12, color: Mid.ink3),
                             ),

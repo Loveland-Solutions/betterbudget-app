@@ -23,6 +23,7 @@ Future<PhoneCategory?> _openNewCategory(
   bool forEntry = false,
   PhoneCategory? editing,
   CategoryType? type,
+  bool outOfMonth = false,
 }) {
   final now = store.now();
   final today = DateTime(now.year, now.month, now.day);
@@ -38,6 +39,7 @@ Future<PhoneCategory?> _openNewCategory(
             forEntry: forEntry,
             editing: editing,
             startType: type,
+            outOfMonth: outOfMonth,
           ),
         ),
       )
@@ -138,6 +140,7 @@ class _NewCategoryPage extends StatefulWidget {
     required this.forEntry,
     this.editing,
     this.startType,
+    this.outOfMonth = false,
     this.bills = const [],
     this.loan = false,
     this.groupable = false,
@@ -150,6 +153,9 @@ class _NewCategoryPage extends StatefulWidget {
 
   /// The card a new one opens on; null opens on none lit, as Budget's does.
   final CategoryType? startType;
+
+  /// A goal made from Savings: left out of a month of expenses.
+  final bool outOfMonth;
 
   /// Edit of a ledger category: a Group when it is Day-to-day, the groups
   /// there are, how many rows are filed under it (and how many of those are
@@ -478,6 +484,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       plan: _draft,
       paidFromId: _paidFromId?.toString(),
       type: _type,
+      outOfMonth: widget.outOfMonth,
     );
     if (!another) {
       Navigator.of(context).pop(made);

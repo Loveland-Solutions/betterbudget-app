@@ -6,13 +6,15 @@ part of 'phone_app.dart';
 // Each step says what the computer's Savings page says of it, from the
 // phone's own ledger.
 
-/// The Savings steps of the phone's ledger, worked out once per copy rather
-/// than on every entry typed; null with no ledger behind the figures (the
-/// preview, the demo).
-Readiness? _readinessFor(PhoneSnapshot snapshot) {
+/// The Savings steps of the phone's ledger on [now]'s day, worked out once
+/// per copy and day rather than on every entry typed; null with no ledger
+/// behind the figures (the preview, the demo). Today's, not the day of the
+/// last look at the folder: Budget's rows are today's, and Assign to Safety
+/// net writes into today's period (budget review, #533).
+Readiness? _readinessFor(PhoneSnapshot snapshot, DateTime now) {
   final data = snapshot.data;
   if (data == null) return null;
-  final day = dateOnly(snapshot.madeAt);
+  final day = dateOnly(now);
   final kept = _readinessOf[data];
   return kept != null && kept.$1 == day
       ? kept.$2
@@ -47,7 +49,7 @@ class _SavingsScreenState extends State<_SavingsScreen> {
   @override
   void initState() {
     super.initState();
-    final r = _readinessFor(widget.store.snapshot);
+    final r = _readinessFor(widget.store.snapshot, widget.store.now());
     _at = widget.show.value ?? (r == null ? 0 : _savingsStopOf(r));
     widget.show.value = null;
     _pages = PageController(initialPage: _at);
@@ -71,6 +73,11 @@ class _SavingsScreenState extends State<_SavingsScreen> {
   /// Writes a Savings change and says it in a snack bar with Undo, as the
   /// phone's other changes are; a refusal says so instead.
   Future<void> _act(PhoneRowAct act, String said) async {
+    // A second tap before the first is written would find nothing to
+    // change, and its snack bar's Undo, doing nothing, would take the place
+    // of the first's (code review, #533): taps wait for the one in hand.
+    if (_acting) return;
+    _acting = true;
     final PhoneActed done;
     try {
       done = await widget.store.actRow(act);
@@ -92,11 +99,15 @@ class _SavingsScreenState extends State<_SavingsScreen> {
           ),
         );
       return;
+    } finally {
+      _acting = false;
     }
     if (mounted) {
       _saidWithUndo(context, widget.store, done, said, 'savings-done');
     }
   }
+
+  var _acting = false;
 
   void _go(int stop, {bool animate = true}) {
     setState(() => _at = stop);
@@ -120,7 +131,7 @@ class _SavingsScreenState extends State<_SavingsScreen> {
     builder: (context, _) {
       final t = context.t;
       final snapshot = widget.store.snapshot;
-      final r = _readinessFor(snapshot);
+      final r = _readinessFor(snapshot, widget.store.now());
       final data = snapshot.data;
       if (r == null || data == null) return const SizedBox.shrink();
       final currency = savingsCurrency(data);
@@ -181,6 +192,17 @@ class _SavingsScreenState extends State<_SavingsScreen> {
               ],
             ),
           ),
+          // A card or account in another currency isn't counted: said once,
+          // under the steps it would change (budget review, #533).
+          if (otherCurrencySays(t, data, currency) case final others?)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+              child: Text(
+                others,
+                key: const ValueKey('savings-one-currency'),
+                style: onest(13, color: Mid.ink2, height: 1.35),
+              ),
+            ),
           Container(height: 1, color: Mid.rule),
           Expanded(
             child: CurrencyScope(
@@ -190,19 +212,25 @@ class _SavingsScreenState extends State<_SavingsScreen> {
                 controller: _pages,
                 onPageChanged: (i) => setState(() => _at = i),
                 children: [
+                  // Kept while another is shown, so a field being typed in
+                  // isn't lost to a sideways drag (budget review, #533).
                   for (final s in ReadyStep.values)
-                    _SavingsStepPage(
-                      key: ValueKey('savings-page-${s.name}'),
-                      step: s,
+                    _KeptPage(
+                      child: _SavingsStepPage(
+                        key: ValueKey('savings-page-${s.name}'),
+                        step: s,
+                        r: r,
+                        data: data,
+                        act: _act,
+                      ),
+                    ),
+                  _KeptPage(
+                    child: _SavingsGoalsPage(
+                      key: const ValueKey('savings-page-goals'),
                       r: r,
-                      data: data,
+                      store: widget.store,
                       act: _act,
                     ),
-                  _SavingsGoalsPage(
-                    key: const ValueKey('savings-page-goals'),
-                    r: r,
-                    store: widget.store,
-                    act: _act,
                   ),
                 ],
               ),
@@ -1071,6 +1099,7 @@ class _SavingsGoalsPage extends StatelessWidget {
             store: store,
             currency: c,
             type: CategoryType.goal,
+            outOfMonth: true,
           ),
           child: Text(
             t.goalAdd,
@@ -1123,16 +1152,28 @@ class _PhoneGoalCard extends StatelessWidget {
     final line = goalLine(t, g);
     final readyAt = g.readyAtUsual;
     String money(int v) => formatShort(v, currency: g.currency);
-    Widget move() => _OutlineButton(
-      key: ValueKey('savings-goal-move-$id'),
-      label: t.goalMoveDate(goalMonth(t, readyAt!)),
-      onTap: () => act(
-        // Moving the date also clears a late answer, as on the computer.
-        PhoneSavingsAnswer(
-          {ReadyKeys.goalLate(id): null},
-          plan: (id, g.movedTo(readyAt)),
+    // Words in blue, not a box like the choices: it moves the date once.
+    Widget move() => Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        key: ValueKey('savings-goal-move-$id'),
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
         ),
-        t.goalMovedUndo(name, goalMonth(t, readyAt)),
+        icon: Icon(Icons.event_rounded, size: 20, color: Mid.blue),
+        label: Text(
+          t.goalMoveDate(goalMonth(t, readyAt!)),
+          style: onest(15, weight: 600, color: Mid.blue),
+        ),
+        onPressed: () => act(
+          // Moving the date also clears a late answer, as on the computer.
+          PhoneSavingsAnswer(
+            {ReadyKeys.goalLate(id): null},
+            plan: (id, g.movedTo(readyAt)),
+          ),
+          t.goalMovedUndo(name, goalMonth(t, readyAt)),
+        ),
       ),
     );
     return Container(
@@ -1238,9 +1279,15 @@ class _PhoneGoalCard extends StatelessWidget {
                             t.goalDoneUndo(name),
                           ),
                         ),
-                        if (readyAt != null) move(),
                       ],
                     ),
+                  ),
+                // Moving the date is an act, not a fourth answer: apart
+                // from the choices, worded as what it does (budget review).
+                if (!g.ready && g.late && readyAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: move(),
                   )
                 else if (!g.ready &&
                     g.behind > 0 &&
@@ -1900,12 +1947,12 @@ class _PhonePayoff extends StatelessWidget {
               plan: followed == PayoffMethod.smallest ? small : rate,
               gap: (small.interest - rate.interest).abs(),
               r: r,
-            )
-          else
-            note(
-              t.phonePlanPicked(r.picked!.account.name),
-              key: const ValueKey('savings-payoff-picked'),
             ),
+          // What the other way would save, said here too: not only behind
+          // Compare (budget review, #533).
+          if (payoffDifference(t, c, r, small, rate) case final d
+              when d.isNotEmpty)
+            note(d, key: const ValueKey('savings-payoff-difference')),
           const SizedBox(height: 10),
           _OutlineButton(
             key: const ValueKey('savings-compare'),
@@ -2056,14 +2103,18 @@ class _PhoneWayCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(
-                      on
-                          ? Icons.radio_button_checked_rounded
-                          : Icons.radio_button_unchecked_rounded,
-                      size: 20,
-                      color: on ? Mid.blue : Mid.ink2,
-                    ),
-                    const SizedBox(width: 10),
+                    // A choice's mark only where a tap picks it: on the
+                    // step, the card only says the way followed.
+                    if (onTap != null) ...[
+                      Icon(
+                        on
+                            ? Icons.radio_button_checked_rounded
+                            : Icons.radio_button_unchecked_rounded,
+                        size: 20,
+                        color: on ? Mid.blue : Mid.ink2,
+                      ),
+                      const SizedBox(width: 10),
+                    ],
                     Flexible(
                       child: Text(
                         method == PayoffMethod.smallest
@@ -2129,7 +2180,7 @@ class _ComparePage extends StatelessWidget {
         child: ListenableBuilder(
           listenable: store,
           builder: (context, _) {
-            final r = _readinessFor(store.snapshot);
+            final r = _readinessFor(store.snapshot, store.now());
             final small = r?.payoff(PayoffMethod.smallest);
             final rate = r?.payoff(PayoffMethod.highestRate);
             // The two ways no longer differ (a debt paid off meanwhile):
@@ -2138,6 +2189,11 @@ class _ComparePage extends StatelessWidget {
                 small == null ||
                 rate == null ||
                 !r.methodsDiffer) {
+              // Nothing left to compare (a debt paid off meanwhile): back
+              // to the step, which says what's left (code review, #533).
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (context.mounted) Navigator.of(context).maybePop();
+              });
               return const SizedBox.shrink();
             }
             final gap = (small.interest - rate.interest).abs();
@@ -2207,5 +2263,26 @@ class _ComparePage extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Keeps a page of the Savings tab while another is shown.
+class _KeptPage extends StatefulWidget {
+  const _KeptPage({required this.child});
+  final Widget child;
+
+  @override
+  State<_KeptPage> createState() => _KeptPageState();
+}
+
+class _KeptPageState extends State<_KeptPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

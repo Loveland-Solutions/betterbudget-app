@@ -1846,21 +1846,30 @@ Future<PhoneActed> actOnSavings(
     });
   }
 
-  await write(values, role?.$2);
+  // The answers and a goal's moved plan in one transaction: a plan the
+  // ledger refuses (its category gone meanwhile) leaves the answers as they
+  // were too (code review, #533).
   final plan = act.plan;
-  final change = plan == null
-      ? null
-      : await db.changeCategoryPlan(plan.$1, plan.$2, dateOnly(now));
+  final change = await db.transaction(() async {
+    await write(values, role?.$2);
+    return plan == null
+        ? null
+        : await db.changeCategoryPlan(plan.$1, plan.$2, dateOnly(now));
+  });
   return (
     snapshot: await again(),
     undo: () async {
-      if (plan != null) await db.undoPlanChange(plan.$1, change!);
-      await write(before, roleWas);
+      await db.transaction(() async {
+        if (plan != null) await db.undoPlanChange(plan.$1, change!);
+        await write(before, roleWas);
+      });
       return again();
     },
     redo: () async {
-      await write(values, role?.$2);
-      if (plan != null) await db.redoPlanChange(plan.$1, plan.$2, change!);
+      await db.transaction(() async {
+        await write(values, role?.$2);
+        if (plan != null) await db.redoPlanChange(plan.$1, plan.$2, change!);
+      });
       return again();
     },
   );

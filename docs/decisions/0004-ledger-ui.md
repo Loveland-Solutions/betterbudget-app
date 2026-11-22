@@ -7884,3 +7884,23 @@ picked **B** ("go with B").
 - **Rejected:** A, one page from the band with steps opened where they are (step 2 is
   longer than a screen, and opening it pushes the rest out of sight); C, a list of the
   steps from the band with a page for each (the owner's pick was the tab).
+- **Built, 2026-11-22 (0.141.0–0.144.0):** the tab, each step's answers, step 2's
+  debts and the two ways, and Goals, every change with Undo in a snack bar. Add a
+  goal opens the phone's New category on its Goal card (the computer's panel asks the
+  same name, amount and date); a goal made there is left out of a month of expenses,
+  as the computer's Add a goal leaves it, and one made from Budget stays in, as there.
+- **From the reviews** (decided along the lines above):
+  - Savings counts from today, as Budget's rows do, not from the day of the last look
+    at the folder: Assign to Safety net writes into today's period, and after a day
+    offline it set the new period's Assigned from the old one's.
+  - A card, loan or account in another currency is said under the stops, in the
+    computer's words ("Not counted here yet: …"), rather than left out silently.
+  - Step 2 says what the other way saves under the card of the way followed, not only
+    behind Compare; that card has no radio mark, since a tap there picks nothing.
+    Compare closes by itself when the two ways stop differing.
+  - Move the date is blue words under a late goal's three answers, apart from them,
+    since it acts once and isn't a fourth answer.
+  - The tab reopens on the step they're on when it's come back to from another tab;
+    a tap while a change is being written waits, so a second tap can't put a do-nothing
+    Undo in place of the real one; Move the date and its answers are written in one
+    transaction; a step's page keeps a field being typed in through a swipe.
