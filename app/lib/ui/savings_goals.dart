@@ -49,16 +49,11 @@ class _Goals extends StatelessWidget {
       listenable: keep,
       builder: (context, _) {
         final open = keep.goal != null;
-        final owed = r.consumerDebts.fold(0, (sum, d) => sum + d.owed);
         // Said while there's a goal or one is being added: what saving for
         // it now costs the steps before it. A warning; nothing is stopped.
         final String? before = r.goals.isEmpty && !open
             ? null
-            : owed > 0
-            ? t.goalsDebtNote(_here(context, owed))
-            : r.stateOf(ReadyStep.oneMonth) == ReadyState.current
-            ? t.goalsNetNote
-            : null;
+            : goalsBefore(t, r, CurrencyScope.of(context));
         return Padding(
           key: const ValueKey('goals'),
           padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
@@ -124,18 +119,7 @@ class _Goals extends StatelessWidget {
 }
 
 /// What two or more goals ask this month, by currency, said as money.
-List<String> _totals(List<Goal> goals) {
-  final sums = <Currency, int>{}, count = <Currency, int>{};
-  for (final g in goals) {
-    if (g.asks <= 0 || g.ready || g.finished) continue;
-    sums[g.currency] = (sums[g.currency] ?? 0) + g.asks;
-    count[g.currency] = (count[g.currency] ?? 0) + 1;
-  }
-  return [
-    for (final MapEntry(key: c, value: v) in sums.entries)
-      if (count[c]! > 1) formatShort(v, currency: c),
-  ];
-}
+List<String> _totals(List<Goal> goals) => goalTotals(goals);
 
 /// One goal: how far along it is, and, behind or late, what it takes.
 class _GoalCard extends StatelessWidget {
@@ -149,22 +133,11 @@ class _GoalCard extends StatelessWidget {
     final g = goal;
     final id = g.category.id;
     String money(int v) => formatShort(v, currency: g.currency);
-    String date(DateTime d) =>
-        d.year == g.today.year ? sayDate(t, d) : sayFullDate(t, d);
-    String month(DateTime d) =>
-        t.calendarMonth(monthName(t, d.month), '${d.year}', d.month);
+    String date(DateTime d) => goalDate(t, g, d);
+    String month(DateTime d) => goalMonth(t, d);
     final readyAt = g.readyAtUsual;
-    final thisMonth =
-        g.due.year == g.today.year && g.due.month == g.today.month;
-    final status = g.ready
-        ? t.goalReady(money(g.amount))
-        : g.finished
-        ? t.goalDoneStatus
-        : [
-            t.planFundOf(money(g.saved), money(g.amount)),
-            if (!g.late)
-              g.behind > 0 ? t.goalBehind(money(g.behind)) : t.goalOnTrack,
-          ].join(' · ');
+    final status = goalStatus(t, g);
+    final said = goalLine(t, g);
     Widget line(String text, {Key? key}) => Padding(
       padding: const EdgeInsets.only(top: 6),
       child: ConstrainedBox(
@@ -237,14 +210,7 @@ class _GoalCard extends StatelessWidget {
           if (g.ready)
             const SizedBox.shrink()
           else if (g.late) ...[
-            line(
-              !g.finished
-                  ? t.goalLate(date(g.due), money(g.toGo))
-                  : g.left > 0
-                  ? t.goalDoneLeft(money(g.left), g.category.name)
-                  : t.goalDoneNote,
-              key: ValueKey('goal-late-$id'),
-            ),
+            line(said!, key: ValueKey('goal-late-$id')),
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: Wrap(
@@ -285,23 +251,11 @@ class _GoalCard extends StatelessWidget {
               ),
             ),
           ] else if (g.behind > 0) ...[
-            line(
-              [
-                t.goalCatchUp(date(g.due), money(g.asks)),
-                if (readyAt != null)
-                  t.goalAtUsual(money(g.usual), month(readyAt)),
-              ].join(' '),
-              key: ValueKey('goal-behind-$id'),
-            ),
+            line(said!, key: ValueKey('goal-behind-$id')),
             if (readyAt != null && readyAt.isAfter(g.due))
               Padding(padding: const EdgeInsets.only(top: 10), child: move()),
           ] else
-            line(
-              thisMonth
-                  ? t.goalAsksThisMonth(money(g.asks))
-                  : t.goalAsks(money(g.asks)),
-              key: ValueKey('goal-asks-$id'),
-            ),
+            line(said!, key: ValueKey('goal-asks-$id')),
         ],
       ),
     );

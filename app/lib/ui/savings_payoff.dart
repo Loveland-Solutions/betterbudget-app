@@ -351,13 +351,7 @@ extension on _DebtPaymentState {
   /// getting the extra (reviews).
   String _onlyInterest(Words t, bool below, String amount) {
     final behind = widget.r.debtsInOrder.indexOf(widget.debt) > 0;
-    return below
-        ? (behind
-              ? t.planPayBelowInterestNext(amount)
-              : t.planPayBelowInterest(amount))
-        : (behind
-              ? t.planPayOnlyInterestNext(amount)
-              : t.planPayOnlyInterest(amount));
+    return onlyInterestSays(t, below: below, behind: behind, amount: amount);
   }
 }
 
@@ -650,11 +644,8 @@ class _Payoff extends StatelessWidget {
 }
 
 /// [months] after the month [r] was worked out in, as said: "June 2028".
-String _month(BuildContext context, Readiness r, int months) {
-  final t = context.t;
-  final d = DateTime(r.today.year, r.today.month + months);
-  return t.calendarMonth(monthName(t, d.month), '${d.year}', d.month);
-}
+String _month(BuildContext context, Readiness r, int months) =>
+    payoffMonth(context.t, r, months);
 
 /// The place [units] is said to with "about": two figures, so 53,412 is
 /// said to the thousand.

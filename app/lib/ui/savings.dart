@@ -389,18 +389,7 @@ class _StepRow extends StatelessWidget {
       case ReadyStep.moreMonths:
         final target = r.targetOf(step);
         final m = r.month;
-        final loans = m.loanPayments > 0 ? 'yes' : 'no';
-        final aboutMonth = m.amount == 0
-            ? (m.days < MonthOfSpending.minDays
-                  ? t.planMonthUnknown
-                  : t.planMonthNoSpending(m.days))
-            : m.typed
-            ? t.planMonthTyped(_here(context, m.amount))
-            : m.fromBudget
-            ? t.planMonthBudget(_here(context, m.amount))
-            : m.days >= MonthOfSpending.spanDays
-            ? t.planMonthAverage3(_here(context, m.amount), loans)
-            : t.planMonthAverageDays(_here(context, m.amount), m.days, loans);
+        final aboutMonth = monthOfExpensesSays(t, m, CurrencyScope.of(context));
         final noFund = !r.hasFund;
         return [
           if (target > 0 && !noFund) ...[
@@ -707,11 +696,7 @@ extension on _StepRow {
 String _typedText(int minor, Currency c) =>
     '${formatWhole(minor, c)}${c.hasCents(minor) ? formatCents(minor, c) : ''}';
 
-String _names(Words t, Iterable<String> names) {
-  final l = names.toList();
-  if (l.length < 2) return l.join();
-  return t.planNamesAnd(l.sublist(0, l.length - 1).join(', '), l.last);
-}
+String _names(Words t, Iterable<String> names) => namesAnd(t, names);
 
 /// A month of expenses, typed over the average. Empty goes back to it.
 class _MonthField extends StatefulWidget {
@@ -1459,18 +1444,11 @@ const double _reads = 640, _stepWidth = 760;
 const double _debtName = 170, _debtOwed = 136, _debtRate = 130;
 
 /// A rate as said: "2% a month", "24% a year".
-String _rateWords(Words t, DebtRate r) => r.perYear
-    ? t.planRateYearly(ratePercent(r.percent))
-    : t.planRateMonthly(ratePercent(r.percent));
+String _rateWords(Words t, DebtRate r) => rateWords(t, r);
 
 /// Interest a month, as said with "about": ₮48,000, not ₮47,836.
-String _interest(BuildContext context, int minor) {
-  final c = CurrencyScope.of(context);
-  return formatShort(
-    roundAbout((minor / c.scale).round()) * c.scale,
-    currency: c,
-  );
-}
+String _interest(BuildContext context, int minor) =>
+    interestAbout(minor, CurrencyScope.of(context));
 
 /// A rate's field, its %, and whether it is a month's or a year's: on a
 /// debt's line in Savings and on Add account for a card or loan.
