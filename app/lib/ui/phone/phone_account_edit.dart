@@ -22,13 +22,24 @@ class _AccountDone {
 }
 
 /// Opens Add account; the page hands back what was done.
+/// From setup (#534): [type] and [cash] are the button's, and every
+/// balance is on [setupDate], the one day setup asks once.
 Future<_AccountDone?> _openNewAccount(
   BuildContext context, {
   required PhoneStore store,
   required DateTime today,
+  AccountType type = AccountType.asset,
+  bool cash = false,
+  DateTime? setupDate,
 }) => Navigator.of(context).push(
   MaterialPageRoute<_AccountDone>(
-    builder: (_) => _NewAccountPage(store: store, today: today),
+    builder: (_) => _NewAccountPage(
+      store: store,
+      today: today,
+      type: type,
+      cash: cash,
+      setupDate: setupDate,
+    ),
   ),
 );
 
@@ -254,9 +265,22 @@ class _AccountAsk extends StatelessWidget {
 /// account pinned under it. What it starts with is asked here, where the
 /// computer asks it on the next screen.
 class _NewAccountPage extends StatefulWidget {
-  const _NewAccountPage({required this.store, required this.today});
+  const _NewAccountPage({
+    required this.store,
+    required this.today,
+    this.type = AccountType.asset,
+    this.cash = false,
+    this.setupDate,
+  });
   final PhoneStore store;
   final DateTime today;
+  final AccountType type;
+  final bool cash;
+
+  /// In setup: the balance is on this day, asked on setup's page, so the
+  /// page has no day of its own; and no bank file, since setup's steps
+  /// come first.
+  final DateTime? setupDate;
 
   @override
   State<_NewAccountPage> createState() => _NewAccountPageState();
@@ -265,14 +289,14 @@ class _NewAccountPage extends StatefulWidget {
 class _NewAccountPageState extends State<_NewAccountPage>
     with _FormRows<_NewAccountPage> {
   final _name = TextEditingController();
-  var _type = AccountType.asset;
-  var _cash = false;
+  late var _type = widget.type;
+  late var _cash = widget.cash;
   late var _currencyChosen =
       widget.store.snapshot.accounts.firstOrNull?.currency ?? Currency.mnt;
   final _rate = TextEditingController();
   bool? _perYear;
   final _balance = TextEditingController();
-  late var _date = dateOnly(widget.today);
+  late var _date = dateOnly(widget.setupDate ?? widget.today);
   var _tried = false, _busy = false;
 
   @override
@@ -323,9 +347,12 @@ class _NewAccountPageState extends State<_NewAccountPage>
       );
       rate = r.value;
     }
-    final name = _name.text.trim().isEmpty
-        ? t.setupNewAccount
-        : _name.text.trim();
+    // A wallet left unnamed is the Cash it is.
+    final name = _name.text.trim().isNotEmpty
+        ? _name.text.trim()
+        : _cash
+        ? t.setupKindCash
+        : t.setupNewAccount;
     final act = PhoneAddAccount(
       name: name,
       type: _type,
@@ -491,6 +518,21 @@ class _NewAccountPageState extends State<_NewAccountPage>
                 _aside(rateWarning ?? t.setupRateHint, key: 'rate-says'),
               ],
               const SizedBox(height: 14),
+              // In setup the day is setup's, chosen on its page: one that
+              // isn't today is said here, so what the bank app shows today
+              // isn't typed as that day's (budget review, #534).
+              if (widget.setupDate case final day?
+                  when day != dateOnly(widget.today))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    _owed
+                        ? t.setupStartOwedOn(sayDate(t, day))
+                        : t.setupStartInOn(sayDate(t, day)),
+                    key: const ValueKey('account-setup-day'),
+                    style: onest(16, weight: 600),
+                  ),
+                ),
               _card([
                 _fieldRow(
                   'account-balance',
@@ -501,22 +543,23 @@ class _NewAccountPageState extends State<_NewAccountPage>
                   wrong: _tried && _balanceWrong,
                   action: TextInputAction.done,
                 ),
-                _choiceRow(
-                  'account-date',
-                  t.setupOn,
-                  sayFullDate(t, _date),
-                  () async {
-                    final d = await showDatePicker(
-                      context: context,
-                      initialDate: _date,
-                      firstDate: DateTime(widget.today.year - 30),
-                      lastDate: widget.today,
-                    );
-                    if (d != null && mounted) {
-                      setState(() => _date = dateOnly(d));
-                    }
-                  },
-                ),
+                if (widget.setupDate == null)
+                  _choiceRow(
+                    'account-date',
+                    t.setupOn,
+                    sayFullDate(t, _date),
+                    () async {
+                      final d = await showDatePicker(
+                        context: context,
+                        initialDate: _date,
+                        firstDate: DateTime(widget.today.year - 30),
+                        lastDate: widget.today,
+                      );
+                      if (d != null && mounted) {
+                        setState(() => _date = dateOnly(d));
+                      }
+                    },
+                  ),
               ]),
               _aside(
                 _owed
@@ -526,7 +569,9 @@ class _NewAccountPageState extends State<_NewAccountPage>
               // The bank's file can answer what's in it instead (owner,
               // 2026-10-06): offered while nothing is typed there. Cash
               // has no file.
-              if (!_cash && _balance.text.trim().isEmpty)
+              if (!_cash &&
+                  _balance.text.trim().isEmpty &&
+                  widget.setupDate == null)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: Align(

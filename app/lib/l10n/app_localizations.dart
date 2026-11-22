@@ -11543,7 +11543,7 @@ abstract class Words {
   /// Phone app, Start fresh: small note right under the key.
   ///
   /// In en, this message translates to:
-  /// **'Keep it away from this phone, where the other person who manages the money can find it: printed with your important papers, or in a password manager.'**
+  /// **'Keep it away from this phone, somewhere you, and anyone who manages the money with you, can find it: printed with your important papers, or in a password manager.'**
   String get phoneNewKeyWhere;
 
   /// Phone app, Start fresh: after Copy, in place of the warning.
@@ -11581,6 +11581,24 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Other ways to start'**
   String get phoneOtherWays;
+
+  /// Phone setup, Money you have: under the answers. {amount} reads ₮1,200,000. (The phone has no Settings page yet, so it doesn't point to one.)
+  ///
+  /// In en, this message translates to:
+  /// **'Your budget will use this {amount} as well.'**
+  String phoneSetupHadUses(String amount);
+
+  /// Phone setup, Money you have: under Some of it while its amount is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Type how much of it your budget uses.'**
+  String get phoneSetupHadType;
+
+  /// Phone app: snack bar after I don't have regular income.
+  ///
+  /// In en, this message translates to:
+  /// **'No regular income: the app won’t ask for it. Tap Income on Budget to change this.'**
+  String get phoneNoRegularPayToast;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

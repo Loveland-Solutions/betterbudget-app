@@ -60,6 +60,7 @@ import '../domain/payee_rules.dart' show PayeeBefore, PayeeRuleInfo, Remembered;
 import '../domain/phone.dart';
 import '../domain/money.dart' show Currency;
 import '../domain/readiness.dart' show ReadyKeys, ReadyStep, Readiness;
+import '../domain/setup.dart' show SetupKeys;
 import '../domain/sync.dart' show appliedMarkerOp, sharedRowId;
 import 'account_edit.dart';
 import 'backup.dart';
@@ -87,6 +88,7 @@ import 'folder_io.dart';
 import 'payee_acts.dart';
 import 'phone_ledger.dart';
 import 'phone_own_ledger.dart';
+import 'setup_finish.dart';
 
 /// What the phone shows and keeps up, as [PhoneStart] asks it: swapped in
 /// tests.
@@ -327,6 +329,36 @@ class PhoneStopPay extends PhoneRowAct {
 class PhoneNoPay extends PhoneRowAct {
   const PhoneNoPay(this.none);
   final bool none;
+}
+
+/// Setup on the phone (#534): the one day every balance typed in setup is
+/// as of, the accounts' opening balances moved with it, as the computer's
+/// setup moves them.
+class PhoneSetupDate extends PhoneRowAct {
+  const PhoneSetupDate(this.date);
+  final DateTime date;
+}
+
+/// Budget by month ([schedule] null) or by that pay's paychecks (#474),
+/// asked in setup once there is pay.
+class PhoneBudgetBy extends PhoneRowAct {
+  const PhoneBudgetBy(this.schedule);
+  final int? schedule;
+}
+
+/// Setup ends with Money you have's answers (#475, #534): [had], what the
+/// budget uses of each currency's money in the accounts; [emergency], in
+/// the budget's own currency, assigned to the Safety net, made as
+/// [safetyNetName] when there is none. `finishSetup`, the computer's too.
+class PhoneFinishSetup extends PhoneRowAct {
+  const PhoneFinishSetup({
+    required this.had,
+    required this.emergency,
+    required this.safetyNetName,
+  });
+  final Map<Currency, int> had;
+  final int emergency;
+  final String safetyNetName;
 }
 
 /// How far every forecast looks, picked on the Ledger tab's header (#529):
@@ -1462,6 +1494,8 @@ class PhoneSync implements PhoneLedgerSource {
         return actOnPay(db, act, now, again);
       case PhoneSetSpan():
         return actOnSpan(db, act, again);
+      case PhoneSetupDate() || PhoneBudgetBy() || PhoneFinishSetup():
+        return actOnSetup(db, act, now, again);
       case PhoneSavingsAnswer():
         return actOnSavings(db, act, now, again);
       case PhoneAddAccount() ||
@@ -1796,6 +1830,90 @@ Future<PhoneActed> actOnPay(
       );
     default:
       throw ArgumentError('Not a regular income act: $act');
+  }
+}
+
+/// Setup's writes on the phone (#534), as the computer's setup makes them:
+/// the balances' day, budget by month or paycheck, and the finish, each
+/// with its undo and redo.
+Future<PhoneActed> actOnSetup(
+  AppDatabase db,
+  PhoneRowAct act,
+  DateTime now,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  switch (act) {
+    case PhoneSetupDate(:final date):
+      final old = await db.preference(SetupKeys.date);
+      final key = dateKey(date);
+      var was = <int, String>{};
+      Future<void> write() => db.transaction(() async {
+        was = await db.redateOpeningBalances(date);
+        await db.setPreference(SetupKeys.date, key);
+      });
+      if (old != key) await write();
+      return (
+        snapshot: await again(),
+        undo: () async {
+          if (old != key) {
+            await db.transaction(() async {
+              await db.setTransactionDates(was);
+              await db.setPreference(SetupKeys.date, old);
+            });
+          }
+          return again();
+        },
+        redo: () async {
+          if (old != key) await write();
+          return again();
+        },
+      );
+    case PhoneBudgetBy(:final schedule):
+      final splitWas = await db.preference(BudgetKeys.splitBy);
+      Future<List<int>> write() => db.transaction(() async {
+        final before = await db.setPeriodSchedule(schedule);
+        // Kept: a month's Assigned is split by the pay last viewed by.
+        if (schedule != null) {
+          await db.setPreference(BudgetKeys.splitBy, '$schedule');
+        }
+        return before;
+      });
+      final before = await write();
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.transaction(() async {
+            await db.setPeriodSchedule(before.firstOrNull);
+            await db.setPreference(BudgetKeys.splitBy, splitWas);
+          });
+          return again();
+        },
+        redo: () async {
+          await write();
+          return again();
+        },
+      );
+    case PhoneFinishSetup(:final had, :final emergency, :final safetyNetName):
+      final done = await finishSetup(
+        db,
+        had: had,
+        emergency: emergency,
+        today: dateOnly(now),
+        safetyNetName: safetyNetName,
+      );
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await done.undo();
+          return again();
+        },
+        redo: () async {
+          await done.redo();
+          return again();
+        },
+      );
+    default:
+      throw ArgumentError('Not a setup act: $act');
   }
 }
 

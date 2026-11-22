@@ -129,7 +129,7 @@ Future<void> _sayNoPay(
     context,
     store,
     done,
-    none ? t.ledgerNoRegularPayToast : t.ledgerAskForPayAgainToast,
+    none ? t.phoneNoRegularPayToast : t.ledgerAskForPayAgainToast,
     'pay-none-done',
   );
 }

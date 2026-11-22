@@ -63,7 +63,10 @@ import '../../data/phone_sync.dart'
         PhoneRowConfirm,
         PhoneRowEdit,
         PhoneSavePay,
+        PhoneBudgetBy,
+        PhoneFinishSetup,
         PhoneSetSpan,
+        PhoneSetupDate,
         PhoneSavingsAnswer,
         PhoneStopPay,
         PhoneUndoReconcile;
@@ -87,7 +90,17 @@ import '../../domain/payee_offers.dart';
 import '../../domain/payee_rules.dart';
 import '../../domain/phone.dart';
 import '../../domain/readiness.dart';
-import '../../domain/setup.dart' show Walk, WalkStep, walkOf;
+import '../../domain/setup.dart'
+    show
+        SetupKeys,
+        Walk,
+        WalkStep,
+        inSetup,
+        setupAsksMoney,
+        setupDate,
+        setupEmergency,
+        setupHeld,
+        walkOf;
 import '../language.dart';
 import '../plan_form.dart';
 import '../schemes.dart';
@@ -119,6 +132,7 @@ part 'phone_new_category.dart';
 part 'phone_pay.dart';
 part 'phone_reconcile.dart';
 part 'phone_savings.dart';
+part 'phone_setup.dart';
 part 'phone_register.dart';
 part 'phone_walk.dart';
 
@@ -958,6 +972,7 @@ class _PhoneHomeState extends State<PhoneHome> {
     // reconcile open, whatever the last one left: its tabs are there.
     widget.store.reconciling.value = false;
     widget.store.now = widget.now;
+    widget.store.addListener(_settingChanged);
     widget.store.news.addListener(_brought);
     widget.store.asking.addListener(_asked);
     widget.store.registerRequest.addListener(_showRegister);
@@ -1076,6 +1091,9 @@ class _PhoneHomeState extends State<PhoneHome> {
     super.didUpdateWidget(old);
     widget.store.now = widget.now;
     if (old.store != widget.store) {
+      old.store.removeListener(_settingChanged);
+      widget.store.addListener(_settingChanged);
+      _setting = _inSetup;
       for (final l in _sentWaitsOn(old.store)) {
         l.removeListener(_takeSent);
       }
@@ -1088,6 +1106,7 @@ class _PhoneHomeState extends State<PhoneHome> {
 
   @override
   void dispose() {
+    widget.store.removeListener(_settingChanged);
     widget.store.news.removeListener(_brought);
     widget.store.asking.removeListener(_asked);
     widget.store.registerRequest.removeListener(_showRegister);
@@ -1127,7 +1146,31 @@ class _PhoneHomeState extends State<PhoneHome> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => _setting
+      ? _PhoneSetup(store: widget.store, now: widget.now)
+      : _home(context);
+
+  /// A ledger that has never had an account, as one started on the phone
+  /// has, opens on setup (#534).
+  bool get _inSetup {
+    final data = widget.store.snapshot.data;
+    return data != null && inSetup(data);
+  }
+
+  late var _setting = _inSetup;
+
+  /// Setup starts or ends: done, Budget opens, where the first steps are,
+  /// as on the computer.
+  void _settingChanged() {
+    final now = _inSetup;
+    if (now == _setting || !mounted) return;
+    setState(() {
+      if (!now) _tab = 1;
+      _setting = now;
+    });
+  }
+
+  Widget _home(BuildContext context) {
     final t = context.t;
     // The phone's Back on Budget or Savings goes to Ledger, not out of the
     // app.

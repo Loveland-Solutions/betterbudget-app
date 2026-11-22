@@ -8365,7 +8365,7 @@ class WordsEn extends Words {
 
   @override
   String get phoneNewKeyWhere =>
-      'Keep it away from this phone, where the other person who manages the money can find it: printed with your important papers, or in a password manager.';
+      'Keep it away from this phone, somewhere you, and anyone who manages the money with you, can find it: printed with your important papers, or in a password manager.';
 
   @override
   String get phoneNewKeyCopiedWarning =>
@@ -8386,4 +8386,16 @@ class WordsEn extends Words {
 
   @override
   String get phoneOtherWays => 'Other ways to start';
+
+  @override
+  String phoneSetupHadUses(String amount) {
+    return 'Your budget will use this $amount as well.';
+  }
+
+  @override
+  String get phoneSetupHadType => 'Type how much of it your budget uses.';
+
+  @override
+  String get phoneNoRegularPayToast =>
+      'No regular income: the app won’t ask for it. Tap Income on Budget to change this.';
 }

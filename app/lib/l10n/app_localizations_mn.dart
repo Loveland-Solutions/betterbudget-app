@@ -8088,7 +8088,7 @@ class WordsMn extends Words {
 
   @override
   String get phoneNewKeyWhere =>
-      'Үүнийг энэ утаснаас хол, мөнгийг хамт зохицуулдаг хүн олж чадах газар хадгал: чухал бичиг баримттайгаа хамт хэвлэж, эсвэл нууц үгийн менежерт.';
+      'Үүнийг энэ утаснаас хол, та болон мөнгийг тантай хамт зохицуулдаг хүн олж чадах газар хадгал: чухал бичиг баримттайгаа хамт хэвлэж, эсвэл нууц үгийн менежерт.';
 
   @override
   String get phoneNewKeyCopiedWarning =>
@@ -8110,4 +8110,16 @@ class WordsMn extends Words {
 
   @override
   String get phoneOtherWays => 'Эхлэх өөр арга';
+
+  @override
+  String phoneSetupHadUses(String amount) {
+    return 'Таны төсөв энэ $amount-г бас ашиглана.';
+  }
+
+  @override
+  String get phoneSetupHadType => 'Төсөв үүнээс хэдийг ашиглахыг бичнэ үү.';
+
+  @override
+  String get phoneNoRegularPayToast =>
+      'Тогтмол орлогогүй: апп үүнийг асуухгүй. Өөрчлөхийн тулд Төсөв дээрх Орлого дээр дарна уу.';
 }

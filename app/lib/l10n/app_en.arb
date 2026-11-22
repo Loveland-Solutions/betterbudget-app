@@ -12295,7 +12295,7 @@
   "@phoneNewKeyIntro": {
     "description": "Phone app, Start fresh: paragraph under the title, above the new recovery key."
   },
-  "phoneNewKeyWhere": "Keep it away from this phone, where the other person who manages the money can find it: printed with your important papers, or in a password manager.",
+  "phoneNewKeyWhere": "Keep it away from this phone, somewhere you, and anyone who manages the money with you, can find it: printed with your important papers, or in a password manager.",
   "@phoneNewKeyWhere": {
     "description": "Phone app, Start fresh: small note right under the key."
   },
@@ -12322,5 +12322,22 @@
   "phoneOtherWays": "Other ways to start",
   "@phoneOtherWays": {
     "description": "Phone app, first launch: link under a problem screen reached from Open ledger, back to How do you want to start?"
+  },
+  "phoneSetupHadUses": "Your budget will use this {amount} as well.",
+  "@phoneSetupHadUses": {
+    "description": "Phone setup, Money you have: under the answers. {amount} reads ₮1,200,000. (The phone has no Settings page yet, so it doesn't point to one.)",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneSetupHadType": "Type how much of it your budget uses.",
+  "@phoneSetupHadType": {
+    "description": "Phone setup, Money you have: under Some of it while its amount is empty."
+  },
+  "phoneNoRegularPayToast": "No regular income: the app won’t ask for it. Tap Income on Budget to change this.",
+  "@phoneNoRegularPayToast": {
+    "description": "Phone app: snack bar after I don't have regular income."
   }
 }
