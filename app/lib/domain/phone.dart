@@ -9,6 +9,7 @@ import 'money.dart';
 import 'pay.dart';
 import 'payee_rules.dart';
 import 'readiness.dart' show fundCategoryIds, isSafetyNet, savingsCurrency;
+import 'setup.dart' show Walk, walkOf;
 import 'sync.dart' show MadeHow;
 
 /// What a phone files money in under when it is the app's one Income (rule
@@ -62,6 +63,7 @@ class PhoneCategory {
     this.payInto,
     this.type,
     this.outOfMonth = false,
+    this.paysLoan,
     this.coverMinor = 0,
     this.coverMonth,
     this.assignedMinor = 0,
@@ -102,6 +104,12 @@ class PhoneCategory {
   /// leaves it. Only while it waits to be taken in, which is at once; not
   /// kept in the phone's file.
   final bool outOfMonth;
+
+  /// Made by the walkthrough's Add the bill that pays a credit card or
+  /// loan (#475): that account's id, whose payments come out of this one
+  /// once the phone's ledger takes it in, in the same undo. Only while it
+  /// waits to be taken in, as [outOfMonth]; not kept in the phone's file.
+  final int? paysLoan;
 
   /// A pay's paycheck, offered for money in as Income is (#187): the
   /// account the pay goes into, the only one it can come into.
@@ -280,7 +288,12 @@ class PhoneSnapshot {
     this.beforeMonth,
     this.budgetCurrency,
     this.income = const PhoneIncome(),
+    this.walk,
   });
+
+  /// The first steps after setup (#475), as the computer's Budget page
+  /// shows them: null when this ledger isn't walked or the steps are done.
+  final Walk? walk;
 
   /// The Income page's paydays and the money in waiting to be filed.
   final PhoneIncome income;
@@ -926,6 +939,7 @@ PhoneSnapshot snapshotOf(
     mine: device == null ? const [] : ownEntriesOf(data, mineIds, device),
     taken: PhoneTaken.decode(data.prefs[phoneTakenKey]),
     periodEnd: by == null ? null : period.end,
+    walk: walkOf(data, budget, today),
     payees: everyPayee,
     categories: [
       for (final c in sorted([

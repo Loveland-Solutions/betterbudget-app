@@ -1,10 +1,12 @@
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/phone_sync.dart';
-import 'package:betterbudget/domain/budget.dart' show CategoryType;
+import 'package:betterbudget/domain/budget.dart'
+    show Budget, BudgetKeys, CategoryType;
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/readiness.dart';
+import 'package:betterbudget/domain/setup.dart' show WalkKeys, WalkStep;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -188,5 +190,99 @@ void main() {
       expect(inMonthOfExpenses(data, id('Wedding')), isFalse);
       expect(inMonthOfExpenses(data, id('Car')), isTrue);
     });
+  });
+
+  test('the walkthrough’s bill that pays a card (#475): the card’s payments '
+      'come out of it once taken in; Undo of the take puts back what the '
+      'card had, Redo ties it again', () async {
+    final card = await db.createAccount(
+      name: 'Golomt card',
+      type: AccountType.liability,
+    );
+    final key = '${BudgetKeys.loanPrefix}$card';
+    await db.setPreference(key, '424242');
+    final take = await db.takePhoneEntries([
+      PhoneInbox(
+        device: 'ab12',
+        categories: [
+          PhoneCategory(
+            id: 'new-card-bill',
+            name: 'Card payment',
+            leftMinor: 0,
+            madeHere: true,
+            type: CategoryType.bill,
+            paysLoan: card,
+          ),
+          // One with no card to pay ties nothing.
+          const PhoneCategory(
+            id: 'new-rent',
+            name: 'Rent',
+            leftMinor: 0,
+            madeHere: true,
+            type: CategoryType.bill,
+          ),
+        ],
+      ),
+    ], today: today);
+    final data = await db.loadLedger();
+    final bill = data.accounts.values
+        .singleWhere((a) => a.name == 'Card payment')
+        .id;
+    expect(Budget.loanCategory(data, card), bill);
+    expect(Budget.loanOfCategory(data, bill), card);
+    await db.undoPhoneTake(take!);
+    expect(await db.preference(key), '424242');
+    await db.redoPhoneTake(take);
+    expect(await db.preference(key), '$bill');
+    // Tied elsewhere since: an undo of the take leaves that be.
+    await db.setPreference(key, '777');
+    await db.undoPhoneTake(take);
+    expect(await db.preference(key), '777');
+  });
+
+  test('a card gone before the take ties nothing', () async {
+    await db.takePhoneEntries([
+      const PhoneInbox(
+        device: 'ab12',
+        categories: [
+          PhoneCategory(
+            id: 'new-card-bill',
+            name: 'Card payment',
+            leftMinor: 0,
+            madeHere: true,
+            type: CategoryType.bill,
+            paysLoan: 987654,
+          ),
+        ],
+      ),
+    ], today: today);
+    expect(await db.preference('${BudgetKeys.loanPrefix}987654'), isNull);
+  });
+
+  test('the walk’s Assign step: more assigned than there is is said as '
+      'short, not as waiting for pay (#475)', () async {
+    final food = await db.createCategory('Food');
+    await db.setCategoryPlan(
+      food,
+      CategoryPlan(
+        categoryId: food,
+        kind: PlanKind.each,
+        amount: 10000000,
+        start: DateTime(2026, 10),
+      ),
+    );
+    await db.setBudgetAmount(
+      food,
+      DateTime(2026, 10),
+      DateTime(2026, 10, 31),
+      5000000,
+    );
+    await db.setPreference(WalkKeys.started, '2026-10-07');
+    for (final s in [WalkStep.bills, WalkStep.dayToDay]) {
+      await db.setPreference(WalkKeys.passed(s), 'yes');
+    }
+    final walk = (await again()).walk!;
+    expect(walk.step, WalkStep.assign);
+    expect(walk.short, isTrue);
   });
 }

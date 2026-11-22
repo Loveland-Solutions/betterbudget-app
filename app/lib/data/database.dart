@@ -673,8 +673,14 @@ class PhoneTake {
     this.paychecks = const [],
     this.counts = const [],
     this.remembered = const [],
+    this.loans = const [],
   ]);
   final List<int> transactionIds;
+
+  /// A credit card or loan whose payments now come out of a category it
+  /// made (#475: the walkthrough's Add the bill that pays it), with what
+  /// the card's setting held before, for an exact undo.
+  final List<({int loan, int category, String? was})> loans;
 
   /// The payees' categories remembered with an entry (#403), for an exact
   /// undo.
@@ -6645,6 +6651,7 @@ class AppDatabase extends _$AppDatabase {
     final remembered = <Remembered>[];
     final madeNames = <String>[];
     final leftOut = <PhonePlanLeftOut>[];
+    final loans = <({int loan, int category, String? was})>[];
     final nameOf = {for (final a in live) a.id: a.name};
     final work = <_PhoneWork>[];
     final takenNow = <String, Set<String>>{};
@@ -6680,6 +6687,20 @@ class AppDatabase extends _$AppDatabase {
             pays: pays,
             plans: plans,
           );
+          // The bill that pays a card or loan (#475): its payments come out
+          // of this one, as its Edit's Payments come out of says. Only a
+          // card or loan still there, in the same currency.
+          if (c.paysLoan case final loan?
+              when live.any(
+                (a) =>
+                    a.id == loan &&
+                    a.type == AccountType.liability &&
+                    a.currency == c.currency.code,
+              )) {
+            final key = '${BudgetKeys.loanPrefix}$loan';
+            loans.add((loan: loan, category: id, was: await preference(key)));
+            await setPreference(key, '$id');
+          }
           if (!took) {
             leftOut.add((
               categoryId: id,
@@ -7080,6 +7101,7 @@ class AppDatabase extends _$AppDatabase {
             paychecks,
             counts,
             remembered,
+            loans,
           );
   });
 
@@ -7210,6 +7232,14 @@ class AppDatabase extends _$AppDatabase {
       if (!kept.contains(p.transactionId)) await _untakePayday(p);
     }
     await softDeleteMany(t.transactionIds);
+    // Only while the card still pays the bill the take made: one tied
+    // elsewhere since keeps that (code review).
+    for (final l in t.loans.reversed) {
+      final key = '${BudgetKeys.loanPrefix}${l.loan}';
+      if (await preference(key) == '${l.category}') {
+        await setPreference(key, l.was);
+      }
+    }
     // Its bills first: a category with one scheduled isn't empty.
     for (final MapEntry(key: c, value: p) in t.plans.entries) {
       await undoPlanChange(c, p.change);
@@ -7238,6 +7268,9 @@ class AppDatabase extends _$AppDatabase {
     }
     for (final r in t.remembered) {
       await redoRemembered(r);
+    }
+    for (final l in t.loans) {
+      await setPreference('${BudgetKeys.loanPrefix}${l.loan}', '${l.category}');
     }
   });
 

@@ -8051,4 +8051,26 @@ class WordsMn extends Words {
   String setupHadMore(String amount) {
     return 'Энэ нь өнөөдөр таны дансанд байгаагаас $amount-аар их тул төсөв байхгүй мөнгөөр эхэлнэ.';
   }
+
+  @override
+  String get phoneWalkAssign =>
+      'Одоо ангилал бүрд мөнгийг нь өгөөрэй: нэгийг нь товшоод «Төлөвлөснийг хуваарилах» нь төлөвлөсөн дүнг нь өгнө.';
+
+  @override
+  String phoneWalkAssignWait(String date) {
+    return 'Таны тогтмол орлого $date-нд орж ирнэ. Дараа нь ангилал товшоод «Төлөвлөснийг хуваарилах» нь мөнгийг нь өгнө.';
+  }
+
+  @override
+  String get phoneWalkAssignNoPay =>
+      'Мөнгө орж ирэхэд ангилал товшоод «Төлөвлөснийг хуваарилах» нь мөнгийг нь өгнө.';
+
+  @override
+  String phoneWalkDone(String step) {
+    return '«$step» дууссан';
+  }
+
+  @override
+  String get walkAssignShort =>
+      'Та байгаа мөнгөнөөсөө илүүг хуваарилсан байна, дээрх дүнд харагдаж байгаа шиг. Аль нэг ангиллаас буцааж авах эсвэл илүү мөнгө орж ирэхийг хүлээгээрэй.';
 }

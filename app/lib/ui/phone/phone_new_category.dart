@@ -14,7 +14,9 @@ part of 'phone_app.dart';
 /// category made, or the one already called that, comes back for the entry.
 /// [editing]: a category made here and still waiting, opened filled in to
 /// be changed, with Save in place of Add (#243). [type]: the card it opens
-/// on, as Savings' Add a goal opens it on Goal (#533).
+/// on, as Savings' Add a goal opens it on Goal (#533). [paying]: a credit
+/// card or loan whose payments come out of what's made (#475), with no Add
+/// another.
 Future<PhoneCategory?> _openNewCategory(
   BuildContext context, {
   required PhoneStore store,
@@ -24,6 +26,7 @@ Future<PhoneCategory?> _openNewCategory(
   PhoneCategory? editing,
   CategoryType? type,
   bool outOfMonth = false,
+  AccountInfo? paying,
 }) {
   final now = store.now();
   final today = DateTime(now.year, now.month, now.day);
@@ -40,6 +43,7 @@ Future<PhoneCategory?> _openNewCategory(
             editing: editing,
             startType: type,
             outOfMonth: outOfMonth,
+            paying: paying,
           ),
         ),
       )
@@ -141,6 +145,7 @@ class _NewCategoryPage extends StatefulWidget {
     this.editing,
     this.startType,
     this.outOfMonth = false,
+    this.paying,
     this.bills = const [],
     this.loan = false,
     this.groupable = false,
@@ -156,6 +161,9 @@ class _NewCategoryPage extends StatefulWidget {
 
   /// A goal made from Savings: left out of a month of expenses.
   final bool outOfMonth;
+
+  /// The credit card or loan the walkthrough's bill pays (#475).
+  final AccountInfo? paying;
 
   /// Edit of a ledger category: a Group when it is Day-to-day, the groups
   /// there are, how many rows are filed under it (and how many of those are
@@ -485,6 +493,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
       paidFromId: _paidFromId?.toString(),
       type: _type,
       outOfMonth: widget.outOfMonth,
+      paysLoan: widget.paying?.id,
     );
     if (!another) {
       Navigator.of(context).pop(made);
@@ -1477,6 +1486,7 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
         // account's currency.
         final offerCurrency =
             !widget.forEntry &&
+            widget.paying == null &&
             !_inLedger &&
             !(widget.editing != null &&
                 widget.store.hasEntriesIn(widget.editing!.id)) &&
@@ -1698,7 +1708,9 @@ class _NewCategoryPageState extends State<_NewCategoryPage> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      if (!widget.forEntry && widget.editing == null) ...[
+                      if (!widget.forEntry &&
+                          widget.editing == null &&
+                          widget.paying == null) ...[
                         Expanded(
                           child: OutlinedButton(
                             key: const ValueKey('new-category-another'),

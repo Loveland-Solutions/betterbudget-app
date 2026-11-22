@@ -586,33 +586,7 @@ class _BudgetPageState extends State<_BudgetPage> {
     final finished = period.end.isBefore(dateOnly(widget.today));
     // The first steps after setup (#475): in the Savings band's spot, in
     // the period today is in, until they're done.
-    final walkCurrency = Budget.currencyOf(data);
-    final owing = walkDebts(data, walkCurrency);
-    final unpaid = [
-      for (final a in owing)
-        if (Budget.loanCategory(data, a.id) == null &&
-            data.prefs[WalkKeys.debtPassed(a.id)] == null)
-          a,
-    ];
-    final walk = !isCurrent
-        ? null
-        : walkStep(
-            data,
-            unpaidDebts: unpaid,
-            anyToAssign: spending.any(
-              (x) =>
-                  !saved.contains(x.id) &&
-                  (budget.lines[x.id]?.toAssign ?? 0) > 0,
-            ),
-          );
-    int countOf(CategoryType type) => listed
-        .where(
-          (c) =>
-              !saved.contains(c.id) &&
-              c.currency == walkCurrency &&
-              typeIn(c) == type,
-        )
-        .length;
+    final walk = isCurrent ? walkOf(data, budget, widget.today) : null;
     Widget row(AccountInfo c, {required bool striped}) {
       final line = budget.lines[c.id];
       final planLine = line?.plan;
@@ -1431,35 +1405,12 @@ class _BudgetPageState extends State<_BudgetPage> {
             else if (!finished)
               if (walk case final w?)
                 _WalkBand(
-                  step: w,
-                  steps: [
-                    WalkStep.bills,
-                    if (owing.isNotEmpty) WalkStep.debts,
-                    WalkStep.dayToDay,
-                    WalkStep.assign,
-                  ],
-                  bills: countOf(CategoryType.bill),
-                  days: countOf(CategoryType.dayToDay),
-                  debt: unpaid.isEmpty
-                      ? null
-                      : (
-                          account: unpaid.first,
-                          owes: -data.balanceOf(unpaid.first.id),
-                        ),
-                  cardsNext: unpaid.isNotEmpty,
-                  waiting: budget.notAssigned <= 0,
-                  nextPay: nextPayday(data, widget.today),
+                  walk: w,
                   onAddBill: () => _newCategory(type: CategoryType.bill),
                   onAddDay: () => _newCategory(type: CategoryType.dayToDay),
                   onAddDebtBill: (a) =>
                       _newCategory(type: CategoryType.bill, paying: a),
-                  // Not now on a card or loan passes that one only.
-                  onPass: (step, label) => widget.onWalkPass(
-                    step == WalkStep.debts && unpaid.isNotEmpty
-                        ? WalkKeys.debtPassed(unpaid.first.id)
-                        : WalkKeys.passed(step),
-                    label,
-                  ),
+                  onPass: (label) => widget.onWalkPass(w.passKey, label),
                 )
               else if (_readiness case final r)
                 if (r.current case final step?)

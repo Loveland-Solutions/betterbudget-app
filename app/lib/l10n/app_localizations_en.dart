@@ -8328,4 +8328,26 @@ class WordsEn extends Words {
   String setupHadMore(String amount) {
     return 'That’s $amount more than your accounts hold today, so your budget would start with money that isn’t there.';
   }
+
+  @override
+  String get phoneWalkAssign =>
+      'Now give each category its money: tap one, then Assign what’s planned gives it its plan’s amount.';
+
+  @override
+  String phoneWalkAssignWait(String date) {
+    return 'Your regular income is due $date. Then tap a category, and Assign what’s planned gives it its money.';
+  }
+
+  @override
+  String get phoneWalkAssignNoPay =>
+      'When money comes in, tap a category, and Assign what’s planned gives it its money.';
+
+  @override
+  String phoneWalkDone(String step) {
+    return '“$step” done';
+  }
+
+  @override
+  String get walkAssignShort =>
+      'You’ve assigned more than you have, as the sum above says. Take some back from a category, or wait for more money to come in.';
 }
