@@ -3791,10 +3791,10 @@ abstract class Words {
   /// **'{amount} is still in it.'**
   String setupStillIn(String amount);
 
-  /// Archive-account warning: a bank account below zero.
+  /// Setup, Money you have, in place of All / Some / None when a currency's bank and cash accounts are below zero (#617). {amount} reads ₮400,000.
   ///
   /// In en, this message translates to:
-  /// **'It’s {amount} overdrawn.'**
+  /// **'Your accounts are {amount} overdrawn, so your budget starts {amount} short.'**
   String setupOverdrawn(String amount);
 
   /// Sidebar, under the accounts; also the New account page's main button.
@@ -11599,6 +11599,48 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'No regular income: the app won’t ask for it. Tap Income on Budget to change this.'**
   String get phoneNoRegularPayToast;
+
+  /// Setup, Money you have, while the accounts hold more than one currency (#616): the question over a choice per currency.
+  ///
+  /// In en, this message translates to:
+  /// **'Which currency do you save in?'**
+  String get setupSaveInQ;
+
+  /// Setup, Money you have: under Which currency do you save in?
+  ///
+  /// In en, this message translates to:
+  /// **'Your Safety net is kept in it, and your budget counts in it first.'**
+  String get setupSaveInHint;
+
+  /// Setup, Money you have: heading while Balances as of isn't today. {date} reads 10.07.
+  ///
+  /// In en, this message translates to:
+  /// **'The money in your accounts on {date}'**
+  String setupMoneyHeadingOn(String date);
+
+  /// Setup, Money you have, under All of it while Balances as of is before the budget's first day (#618). {start} is the first day (11.01), {from} the day after the balances (10.08), {end} the day before the budget began (10.31).
+  ///
+  /// In en, this message translates to:
+  /// **'Your budget uses what was in your accounts on {start}. Rows you add from {from} to {end} change it.'**
+  String setupHadFollows(String start, String from, String end);
+
+  /// The Budget page's sum: the box for what the bank and cash accounts were overdrawn by when the budget began (#617), with a minus before it.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdrawn when the budget began'**
+  String get planSumOverdrawn;
+
+  /// The sum's result below zero when the only cause is that the accounts were overdrawn when the budget began (#617).
+  ///
+  /// In en, this message translates to:
+  /// **'Overdrawn when the budget began'**
+  String get planKeyOverOverdrawn;
+
+  /// One part under Short: what the overdraft the budget began with still leaves short (#617). {amount} reads ₮400,000.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} overdrawn when the budget began'**
+  String planKeyOverOverdrawnPart(String amount);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

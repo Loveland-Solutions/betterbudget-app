@@ -905,7 +905,10 @@ void main() {
     await press(tester, 'setup-done');
     var data = await ledger(tester, db);
     expect(data.prefs[SetupKeys.done], '1');
+    // Balances from inside the budget's first month: kept as an amount,
+    // since rows typed later count in the month itself (#618).
     expect(data.prefs[BudgetKeys.hadBefore(Currency.mnt)], '360000000');
+    expect(data.prefs[BudgetKeys.hadFrom(Currency.mnt)], isNull);
     expect(data.prefs[BudgetKeys.began], '2026-10-01');
     // Setup said where the budget starts: no offer to start it later.
     expect(data.prefs[BudgetKeys.keptStart], '1');
@@ -926,6 +929,7 @@ void main() {
     data = await ledger(tester, db);
     expect(data.prefs[SetupKeys.done], isNull);
     expect(data.prefs[BudgetKeys.hadBefore(Currency.mnt)], isNull);
+    expect(data.prefs[BudgetKeys.hadFrom(Currency.mnt)], isNull);
     expect(data.prefs[BudgetKeys.began], isNull);
     expect(data.prefs[BudgetKeys.keptStart], isNull);
     expect(data.prefs[WalkKeys.started], isNull);

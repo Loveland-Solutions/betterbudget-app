@@ -5187,7 +5187,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// budget (#475), the budget begins in today's period, and what's kept
   /// for emergencies is assigned to the Safety net, all in one write and
   /// one undo, which opens setup again as it was.
-  Future<void> _finishSetup(Map<Currency, int> had, int emergency) async {
+  Future<void> _finishSetup(
+    Map<Currency, int> had,
+    int emergency,
+    Set<Currency> follows,
+    Currency? saveIn,
+  ) async {
     final t = context.t;
     late SetupDone done;
     final ok = await _accountWrite(() async {
@@ -5197,6 +5202,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
         emergency: emergency,
         today: today,
         safetyNetName: t.planFundCategoryName,
+        follows: follows,
+        saveIn: saveIn,
       );
     }, what: 'category');
     if (!ok) return;
@@ -6527,7 +6534,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
       try {
         await db.safetyNetCategory(
           name: name,
-          currency: mainCurrency(data),
+          // The budget's own currency: the one setup was told is saved in
+          // (#616), else the one most accounts are in.
+          currency: Budget.currencyOf(data),
           adopt: own(made)
               ? made!.id
               : own(named)
@@ -6574,7 +6583,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   /// Several Savings settings changed by one click, undone together.
-  Future<void> _setPrefs(Map<String, String?> values, String label) async {
+  Future<void> _setPrefs(
+    Map<String, String?> values,
+    String label, {
+    bool toast = false,
+  }) async {
     final t = context.t;
     // In one go, so the page changes once.
     Future<void> write(Map<String, String?> v) => db.transaction(() async {
@@ -6593,7 +6606,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
       _showFailure(t.ledgerCouldntSave, error: e);
       return;
     }
-    _did(label, undo: () => write(old), redo: () => write(values));
+    _did(
+      label,
+      toast: toast,
+      undo: () => write(old),
+      redo: () => write(values),
+    );
   }
 
   Future<void> _rename(AccountInfo account, String name) async {
@@ -7418,6 +7436,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   }
                                 },
                                 onDone: _finishSetup,
+                                // An amount typed in the other currency
+                                // means nothing in this one.
+                                onSaveIn: (c) => _setPrefs({
+                                  SetupKeys.saveIn: c.code,
+                                  SetupKeys.emergency: null,
+                                }, context.t.setupSaveInQ),
                               )
                             : switch (_section) {
                                 AppSection.ledger
@@ -7493,9 +7517,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   budget: _BudgetSettings(
                                     data: data,
                                     onPick: _budgetBy,
-                                    onHadBefore: (c, v) => _setPref(
-                                      BudgetKeys.hadBefore(c),
-                                      v?.toString(),
+                                    // A figure typed here takes the place
+                                    // of setup's, which followed the
+                                    // accounts (#618).
+                                    onHadBefore: (c, v) => _setPrefs(
+                                      {
+                                        BudgetKeys.hadBefore(c): v?.toString(),
+                                        BudgetKeys.hadFrom(c): null,
+                                      },
                                       v == null
                                           ? context.t.settingsHadBeforeCleared
                                           : context.t.settingsHadBeforeSet(

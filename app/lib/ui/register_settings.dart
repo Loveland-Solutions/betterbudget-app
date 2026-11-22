@@ -249,7 +249,16 @@ class _BudgetSettings extends StatelessWidget {
             _HadBefore(
               key: ValueKey('had-before-${c.code}'),
               currency: c,
-              amount: int.tryParse(data.prefs[BudgetKeys.hadBefore(c)] ?? ''),
+              // Setup's All of it follows the accounts (#618): shown as
+              // it stands; a figure typed here takes its place.
+              amount: hadBeforeOf(
+                data,
+                c,
+                switch (data.prefs[BudgetKeys.beganIn(c)] ?? began) {
+                  final String d => parseDateKey(d),
+                  null => null,
+                },
+              ),
               onSave: (v) => onHadBefore(c, v),
             ),
           Text(
@@ -289,8 +298,18 @@ class _HadBeforeState extends State<_HadBefore> {
   /// What was last saved: Enter saves, then losing focus would again.
   late int? _saved = widget.amount == 0 ? null : widget.amount;
 
-  String _shown(int? v) =>
-      v == null || v == 0 ? '' : formatWhole(v, widget.currency);
+  /// Typed in since it was last saved or shown: only then is it saved, so
+  /// leaving the page never rewrites a figure nobody touched, such as one
+  /// that follows the accounts (#618) or an overdrawn start (#617).
+  var _edited = false;
+
+  /// With its sign and its cents: what the budget counts.
+  String _shown(int? v) {
+    if (v == null || v == 0) return '';
+    final c = widget.currency, abs = v.abs();
+    return '${v < 0 ? '-' : ''}${formatWhole(abs, c)}'
+        '${c.hasCents(abs) ? formatCents(abs, c) : ''}';
+  }
 
   @override
   void initState() {
@@ -301,6 +320,7 @@ class _HadBeforeState extends State<_HadBefore> {
   }
 
   void _save() {
+    if (!_edited) return;
     final text = _controller.text.trim();
     final v = text.isEmpty ? null : parseAmount(text, widget.currency);
     if (text.isNotEmpty && (v == null || v < 0)) {
@@ -308,6 +328,7 @@ class _HadBeforeState extends State<_HadBefore> {
       return;
     }
     final now = v == 0 ? null : v;
+    _edited = false;
     if (now == _saved) return;
     _saved = now;
     widget.onSave(now);
@@ -320,6 +341,7 @@ class _HadBeforeState extends State<_HadBefore> {
     if (!_focus.hasFocus && widget.amount != old.amount) {
       _saved = widget.amount == 0 ? null : widget.amount;
       _controller.text = _shown(widget.amount);
+      _edited = false;
     }
   }
 
@@ -360,6 +382,7 @@ class _HadBeforeState extends State<_HadBefore> {
                 errorText: _wrong ? '' : null,
               ),
               onChanged: (_) {
+                _edited = true;
                 if (_wrong) setState(() => _wrong = false);
               },
               onSubmitted: (_) => _save(),

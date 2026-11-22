@@ -1,7 +1,7 @@
 import 'budget.dart';
 import 'money.dart';
 import 'ledger.dart';
-import 'readiness.dart' show fundCategoryIds, savingsCurrency;
+import 'readiness.dart' show fundCategoryIds, mainCurrency, savingsCurrency;
 
 /// The first half hour (ADR 0004, "Onboarding"): what the setup keeps in the
 /// `Preferences` table while it's open, and when it shows.
@@ -26,6 +26,12 @@ abstract final class SetupKeys {
   static String had(Currency c) => 'setup.had.${c.code}';
   static const hadAll = 'all';
   static const hadNone = 'none';
+
+  /// The currency the household saves in (owner, 2026-11-23, #616), asked
+  /// on Money you have while the accounts hold more than one: the Safety
+  /// net, and with it the budget's own currency, are in it. A currency's
+  /// code; unset, the one most accounts are in.
+  static const saveIn = 'setup.saveIn';
 
   /// What the person said they keep for emergencies, in the budget's own
   /// currency's smallest units: assigned to the Safety net when setup ends.
@@ -53,9 +59,11 @@ bool inSetup(LedgerData data) =>
     (data.prefs[SetupKeys.date] != null ||
         !data.accounts.values.any((a) => a.isBalanceSheet));
 
-/// What the bank and cash accounts hold today, by currency, where it's more
-/// than nothing: what "Money you have" asks about (#475). What a credit
-/// card or loan owes isn't taken off: its payment is a category's.
+/// What the bank and cash accounts hold today, by currency, where it isn't
+/// nothing: what "Money you have" asks about (#475). Below zero, the
+/// accounts are overdrawn, and the budget starts that much short (owner,
+/// 2026-11-23, #617). What a credit card or loan owes isn't taken off: its
+/// payment is a category's.
 Map<Currency, int> setupHeld(LedgerData data) {
   final held = <Currency, int>{};
   for (final a in data.openAccounts) {
@@ -64,8 +72,42 @@ Map<Currency, int> setupHeld(LedgerData data) {
   }
   return {
     for (final e in held.entries)
-      if (e.value > 0) e.key: e.value,
+      if (e.value != 0) e.key: e.value,
   };
+}
+
+/// The currencies the bank and cash accounts are in, in the app's order:
+/// with more than one, setup asks which the household saves in (#616).
+List<Currency> setupCurrencies(LedgerData data) {
+  final inUse = {
+    for (final a in data.openAccounts)
+      if (!a.isOwed) a.currency,
+  };
+  return [
+    for (final c in Currency.values)
+      if (inUse.contains(c)) c,
+  ];
+}
+
+/// The currency the household saves in: the one picked on Money you have,
+/// else the one most bank and cash accounts are in (one of the answers
+/// offered, #616); with none, the one most accounts are in.
+Currency setupSaveIn(LedgerData data) {
+  final picked = data.prefs[SetupKeys.saveIn];
+  final among = setupCurrencies(data);
+  for (final c in among) {
+    if (c.code == picked) return c;
+  }
+  if (among.isEmpty) return mainCurrency(data);
+  final n = <Currency, int>{};
+  for (final a in data.openAccounts) {
+    if (!a.isOwed) n[a.currency] = (n[a.currency] ?? 0) + 1;
+  }
+  var most = among.first;
+  for (final c in among) {
+    if ((n[c] ?? 0) > (n[most] ?? 0)) most = c;
+  }
+  return most;
 }
 
 /// Whether setup has its Money you have step: while there's money to ask

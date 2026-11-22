@@ -8399,7 +8399,10 @@ void main() {
       expect(find.byKey(const ValueKey('setup-no-pay-line')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('setup-continue')));
       await tester.pumpAndSettle();
-      expect(find.text('The money in your accounts today'), findsOneWidget);
+      expect(
+        find.text('The money in your accounts on 10.01'),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const ValueKey('setup-had-part-MNT')));
       await tester.pumpAndSettle();
@@ -8437,7 +8440,10 @@ void main() {
       await tester.tap(find.text('Undo'));
       await settle();
       expect(data.prefs[SetupKeys.done], isNull);
-      expect(find.text('The money in your accounts today'), findsOneWidget);
+      expect(
+        find.text('The money in your accounts on 10.01'),
+        findsOneWidget,
+      );
     });
 
     group('a way that is left part way (from the review of #534)', () {

@@ -32,6 +32,7 @@ class _SetupPage extends StatefulWidget {
     required this.onHad,
     required this.onEmergency,
     required this.onDone,
+    required this.onSaveIn,
   });
   final LedgerData data;
   final DateTime today;
@@ -82,8 +83,19 @@ class _SetupPage extends StatefulWidget {
   final Future<void> Function(int? amount) onEmergency;
 
   /// Setup ends: [had] is what the budget uses of each currency's money,
-  /// [emergency] what goes into the Safety net.
-  final Future<void> Function(Map<Currency, int> had, int emergency) onDone;
+  /// [emergency] what goes into the Safety net; [follows] the currencies
+  /// whose money follows the accounts (All of it, or overdrawn, #618), and
+  /// [saveIn] the currency picked to save in (#616), null when none was.
+  final Future<void> Function(
+    Map<Currency, int> had,
+    int emergency,
+    Set<Currency> follows,
+    Currency? saveIn,
+  )
+  onDone;
+
+  /// The currency the household saves in was picked (#616).
+  final ValueChanged<Currency> onSaveIn;
 
   @override
   State<_SetupPage> createState() => _SetupPageState();
@@ -167,6 +179,14 @@ class _SetupPageState extends State<_SetupPage> {
     if (setupDate(old.data, old.today) != _stored && !_dateFocus.hasFocus) {
       _date.text = fullDate(_stored);
     }
+    // Undo of the currency saved in put the emergency amount back: the
+    // field follows it, or finishing would leave it out (code review).
+    if (!_emergencyFocus.hasFocus &&
+        (setupEmergency(old.data) != setupEmergency(widget.data) ||
+            setupSaveIn(old.data) != setupSaveIn(widget.data))) {
+      final kept = setupEmergency(widget.data);
+      _emergency.text = kept > 0 ? _fieldAmount(kept, _main) : '';
+    }
   }
 
   @override
@@ -190,14 +210,16 @@ class _SetupPageState extends State<_SetupPage> {
     _dateFocus.addListener(_dateLeft);
     final kept = setupEmergency(widget.data);
     if (kept > 0) {
-      _emergency.text = _fieldAmount(kept, mainCurrency(widget.data));
+      _emergency.text = _fieldAmount(kept, setupSaveIn(widget.data));
     }
     _emergencyFocus.addListener(() {
       if (!_emergencyFocus.hasFocus) _emergencyLeft();
     });
   }
 
-  Currency get _main => mainCurrency(widget.data);
+  /// The currency saved in (#616): the Safety net's, and the emergency
+  /// question's.
+  Currency get _main => setupSaveIn(widget.data);
 
   /// The amount kept for emergencies, as typed: 0 when empty, null when it
   /// can't be read.
@@ -268,20 +290,26 @@ class _SetupPageState extends State<_SetupPage> {
 
   /// What the budget will use of [c]'s money, as the page shows it now;
   /// null while Part of it has no amount that can be read.
-  int? _hadNow(Currency c, int held) => switch (_choice(c)) {
-    _Had.all => held,
-    _Had.none => 0,
-    _Had.part => _partAmount(c),
-  };
+  int? _hadNow(Currency c, int held) => held < 0
+      // Overdrawn: the budget starts that much short (#617).
+      ? held
+      : switch (_choice(c)) {
+          _Had.all => held,
+          _Had.none => 0,
+          _Had.part => _partAmount(c),
+        };
 
   /// Setup ends with what the page shows. An amount that can't be read is
   /// focused, and setup stays.
   Future<void> _finish() async {
     if (_finishing) return;
     final had = <Currency, int>{};
+    // All of it, or overdrawn: follows the accounts (#618).
+    final follows = <Currency>{};
     for (final MapEntry(key: c, value: held) in setupHeld(
       widget.data,
     ).entries) {
+      if (held < 0 || _choice(c) == _Had.all) follows.add(c);
       final v = _hadNow(c, held);
       if (v == null) {
         _partFocusOf(c).requestFocus();
@@ -296,7 +324,12 @@ class _SetupPageState extends State<_SetupPage> {
     }
     _finishing = true;
     try {
-      await widget.onDone(had, emergency);
+      await widget.onDone(
+        had,
+        emergency,
+        follows,
+        widget.data.prefs[SetupKeys.saveIn] == null ? null : _main,
+      );
     } finally {
       _finishing = false;
     }
@@ -619,7 +652,27 @@ class _SetupPageState extends State<_SetupPage> {
     final usedMain = held.containsKey(main) ? _hadNow(main, held[main]!) : null;
     final emergency = _emergencyAmount;
     final short = (emergency ?? 0) - (usedMain ?? 0);
+    final asOf = setupDate(data, widget.today);
+    // The budget begins with this period: balances from before it are
+    // followed up to its first day by the rows added in between (#618).
+    final starts = budgetPeriod(widget.today, data.periodSchedule).start;
+    final follows = asOf.isBefore(starts)
+        ? t.setupHadFollows(
+            sayDate(t, starts),
+            sayDate(t, asOf.add(const Duration(days: 1))),
+            sayDate(t, starts.subtract(const Duration(days: 1))),
+          )
+        : null;
+    final currencies = setupCurrencies(data);
     Widget answers(Currency c, int amount) {
+      // Overdrawn: said, and the budget starts that much short (#617).
+      if (amount < 0) {
+        return Text(
+          t.setupOverdrawn(formatShort(-amount, currency: c)),
+          key: ValueKey('setup-overdrawn-${c.code}'),
+          style: onest(13.5, color: Mid.coral, height: 1.4),
+        );
+      }
       final choice = _choice(c);
       final part = _partOf(c);
       final used = _hadNow(c, amount);
@@ -695,6 +748,14 @@ class _SetupPageState extends State<_SetupPage> {
               height: 1.4,
             ),
           ),
+          if (follows != null && choice == _Had.all) ...[
+            const SizedBox(height: 4),
+            Text(
+              follows,
+              key: ValueKey('setup-had-follows-${c.code}'),
+              style: onest(13, color: Mid.ink2, height: 1.4),
+            ),
+          ],
         ],
       );
     }
@@ -773,7 +834,9 @@ class _SetupPageState extends State<_SetupPage> {
         child: Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            t.setupMoneyHeading,
+            asOf == widget.today
+                ? t.setupMoneyHeading
+                : t.setupMoneyHeadingOn(sayDate(t, asOf)),
             style: onest(22, weight: 600, letterSpacing: -0.3),
           ),
         ),
@@ -800,6 +863,33 @@ class _SetupPageState extends State<_SetupPage> {
           SizedBox(width: 360, child: accounts),
         ],
       ),
+      // With money in more than one currency: which one is saved in
+      // (owner, 2026-11-23, #616), the one most accounts are in to begin
+      // with.
+      if (currencies.length > 1) ...[
+        const SizedBox(height: 24),
+        Container(height: 1, color: Mid.rule),
+        const SizedBox(height: 18),
+        Text(t.setupSaveInQ, style: onest(15, weight: 600)),
+        const SizedBox(height: 4),
+        Text(t.setupSaveInHint, style: onest(13, color: Mid.ink2, height: 1.4)),
+        const SizedBox(height: 10),
+        _Segmented(
+          items: [
+            for (final c in currencies)
+              (
+                'setup-save-in-${c.code}',
+                '${c.code} ${c.symbol}',
+                c == main,
+                () {
+                  if (c == main) return;
+                  _emergency.clear();
+                  widget.onSaveIn(c);
+                },
+              ),
+          ],
+        ),
+      ],
       // Asked while the budget uses some of its own currency's money:
       // the Safety net is in that currency.
       if ((usedMain ?? 0) > 0) ...[

@@ -4,7 +4,7 @@
 // and one undo. The computer's setup and the phone's (#534) both call it.
 import '../domain/budget.dart' show Budget, BudgetKeys;
 import '../domain/budget_amounts.dart' show BudgetBegan, beganBy, budgetRows;
-import '../domain/ledger.dart' show BudgetAmount, dateKey;
+import '../domain/ledger.dart' show BudgetAmount, dateKey, parseDateKey;
 import '../domain/money.dart' show Currency;
 import '../domain/pay.dart' show budgetPeriod;
 import '../domain/readiness.dart' show mainCurrency;
@@ -18,9 +18,14 @@ typedef SetupDone = ({
 });
 
 /// Ends setup in [db] as of [today]. [had] is what the budget uses of each
-/// currency's money in the accounts; [emergency], in the budget's own
-/// currency, is assigned to the Safety net, made as [safetyNetName] when
-/// there is none. The Safety net, once made, is kept on undo: there is only
+/// currency's money in the accounts, below zero when they're overdrawn
+/// (#617); a currency in [follows] (All of it, or overdrawn) keeps
+/// following the accounts from setup's balances' day as rows are added
+/// before the budget began (#618), the others keep the amount. [emergency],
+/// in [saveIn] (the currency picked on Money you have, #616; else the one
+/// most accounts are in), is assigned to the Safety net, made as
+/// [safetyNetName] when there is none; [saveIn] picked becomes the budget's
+/// own currency. The Safety net, once made, is kept on undo: there is only
 /// ever one. Throws what the ledger refuses; nothing of the finish is then
 /// written.
 Future<SetupDone> finishSetup(
@@ -29,24 +34,41 @@ Future<SetupDone> finishSetup(
   required int emergency,
   required DateTime today,
   required String safetyNetName,
+  Set<Currency> follows = const {},
+  Currency? saveIn,
 }) async {
-  final data = await db.loadLedger();
+  var data = await db.loadLedger();
+  final asOf = data.prefs[SetupKeys.date] ?? dateKey(today);
   final period = budgetPeriod(today, data.periodSchedule);
   final start = period.start, end = period.end;
-  final main = mainCurrency(data);
+  final main = saveIn ?? mainCurrency(data);
+  // Followed only while the balances are from before the budget's first
+  // day: from it on, the rows typed count in the periods themselves, and
+  // following them too would count them twice (code review).
+  final following = parseDateKey(asOf).isBefore(start)
+      ? follows
+      : const <Currency>{};
+  // The currency picked is the budget's own, fixed here as the first
+  // amount would fix it.
+  final fixCurrency =
+      saveIn != null && data.prefs[BudgetKeys.currency] != saveIn.code;
   final using = {
     for (final e in had.entries)
-      if (e.value > 0) e.key,
+      if (e.value != 0) e.key,
     if (emergency > 0) main,
   };
   final keys = [
     SetupKeys.done,
     WalkKeys.started,
     BudgetKeys.keptStart,
-    for (final c in had.keys) BudgetKeys.hadBefore(c),
+    if (fixCurrency) BudgetKeys.currency,
+    for (final c in had.keys) ...[
+      BudgetKeys.hadBefore(c),
+      BudgetKeys.hadFrom(c),
+    ],
   ];
   final old = {for (final k in keys) k: data.prefs[k]};
-  final began = beganBy(data, start, using);
+  var began = beganBy(data, start, using);
   int? net;
   var before = const <BudgetAmount>[];
 
@@ -62,11 +84,14 @@ Future<SetupDone> finishSetup(
   // All of it or none of it: a half-written finish would leave Had before
   // and the day it began with nothing to undo them (code review).
   Future<void> write() => db.transaction(() async {
+    if (fixCurrency) await db.setPreference(BudgetKeys.currency, saveIn.code);
     for (final e in had.entries) {
+      final follow = following.contains(e.key);
       await db.setPreference(
         BudgetKeys.hadBefore(e.key),
-        e.value > 0 ? '${e.value}' : null,
+        !follow && e.value != 0 ? '${e.value}' : null,
       );
+      await db.setPreference(BudgetKeys.hadFrom(e.key), follow ? asOf : null);
     }
     await writeBegan(began);
     // Setup said where the budget starts: the first-period offer to start
@@ -84,13 +109,7 @@ Future<SetupDone> finishSetup(
         emergency,
         today: today,
       );
-      before = await db.setBudgetAmount(
-        id,
-        start,
-        end,
-        emergency,
-        rows: rows,
-      );
+      before = await db.setBudgetAmount(id, start, end, emergency, rows: rows);
     }
     // The Budget page walks a ledger set up from now on through its first
     // steps (#475); one set up before is never walked.
@@ -100,10 +119,24 @@ Future<SetupDone> finishSetup(
 
   // Built in, as Income is; made here rather than after setup, since its
   // money is assigned now.
-  if (emergency > 0) {
-    net = await db.safetyNetCategory(name: safetyNetName, currency: main);
+  try {
+    // Written first, so the day the budget began is worked out in its
+    // own currency; taken back with the rest if the finish fails.
+    if (fixCurrency) {
+      await db.setPreference(BudgetKeys.currency, saveIn.code);
+      data = await db.loadLedger();
+      began = beganBy(data, start, using);
+    }
+    if (emergency > 0) {
+      net = await db.safetyNetCategory(name: safetyNetName, currency: main);
+    }
+    await write();
+  } catch (_) {
+    if (fixCurrency) {
+      await db.setPreference(BudgetKeys.currency, old[BudgetKeys.currency]);
+    }
+    rethrow;
   }
-  await write();
   return (
     undo: () async {
       if (net case final id?) {
