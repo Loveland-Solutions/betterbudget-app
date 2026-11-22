@@ -7816,3 +7816,45 @@ After the two review passes (decided by me, along the owner's call):
   and cleared."), three at most and then how many more; the button says "Clear 1 row",
   not "typed row", when a bill is among them; Undo's name is "1 bill paid". An Undo
   refuses a bill reconciled since.
+
+## Payees on the phone: a page from Accounts (owner, 2026-11-22, #532)
+
+Three sketches of the phone's Payees page, drawn with the same content as the
+computer's (the list, the payee's card, Add a payee, Delete, the offer to file what is
+still in Not categorized). The owner picked **A**.
+
+- **A, chosen: a page reached from Accounts.** A "Payees" button after Add account on
+  the Accounts page; a flat list by name, each line its category (money moved to an
+  account written "→ Khan Savings") and how many rows its words find; a tap opens the
+  payee's card as a page of its own, Cancel and Save pinned, as Edit account is. The
+  card is the computer's: Name, a line per way the bank writes it with contains, starts
+  with or is exactly and its own count, Accounts (ticked, several), Category (a
+  category, a pay, or money moved to an account), and "The next one from the bank"
+  drawn from a row it fits. Delete is in the card's ⋯, with an Undo. A new way is the
+  empty line after the last, as on the computer.
+- **Filing what waits.** Above the list, while there is something for it (offer a
+  thing only while there is something for it): "File the N still in Not categorized",
+  this period's rows, by the same test an import makes, with a line per payee saying
+  where its rows go and what they come to before the button is pressed ("Tengis Gas
+  Station: 2 rows, -₮40,000, to Fuel"); one Undo for all of them. Not after each Save,
+  as the computer's popup is: a phone has one snack bar, and the band is live, so what
+  a Save makes possible is on the list when the card closes.
+- **Showing a payee's name on rows already in** is on that payee's card, as on the
+  computer's, while it has such rows and nothing on the card has been changed: rows
+  from a bank file only, each keeping the bank's words in its memo, with an Undo. Not a
+  band over the whole list, which would stand there for every payee whose old rows were
+  left under the bank's words on purpose.
+- **Save and Delete take the payee as it stands**, not as the card opened on it: a
+  change brought in from another computer meanwhile is what Undo puts back. A Save that
+  changed nothing writes nothing.
+- **The search box** shows only past seven payees.
+- **No "Make a payee from this row"** on a row in Not categorized (proposed by the
+  budget-app review, 2026-11-22). Owner: "Don't do that. that's bad." Don't propose it
+  again.
+- **Rejected:** B, a third tab with a payee opened in place (a rarely used page taking
+  a permanent tab, and several ways with their choices don't fit in a row); C, payees
+  grouped under their category with a sheet over the list (a long list, and a sheet
+  with several text fields and the keyboard is cramped).
+- Saving, deleting and filing are `data/payee_acts.dart`, which the computer's page
+  calls too; what a payee fits, would file and would name is `domain/payee_offers.dart`.
+

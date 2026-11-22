@@ -37,62 +37,21 @@ class _PayeesActions {
   final Future<void> Function(PayeeRuleInfo rule) delete;
 }
 
-/// The posted rows of its accounts that [probe] fits: by any of its
-/// spellings, or by its name.
-List<RegisterRow> _fitting(LedgerData data, PayeeRuleInfo probe) => [
-  for (final a in data.openAccounts)
-    if (probe.accountIds.contains(a.id))
-      for (final r in data.registerFor(a.id).posted)
-        if (r.kind == RowKind.simple && probe.fits(r.payeeWritten, r.memo)) r,
-];
+List<RegisterRow> _fitting(LedgerData data, PayeeRuleInfo probe) =>
+    payeeFitting(data, probe);
 
-/// Of [rows], the ones still in Not categorized that [rule] would file
-/// now: in this period, the ones the Not categorized tab shows (owner,
-/// 2026-10-26); not one a longer line wins, as an import would decide; in
-/// a currency its category takes; money in only, for a pay's paycheck.
 List<RegisterRow> _waitingOf(
   LedgerData data,
   List<RegisterRow> rows,
   PayeeRuleInfo rule,
   DateTime today,
-) {
-  final holding = data.categories.where(isUncategorized).firstOrNull?.id;
-  final category = data.accounts[rule.categoryId];
-  if (holding == null || category == null) return const [];
-  final pay = data.payScheduleById(rule.payId);
-  final period = budgetPeriod(today, data.periodSchedule);
-  final rules = [
-    for (final r in data.payeeRules)
-      if (r.id != rule.id) r,
-    rule,
-  ];
-  return [
-    for (final r in rows)
-      if (r.categoryId == holding &&
-          !r.date.isBefore(period.start) &&
-          !r.date.isAfter(period.end) &&
-          categoryTakes(category, r.currency) &&
-          r.accountId != category.id &&
-          // A statement holds a row's accounts: it isn't made a transfer.
-          !(category.isBalanceSheet && r.cleared == Cleared.reconciled) &&
-          (pay == null || r.accountId == pay.accountId) &&
-          PayeeRuleInfo.pick(
-                rules,
-                r.accountId,
-                r.payeeWritten,
-                r.memo,
-                amount: r.amount,
-              )?.id ==
-              rule.id)
-        r,
-  ];
-}
+) => payeeWaitingOf(data, rows, rule, today);
 
 List<RegisterRow> _waitingFor(
   LedgerData data,
   PayeeRuleInfo rule,
   DateTime today,
-) => _waitingOf(data, _fitting(data, rule), rule, today);
+) => payeeWaitingFor(data, rule, today);
 
 /// The category a payee goes to, as a row's chip names it: a pay by its
 /// name, a category by its own; a deleted one said so.
@@ -110,10 +69,6 @@ String _ruleLabel(
   return pays.where((p) => p.id == rule.payId).firstOrNull?.label ??
       counterLabel(c);
 }
-
-/// A payee's category as its list names it: an account, money moved to or
-/// from it (#117), as the entry row's Category list writes it.
-String counterLabel(AccountInfo c) => c.isBalanceSheet ? '→ ${c.name}' : c.name;
 
 /// The accounts a payee holds on, by name: never "All accounts", which
 /// would read as taking in an account opened later (budget review,

@@ -8141,4 +8141,45 @@ class WordsEn extends Words {
   String reconcileOwedWillBe(String amount) {
     return 'Owed will be $amount.';
   }
+
+  @override
+  String phonePayeesFit(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows in Not categorized this period fit a payee here',
+      one: '1 row in Not categorized this period fits a payee here',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phonePayeesFileLine(
+    int count,
+    String payee,
+    String amount,
+    String category,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$payee: $count rows, $amount, to $category',
+      one: '$payee: 1 row, $amount, to $category',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phonePayeesFind => 'Find a payee';
+
+  @override
+  String phonePayeesFiled(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Filed $count rows',
+      one: 'Filed 1 row',
+    );
+    return '$_temp0';
+  }
 }

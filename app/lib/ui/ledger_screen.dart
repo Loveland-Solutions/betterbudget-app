@@ -19,6 +19,7 @@ import '../data/demo_seed.dart';
 import '../data/encryption.dart';
 import '../data/import_figures.dart';
 import '../data/keys.dart';
+import '../data/payee_acts.dart';
 import '../data/phone_inbox.dart';
 import '../data/problem_log.dart';
 import '../data/report_problem.dart';
@@ -29,6 +30,7 @@ import '../domain/forecast.dart';
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/pay.dart';
+import '../domain/payee_offers.dart';
 import '../domain/payee_rules.dart';
 import '../domain/phone.dart'
     show
@@ -4872,10 +4874,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   /// The account a payee's rows are money moved to or from (#117), or
   /// null for a category.
-  AccountInfo? _movedTo(LedgerData data, PayeeRuleInfo rule) {
-    final a = data.accounts[rule.categoryId];
-    return a != null && a.isBalanceSheet ? a : null;
-  }
+  AccountInfo? _movedTo(LedgerData data, PayeeRuleInfo rule) =>
+      payeeMovedTo(data, rule);
 
   /// A payee saved from its Edit on the Payees page: new ([before] null)
   /// or changed. The popup offers to file the rows it fits that are still
@@ -4892,49 +4892,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // stays open, and the popup names the one that is there. A twin this
     // line already had (the same payee remembered on two computers) is
     // taken into it instead: deleted with this Save, in its one undo.
-    bool overlaps(PayeeRuleInfo x) =>
-        x.id != before?.id && after.sharedWith(x) != null;
-    final twins = [
-      for (final x in data.payeeRules)
-        if (overlaps(x) && before != null && x.sameSpellings(before)) x,
-    ];
-    final twin = data.payeeRules
-        .where((x) => overlaps(x) && !twins.contains(x))
-        .firstOrNull;
-    if (twin != null) {
+    final (:twins, :clash) = payeeOverlaps(data, before, after);
+    if (clash != null) {
       _showFailure(
         t.payeesAlreadyListed(
           // As the line already there writes it.
-          twin.sharedWith(after)!.text,
-          _ruleLabel(t, data, twin, _payChoices(data)),
+          clash.sharedWith(after)!.text,
+          _ruleLabel(t, data, clash, _payChoices(data)),
         ),
       );
       return false;
     }
-    final PayeeRuleInfo saved;
+    final PayeeSaved written;
     try {
-      if (before == null) {
-        saved = await db.addPayeeRule(
-          spellings: after.spellings,
-          shownAs: after.shownAs,
-          categoryId: after.categoryId,
-          payId: after.payId,
-          accountIds: after.accountIds,
-        );
-      } else {
-        saved = after;
-        await db.transaction(() async {
-          await db.putPayeeRule(after);
-          for (final x in twins) {
-            await db.putPayeeRule(x.copyWith(deleted: true));
-          }
-        });
-      }
+      written = await writePayee(db, before, after, twins);
     } catch (e) {
       debugPrint('Saving a payee failed: $e');
       if (mounted) _showFailure(t.ledgerCouldntSave, error: e);
       return false;
     }
+    final saved = written.saved;
     if (!mounted) return true;
     final label = _ruleLabel(t, data, saved, _payChoices(data));
     final waiting = _waitingFor(data, saved, today);
@@ -4959,23 +4936,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
               label: t.payeesShowName(unnamed.length, saved.shownAs.trim()),
               onTap: () => _showNameOn(saved, unnamed),
             ),
-      undo: () => before == null
-          ? db.removePayeeRule(saved.id)
-          : db.transaction(() async {
-              // An Edit open on it would hold what was undone.
-              _payeesKey.currentState?.changed(saved.id);
-              await db.putPayeeRule(before);
-              for (final x in twins) {
-                await db.putPayeeRule(x);
-              }
-            }),
-      redo: () => db.transaction(() async {
+      undo: () {
+        // An Edit open on it would hold what was undone.
         _payeesKey.currentState?.changed(saved.id);
-        await db.putPayeeRule(saved);
-        for (final x in twins) {
-          await db.putPayeeRule(x.copyWith(deleted: true));
-        }
-      }),
+        return written.undo();
+      },
+      redo: () {
+        _payeesKey.currentState?.changed(saved.id);
+        return written.redo();
+      },
     );
     return true;
   }
@@ -5026,53 +4995,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String label,
   ) async {
     final t = context.t;
-    final byAccount = <int, List<int>>{};
-    // Oldest first, so each paycheck takes its own payday's place.
-    for (final r in waiting.reversed) {
-      (byAccount[r.accountId] ??= []).add(r.txnId);
-    }
-    var previous = <int, Map<int, int>>{};
-    var paychecks = <PayTaken>[];
-    var moved = <int, FiledTransfers>{};
-    final movedTo = _data == null ? null : _movedTo(_data!, rule);
-    Future<void> write() async {
-      previous = {};
-      paychecks = [];
-      moved = {};
-      final pay = _data?.payScheduleById(rule.payId);
-      for (final e in byAccount.entries) {
-        if (movedTo != null) {
-          // Money moved: joined with the other account's own bank row
-          // where it has one waiting, so it isn't there twice.
-          moved[e.key] = await db.fileAsTransfers(
-            transactionIds: e.value,
-            accountId: e.key,
-            toAccountId: movedTo.id,
-            holdingId: _uncategorizedId(_data!)!,
-          );
-        } else if (pay != null && pay.accountId == e.key) {
-          for (final id in e.value) {
-            paychecks.add(
-              await db.takeAsPay(
-                transactionId: id,
-                accountId: e.key,
-                scheduleId: pay.id,
-                today: today,
-              ),
-            );
-          }
-        } else {
-          previous[e.key] = await db.setCategoryMany(
-            transactionIds: e.value,
-            accountId: e.key,
-            categoryId: rule.categoryId,
-            // A row filed by hand while the popup was up stays.
-            onlyFrom: _uncategorizedId(_data!),
-          );
-        }
-      }
-    }
-
+    final fileData = _data;
+    if (fileData == null) return;
+    final filing = WaitingFiling(db, fileData, rule, waiting, today);
+    Future<void> write() => filing.write();
     try {
       await write();
     } catch (e) {
@@ -5098,17 +5024,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               label: t.payeesShowName(unnamed.length, rule.shownAs.trim()),
               onTap: () => _showNameOn(rule, unnamed),
             ),
-      undo: () async {
-        for (final p in paychecks.reversed) {
-          await db.undoTakeAsPay(p);
-        }
-        for (final e in previous.entries) {
-          await db.restoreCategories(e.value, e.key);
-        }
-        for (final e in moved.entries) {
-          await db.unfileTransfers(e.value, e.key);
-        }
-      },
+      undo: filing.undo,
       redo: write,
     );
   }
@@ -5119,31 +5035,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// wrote), and this payee's by the same test an import makes, so not one
   /// a longer line wins or money out of a pay's payee (budget review,
   /// 2026-11-18). None when it has no name.
-  List<RegisterRow> _unnamedFor(LedgerData data, PayeeRuleInfo rule) {
-    final shown = payeeWords(rule.shownAs);
-    // A transfer's row names the other account, never the payee.
-    if (shown.isEmpty || _movedTo(data, rule) != null) return const [];
-    final rules = [
-      for (final r in data.payeeRules)
-        if (r.id != rule.id) r,
-      rule,
-    ];
-    return [
-      for (final r in _fitting(data, rule))
-        if (payeeWords(r.txnPayee ?? '') != shown &&
-            r.madeHow != MadeHow.typed &&
-            r.madeHow != MadeHow.phone &&
-            PayeeRuleInfo.pick(
-                  rules,
-                  r.accountId,
-                  r.payeeWritten,
-                  r.memo,
-                  amount: r.amount,
-                )?.id ==
-                rule.id)
-          r,
-    ];
-  }
+  List<RegisterRow> _unnamedFor(LedgerData data, PayeeRuleInfo rule) =>
+      payeeUnnamedFor(data, rule);
 
   /// The offer after a payee with a name is saved, taken: its rows already
   /// in show the name, each keeping the bank's words in its memo, as a row

@@ -35,7 +35,8 @@ import 'package:betterbudget/domain/ledger.dart'
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart'
     show PayRule, budgetPeriod, noRegularPayKey;
-import 'package:betterbudget/domain/payee_rules.dart' show Remembered;
+import 'package:betterbudget/domain/payee_rules.dart'
+    show PayeeMatch, PayeeSpelling, Remembered;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/readiness.dart' show ReadyKeys, isGoal;
 import 'package:betterbudget/domain/sync.dart' show MadeHow;
@@ -487,6 +488,11 @@ class _ActingSource {
           PhoneArchiveAccount() ||
           PhoneDeleteAccount():
         return actOnAccount(db, act, now(), _after);
+      case PhoneSavePayee() ||
+          PhoneDeletePayee() ||
+          PhoneFilePayees() ||
+          PhoneShowPayeeNames():
+        return actOnPayee(db, act, now(), _after);
       case PhoneReconcile() || PhoneUndoReconcile():
         return actOnReconcile(db, act, now(), _after);
       case PhoneImport():
@@ -2259,6 +2265,174 @@ void main() {
     await tester.tap(find.text('Undo'));
     await settle();
     expect(data.accounts[id]!.archived, isFalse);
+  });
+
+  testWidgets('Payees: a page from Accounts, a card with Save pinned, and the '
+      'offer to file what waits in Not categorized (#532)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int checking, groceries, fuel, holding;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+      checking = data.accounts.values
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      groceries = data.categories.firstWhere((c) => c.name == 'Groceries').id;
+      fuel = await db.createCategory('Fuel');
+      holding = await db.createCategory('Not categorized');
+      await db.addPayeeRule(
+        spellings: const [PayeeSpelling(PayeeMatch.contains, 'NOMIN')],
+        shownAs: 'Nomin Supermarket',
+        categoryId: groceries,
+        accountIds: {checking},
+      );
+      await db.addPayeeRule(
+        spellings: const [PayeeSpelling(PayeeMatch.starts, 'TENGIS')],
+        shownAs: 'Tengis Gas Station',
+        categoryId: fuel,
+        accountIds: {checking},
+      );
+      await db.postTransaction(
+        date: DateTime(2026, 10, 5),
+        payee: 'TENGIS GAS 0412',
+        how: MadeHow.imported,
+        lines: [
+          (accountId: checking, amount: -2000000, cleared: Cleared.uncleared),
+          (accountId: holding, amount: 2000000, cleared: Cleared.uncleared),
+        ],
+      );
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('to-accounts')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('to-payees')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('to-payees')));
+    await tester.pumpAndSettle();
+    expect(find.text('Nomin Supermarket'), findsOneWidget);
+    expect(find.text('Tengis Gas Station'), findsOneWidget);
+    expect(
+      find.text('1 row in Not categorized this period fits a payee here'),
+      findsOneWidget,
+    );
+    // Where it goes is said before the button is pressed.
+    expect(find.textContaining('Tengis Gas Station: 1 row, '), findsOneWidget);
+    expect(find.textContaining(', to Fuel'), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_payees.png'),
+    );
+
+    // The offer files the one waiting row, with an Undo.
+    await tester.tap(find.byKey(const ValueKey('payees-file')));
+    await settle();
+    expect(find.text('Filed 1 row'), findsOneWidget);
+    expect(find.byKey(const ValueKey('payees-file')), findsNothing);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(find.byKey(const ValueKey('payees-file')), findsOneWidget);
+
+    // A payee's card: the name as its heading, the ways, Cancel and Save.
+    await tester.tap(
+      find.byKey(
+        ValueKey(
+          'payee-${data.payeeRules.firstWhere((r) => r.shownAs == 'Nomin Supermarket').id}',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('payee-card')), findsOneWidget);
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_payee_card.png'),
+    );
+    await tester.tap(find.byKey(const ValueKey('way-0-starts')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('payee-name')),
+      'Nomin Hyper',
+    );
+    await tester.tap(find.byKey(const ValueKey('payee-save')));
+    await settle();
+    expect(find.text('Nomin Hyper'), findsOneWidget);
+    expect(
+      data.payeeRules
+          .firstWhere((r) => r.shownAs == 'Nomin Hyper')
+          .spellings
+          .first
+          .how,
+      PayeeMatch.starts,
+    );
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(find.text('Nomin Supermarket'), findsOneWidget);
+
+    // Save with nothing picked says what is missing and stays.
+    await tester.tap(find.byKey(const ValueKey('add-payee')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('payee-save')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('payee-missing')), findsOneWidget);
+    expect(find.byKey(const ValueKey('payee-card')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('payee-cancel')));
+    await tester.pumpAndSettle();
+
+    // Delete from the ⋯, with an Undo.
+    await tester.tap(find.text('Tengis Gas Station'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('payee-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('payee-delete')));
+    await settle();
+    expect(find.text('Tengis Gas Station'), findsNothing);
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(find.text('Tengis Gas Station'), findsOneWidget);
+
+    // Its card offers its name on the row brought in under the bank's
+    // words, as the computer's does; one Undo.
+    await tester.tap(find.text('Tengis Gas Station'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('payee-show-name')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('payee-show-name')));
+    await settle();
+    expect(find.text('1 row now shows «Tengis Gas Station»'), findsOneWidget);
+    expect(
+      data.registerAll().posted.where(
+        (r) => r.txnPayee == 'Tengis Gas Station',
+      ),
+      hasLength(1),
+    );
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(
+      data.registerAll().posted.where((r) => r.txnPayee == 'TENGIS GAS 0412'),
+      hasLength(1),
+    );
   });
 
   testWidgets('an archived account is listed on Accounts, with what it holds, '
@@ -8155,7 +8329,10 @@ void main() {
 
       store.sent.value = sentCsv('statement.csv', statement);
       await tester.pumpAndSettle();
-      await settleImport(tester, find.byKey(ValueKey('import-into-${khan.id}')));
+      await settleImport(
+        tester,
+        find.byKey(ValueKey('import-into-${khan.id}')),
+      );
       expect(find.text('Import into Khan Savings'), findsOneWidget);
       await settleImport(tester, find.byKey(const ValueKey('import-do')));
       expect(find.byKey(const ValueKey('import-page')), findsNothing);
@@ -8191,10 +8368,7 @@ void main() {
 
       store.sent.value = (name: 'statement.xls', bytes: lockedXlsx());
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('statement.xls is locked.'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('statement.xls is locked.'), findsOneWidget);
       store.sent.value = (name: 'statement.xls', bytes: Uint8List(0));
       await tester.pumpAndSettle();
       expect(
@@ -8216,8 +8390,9 @@ void main() {
       expect(find.text('Import into Statement'), findsOneWidget);
     });
 
-    testWidgets('a file sent while a reconcile is open waits until it ends',
-        (tester) async {
+    testWidgets('a file sent while a reconcile is open waits until it ends', (
+      tester,
+    ) async {
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(() => tester.runAsync(db.close));
       await tester.runAsync(
@@ -8253,9 +8428,9 @@ void main() {
       final (store, _) = await importPhone(tester, db);
       final dir = Directory.systemTemp.createTempSync('bb-locked');
       addTearDown(() => dir.deleteSync(recursive: true));
-      dialogs.openPath = (File('${dir.path}/locked.xlsx')
-            ..writeAsBytesSync(lockedXlsx()))
-          .path;
+      dialogs.openPath = (File(
+        '${dir.path}/locked.xlsx',
+      )..writeAsBytesSync(lockedXlsx())).path;
       store.registerRequest.value = bank;
       await tester.pumpAndSettle();
       await settleImport(tester, find.byKey(const ValueKey('account-import')));
