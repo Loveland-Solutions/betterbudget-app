@@ -1581,12 +1581,11 @@ Future<void> _openSentFile(
         : await nav.push(
             MaterialPageRoute<AccountInfo>(
               fullscreenDialog: true,
-              builder: (_) =>
-                  _WhichAccountPage(
-                    fileName: file.name,
-                    span: span,
-                    accounts: accounts,
-                  ),
+              builder: (_) => _WhichAccountPage(
+                fileName: file.name,
+                span: span,
+                accounts: accounts,
+              ),
             ),
           );
     final place = nav.context;
@@ -1626,8 +1625,20 @@ class _WhichAccountPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final groups = [
-      (t.ledgerGroupBank, [for (final a in accounts) if (!a.isOwed) a]),
-      (t.ledgerGroupCredit, [for (final a in accounts) if (a.isOwed) a]),
+      (
+        t.ledgerGroupBank,
+        [
+          for (final a in accounts)
+            if (!a.isOwed) a,
+        ],
+      ),
+      (
+        t.ledgerGroupCredit,
+        [
+          for (final a in accounts)
+            if (a.isOwed) a,
+        ],
+      ),
     ].where((g) => g.$2.isNotEmpty).toList();
     return Scaffold(
       key: const ValueKey('import-which-account'),
@@ -1698,10 +1709,7 @@ class _WhichAccountPage extends StatelessWidget {
                                 style: onest(17, weight: 500),
                               ),
                             ),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: Mid.ink2,
-                            ),
+                            Icon(Icons.chevron_right_rounded, color: Mid.ink2),
                           ],
                         ),
                       ),

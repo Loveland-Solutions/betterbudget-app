@@ -82,9 +82,10 @@ class _RegisterState extends State<_RegisterScreen> {
         : data.registerFor(id);
     final row = txn == null || rows == null
         ? null
-        : [...rows.posted, ...rows.scheduled]
-              .where((r) => r.txnId == txn)
-              .firstOrNull;
+        : [
+            ...rows.posted,
+            ...rows.scheduled,
+          ].where((r) => r.txnId == txn).firstOrNull;
     final key = row == null ? null : (txn: row.txnId, entry: row.entryId);
     setState(() {
       _account = id;

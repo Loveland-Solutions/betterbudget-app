@@ -1,8 +1,11 @@
 import 'dart:io';
 
 import 'package:betterbudget/data/database.dart';
+import 'package:betterbudget/domain/budget.dart';
 import 'package:betterbudget/domain/ledger.dart';
+import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/domain/pay.dart';
+import 'package:betterbudget/domain/readiness.dart';
 import 'package:betterbudget/domain/setup.dart';
 import 'package:betterbudget/ui/fit_window.dart';
 import 'package:betterbudget/ui/ledger_screen.dart';
@@ -346,10 +349,16 @@ void main() {
     expect(find.text('Your regular income'), findsOneWidget);
     expect(find.text('Your accounts'), findsNothing);
     await press(tester, 'pay-none');
-    await tester.tap(find.byKey(const ValueKey('setup-done')));
-    await settle(tester);
+    // With money in the account, Pay goes on to Money you have.
+    await press(tester, 'setup-continue');
+    expect(find.text('The money in your accounts today'), findsOneWidget);
+    // Quit there: that is the step it opens on.
+    await open(tester, db);
+    expect(find.text('The money in your accounts today'), findsOneWidget);
+    await press(tester, 'setup-done');
     expect(find.text('Your regular income'), findsNothing);
-    expect(find.text('Budget'), findsOneWidget);
+    // Setup ends on Budget, with the walkthrough's band (#475).
+    expect(find.byKey(const ValueKey('walk-band')), findsOneWidget);
     expect((await ledger(tester, db)).prefs[SetupKeys.done], '1');
     await open(tester, db);
     expect(find.text('Your accounts'), findsNothing);
@@ -590,8 +599,8 @@ void main() {
     await press(tester, 'pay-cancel');
     expect(find.byKey(const ValueKey('pay-save')), findsNothing);
     expect((await ledger(tester, db)).paySchedules, hasLength(1));
-    await tester.tap(find.byKey(const ValueKey('setup-done')));
-    await settle(tester);
+    await press(tester, 'setup-continue');
+    await press(tester, 'setup-done');
     expect((await ledger(tester, db)).prefs[SetupKeys.done], '1');
     await tidy(tester, db);
   });
@@ -607,7 +616,7 @@ void main() {
     expect((await ledger(tester, db)).prefs['pay.none'], '1');
     expect(find.text('No regular income'), findsOneWidget);
     expect(find.text('Undo'), findsNothing);
-    expect(find.byKey(const ValueKey('setup-done')), findsOneWidget);
+    expect(find.byKey(const ValueKey('setup-continue')), findsOneWidget);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/setup_pay_none.png'),
@@ -839,6 +848,341 @@ void main() {
       await db.close();
     },
   );
+
+  // Money you have (#475): the budget counts income from the day it began,
+  // so what the accounts already hold is used only as Had before the
+  // budget, which setup now asks.
+  int notAssigned(LedgerData data) {
+    final p = budgetPeriod(DateTime(2026, 10, 7), data.periodSchedule);
+    return Budget.of(
+      data,
+      start: p.start,
+      end: p.end,
+      today: DateTime(2026, 10, 7),
+    ).pools.first.notAssigned;
+  }
+
+  testWidgets('Money you have: all of it to begin with, money for '
+      'emergencies to the Safety net, in one undo (#475)', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,500,000');
+    await add(tester, 'setup-add-bank', 'Khan Savings', '2,000,000');
+    await add(tester, 'setup-add-cash', 'Wallet', '100,000');
+    await add(tester, 'setup-add-owed', 'Golomt Visa', '300,000');
+    expect(find.text('Money you have'), findsOneWidget);
+    await toPay(tester);
+    await press(tester, 'pay-none');
+    await press(tester, 'setup-continue');
+    expect(find.text('The money in your accounts today'), findsOneWidget);
+    // What a credit card owes isn't taken off: its payment is a category.
+    expect(find.text('All of it: ₮3,600,000'), findsOneWidget);
+    expect(find.byKey(const ValueKey('setup-owed-note')), findsOneWidget);
+    expect(
+      find.text(
+        'Your budget will use this ₮3,600,000 as well. You can change it '
+        'later in Settings, under Had before the budget.',
+      ),
+      findsOneWidget,
+    );
+    // No amount filled in for them: nothing goes to the Safety net yet.
+    expect(find.text('Finish setup'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('setup-emergency')),
+      '2,000,000',
+    );
+    await tester.pumpAndSettle();
+    // A click that moves money says where it goes.
+    expect(
+      find.text('Assign ₮2,000,000 to Safety net and finish setup'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('setup-emergency-more')), findsNothing);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/setup_money.png'),
+    );
+    await press(tester, 'setup-done');
+    var data = await ledger(tester, db);
+    expect(data.prefs[SetupKeys.done], '1');
+    expect(data.prefs[BudgetKeys.hadBefore(Currency.mnt)], '360000000');
+    expect(data.prefs[BudgetKeys.began], '2026-10-01');
+    // Setup said where the budget starts: no offer to start it later.
+    expect(data.prefs[BudgetKeys.keptStart], '1');
+    expect(data.prefs[WalkKeys.started], '2026-10-07');
+    final net = data.accounts.values.singleWhere(
+      (a) => !a.deleted && isSafetyNet(a),
+    );
+    expect(
+      data.budgetAmounts
+          .where((b) => b.categoryId == net.id)
+          .fold(0, (s, b) => s + b.amount),
+      200000000,
+    );
+    expect(notAssigned(data), 160000000);
+    // One undo puts it all back, and setup opens where it was.
+    await undo(tester);
+    await settle(tester);
+    data = await ledger(tester, db);
+    expect(data.prefs[SetupKeys.done], isNull);
+    expect(data.prefs[BudgetKeys.hadBefore(Currency.mnt)], isNull);
+    expect(data.prefs[BudgetKeys.began], isNull);
+    expect(data.prefs[BudgetKeys.keptStart], isNull);
+    expect(data.prefs[WalkKeys.started], isNull);
+    expect(data.budgetAmounts, isEmpty);
+    expect(find.text('The money in your accounts today'), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('Money you have: part of it, none of it, and more for '
+      'emergencies than the budget uses is said, not refused (#475)', (
+    tester,
+  ) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await toPay(tester);
+    await press(tester, 'pay-none');
+    await press(tester, 'setup-continue');
+    await press(tester, 'setup-had-part-MNT');
+    await tester.enterText(
+      find.byKey(const ValueKey('setup-had-amount-MNT')),
+      '400,000',
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Your budget will use this ₮400,000 as well.'),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('setup-had-amount-MNT')),
+      '1,200,000',
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('That’s ₮200,000 more than your accounts hold'),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('setup-had-amount-MNT')),
+      '400,000',
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('setup-emergency')),
+      '500,000',
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'That’s more than your budget will use, so it would start '
+        '₮100,000 short.',
+      ),
+      findsOneWidget,
+    );
+    // None of it: the question about emergencies goes, and its amount
+    // with it.
+    await press(tester, 'setup-had-none-MNT');
+    expect(
+      find.text(
+        'Your budget will use only the income that comes in from today on.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('setup-emergency')), findsNothing);
+    expect(find.text('Finish setup'), findsOneWidget);
+    // Part again keeps what was typed.
+    await press(tester, 'setup-had-part-MNT');
+    expect(find.text('400,000'), findsOneWidget);
+    await press(tester, 'setup-done');
+    final data = await ledger(tester, db);
+    expect(data.prefs[BudgetKeys.hadBefore(Currency.mnt)], '40000000');
+    // Warned, then let go ahead: the budget starts ₮100,000 short.
+    expect(notAssigned(data), -10000000);
+    await tidy(tester, db);
+  });
+
+  testWidgets('with nothing in the accounts, Money you have isn’t asked '
+      '(#475)', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await tester.tap(find.byKey(const ValueKey('setup-add-bank')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('setup-name')),
+      'TDB Checking',
+    );
+    await tester.tap(find.byKey(const ValueKey('setup-add')));
+    await settle(tester);
+    expect(find.text('Money you have'), findsNothing);
+    await toPay(tester);
+    await press(tester, 'pay-none');
+    expect(find.byKey(const ValueKey('setup-continue')), findsNothing);
+    await press(tester, 'setup-done');
+    final data = await ledger(tester, db);
+    expect(data.prefs[SetupKeys.done], '1');
+    expect(data.prefs[BudgetKeys.hadBefore(Currency.mnt)], isNull);
+    await tidy(tester, db);
+  });
+
+  // The walkthrough (#475): after setup, Budget names the next step in a
+  // band where the Savings band goes, one at a time.
+  Future<void> addCategory(
+    WidgetTester tester,
+    String name,
+    String amount, {
+    String? date,
+    required int paidFrom,
+  }) async {
+    await tester.enterText(find.byKey(const ValueKey('edit-name')), name);
+    await tester.enterText(find.byKey(const ValueKey('plan-amount')), amount);
+    if (date != null) {
+      await tester.enterText(find.byKey(const ValueKey('plan-date')), date);
+    }
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('money-accounts')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('money-account-$paidFrom')).last);
+    await tester.pumpAndSettle();
+    await press(tester, 'new-category-add');
+  }
+
+  testWidgets('after setup, Budget walks through bills, a credit card’s '
+      'bill, day-to-day and Assign, then gives way to Savings (#475)', (
+    tester,
+  ) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await open(tester, db);
+    await add(tester, 'setup-add-bank', 'TDB Checking', '1,000,000');
+    await add(tester, 'setup-add-owed', 'Golomt Visa', '300,000');
+    await add(tester, 'setup-add-owed', 'Car loan', '5,000,000');
+    await toPay(tester);
+    await press(tester, 'pay-none');
+    await press(tester, 'setup-continue');
+    await press(tester, 'setup-done');
+    // Setup opens on Budget, the band on its first step.
+    expect(find.byKey(const ValueKey('walk-band')), findsOneWidget);
+    expect(find.byKey(const ValueKey('step-band')), findsNothing);
+    expect(
+      find.text(
+        'Start with the bills you pay on a set date, such as Rent, СӨХ or '
+        'a Storepay instalment.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Credit card and loan payments come next.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('walk-step-debts')), findsOneWidget);
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/walk_bills.png'),
+    );
+    var data = await ledger(tester, db);
+    final tdb = data.openAccounts.singleWhere((a) => a.name == 'TDB Checking');
+    final visa = data.openAccounts.singleWhere((a) => a.name == 'Golomt Visa');
+    // Add a bill opens New category on its Bill card.
+    await press(tester, 'walk-add-bill');
+    expect(find.byKey(const ValueKey('plan-date')), findsOneWidget);
+    await addCategory(
+      tester,
+      'Rent',
+      '800,000',
+      date: '10.30',
+      paidFrom: tdb.id,
+    );
+    expect(
+      find.text('You have 1 bill. Add each one you pay on a set date.'),
+      findsOneWidget,
+    );
+    expect(find.text('That’s all my bills'), findsOneWidget);
+    await press(tester, 'walk-pass');
+    // The credit card's bill: made, and the card's payments come out of
+    // it, in one undo.
+    expect(
+      find.text(
+        'Golomt Visa owes ₮300,000. Add the bill that pays it, so your '
+        'budget plans for the payment.',
+      ),
+      findsOneWidget,
+    );
+    await press(tester, 'walk-add-debt-bill');
+    expect(find.byKey(const ValueKey('new-category-another')), findsNothing);
+    await addCategory(
+      tester,
+      'Visa payment',
+      '300,000',
+      date: '10.25',
+      paidFrom: tdb.id,
+    );
+    data = await ledger(tester, db);
+    final pays = data.categories.singleWhere((c) => c.name == 'Visa payment');
+    expect(Budget.loanCategory(data, visa.id), pays.id);
+    // The popup's Undo takes back both, the bill and the tie to the card.
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Undo'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    data = await ledger(tester, db);
+    expect(Budget.loanCategory(data, visa.id), isNull);
+    expect(data.categories.where((c) => c.name == 'Visa payment'), isEmpty);
+    expect(find.byKey(const ValueKey('walk-add-debt-bill')), findsOneWidget);
+    // Not now passes the card only: the loan is asked next. ⌘Z brings the
+    // card back.
+    await press(tester, 'walk-pass');
+    expect(find.textContaining('Car loan owes ₮5,000,000.'), findsOneWidget);
+    await undo(tester);
+    expect(find.textContaining('Golomt Visa owes'), findsOneWidget);
+    await press(tester, 'walk-pass');
+    await press(tester, 'walk-pass');
+    expect(
+      find.text('Then everyday spending, such as groceries and bus fare.'),
+      findsOneWidget,
+    );
+    await press(tester, 'walk-add-day');
+    expect(find.byKey(const ValueKey('plan-date')), findsNothing);
+    await addCategory(tester, 'Groceries', '400,000', paidFrom: tdb.id);
+    await press(tester, 'walk-pass');
+    // Assign points to the button above rather than being a second one.
+    expect(
+      find.text(
+        'Now give each category its money: Assign what’s planned, above, '
+        'gives each one its plan’s amount.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('assign-planned')));
+    await settle(tester);
+    await settle(tester);
+    // Every plan has its money: the walk is done, and Savings takes the
+    // spot.
+    expect(find.byKey(const ValueKey('walk-band')), findsNothing);
+    expect(find.byKey(const ValueKey('step-band')), findsOneWidget);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a ledger set up before the walkthrough is never walked '
+      '(#475)', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    await tester.runAsync(() async {
+      final id = await db.createAccount(
+        name: 'TDB MNT',
+        type: AccountType.asset,
+      );
+      await db.postOpeningBalance(
+        accountId: id,
+        date: DateTime(2026, 9, 1),
+        balance: 50000000,
+      );
+    });
+    await open(tester, db);
+    await tester.tap(find.text('Budget'));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('walk-band')), findsNothing);
+    await tidy(tester, db);
+  });
 }
 
 /// Picks one of How often's choices on the income form.

@@ -7734,7 +7734,7 @@ abstract class Words {
   /// Setup: the button that leaves setup for the ledger.
   ///
   /// In en, this message translates to:
-  /// **'Open my ledger'**
+  /// **'Finish setup'**
   String get setupOpenLedger;
 
   /// Setup: tooltip on the × beside an account in the list.
@@ -11287,6 +11287,210 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{count, plural, =1{Filed 1 row} other{Filed {count} rows}}'**
   String phonePayeesFiled(int count);
+
+  /// Setup step name across the top: what the accounts hold today.
+  ///
+  /// In en, this message translates to:
+  /// **'Money you have'**
+  String get setupStepMoney;
+
+  /// Heading of setup's Money you have step.
+  ///
+  /// In en, this message translates to:
+  /// **'The money in your accounts today'**
+  String get setupMoneyHeading;
+
+  /// Line under the Money you have heading. The owner's word is 'uses', not 'counts'.
+  ///
+  /// In en, this message translates to:
+  /// **'Your budget uses the income that comes in from today on. To use the money you already have too, add it here.'**
+  String get setupMoneyLine;
+
+  /// Answer: the budget uses all the money the accounts hold. amount is that total.
+  ///
+  /// In en, this message translates to:
+  /// **'All of it: {amount}'**
+  String setupHadAll(String amount);
+
+  /// Answer: the budget uses part of the money, with an amount field beside it.
+  ///
+  /// In en, this message translates to:
+  /// **'Some of it'**
+  String get setupHadPart;
+
+  /// Answer: the budget uses none of the money already in the accounts.
+  ///
+  /// In en, this message translates to:
+  /// **'None of it'**
+  String get setupHadNone;
+
+  /// Under the answers. amount is what the budget will use.
+  ///
+  /// In en, this message translates to:
+  /// **'Your budget will use this {amount} as well. You can change it later in Settings, under Had before the budget.'**
+  String setupHadUses(String amount);
+
+  /// Under the answers when None of it is picked.
+  ///
+  /// In en, this message translates to:
+  /// **'Your budget will use only the income that comes in from today on.'**
+  String get setupHadNoneLine;
+
+  /// Small heading over the list of accounts and what each holds.
+  ///
+  /// In en, this message translates to:
+  /// **'From your accounts'**
+  String get setupFromAccounts;
+
+  /// Under the accounts list when a credit card or loan owes money.
+  ///
+  /// In en, this message translates to:
+  /// **'What your credit cards and loans owe isn’t taken off here. Each one’s payment becomes a category on the Budget page.'**
+  String get setupOwedNote;
+
+  /// Question on Money you have, with an amount field.
+  ///
+  /// In en, this message translates to:
+  /// **'Is any of this money kept for emergencies?'**
+  String get setupEmergencyQ;
+
+  /// Beside the emergency amount. name is the Safety net category's name.
+  ///
+  /// In en, this message translates to:
+  /// **'It goes into your {name}, so the budget won’t offer it for spending.'**
+  String setupEmergencyHint(String name);
+
+  /// Warning when the emergency amount is more than the budget uses. amount is the shortfall.
+  ///
+  /// In en, this message translates to:
+  /// **'That’s more than your budget will use, so it would start {amount} short.'**
+  String setupEmergencyMore(String amount);
+
+  /// Setup's last button when money goes into the Safety net. name is that category's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign {amount} to {name} and finish setup'**
+  String setupFinishAssign(String amount, String name);
+
+  /// The walkthrough band's step names, across its top: bills paid on a set date.
+  ///
+  /// In en, this message translates to:
+  /// **'Bills'**
+  String get walkStepBills;
+
+  /// The walkthrough band's step name: a payment for each credit card or loan.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit cards and loans'**
+  String get walkStepDebts;
+
+  /// The walkthrough band's step name: giving each category its money.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign'**
+  String get walkStepAssign;
+
+  /// Walkthrough band, the bills step.
+  ///
+  /// In en, this message translates to:
+  /// **'Start with the bills you pay on a set date, such as Rent, СӨХ or a Storepay instalment.'**
+  String get walkBills;
+
+  /// Walkthrough band, under the bills step's sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Each one is a category with its date, so the forecast plans for it.'**
+  String get walkBillsWhy;
+
+  /// Walkthrough band, under the bills step's sentence, when a credit card or loan step follows.
+  ///
+  /// In en, this message translates to:
+  /// **'Each one is a category with its date, so the forecast plans for it. Credit card and loan payments come next.'**
+  String get walkBillsWhyCards;
+
+  /// Walkthrough band, the bills step once some are added.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{You have 1 bill. Add each one you pay on a set date.} other{You have {count} bills. Add each one you pay on a set date.}}'**
+  String walkBillsSome(int count);
+
+  /// Walkthrough band button: opens New category on its Bill card.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a bill'**
+  String get walkAddBill;
+
+  /// Walkthrough band button: the bills step is done.
+  ///
+  /// In en, this message translates to:
+  /// **'That’s all my bills'**
+  String get walkAllBills;
+
+  /// Walkthrough band button: go past this step for now.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get walkNotNow;
+
+  /// Walkthrough band, the credit cards and loans step, one account at a time.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} owes {amount}. Add the bill that pays it, so your budget plans for the payment.'**
+  String walkDebt(String account, String amount);
+
+  /// Walkthrough band button: New category on its Bill card; once added, the account's payments come out of it.
+  ///
+  /// In en, this message translates to:
+  /// **'Add the bill that pays {account}'**
+  String walkAddDebtBill(String account);
+
+  /// Walkthrough band, the day-to-day step.
+  ///
+  /// In en, this message translates to:
+  /// **'Then everyday spending, such as groceries and bus fare.'**
+  String get walkDay;
+
+  /// Walkthrough band, under the day-to-day step's sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Each one gets an amount to spend, and this page shows what’s left of it.'**
+  String get walkDayWhy;
+
+  /// Walkthrough band button: opens New category on its Day-to-day card.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a day-to-day category'**
+  String get walkAddDay;
+
+  /// Walkthrough band button: the day-to-day step is done.
+  ///
+  /// In en, this message translates to:
+  /// **'That’s all my everyday spending'**
+  String get walkAllDay;
+
+  /// Walkthrough band, the assign step, when there is money to give out.
+  ///
+  /// In en, this message translates to:
+  /// **'Now give each category its money: Assign what’s planned, above, gives each one its plan’s amount.'**
+  String get walkAssign;
+
+  /// Walkthrough band, the assign step, before any money is there to give out. date is the next payday.
+  ///
+  /// In en, this message translates to:
+  /// **'Your regular income is due {date}. Then Assign what’s planned, above, gives each category its money.'**
+  String walkAssignWait(String date);
+
+  /// Walkthrough band, the assign step, before any money is there and with no regular income.
+  ///
+  /// In en, this message translates to:
+  /// **'When money comes in, Assign what’s planned, above, gives each category its money.'**
+  String get walkAssignNoPay;
+
+  /// Setup, Money you have: warning when Some of it is more than the accounts hold. amount is the difference.
+  ///
+  /// In en, this message translates to:
+  /// **'That’s {amount} more than your accounts hold today, so your budget would start with money that isn’t there.'**
+  String setupHadMore(String amount);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

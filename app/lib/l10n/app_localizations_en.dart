@@ -5448,7 +5448,7 @@ class WordsEn extends Words {
   String get setupAddCashAccount => 'Add a Cash account';
 
   @override
-  String get setupOpenLedger => 'Open my ledger';
+  String get setupOpenLedger => 'Finish setup';
 
   @override
   String setupRemoveAccount(String name) {
@@ -8189,5 +8189,143 @@ class WordsEn extends Words {
       one: 'Filed 1 row',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get setupStepMoney => 'Money you have';
+
+  @override
+  String get setupMoneyHeading => 'The money in your accounts today';
+
+  @override
+  String get setupMoneyLine =>
+      'Your budget uses the income that comes in from today on. To use the money you already have too, add it here.';
+
+  @override
+  String setupHadAll(String amount) {
+    return 'All of it: $amount';
+  }
+
+  @override
+  String get setupHadPart => 'Some of it';
+
+  @override
+  String get setupHadNone => 'None of it';
+
+  @override
+  String setupHadUses(String amount) {
+    return 'Your budget will use this $amount as well. You can change it later in Settings, under Had before the budget.';
+  }
+
+  @override
+  String get setupHadNoneLine =>
+      'Your budget will use only the income that comes in from today on.';
+
+  @override
+  String get setupFromAccounts => 'From your accounts';
+
+  @override
+  String get setupOwedNote =>
+      'What your credit cards and loans owe isn’t taken off here. Each one’s payment becomes a category on the Budget page.';
+
+  @override
+  String get setupEmergencyQ => 'Is any of this money kept for emergencies?';
+
+  @override
+  String setupEmergencyHint(String name) {
+    return 'It goes into your $name, so the budget won’t offer it for spending.';
+  }
+
+  @override
+  String setupEmergencyMore(String amount) {
+    return 'That’s more than your budget will use, so it would start $amount short.';
+  }
+
+  @override
+  String setupFinishAssign(String amount, String name) {
+    return 'Assign $amount to $name and finish setup';
+  }
+
+  @override
+  String get walkStepBills => 'Bills';
+
+  @override
+  String get walkStepDebts => 'Credit cards and loans';
+
+  @override
+  String get walkStepAssign => 'Assign';
+
+  @override
+  String get walkBills =>
+      'Start with the bills you pay on a set date, such as Rent, СӨХ or a Storepay instalment.';
+
+  @override
+  String get walkBillsWhy =>
+      'Each one is a category with its date, so the forecast plans for it.';
+
+  @override
+  String get walkBillsWhyCards =>
+      'Each one is a category with its date, so the forecast plans for it. Credit card and loan payments come next.';
+
+  @override
+  String walkBillsSome(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'You have $count bills. Add each one you pay on a set date.',
+      one: 'You have 1 bill. Add each one you pay on a set date.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get walkAddBill => 'Add a bill';
+
+  @override
+  String get walkAllBills => 'That’s all my bills';
+
+  @override
+  String get walkNotNow => 'Not now';
+
+  @override
+  String walkDebt(String account, String amount) {
+    return '$account owes $amount. Add the bill that pays it, so your budget plans for the payment.';
+  }
+
+  @override
+  String walkAddDebtBill(String account) {
+    return 'Add the bill that pays $account';
+  }
+
+  @override
+  String get walkDay =>
+      'Then everyday spending, such as groceries and bus fare.';
+
+  @override
+  String get walkDayWhy =>
+      'Each one gets an amount to spend, and this page shows what’s left of it.';
+
+  @override
+  String get walkAddDay => 'Add a day-to-day category';
+
+  @override
+  String get walkAllDay => 'That’s all my everyday spending';
+
+  @override
+  String get walkAssign =>
+      'Now give each category its money: Assign what’s planned, above, gives each one its plan’s amount.';
+
+  @override
+  String walkAssignWait(String date) {
+    return 'Your regular income is due $date. Then Assign what’s planned, above, gives each category its money.';
+  }
+
+  @override
+  String get walkAssignNoPay =>
+      'When money comes in, Assign what’s planned, above, gives each category its money.';
+
+  @override
+  String setupHadMore(String amount) {
+    return 'That’s $amount more than your accounts hold today, so your budget would start with money that isn’t there.';
   }
 }
