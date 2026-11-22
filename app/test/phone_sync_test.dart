@@ -22,7 +22,12 @@ import 'package:betterbudget/domain/budget.dart'
 import 'package:betterbudget/domain/combine.dart' show Pick;
 import 'package:betterbudget/domain/ledger.dart'
     show CategoryPlan, Cleared, PlanKind, RegisterRow;
-import 'package:betterbudget/domain/ledger.dart' show AccountType;
+import 'package:betterbudget/domain/ledger.dart'
+    show AccountType, LedgerData, dateKey;
+import 'package:betterbudget/domain/pay.dart' show PayRule;
+import 'package:betterbudget/domain/money.dart' show Currency;
+import 'package:betterbudget/domain/setup.dart'
+    show SetupKeys, WalkKeys, inSetup;
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/import/mapping.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -332,6 +337,107 @@ void main() {
     final empty = await fresh.asItStands(tuesday);
     expect(empty.accounts, isEmpty);
     expect(empty.onItsOwn, isTrue);
+  });
+
+  test('setup on the phone (#534): the balances\' day moves the opening '
+      'balances, and finishing setup keeps Had before and the Safety net\'s '
+      'money, each with an undo', () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    Future<PhoneSnapshot> again() async =>
+        snapshotOf(await db.loadLedger(), today: tuesday, madeAt: tuesday);
+    await db.setPreference(SetupKeys.date, dateKey(DateTime(2026, 10, 6)));
+    final khan = await db.createAccount(
+      name: 'Khan Checking',
+      type: AccountType.asset,
+    );
+    await db.postOpeningBalance(
+      accountId: khan,
+      date: DateTime(2026, 10, 6),
+      balance: 120000000,
+    );
+    Future<DateTime> opened() async => (await db.loadLedger()).txns.single.date;
+
+    // The same day writes nothing.
+    final before = await db.lastChangeSeq();
+    final same = await actOnSetup(
+      db,
+      PhoneSetupDate(DateTime(2026, 10, 6)),
+      tuesday,
+      again,
+    );
+    expect(await db.lastChangeSeq(), before);
+    await same.undo();
+    expect(await opened(), DateTime(2026, 10, 6));
+
+    final moved = await actOnSetup(
+      db,
+      PhoneSetupDate(DateTime(2026, 10, 1)),
+      tuesday,
+      again,
+    );
+    expect(await opened(), DateTime(2026, 10, 1));
+    expect(await db.preference(SetupKeys.date), dateKey(DateTime(2026, 10, 1)));
+    await moved.undo();
+    expect(await opened(), DateTime(2026, 10, 6));
+    await moved.redo();
+    expect(await opened(), DateTime(2026, 10, 1));
+
+    final done = await actOnSetup(
+      db,
+      const PhoneFinishSetup(
+        had: {Currency.mnt: 100000000},
+        emergency: 30000000,
+        safetyNetName: 'Safety net',
+      ),
+      tuesday,
+      again,
+    );
+    var data = await db.loadLedger();
+    final net = data.accounts.values.singleWhere((a) => a.name == 'Safety net');
+    int netAssigned(LedgerData d) => d.budgetAmounts
+        .where((b) => b.categoryId == net.id)
+        .fold(0, (sum, b) => sum + b.amount);
+    void finished(LedgerData d) {
+      expect(d.prefs[SetupKeys.done], '1');
+      expect(d.prefs[BudgetKeys.hadBefore(Currency.mnt)], '100000000');
+      expect(d.prefs[BudgetKeys.keptStart], '1');
+      expect(d.prefs[WalkKeys.started], isNotNull);
+      expect(d.prefs[BudgetKeys.began], isNotNull);
+      expect(netAssigned(d), 30000000);
+      expect(inSetup(d), isFalse);
+    }
+
+    finished(data);
+    await done.undo();
+    data = await db.loadLedger();
+    expect(data.prefs[SetupKeys.done], isNull);
+    expect(data.prefs[BudgetKeys.hadBefore(Currency.mnt)], isNull);
+    expect(data.prefs[BudgetKeys.began], isNull);
+    expect(netAssigned(data), 0);
+    expect(inSetup(data), isTrue);
+    await done.redo();
+    finished(await db.loadLedger());
+
+    // Budget by paycheck, and back by Undo.
+    final pay = await db.savePaySchedule(
+      accountId: khan,
+      amount: 210000000,
+      rule: PayRule.monthly,
+      day1: 25,
+      today: tuesday,
+    );
+    final by = await actOnSetup(
+      db,
+      PhoneBudgetBy(pay.after.id),
+      tuesday,
+      again,
+    );
+    expect((await db.loadLedger()).periodSchedule?.id, pay.after.id);
+    await by.undo();
+    expect((await db.loadLedger()).periodSchedule, isNull);
+    await by.redo();
+    expect((await db.loadLedger()).periodSchedule?.id, pay.after.id);
   });
 
   test('a look says what it brought in, once, and a look with nothing new '

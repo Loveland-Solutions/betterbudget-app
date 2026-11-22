@@ -1696,3 +1696,15 @@ that isn't kept. Restore reads what waits on the phone without setting anything
 aside until the key is known to open the backup. A ledger left by
 an earlier install, with no key here, is moved aside (`own.set-aside-…`), never
 deleted.
+
+**Built, 2026-11-22 (0.148.0): #534 piece 2, setup on the phone** (ADR 0004 "Setup on
+the phone"). `PhoneHome` shows `_PhoneSetup` (`ui/phone/phone_setup.dart`) while the
+ledger is in setup, written through the phone's acts: `PhoneAddAccount` on setup's day,
+`PhoneDeleteAccount`, `PhoneSetupDate` (the computer's `redateOpeningBalances`),
+`PhoneBudgetBy`, `PhoneNoPay`, the pay page, `PhoneSavingsAnswer` for setup's answers
+and step, and `PhoneFinishSetup`. The finish is `finishSetup` in `data/setup_finish.dart`,
+lifted from the computer's `_finishSetup`, which now calls it too, so the two can't
+drift apart. A phone on a folder whose ledger is in setup on a computer sees the same
+steps: it is the same ledger. No build goes to the stores before
+piece 3 either (budget review): a ledger kept only on one phone, with no copy anywhere,
+is lost with the phone, whatever the recovery key.

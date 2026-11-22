@@ -8035,3 +8035,57 @@ then the ways. The owner picked **A** ("let's do a").
   ledger won't open says "The ledger on this phone couldn't be opened", with Try
   again and Send feedback… and no folder to choose; Try again after a key the phone
   couldn't keep keeps the same key, since it may be written down.
+
+## Setup on the phone (owner, 2026-11-22, #534)
+
+A ledger started on the phone opened with no accounts and a blank Ledger tab, and the
+owner: "well, we should fix that." The phone's setup is the computer's first-time setup
+in the phone's form (ADR 0005, "A phone on its own"), as the sketch shown with the
+first screen drew it ("After Start fresh"): the same steps, words and order, one at a
+time.
+
+- **When:** a ledger that has never had an account opens on setup instead of the tabs,
+  as on the computer (`inSetup`). Setup's date is kept the moment it opens, so the
+  first account added doesn't end it. When setup ends, Budget opens, where the
+  walkthrough's band says what's next.
+- **The steps across the top:** Accounts › Income › Money you have (named only while
+  there's money to ask about), the one on screen underlined, each tappable once it can
+  be reached. An arrow before them goes back a step, and so does the phone's own back.
+  The way on is one full-width button in the bar at the foot (Continue, Finish setup,
+  or "Assign ₮300,000 to Safety net and finish setup"), where a snack bar's Undo rises
+  above it instead of covering it. Back was beside it at first, and the finish's long
+  words wrapped to three lines.
+- **Accounts:** Balances as of (one day for every balance, picked from a calendar;
+  changing it moves the balances, with Undo), the accounts in a card with each one's
+  kind, balance or what's owed and ×, the total per currency, and the three kinds as
+  buttons (Bank account filled while there are none). Each opens the phone's own Add
+  account on that kind, with no day of its own and no bank file. "How do you pay for
+  everyday things?" and the no-Cash warning with Add a Cash account, as on the computer.
+- **Income:** the phone's own regular-income page from **Add your regular income**,
+  **I don't have regular income** under it, the pays listed with a tap to edit, and,
+  once there's pay, "Do you budget by month or by paycheck?" (with Undo).
+- **Money you have:** the computer's step stacked down the page: what's in the
+  accounts, then All of it, Some of it (with its amount) or None of it per currency, and
+  the emergency question while the budget uses some of its own currency's money. More
+  than there is is said in coral and let go ahead.
+- **Finishing** is the computer's own write, now in one place both call
+  (`data/setup_finish.dart`), with Undo, which brings setup back on the step it was on.
+- **Undo:** adding or removing an account, the balances' day, budget by, no regular
+  income and the finish are each said with an Undo. The answers on the page (how you pay
+  for everyday things, All, Some or None) are picked again to change them, as on the
+  computer.
+- **From the reviews** (decided along the lines above):
+  - While Balances as of isn't today, Add account says the day over its balance ("What
+    was in it on 10.01?"), so what the bank app shows today isn't typed as that day's.
+  - The phone has no Settings page yet, so Money you have's line stops at "Your budget
+    will use this ₮1,000,000 as well." "No regular income" is one sentence on the phone
+    and names where it changes ("Tap Income on Budget"); the computer's dotted toast
+    doesn't fit the phone, whose Budget has no Income tab.
+  - A total under the accounts, and on Money you have, only over two or more accounts in a
+    currency: over one it repeats it. What a card owes is ordinary ink, not coral (a
+    card's balance isn't a shortfall).
+  - Some of it with nothing typed says "Type how much of it your budget uses."; an amount
+    is kept when its field is left; a step's change closes the last step's Undo bar,
+    which would cover its questions; a Cash account left unnamed is called Cash.
+  - Finish holds from the first tap, so a second can't finish a finished setup and
+    leave an Undo that puts back "done".

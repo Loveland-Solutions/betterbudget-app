@@ -1,4 +1,5 @@
 import '../domain/budget.dart';
+import '../domain/ledger.dart' show AccountType, LedgerData;
 import 'language.dart';
 
 /// What the sum's result is called when it is below zero, and the parts
@@ -41,4 +42,24 @@ import 'language.dart';
           if (cause.loose > 0) t.planKeyOverLoosePart(short(cause.loose)),
         ].join(' · ');
   return (label: label, parts: parts);
+}
+
+/// The first row of the key card names where the money is: "Cash & bank"
+/// only when the ledger holds both, otherwise whichever one it has (owner,
+/// 2026-10-06: don't say cash unless one of the accounts is cash).
+String cashBankLabel(Words t, LedgerData data) {
+  var cash = false, bank = false;
+  for (final a in data.openAccounts) {
+    if (a.type != AccountType.asset) continue;
+    if (a.isCash) {
+      cash = true;
+    } else {
+      bank = true;
+    }
+  }
+  // With neither, the row is ₮0 and "Cash & bank" is the fullest name for
+  // what could go there.
+  if (cash && !bank) return t.planKeyCash;
+  if (bank && !cash) return t.planKeyBank;
+  return t.planKeyCashBank;
 }

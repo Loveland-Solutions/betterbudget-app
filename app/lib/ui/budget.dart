@@ -4882,26 +4882,6 @@ List<(Currency, int)> _cameIn(Map<Currency, int>? came, Currency main) {
   return lines.isEmpty ? [(main, 0)] : lines;
 }
 
-/// The first row of the key card names where the money is: "Cash & bank"
-/// only when the ledger holds both, otherwise whichever one it has (owner,
-/// 2026-10-06: don't say cash unless one of the accounts is cash).
-String cashBankLabel(Words t, LedgerData data) {
-  var cash = false, bank = false;
-  for (final a in data.openAccounts) {
-    if (a.type != AccountType.asset) continue;
-    if (a.isCash) {
-      cash = true;
-    } else {
-      bank = true;
-    }
-  }
-  // With neither, the row is ₮0 and "Cash & bank" is the fullest name for
-  // what could go there.
-  if (cash && !bank) return t.planKeyCash;
-  if (bank && !cash) return t.planKeyBank;
-  return t.planKeyCashBank;
-}
-
 /// What a spending line says about its money (rule 28): its Paid from
 /// account put away, and rows in the other currency. What its account
 /// holds is no longer said here (#461): that is the Ledger's.

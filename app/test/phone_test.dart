@@ -500,6 +500,8 @@ class _ActingSource {
         return actOnPay(db, act, now(), _after);
       case PhoneSetSpan():
         return actOnSpan(db, act, _after);
+      case PhoneSetupDate() || PhoneBudgetBy() || PhoneFinishSetup():
+        return actOnSetup(db, act, now(), _after);
       case PhoneSavingsAnswer():
         return actOnSavings(db, act, now(), _after);
       case PhoneAddAccount() ||
@@ -8330,35 +8332,112 @@ void main() {
       expect(folder.asked, isEmpty);
     });
 
-    testWidgets('a ledger just started on the phone, with nothing in it, '
-        'opens on each tab', (tester) async {
-      final data = (await tester.runAsync(() async {
-        final db = AppDatabase(NativeDatabase.memory());
-        final d = await db.loadLedger();
-        await db.close();
-        return d;
-      }))!;
-      await _pump(
+    testWidgets('a ledger just started on the phone opens on setup: an '
+        'account, no regular income, Money you have, then Budget; Undo '
+        'brings setup back (#534)', (tester) async {
+      late AppDatabase db;
+      late LedgerData data;
+      await tester.runAsync(() async {
+        db = AppDatabase(NativeDatabase.memory());
+        // Balances as of a day before today, as someone might pick.
+        await db.setPreference(SetupKeys.date, dateKey(DateTime(2026, 10, 1)));
+        data = await db.loadLedger();
+      });
+      addTearDown(() => tester.runAsync(db.close));
+      final store = await _pump(
         tester,
         snapshot: snapshotOf(data, today: _now, madeAt: _now, onItsOwn: true),
       );
-      await expectLater(
-        find.byType(PhoneApp),
-        matchesGoldenFile('goldens/phone_fresh_ledger.png'),
-      );
-      await _toBudget(tester);
-      expect(find.byKey(const ValueKey('from-mac')), findsNothing);
-      await expectLater(
-        find.byType(PhoneApp),
-        matchesGoldenFile('goldens/phone_fresh_budget.png'),
-      );
-      await tester.tap(find.byKey(const ValueKey('to-accounts')));
+      final source = _ActingSource(db, () => _now, (d) => data = d);
+      store.actRowIn = (act) => source.act(act);
+      Future<void> settle() async {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 300)),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      // Setup, not the tabs.
+      expect(find.text('Your accounts'), findsOneWidget);
+      expect(find.byKey(const ValueKey('to-budget')), findsNothing);
+      // Nothing to go on to until there's an account.
+      expect(find.byKey(const ValueKey('setup-continue')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('setup-add-bank')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('from-mac')), findsNothing);
+      // The day is setup's, asked once on its page, and said here while it
+      // isn't today, so today's figure isn't typed as that day's.
+      expect(find.byKey(const ValueKey('account-date')), findsNothing);
+      expect(find.byKey(const ValueKey('account-setup-day')), findsOneWidget);
+      expect(find.byKey(const ValueKey('new-account-import')), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('account-name')),
+        'Khan Checking',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('account-balance')),
+        '1200000',
+      );
+      await tester.tap(find.byKey(const ValueKey('new-account-create')));
+      await settle();
+      final khan = data.accounts.values.singleWhere(
+        (a) => a.name == 'Khan Checking',
+      );
+      expect(data.balanceOf(khan.id), 120000000);
+      expect(find.byKey(ValueKey('setup-balance-${khan.id}')), findsOneWidget);
       await expectLater(
         find.byType(PhoneApp),
-        matchesGoldenFile('goldens/phone_fresh_accounts.png'),
+        matchesGoldenFile('goldens/phone_setup_accounts.png'),
       );
+
+      await tester.tap(find.byKey(const ValueKey('setup-continue')));
+      await tester.pumpAndSettle();
+      expect(find.text('Your regular income'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('setup-no-pay')));
+      await settle();
+      expect(find.byKey(const ValueKey('setup-no-pay-line')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('setup-continue')));
+      await tester.pumpAndSettle();
+      expect(find.text('The money in your accounts today'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('setup-had-part-MNT')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('setup-had-MNT')),
+        '1000000',
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('setup-emergency')),
+        '300000',
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_setup_money.png'),
+      );
+      // The button says where the money goes.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('setup-done')),
+          matching: find.textContaining('Safety net'),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('setup-done')));
+      await settle();
+      expect(data.prefs[SetupKeys.done], '1');
+      expect(data.prefs[BudgetKeys.hadBefore(Currency.mnt)], '100000000');
+      // Budget, where the first steps are.
+      expect(find.text('Your accounts'), findsNothing);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+      expect(find.textContaining('Left in'), findsOneWidget);
+
+      await tester.tap(find.text('Undo'));
+      await settle();
+      expect(data.prefs[SetupKeys.done], isNull);
+      expect(find.text('The money in your accounts today'), findsOneWidget);
     });
 
     group('a way that is left part way (from the review of #534)', () {
