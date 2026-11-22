@@ -6360,16 +6360,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       opened = openBankFile(await picked.readAsBytes(), picked.name, saved);
     } catch (e) {
       debugPrint('Import read failed: $e');
-      // A kind of file it reads, that didn't read: the file is the problem,
-      // and the list of kinds would only repeat what it is.
-      if (mounted) {
-        _showFailure(
-          isBankFileName(picked.name)
-              ? t.importCouldntReadDamaged(picked.name)
-              : t.importCouldntRead(picked.name),
-          error: e,
-        );
-      }
+      if (mounted) _showFailure(couldntReadSays(t, e, picked.name), error: e);
       return;
     }
     final (:sheet, :kind, :fits, :mapping) = opened;

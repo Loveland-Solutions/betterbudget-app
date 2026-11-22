@@ -28,6 +28,43 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- A bank file sent from another app (#531): read in memory and
+             handed to MainActivity; see ReceiveFileActivity.kt. -->
+        <activity
+            android:name=".ReceiveFileActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/csv"/>
+                <data android:mimeType="text/comma-separated-values"/>
+                <data android:mimeType="application/csv"/>
+                <data android:mimeType="application/vnd.ms-excel"/>
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>
+                <data android:mimeType="application/x-ofx"/>
+                <data android:mimeType="application/ofx"/>
+                <data android:mimeType="application/vnd.intu.qfx"/>
+                <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/csv"/>
+                <data android:mimeType="text/comma-separated-values"/>
+                <data android:mimeType="application/csv"/>
+                <data android:mimeType="application/vnd.ms-excel"/>
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>
+                <data android:mimeType="application/x-ofx"/>
+                <data android:mimeType="application/ofx"/>
+                <data android:mimeType="application/vnd.intu.qfx"/>
+                <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
+        </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

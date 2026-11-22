@@ -20,12 +20,23 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "betterbudget/folder")
             .setMethodCallHandler { call, result -> handle(call, result) }
+        // A bank file sent from another app (ReceiveFileActivity, #531).
+        val incoming = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "betterbudget/incoming")
+        incoming.setMethodCallHandler { call, result ->
+            if (call.method == "take") result.success(IncomingFile.take()) else result.notImplemented()
+        }
+        IncomingFile.onArrived = { incoming.invokeMethod("arrived", null) }
         // Android's version for Report a problem… (lib/data/report_problem.dart).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "betterbudget/system")
             .setMethodCallHandler { call, result ->
                 if (call.method == "release") result.success(android.os.Build.VERSION.RELEASE)
                 else result.notImplemented()
             }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        IncomingFile.onArrived = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     private fun handle(call: MethodCall, result: MethodChannel.Result) {

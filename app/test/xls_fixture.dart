@@ -26,10 +26,12 @@ List<int> _chars(String s) {
 /// Cells by (row, col): String, double, or DateTime (written as a dated
 /// NUMBER). Integers written as RK when [rk] is true. When [splitSst] is set,
 /// the shared strings break across a CONTINUE record inside a string.
+/// [locked] writes the FILEPASS record a file saved with a password has.
 Uint8List buildXls(
   Map<(int, int), Object> cells, {
   bool rk = false,
   bool splitSst = false,
+  bool locked = false,
 }) {
   final strings = <String>[];
   for (final v in cells.values) {
@@ -54,6 +56,8 @@ Uint8List buildXls(
       0,
       0,
     ]),
+    // RC4 encryption's header (its salt and verifier left as zeros).
+    if (locked) _Rec(0x002F, [..._u16(1), ..._u16(1), ...List.filled(52, 0)]),
     _Rec(0x0022, _u16(0)),
     // XF 0: general; XF 1: built-in date format 14.
     _Rec(0x00E0, [..._u16(0), ..._u16(0), ...List.filled(16, 0)]),
@@ -162,7 +166,12 @@ Uint8List buildXls(
   return _ole(stream);
 }
 
-Uint8List _ole(List<int> stream) {
+/// An .xlsx saved with a password, as Excel writes it: an OLE2 file whose
+/// streams are how it was locked and the encrypted workbook.
+Uint8List lockedXlsx() =>
+    _ole(List.filled(600, 7), name: 'EncryptionInfo');
+
+Uint8List _ole(List<int> stream, {String name = 'Workbook'}) {
   const size = 512;
   final sectors = (stream.length + size - 1) ~/ size;
   const endOfChain = 0xFFFFFFFE, free = 0xFFFFFFFF, fatSect = 0xFFFFFFFD;
@@ -210,7 +219,7 @@ Uint8List _ole(List<int> stream) {
 
   final dir = [
     ...entry('Root Entry', 5, endOfChain, 0),
-    ...entry('Workbook', 2, 2, stream.length),
+    ...entry(name, 2, 2, stream.length),
     ...List.filled(256, 0),
   ];
   final body = [...stream];

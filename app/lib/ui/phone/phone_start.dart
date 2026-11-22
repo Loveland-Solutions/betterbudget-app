@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../data/incoming_file.dart';
 import '../../data/keys.dart';
 import '../../data/ledger_file.dart';
 import '../../data/phone_inbox.dart';
@@ -346,6 +347,8 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
           unawaited(_load());
         }
       });
+      // A bank file sent from another app, before now or while open.
+      unawaited(IncomingFiles.listen((file) => made.sent.value = file));
       _store!.settle = () => _keeping;
       _store!.undoTake = (take) async {
         final source = _source;

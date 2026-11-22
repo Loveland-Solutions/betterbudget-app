@@ -5257,6 +5257,39 @@
       "file": {}
     }
   },
+  "importWhichAccount": "Which account is this file for?",
+  "@importWhichAccount": {
+    "description": "Heading of the phone's page when a bank file is sent to BetterBudget from another app: the person taps the bank account or card it is from."
+  },
+  "importSentNoAccount": "To import {file}, first add the bank account or card it’s from on Accounts.",
+  "@importSentNoAccount": {
+    "description": "Said on the phone when a bank file is sent to BetterBudget from another app and the ledger has no bank account or card to put it in.",
+    "placeholders": {
+      "file": {}
+    }
+  },
+  "importFileDays": "Rows from {from} to {to}",
+  "@importFileDays": {
+    "description": "Under a bank file's name on the phone's \"Which account is this file for?\" page: the first and last days of the file's rows.",
+    "placeholders": {
+      "from": {},
+      "to": {}
+    }
+  },
+  "importFileOneDay": "Rows on {day}",
+  "@importFileOneDay": {
+    "description": "Under a bank file's name on the phone's \"Which account is this file for?\" page, when all its rows are on one day.",
+    "placeholders": {
+      "day": {}
+    }
+  },
+  "importLocked": "{file} is locked. Open it in Excel or Numbers (type its password if it asks for one), save a copy without a password, and import that copy.",
+  "@importLocked": {
+    "description": "Said when a bank file is locked with a password (an Excel file saved with one), so it can't be read.",
+    "placeholders": {
+      "file": {}
+    }
+  },
   "importCouldntReadDamaged": "Couldn’t read {file}. The file may be damaged; download it from your bank again.",
   "@importCouldntReadDamaged": {
     "description": "Plain popup when a file of a kind BetterBudget reads (Excel, CSV, OFX) couldn't be read.",

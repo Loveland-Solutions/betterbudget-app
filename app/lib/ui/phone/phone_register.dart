@@ -40,6 +40,16 @@ class _RegisterState extends State<_RegisterScreen> {
   /// The row opened in place, by its entry.
   ({int txn, int entry})? _open;
 
+  /// The row asked for with its account (the import's Show), to be
+  /// scrolled to while it stays open.
+  ({int txn, int entry})? _revealed;
+  final _revealKey = GlobalKey();
+  final _scroll = ScrollController();
+
+  /// Where the open row is among the list's children, and how many there
+  /// are, as last built: a row far down isn't built until scrolled near.
+  ({int at, int of})? _openPlace;
+
   /// A reconcile in progress (#530), if any.
   _Reconciling? _rec;
 
@@ -63,16 +73,58 @@ class _RegisterState extends State<_RegisterScreen> {
     final id = widget.store.registerRequest.value;
     if (id == null || !mounted) return;
     widget.store.registerRequest.value = null;
+    final txn = widget.store.registerRow;
+    widget.store.registerRow = null;
     _endReconcile();
+    final data = widget.store.snapshot.data;
+    final rows = data == null || !data.accounts.containsKey(id)
+        ? null
+        : data.registerFor(id);
+    final row = txn == null || rows == null
+        ? null
+        : [...rows.posted, ...rows.scheduled]
+              .where((r) => r.txnId == txn)
+              .firstOrNull;
+    final key = row == null ? null : (txn: row.txnId, entry: row.entryId);
     setState(() {
       _account = id;
-      _open = null;
+      _open = key;
+      _revealed = key;
+      if (row != null) {
+        // Shown whatever tab or search was on.
+        _show = row.scheduled ? _Show.scheduled : _Show.all;
+        _searching = false;
+        _search.clear();
+      }
     });
+    if (key != null) unawaited(_reveal(key));
+  }
+
+  /// Scrolls until the asked-for row is built, then brings it into view.
+  Future<void> _reveal(({int txn, int entry}) key) async {
+    for (var tries = 0; tries < 12; tries++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || _revealed != key || _open != key) return;
+      final built = _revealKey.currentContext;
+      if (built != null && built.mounted) {
+        await Scrollable.ensureVisible(
+          built,
+          alignment: 0.15,
+          duration: const Duration(milliseconds: 250),
+        );
+        return;
+      }
+      final place = _openPlace;
+      if (place == null || !_scroll.hasClients) return;
+      final at = _scroll.position;
+      at.jumpTo(at.maxScrollExtent * place.at / place.of);
+    }
   }
 
   @override
   void dispose() {
     widget.store.registerRequest.removeListener(_requested);
+    _scroll.dispose();
     _search.dispose();
     _rec?.dispose();
     _rec = null;
@@ -760,6 +812,7 @@ class _RegisterState extends State<_RegisterScreen> {
       ..addAll({for (final p in payments.values) p.row.txnId: p});
     _paymentOf = payments;
     DateTime? day;
+    int? openAt;
     for (final r in rows) {
       final d = DateTime(r.date.year, r.date.month, r.date.day);
       if (day != d) {
@@ -776,10 +829,13 @@ class _RegisterState extends State<_RegisterScreen> {
           ),
         );
       }
+      if (_open == (txn: r.txnId, entry: r.entryId)) openAt = children.length;
       children.add(_row(t, r, reconciling: reconciling));
     }
+    _openPlace = openAt == null ? null : (at: openAt, of: children.length);
     return ListView(
       key: const ValueKey('register-list'),
+      controller: _scroll,
       // Room for Add under the last row.
       padding: const EdgeInsets.only(bottom: 88),
       // While reconciling, a drag puts the keyboard away.
@@ -801,7 +857,7 @@ class _RegisterState extends State<_RegisterScreen> {
     final line2 = all && account != null
         ? '$category · ${account.name}'
         : category;
-    return Container(
+    final box = Container(
       key: ValueKey('register-row-${r.txnId}-${r.entryId}'),
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
       decoration: BoxDecoration(
@@ -956,6 +1012,10 @@ class _RegisterState extends State<_RegisterScreen> {
         ],
       ),
     );
+    // The row the import's Show asked for, found to be scrolled to.
+    return open && _revealed == key
+        ? KeyedSubtree(key: _revealKey, child: box)
+        : box;
   }
 
   /// Under a scheduled bill a row already in may have paid, or under that

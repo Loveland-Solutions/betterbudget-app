@@ -1,4 +1,6 @@
 import '../data/database.dart' show ImportFate, ImportPlanRow, ImportRecord;
+import '../data/import_figures.dart' show isBankFileName;
+import '../import/sheet.dart' show LockedFileException;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import 'language.dart';
@@ -19,6 +21,16 @@ String importDoneLabel(Words t, ImportRecord record) {
       // Only bills waiting for Confirm, now paid (#597).
       : t.importBillsPaidLabel(record.matched.length);
 }
+
+/// What is said when [name] couldn't be read ([e] is why): a file locked
+/// with a password says so, since "damaged" would send the person back to
+/// the bank for the same locked file; a kind of file it reads that didn't
+/// read is damaged, and the list of kinds would only repeat what it is.
+String couldntReadSays(Words t, Object e, String name) => switch (e) {
+  LockedFileException() => t.importLocked(name),
+  _ when isBankFileName(name) => t.importCouldntReadDamaged(name),
+  _ => t.importCouldntRead(name),
+};
 
 /// Everything an import did, one part after another: the rows, the typed
 /// rows now cleared, rows joined to another account's, a transfer that may

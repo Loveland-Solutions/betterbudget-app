@@ -33,8 +33,14 @@ Sheet readXls(Uint8List bytes) {
   if (!looksLikeXls(bytes)) {
     throw const XlsFormatException('not an OLE2 compound file');
   }
-  final stream = _Ole(bytes).stream('Workbook') ?? _Ole(bytes).stream('Book');
-  if (stream == null) throw const XlsFormatException('no Workbook stream');
+  final ole = _Ole(bytes);
+  final stream = ole.stream('Workbook') ?? ole.stream('Book');
+  if (stream == null) {
+    // An .xlsx saved with a password is this kind of file too, holding
+    // the workbook encrypted beside how it was locked.
+    if (ole.stream('EncryptionInfo') != null) throw const LockedFileException();
+    throw const XlsFormatException('no Workbook stream');
+  }
   return _Biff(stream).firstSheet();
 }
 
@@ -231,6 +237,8 @@ class _Biff {
       final r = globals[i];
       final d = ByteData.sublistView(r.data);
       switch (r.type) {
+        case 0x002F: // FILEPASS: the rest is encrypted
+          throw const LockedFileException();
         case 0x0022: // DATEMODE
           _date1904 = d.getUint16(0, Endian.little) == 1;
         case 0x041E: // FORMAT

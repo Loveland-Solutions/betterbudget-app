@@ -78,6 +78,12 @@ class UnreadableFileException implements Exception {
   String toString() => 'UnreadableFileException: $detail';
 }
 
+/// The file is locked with a password (an Excel file saved with one):
+/// nothing in it can be read until it is saved again without it.
+class LockedFileException extends UnreadableFileException {
+  const LockedFileException() : super('locked with a password');
+}
+
 Sheet readSheet(Uint8List bytes, String name) {
   final kind = fileKindOf(bytes, name);
   try {

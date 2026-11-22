@@ -7,6 +7,7 @@ import 'dart:io';
 
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
+import 'package:betterbudget/data/incoming_file.dart';
 import 'package:betterbudget/data/keys.dart';
 import 'package:betterbudget/data/ledger_file.dart';
 import 'package:betterbudget/data/phone_inbox.dart';
@@ -20,6 +21,7 @@ import 'package:betterbudget/domain/combine.dart'
 import 'package:betterbudget/domain/ledger.dart'
     show
         AccountInfo,
+        LedgerGroups,
         AccountType,
         dateKey,
         BudgetAmount,
@@ -56,6 +58,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:url_launcher_platform_interface/link.dart' show LinkDelegate;
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
+
+import 'xls_fixture.dart' show lockedXlsx;
 
 Future<void> _loadFont(String family, String path) async {
   final bytes = await File(path).readAsBytes();
@@ -8079,6 +8083,338 @@ void main() {
         await tester.pump(const Duration(seconds: 10));
       }
       await tester.pumpAndSettle();
+    });
+
+    /// A phone on [db]'s ledger with the import's acts wired to it.
+    Future<(PhoneStore, LedgerData Function())> importPhone(
+      WidgetTester tester,
+      AppDatabase db,
+    ) async {
+      late LedgerData data;
+      await tester.runAsync(() async => data = await db.loadLedger());
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now),
+      );
+      final source = _ActingSource(db, () => _now, (d) => data = d);
+      store.actRowIn = (act) => source.act(act);
+      store.planImportIn = db.planImport;
+      return (store, () => data);
+    }
+
+    Future<void> settleImport(WidgetTester tester, [Finder? tap]) async {
+      await tester.runAsync(() async {
+        if (tap != null) await tester.tap(tap);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      for (var i = 0; i < 3; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    SentFile sentCsv(String name, String text) =>
+        (name: name, bytes: Uint8List.fromList(utf8.encode(text)));
+
+    testWidgets('a file sent from another app asks which account it is for, '
+        'with nothing picked, then opens the import page; the Ledger shows '
+        'that account once its rows are in', (tester) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(() => tester.runAsync(db.close));
+      await tester.runAsync(() => seedDemoIfEmpty(db, _now));
+      final (store, data) = await importPhone(tester, db);
+      final khan = data().accounts.values.firstWhere(
+        (a) => a.name == 'Khan Savings',
+      );
+      final before = data().registerFor(khan.id).posted.length;
+
+      store.sent.value = sentCsv('statement.csv', statement);
+      await tester.pumpAndSettle();
+      expect(find.text('Which account is this file for?'), findsOneWidget);
+      expect(find.text('statement.csv'), findsOneWidget);
+      expect(find.text('Rows from 10.01 to 10.03'), findsOneWidget);
+      // Banks and the card, not cash.
+      expect(find.text('TDB Checking'), findsOneWidget);
+      expect(find.text('Khan Savings'), findsOneWidget);
+      expect(find.text('Golomt Visa'), findsOneWidget);
+      expect(find.text('Cash wallet'), findsNothing);
+      expect(store.sent.value, isNull);
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_import_which_account.png'),
+      );
+
+      // Back leaves the file and the ledger as they were.
+      await tester.tap(find.byKey(const ValueKey('import-which-back')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('import-which-account')), findsNothing);
+      expect(store.importing.value, isFalse);
+
+      store.sent.value = sentCsv('statement.csv', statement);
+      await tester.pumpAndSettle();
+      await settleImport(tester, find.byKey(ValueKey('import-into-${khan.id}')));
+      expect(find.text('Import into Khan Savings'), findsOneWidget);
+      await settleImport(tester, find.byKey(const ValueKey('import-do')));
+      expect(find.byKey(const ValueKey('import-page')), findsNothing);
+      expect(data().registerFor(khan.id).posted.length, before + 3);
+      // The Ledger is on Khan Savings, its header over its rows.
+      expect(find.byKey(const ValueKey('account-import')), findsOneWidget);
+      expect(find.text('Khan Savings'), findsWidgets);
+    });
+
+    testWidgets('a file sent with one bank account goes straight to its '
+        'page; with none, it says to add one; a locked or unreadable file '
+        'says so before anything is asked', (tester) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(() => tester.runAsync(db.close));
+      await tester.runAsync(
+        () => db.addAccount(
+          name: 'Pocket',
+          type: AccountType.asset,
+          group: LedgerGroups.cash,
+        ),
+      );
+      final (store, _) = await importPhone(tester, db);
+
+      store.sent.value = sentCsv('statement.csv', statement);
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'To import statement.csv, first add the bank account or card '
+          'it’s from on Accounts.',
+        ),
+        findsOneWidget,
+      );
+
+      store.sent.value = (name: 'statement.xls', bytes: lockedXlsx());
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('statement.xls is locked.'),
+        findsOneWidget,
+      );
+      store.sent.value = (name: 'statement.xls', bytes: Uint8List(0));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Couldn’t read statement.xls. The file may be damaged; download '
+          'it from your bank again.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('import-which-account')), findsNothing);
+
+      await tester.runAsync(
+        () => db.addAccount(name: 'Statement', type: AccountType.asset),
+      );
+      final (again, _) = await importPhone(tester, db);
+      again.sent.value = sentCsv('statement.csv', statement);
+      await settleImport(tester);
+      expect(find.byKey(const ValueKey('import-which-account')), findsNothing);
+      expect(find.text('Import into Statement'), findsOneWidget);
+    });
+
+    testWidgets('a file sent while a reconcile is open waits until it ends',
+        (tester) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(() => tester.runAsync(db.close));
+      await tester.runAsync(
+        () => db.addAccount(name: 'Statement', type: AccountType.asset),
+      );
+      final (store, _) = await importPhone(tester, db);
+      store.reconciling.value = true;
+      store.sent.value = sentCsv('statement.csv', statement);
+      await settleImport(tester);
+      expect(find.byKey(const ValueKey('import-page')), findsNothing);
+      expect(store.sent.value, isNotNull);
+      store.reconciling.value = false;
+      await settleImport(tester);
+      expect(find.text('Import into Statement'), findsOneWidget);
+      expect(store.sent.value, isNull);
+    });
+
+    testWidgets('a locked file picked with Import transactions… says so '
+        '(#531)', (tester) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(() => tester.runAsync(db.close));
+      late int bank;
+      await tester.runAsync(
+        () async => bank = await db.addAccount(
+          name: 'Statement',
+          type: AccountType.asset,
+        ),
+      );
+      final dialogs = _FakePicker();
+      final was = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = dialogs;
+      addTearDown(() => FileSelectorPlatform.instance = was);
+      final (store, _) = await importPhone(tester, db);
+      final dir = Directory.systemTemp.createTempSync('bb-locked');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      dialogs.openPath = (File('${dir.path}/locked.xlsx')
+            ..writeAsBytesSync(lockedXlsx()))
+          .path;
+      store.registerRequest.value = bank;
+      await tester.pumpAndSettle();
+      await settleImport(tester, find.byKey(const ValueKey('account-import')));
+      expect(find.byKey(const ValueKey('import-page')), findsNothing);
+      expect(
+        find.text(
+          'locked.xlsx is locked. Open it in Excel or Numbers (type its '
+          'password if it asks for one), save a copy without a password, and '
+          'import that copy.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a new account\'s file starts from the budget period, the '
+        'earlier rows left out until The whole file; a card\'s typed balance '
+        'is what it owes; a balance that can\'t be read stops Import (from '
+        'the review of #596)', (tester) async {
+      Future<(AppDatabase, int, PhoneStore, LedgerData Function())> phoneWith(
+        AccountType type,
+      ) async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(() => tester.runAsync(db.close));
+        late int id;
+        await tester.runAsync(
+          () async => id = await db.addAccount(name: 'Statement', type: type),
+        );
+        final (store, data) = await importPhone(tester, db);
+        return (db, id, store, data);
+      }
+
+      Future<void> into(Finder f) async {
+        await tester.scrollUntilVisible(
+          f,
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+      }
+
+      // Two September rows and one in October, the budget's period.
+      var (_, bank, store, data) = await phoneWith(AccountType.asset);
+      store.sent.value = sentCsv(
+        'statement.csv',
+        'Огноо;Орлого;Зарлага;Харьцсан данс;Үлдэгдэл;Гүйлгээний утга\n'
+            '2026.09.20;100 000,00;0,00;Ажил олгогч;100 000,00;Цалин\n'
+            '2026.09.25;0,00;30 000,00;Номин;70 000,00;Худалдан авалт\n'
+            '2026.10.02;0,00;8 000,00;Юнител;62 000,00;Төлбөр\n',
+      );
+      await settleImport(tester);
+      expect(find.text('Import into Statement'), findsOneWidget);
+      await into(find.byKey(const ValueKey('import-earlier')));
+      expect(
+        find.text('2 earlier rows in this file are left out'),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('import-start'))).data,
+        contains('₮70,000.00'),
+      );
+      await into(find.byKey(const ValueKey('import-whole-file')));
+      await settleImport(
+        tester,
+        find.byKey(const ValueKey('import-whole-file')),
+      );
+      expect(find.byKey(const ValueKey('import-earlier')), findsNothing);
+      await settleImport(tester, find.byKey(const ValueKey('import-do')));
+      expect(data().registerFor(bank).posted, hasLength(3));
+      expect(data().summaryFor(bank).working, 6200000);
+
+      // A card, with no balance in its file: what is typed is what it owes
+      // today, and the start is worked back through the rows.
+      const plain =
+          'Огноо;Орлого;Зарлага;Гүйлгээний утга\n'
+          '2026.10.02;0,00;30 000,00;Номин\n'
+          '2026.10.03;0,00;8 000,00;Юнител\n';
+      int card;
+      (_, card, store, data) = await phoneWith(AccountType.liability);
+      store.sent.value = sentCsv('card.csv', plain);
+      await settleImport(tester);
+      await into(find.byKey(const ValueKey('import-today')));
+      await tester.enterText(
+        find.byKey(const ValueKey('import-today')),
+        '62000',
+      );
+      await tester.pumpAndSettle();
+      await settleImport(tester, find.byKey(const ValueKey('import-do')));
+      // The two rows and the opening balance worked back from it.
+      expect(data().registerFor(card).posted, hasLength(3));
+      expect(data().summaryFor(card).working, -6200000);
+
+      // A balance that isn't an amount: said under the field, and Import
+      // writes nothing until it is one.
+      (_, bank, store, data) = await phoneWith(AccountType.asset);
+      store.sent.value = sentCsv('plain.csv', plain);
+      await settleImport(tester);
+      await into(find.byKey(const ValueKey('import-today')));
+      await tester.enterText(find.byKey(const ValueKey('import-today')), 'abc');
+      await tester.pumpAndSettle();
+      expect(find.text('“abc” isn’t an amount'), findsOneWidget);
+      await settleImport(tester, find.byKey(const ValueKey('import-do')));
+      expect(find.byKey(const ValueKey('import-page')), findsOneWidget);
+      expect(data().registerFor(bank).posted, isEmpty);
+    });
+
+    testWidgets('a row that may have paid a bill: the bar after the import '
+        'has Show, which opens that row where it is, with the question '
+        'under it', (tester) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(() => tester.runAsync(db.close));
+      late int bank;
+      await tester.runAsync(() async {
+        bank = await db.addAccount(name: 'Statement', type: AccountType.asset);
+        final phone = await db.createCategory('Phone');
+        await db.setCategoryPlan(
+          phone,
+          CategoryPlan(
+            categoryId: phone,
+            kind: PlanKind.byDate,
+            amount: 3000000,
+            start: DateTime(2026, 10, 1),
+            due: DateTime(2026, 10, 2),
+            everyMonths: 1,
+            paidFrom: bank,
+          ),
+        );
+        await db.ensurePlanBills(DateTime(2026, 10, 1), only: phone);
+        await db.rememberPayee(
+          accountId: bank,
+          payee: 'Мобиком',
+          categoryId: phone,
+        );
+      });
+      final (store, data) = await importPhone(tester, db);
+      store.registerRequest.value = bank;
+      await tester.pumpAndSettle();
+      // Two thirds of the bill: asked about, not taken as paid.
+      store.sent.value = sentCsv(
+        'statement.csv',
+        'Огноо;Орлого;Зарлага;Харьцсан данс;Үлдэгдэл;Гүйлгээний утга\n'
+            '2026.10.02;0,00;20 000,00;Мобиком;-20 000,00;Төлбөр\n',
+      );
+      await settleImport(tester);
+      await settleImport(tester, find.byKey(const ValueKey('import-do')));
+      expect(find.textContaining('1 bill to check'), findsOneWidget);
+      final row = data().registerFor(bank).posted.single;
+      expect(
+        find.byKey(ValueKey('register-open-${row.txnId}-${row.entryId}')),
+        findsNothing,
+      );
+      await tester.tap(find.byKey(const ValueKey('import-show')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(ValueKey('register-open-${row.txnId}-${row.entryId}')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('paid-yes')), findsOneWidget);
+      // The bar and its Undo are still there.
+      expect(find.byKey(const ValueKey('import-done')), findsOneWidget);
     });
   });
 }
