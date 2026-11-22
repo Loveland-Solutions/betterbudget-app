@@ -483,6 +483,8 @@ class _ActingSource {
         return actOnPay(db, act, now(), _after);
       case PhoneSetSpan():
         return actOnSpan(db, act, _after);
+      case PhoneSavingsAnswer():
+        return actOnSavings(db, act, _after);
       case PhoneAddAccount() ||
           PhoneEditAccount() ||
           PhoneArchiveAccount() ||
@@ -2641,6 +2643,126 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('savings-pages')), findsNothing);
+  });
+
+  testWidgets('Savings: the month of expenses, Assign to Safety net, skip a '
+      'step, three to six months and step 4, each with Undo (#533)', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int net;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      net = await db.safetyNetCategory(
+        name: 'Safety net',
+        currency: Currency.mnt,
+      );
+      await db.setBudgetAmount(
+        net,
+        DateTime(2026, 10),
+        DateTime(2026, 10, 31),
+        80000000,
+      );
+      await db.setPreference(ReadyKeys.month, '200000000');
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<String?> pref(String key) async =>
+        tester.runAsync<String?>(() => db.preference(key));
+    Future<void> undo() async {
+      await tester.tap(find.text('Undo'));
+      await settle();
+    }
+
+    Future<void> tap(Key key) async {
+      await tester.ensureVisible(find.byKey(key));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(key));
+      await settle();
+    }
+
+    await tester.tap(find.byKey(const ValueKey('to-savings')));
+    await tester.pumpAndSettle();
+
+    // A month of expenses typed, then put back by Undo.
+    await tap(const ValueKey('savings-month-edit'));
+    await tester.enterText(
+      find.byKey(const ValueKey('savings-month-field')),
+      '2500000',
+    );
+    await tap(const ValueKey('savings-month-save'));
+    expect(await pref(ReadyKeys.month), 'MNT:250000000');
+    expect(
+      find.text('₮800,000 of ₮2,500,000 · ₮1,700,000 to go'),
+      findsOneWidget,
+    );
+    await undo();
+    expect(await pref(ReadyKeys.month), '200000000');
+
+    // Something not a number is said under the field, and nothing saved.
+    await tap(const ValueKey('savings-month-edit'));
+    await tester.enterText(
+      find.byKey(const ValueKey('savings-month-field')),
+      'abc',
+    );
+    await tap(const ValueKey('savings-month-save'));
+    expect(find.byKey(const ValueKey('savings-month-wrong')), findsOneWidget);
+    await tap(const ValueKey('savings-month-cancel'));
+    expect(await pref(ReadyKeys.month), '200000000');
+
+    // What isn't assigned goes to the Safety net, as much as fills it.
+    int assigned() => snapshotOf(
+      data,
+      today: _now,
+      madeAt: _now,
+    ).categories.firstWhere((c) => c.id == '$net').assignedMinor;
+    await tap(const ValueKey('savings-assign-oneMonth'));
+    expect(assigned(), greaterThan(80000000));
+    await undo();
+    expect(assigned(), 80000000);
+
+    // Skip this step for now, and Undo.
+    await tester.tap(find.byKey(const ValueKey('savings-oneMonth-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('savings-oneMonth-aside')));
+    await settle();
+    expect(await pref(ReadyKeys.setAside), 'oneMonth');
+    expect(find.text('Skipped for now'), findsOneWidget);
+    await undo();
+    expect(await pref(ReadyKeys.setAside), isNull);
+
+    // Step 3 aims for five months.
+    await tester.tap(find.byKey(const ValueKey('savings-stop-moreMonths')));
+    await tester.pumpAndSettle();
+    await tap(const ValueKey('savings-months-5'));
+    expect(await pref(ReadyKeys.months), '5');
+
+    // Step 4's answers.
+    await tester.tap(find.byKey(const ValueKey('savings-stop-future')));
+    await tester.pumpAndSettle();
+    await tap(const ValueKey('savings-retirement-yes'));
+    expect(await pref(ReadyKeys.retirement), 'yes');
+    await tap(const ValueKey('savings-longLoans-none'));
+    expect(await pref(ReadyKeys.longLoans), 'none');
+    await undo();
+    expect(await pref(ReadyKeys.longLoans), isNull);
+    expect(await pref(ReadyKeys.retirement), 'yes');
   });
 
   testWidgets('Budget: a tap on the step band opens Savings on that step '

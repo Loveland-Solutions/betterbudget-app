@@ -58,7 +58,7 @@ import '../domain/payee_offers.dart';
 import '../domain/payee_rules.dart' show PayeeBefore, PayeeRuleInfo, Remembered;
 import '../domain/phone.dart';
 import '../domain/money.dart' show Currency;
-import '../domain/readiness.dart' show ReadyKeys;
+import '../domain/readiness.dart' show ReadyKeys, ReadyStep, Readiness;
 import '../domain/sync.dart' show appliedMarkerOp, sharedRowId;
 import 'account_edit.dart';
 import 'backup.dart';
@@ -335,6 +335,17 @@ class PhoneSetSpan extends PhoneRowAct {
   const PhoneSetSpan(this.span, {this.customEnd});
   final ForecastSpan span;
   final DateTime? customEnd;
+}
+
+/// A Savings answer or setting from the phone's Savings tab (#533):
+/// `ready.*` preferences written together, as the computer's Savings page
+/// writes them, undone together. [aside] skips a step or brings it back,
+/// worked out from what's stored when it's written, so two quick taps both
+/// count.
+class PhoneSavingsAnswer extends PhoneRowAct {
+  const PhoneSavingsAnswer(this.values, {this.aside});
+  final Map<String, String?> values;
+  final (ReadyStep, bool)? aside;
 }
 
 /// An account added on the Accounts page (#529): its name, what it is,
@@ -1414,6 +1425,8 @@ class PhoneSync implements PhoneLedgerSource {
         return actOnPay(db, act, now, again);
       case PhoneSetSpan():
         return actOnSpan(db, act, again);
+      case PhoneSavingsAnswer():
+        return actOnSavings(db, act, again);
       case PhoneAddAccount() ||
           PhoneEditAccount() ||
           PhoneArchiveAccount() ||
@@ -1786,6 +1799,49 @@ Future<PhoneActed> actOnSpan(
     },
     redo: () async {
       await write(act.span.name, end);
+      return again();
+    },
+  );
+}
+
+/// Writes a Savings answer (#533) and returns its Undo and Redo, which put
+/// back and write again every preference it changed, in one go. One that
+/// changes nothing writes nothing.
+Future<PhoneActed> actOnSavings(
+  AppDatabase db,
+  PhoneSavingsAnswer act,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  final values = {...act.values};
+  if (act.aside case (final step, final aside)?) {
+    values[ReadyKeys.setAside] = Readiness.setAsideStored(
+      await db.preference(ReadyKeys.setAside),
+      step,
+      aside,
+    );
+  }
+  final before = <String, String?>{
+    for (final key in values.keys) key: await db.preference(key),
+  };
+  final changes = values.entries.any((e) => before[e.key] != e.value);
+  Future<void> write(Map<String, String?> v) async {
+    if (!changes) return;
+    await db.transaction(() async {
+      for (final e in v.entries) {
+        await db.setPreference(e.key, e.value);
+      }
+    });
+  }
+
+  await write(values);
+  return (
+    snapshot: await again(),
+    undo: () async {
+      await write(before);
+      return again();
+    },
+    redo: () async {
+      await write(values);
       return again();
     },
   );
