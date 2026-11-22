@@ -7963,6 +7963,20 @@ Spending tab). The owner picked **B** ("let's do B").
 - **Built (0.145.0), the computer:** setup's Money you have step, and the band on
   Budget. Only a ledger that finishes setup from now on is walked (`walk.started`);
   the owner's, set up before, never is.
+- **Built (0.146.0), the phone:** the same band on the phone's Budget tab, in the
+  Savings band's spot, from the same reckoning as the computer's (`walkOf`), so a step
+  passed on one is passed on the other. Phone-sized: the steps as numbered marks with
+  only the one on screen named (four names don't fit across a phone), its sentence, the
+  button full width, Not now or That's all under it. Each pass is said in a snack bar
+  with Undo, the phone's way for every change. Add the bill that pays a card opens New
+  category on its Bill card in the card's currency, with no Add another, and the card's
+  payments come out of it once the phone's ledger takes it in, in the same Undo. Assign
+  what's planned is in a category's open row on the phone, not under the sum, so the
+  Assign step says "tap one, then Assign what's planned". A phone sees the band only on
+  a ledger set up on a computer since 0.145.0, until the phone has its own setup (#534).
+- **From the phone's reviews:** more assigned than there is, at the Assign step, is said as
+  that on both platforms ("You've assigned more than you have…"), not as waiting for pay;
+  a phone-made bill keeps the card it pays through an edit before it's taken in.
 - **From the reviews** (decided along the lines above):
   - Not now on a credit card or loan passes that one only, and the next is asked: a
     household may have a salary loan, a card and лизинг at once.

@@ -87,6 +87,7 @@ import '../../domain/payee_offers.dart';
 import '../../domain/payee_rules.dart';
 import '../../domain/phone.dart';
 import '../../domain/readiness.dart';
+import '../../domain/setup.dart' show Walk, WalkStep, walkOf;
 import '../language.dart';
 import '../plan_form.dart';
 import '../schemes.dart';
@@ -119,6 +120,7 @@ part 'phone_pay.dart';
 part 'phone_reconcile.dart';
 part 'phone_savings.dart';
 part 'phone_register.dart';
+part 'phone_walk.dart';
 
 /// How long a snack bar stays: a Flutter one with an action (Undo) stays
 /// until it is swiped away unless told otherwise, and the owner's Undo bar
@@ -440,6 +442,7 @@ class PhoneStore extends ChangeNotifier {
     String? paidFromId,
     CategoryType? type,
     bool outOfMonth = false,
+    int? paysLoan,
   }) {
     final already = categoryNamed(categories, name);
     if (already != null) return already;
@@ -454,6 +457,7 @@ class PhoneStore extends ChangeNotifier {
       paidFromId: paidFromId,
       type: type,
       outOfMonth: outOfMonth,
+      paysLoan: paysLoan,
       // A bill's date shows here as the computer's bills do.
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
     );
@@ -480,6 +484,7 @@ class PhoneStore extends ChangeNotifier {
   }) {
     final at = _made.indexWhere((c) => c.id == id);
     if (at < 0) return false;
+    final was = _made[at];
     _made[at] = PhoneCategory(
       id: id,
       name: name.trim(),
@@ -490,6 +495,9 @@ class PhoneStore extends ChangeNotifier {
       paidFromId: paidFromId,
       type: type,
       due: plan?.kind == PlanKind.byDate ? plan?.due : null,
+      // What it was made for stays: a card it pays, a goal left out.
+      paysLoan: was.paysLoan,
+      outOfMonth: was.outOfMonth,
     );
     _changes++;
     notifyListeners();
@@ -1430,12 +1438,17 @@ class _BudgetScreenState extends State<_BudgetScreen> {
       final t = context.t;
       final snapshot = store.snapshot;
       final today = now();
-      final band = _stepBandOf(
-        snapshot,
-        store.waiting,
-        today,
-        onTap: widget.onSavings,
-      );
+      // The first steps after setup (#475) take the Savings band's spot
+      // until they're done, as on the computer.
+      final Widget? band = switch (snapshot.walk) {
+        final walk? => _PhoneWalkBand(store: store, walk: walk),
+        null => _stepBandOf(
+          snapshot,
+          store.waiting,
+          today,
+          onTap: widget.onSavings,
+        ),
+      };
       final listed = <Object?>[
         for (final sum in snapshot.sums)
           _PhoneSum(
@@ -1547,7 +1560,9 @@ class _BudgetScreenState extends State<_BudgetScreen> {
                     }
                     final item = listed[i > newAt ? i - 1 : i];
                     if (item == null) return const _BillsHeading();
-                    if (item is _PhoneStepBand) return item;
+                    if (item is _PhoneStepBand || item is _PhoneWalkBand) {
+                      return item as Widget;
+                    }
                     if (item is _PhoneSum) return item;
                     if (item is String) return _GroupHeading(item);
                     final category = item as PhoneCategory;

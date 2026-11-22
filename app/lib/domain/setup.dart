@@ -1,5 +1,7 @@
+import 'budget.dart';
 import 'money.dart';
 import 'ledger.dart';
+import 'readiness.dart' show fundCategoryIds, savingsCurrency;
 
 /// The first half hour (ADR 0004, "Onboarding"): what the setup keeps in the
 /// `Preferences` table while it's open, and when it shows.
@@ -141,4 +143,96 @@ DateTime? nextPayday(LedgerData data, DateTime today) {
     if (next == null || d.isBefore(next)) next = d;
   }
   return next;
+}
+
+/// Where the walk is (#475), as both Budget pages show it: the computer's
+/// band and the phone's read the same, so the two can't disagree.
+class Walk {
+  const Walk({
+    required this.step,
+    required this.steps,
+    required this.bills,
+    required this.days,
+    required this.debt,
+    required this.waiting,
+    required this.short,
+    required this.nextPay,
+  });
+
+  /// The step on screen, and every step named across the top, in order.
+  final WalkStep step;
+  final List<WalkStep> steps;
+
+  /// How many bills and day-to-day categories there are in the budget's
+  /// currency: once there's one, the way past is That's all, not Not now.
+  final int bills, days;
+
+  /// The first credit card or loan no category pays yet and no Not now
+  /// passed, and what it owes; null with none.
+  final ({AccountInfo account, int owes})? debt;
+
+  /// The bills' line says the cards and loans come next.
+  bool get cardsNext => debt != null;
+
+  /// Nothing to give out yet: Assign waits for the income.
+  final bool waiting;
+
+  /// More assigned than there is: said as that, not as waiting for pay
+  /// (budget review).
+  final bool short;
+
+  /// The next payday, when there's regular income.
+  final DateTime? nextPay;
+
+  /// The setting Not now or That's all writes on [step]: on a card or
+  /// loan, that one only (budget review: a salary loan, a card and лизинг
+  /// at once).
+  String get passKey => step == WalkStep.debts && debt != null
+      ? WalkKeys.debtPassed(debt!.account.id)
+      : WalkKeys.passed(step);
+}
+
+/// The walk for [budget], the period today is in; null when there's none
+/// or it's done.
+Walk? walkOf(LedgerData data, Budget budget, DateTime today) {
+  if (data.prefs[WalkKeys.started] == null) return null;
+  final currency = Budget.currencyOf(data);
+  final owing = walkDebts(data, currency);
+  final unpaid = [
+    for (final a in owing)
+      if (Budget.loanCategory(data, a.id) == null &&
+          data.prefs[WalkKeys.debtPassed(a.id)] == null)
+        a,
+  ];
+  final saved = fundCategoryIds(data, savingsCurrency(data));
+  final listed = [
+    for (final c in data.categories)
+      if (!c.isIncome && !isUncategorized(c) && !saved.contains(c.id)) c,
+  ];
+  final step = walkStep(
+    data,
+    unpaidDebts: unpaid,
+    anyToAssign: listed.any((c) => (budget.lines[c.id]?.toAssign ?? 0) > 0),
+  );
+  if (step == null) return null;
+  int countOf(CategoryType type) => listed
+      .where((c) => c.currency == currency && typeOf(data, c.id) == type)
+      .length;
+  return Walk(
+    step: step,
+    steps: [
+      WalkStep.bills,
+      if (owing.isNotEmpty) WalkStep.debts,
+      WalkStep.dayToDay,
+      WalkStep.assign,
+    ],
+    bills: countOf(CategoryType.bill),
+    days: countOf(CategoryType.dayToDay),
+    debt: unpaid.isEmpty
+        ? null
+        : (account: unpaid.first, owes: -data.balanceOf(unpaid.first.id)),
+    waiting: budget.notAssigned <= 0,
+    short: budget.notAssigned < 0,
+    nextPay: nextPayday(data, today),
+  );
 }

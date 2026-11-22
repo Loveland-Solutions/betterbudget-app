@@ -11491,6 +11491,36 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'That’s {amount} more than your accounts hold today, so your budget would start with money that isn’t there.'**
   String setupHadMore(String amount);
+
+  /// Phone's walkthrough band, the assign step. Assign what’s planned is in a category's open row on the phone, not above.
+  ///
+  /// In en, this message translates to:
+  /// **'Now give each category its money: tap one, then Assign what’s planned gives it its plan’s amount.'**
+  String get phoneWalkAssign;
+
+  /// Phone's walkthrough band, the assign step, before any money is there to give out. date is the next payday.
+  ///
+  /// In en, this message translates to:
+  /// **'Your regular income is due {date}. Then tap a category, and Assign what’s planned gives it its money.'**
+  String phoneWalkAssignWait(String date);
+
+  /// Phone's walkthrough band, the assign step, before any money is there and with no regular income.
+  ///
+  /// In en, this message translates to:
+  /// **'When money comes in, tap a category, and Assign what’s planned gives it its money.'**
+  String get phoneWalkAssignNoPay;
+
+  /// Phone snack bar after That’s all my bills or That’s all my everyday spending on the walkthrough band, with Undo. step is the step's name, such as Bills.
+  ///
+  /// In en, this message translates to:
+  /// **'“{step}” done'**
+  String phoneWalkDone(String step);
+
+  /// Walkthrough band, the assign step, when more is assigned than there is (Not assigned below zero). Both computer and phone.
+  ///
+  /// In en, this message translates to:
+  /// **'You’ve assigned more than you have, as the sum above says. Take some back from a category, or wait for more money to come in.'**
+  String get walkAssignShort;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

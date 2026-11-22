@@ -15,6 +15,8 @@ import 'package:betterbudget/data/phone_ledger.dart';
 import 'package:betterbudget/data/phone_sync.dart';
 import 'package:betterbudget/data/problem_log.dart';
 import 'package:betterbudget/domain/budget.dart';
+import 'package:betterbudget/domain/setup.dart'
+    show SetupKeys, WalkKeys, WalkStep;
 import 'package:betterbudget/domain/budget_amounts.dart';
 import 'package:betterbudget/domain/combine.dart'
     show Ask, AskKind, AskLine, AskSide, Pick;
@@ -3063,6 +3065,172 @@ void main() {
       find.text('₮750,000 of ₮2,000,000 · ₮1,250,000 to go'),
       findsOneWidget,
     );
+  });
+
+  // The first steps after setup (#475), on the phone: a ledger set up on
+  // the computer since the walk was built, with money in the bank and a
+  // credit card owing.
+  Future<(AppDatabase, LedgerData, int)> walkLedger(
+    WidgetTester tester,
+  ) async => (await tester.runAsync(() async {
+    final db = AppDatabase(NativeDatabase.memory());
+    final bank = await db.createAccount(
+      name: 'TDB Checking',
+      type: AccountType.asset,
+    );
+    final card = await db.createAccount(
+      name: 'Golomt Visa',
+      type: AccountType.liability,
+    );
+    await db.postOpeningBalance(
+      accountId: bank,
+      date: _now,
+      balance: 100000000,
+    );
+    await db.postOpeningBalance(
+      accountId: card,
+      date: _now,
+      balance: -30000000,
+    );
+    await db.setPreference(SetupKeys.done, '1');
+    await db.setPreference(WalkKeys.started, dateKey(_now));
+    return (db, await db.loadLedger(), card);
+  }))!;
+
+  testWidgets('Budget: the first steps after setup take the step band’s '
+      'spot, one at a time, each passed with Undo (#475)', (tester) async {
+    var (db, data, _) = await walkLedger(tester);
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await _toBudget(tester);
+    expect(find.byKey(const ValueKey('walk-band')), findsOneWidget);
+    expect(find.byKey(const ValueKey('step-band')), findsNothing);
+    expect(
+      find.text(
+        'Start with the bills you pay on a set date, such as Rent, СӨХ or '
+        'a Storepay instalment.',
+      ),
+      findsOneWidget,
+    );
+    // The card's step is coming, so the bills' line says so.
+    expect(
+      find.text(
+        'Each one is a category with its date, so the forecast plans for it. '
+        'Credit card and loan payments come next.',
+      ),
+      findsOneWidget,
+    );
+    for (final s in ['bills', 'debts', 'dayToDay', 'assign']) {
+      expect(find.byKey(ValueKey('walk-step-$s')), findsOneWidget);
+    }
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_walk.png'),
+    );
+
+    // Not now is their own answer: said, with Undo.
+    await tester.tap(find.byKey(const ValueKey('walk-pass')));
+    await settle();
+    expect(data.prefs[WalkKeys.passed(WalkStep.bills)], 'yes');
+    expect(find.text('“Bills” skipped for now'), findsOneWidget);
+    expect(
+      find.text(
+        'Golomt Visa owes ₮300,000. Add the bill that pays it, so your '
+        'budget plans for the payment.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Undo'));
+    await settle();
+    expect(data.prefs[WalkKeys.passed(WalkStep.bills)], isNull);
+    expect(find.byKey(const ValueKey('walk-add-bill')), findsOneWidget);
+
+    // Bills, the card (that one only), day-to-day: with nothing planned
+    // there's nothing to assign, and the band is gone.
+    await tester.tap(find.byKey(const ValueKey('walk-pass')));
+    await settle();
+    await tester.tap(find.byKey(const ValueKey('walk-pass')));
+    await settle();
+    expect(
+      data.prefs.keys.where((k) => k.startsWith('walk.debt.')),
+      hasLength(1),
+    );
+    expect(data.prefs[WalkKeys.passed(WalkStep.debts)], isNull);
+    expect(
+      find.text('Then everyday spending, such as groceries and bus fare.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('walk-pass')));
+    await settle();
+    expect(find.byKey(const ValueKey('walk-band')), findsNothing);
+  });
+
+  testWidgets('Budget: the walk’s buttons open New category on its card; the '
+      'card’s bill has no Add another and comes in paying the card (#475)', (
+    tester,
+  ) async {
+    var (db, data, card) = await walkLedger(tester);
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    await _toBudget(tester);
+    await tester.tap(find.byKey(const ValueKey('walk-add-bill')));
+    await tester.pumpAndSettle();
+    // On the Bill card: its date is asked.
+    expect(find.byKey(const ValueKey('plan-date')), findsOneWidget);
+    expect(find.byKey(const ValueKey('new-category-another')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('new-category-cancel')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('walk-pass')));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Add the bill that pays Golomt Visa'), findsOneWidget);
+    // Not now's snack bar gone, so it doesn't cover the page's Add.
+    await tester.pump(phoneSnackTime + const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('walk-add-debt-bill')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('plan-date')), findsOneWidget);
+    expect(find.byKey(const ValueKey('new-category-another')), findsNothing);
+    await tester.enterText(
+      find.byKey(const ValueKey('new-category-name')),
+      'Card payment',
+    );
+    await tester.pumpAndSettle();
+    await _scrollTo(tester, const ValueKey('plan-amount'));
+    await tester.enterText(find.byKey(const ValueKey('plan-amount')), '50000');
+    await tester.tap(find.byKey(const ValueKey('plan-date')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('15'));
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await _paidFrom(tester);
+    await tester.tap(find.byKey(const ValueKey('new-category-add')));
+    await tester.pumpAndSettle();
+    final made = store.made.single;
+    expect(made.name, 'Card payment');
+    expect(made.paysLoan, card);
+    expect(made.type, CategoryType.bill);
   });
 
   testWidgets('Budget: with no ledger behind the figures (the preview), no '

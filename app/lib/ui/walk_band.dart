@@ -9,48 +9,22 @@ part of 'ledger_screen.dart';
 /// a quit comes back to it.
 class _WalkBand extends StatelessWidget {
   const _WalkBand({
-    required this.step,
-    required this.steps,
-    required this.bills,
-    required this.days,
-    required this.debt,
-    required this.cardsNext,
-    required this.waiting,
-    required this.nextPay,
+    required this.walk,
     required this.onAddBill,
     required this.onAddDay,
     required this.onAddDebtBill,
     required this.onPass,
   });
 
-  /// The step on screen, and every step named across the top, in order.
-  final WalkStep step;
-  final List<WalkStep> steps;
-
-  /// How many bills and day-to-day categories there are: once there's one,
-  /// the way past the step is That's all rather than Not now.
-  final int bills, days;
-
-  /// The credit card or loan the debts step is asking about, and what it
-  /// owes, as the bank shows it.
-  final ({AccountInfo account, int owes})? debt;
-
-  /// The credit cards and loans step comes after the bills: the bills'
-  /// line says so.
-  final bool cardsNext;
-
-  /// Nothing to give out yet: Assign waits for the income.
-  final bool waiting;
-
-  /// The next payday, when there's regular income.
-  final DateTime? nextPay;
+  /// Where the walk is: the step on screen and the ones around it.
+  final Walk walk;
 
   final VoidCallback onAddBill;
   final VoidCallback onAddDay;
   final ValueChanged<AccountInfo> onAddDebtBill;
 
   /// That's all, or Not now: [label] is what undo calls it.
-  final void Function(WalkStep step, String label) onPass;
+  final ValueChanged<String> onPass;
 
   String _name(Words t, WalkStep s) => switch (s) {
     WalkStep.bills => t.walkStepBills,
@@ -62,8 +36,10 @@ class _WalkBand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final Walk(:step, :steps, :bills, :days, :debt, :cardsNext, :waiting) =
+        walk;
+    final nextPay = walk.nextPay;
     final at = steps.indexOf(step);
-    final debt = this.debt;
     final (
       String sentence,
       String? why,
@@ -117,10 +93,12 @@ class _WalkBand extends StatelessWidget {
       // Assign what's planned is already above, under the sum: the
       // band points to it rather than putting a second one here.
       WalkStep.assign => (
-        !waiting
+        walk.short
+            ? t.walkAssignShort
+            : !waiting
             ? t.walkAssign
             : nextPay != null
-            ? t.walkAssignWait(sayDate(t, nextPay!))
+            ? t.walkAssignWait(sayDate(t, nextPay))
             : t.walkAssignNoPay,
         null,
         t.walkNotNow,
@@ -216,7 +194,7 @@ class _WalkBand extends StatelessWidget {
               BarButton(
                 key: const ValueKey('walk-pass'),
                 label: pass,
-                onTap: () => onPass(step, pass),
+                onTap: () => onPass(pass),
               ),
               if (add != null) ...[const SizedBox(width: 8), add],
             ],

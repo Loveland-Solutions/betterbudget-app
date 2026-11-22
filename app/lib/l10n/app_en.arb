@@ -12272,5 +12272,15 @@
   "walkAssignNoPay": "When money comes in, Assign what’s planned, above, gives each category its money.",
   "@walkAssignNoPay": {"description": "Walkthrough band, the assign step, before any money is there and with no regular income."},
   "setupHadMore": "That’s {amount} more than your accounts hold today, so your budget would start with money that isn’t there.",
-  "@setupHadMore": {"description": "Setup, Money you have: warning when Some of it is more than the accounts hold. amount is the difference.", "placeholders": {"amount": {"type": "String"}}}
+  "@setupHadMore": {"description": "Setup, Money you have: warning when Some of it is more than the accounts hold. amount is the difference.", "placeholders": {"amount": {"type": "String"}}},
+  "phoneWalkAssign": "Now give each category its money: tap one, then Assign what’s planned gives it its plan’s amount.",
+  "@phoneWalkAssign": {"description": "Phone's walkthrough band, the assign step. Assign what’s planned is in a category's open row on the phone, not above."},
+  "phoneWalkAssignWait": "Your regular income is due {date}. Then tap a category, and Assign what’s planned gives it its money.",
+  "@phoneWalkAssignWait": {"description": "Phone's walkthrough band, the assign step, before any money is there to give out. date is the next payday.", "placeholders": {"date": {"type": "String"}}},
+  "phoneWalkAssignNoPay": "When money comes in, tap a category, and Assign what’s planned gives it its money.",
+  "@phoneWalkAssignNoPay": {"description": "Phone's walkthrough band, the assign step, before any money is there and with no regular income."},
+  "phoneWalkDone": "“{step}” done",
+  "@phoneWalkDone": {"description": "Phone snack bar after That’s all my bills or That’s all my everyday spending on the walkthrough band, with Undo. step is the step's name, such as Bills.", "placeholders": {"step": {"type": "String"}}},
+  "walkAssignShort": "You’ve assigned more than you have, as the sum above says. Take some back from a category, or wait for more money to come in.",
+  "@walkAssignShort": {"description": "Walkthrough band, the assign step, when more is assigned than there is (Not assigned below zero). Both computer and phone."}
 }
