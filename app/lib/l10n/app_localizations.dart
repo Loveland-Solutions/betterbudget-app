@@ -10307,6 +10307,18 @@ abstract class Words {
   /// **'You picked {name} to pay extra on first, so neither way is marked. Click one to follow it instead.'**
   String planPlanPicked(String name);
 
+  /// Phone's Savings tab, step 2: under Extra each month, the button that opens smallest first and highest rate first side by side on a page
+  ///
+  /// In en, this message translates to:
+  /// **'Compare the two ways'**
+  String get phoneCompareWays;
+
+  /// Phone's Savings tab, step 2's two ways: when a debt was picked by hand with Pay extra on this one (the computer's says Click)
+  ///
+  /// In en, this message translates to:
+  /// **'You picked {name} to pay extra on first, so neither way is marked. Tap one to follow it instead.'**
+  String phonePlanPicked(String name);
+
   /// Savings page, step 2: some debts have no rate and are counted as costing nothing
   ///
   /// In en, this message translates to:

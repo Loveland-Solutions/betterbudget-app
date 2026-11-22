@@ -7428,6 +7428,14 @@ class WordsEn extends Words {
   }
 
   @override
+  String get phoneCompareWays => 'Compare the two ways';
+
+  @override
+  String phonePlanPicked(String name) {
+    return 'You picked $name to pay extra on first, so neither way is marked. Tap one to follow it instead.';
+  }
+
+  @override
   String planPlanNoRate(String names) {
     return 'No rate on $names, so the dates may come too early.';
   }

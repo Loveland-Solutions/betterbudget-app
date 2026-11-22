@@ -28,6 +28,7 @@ import '../domain/combine.dart' show Ask, Pick;
 import '../domain/forecast.dart' show ForecastSpan;
 import '../domain/ledger.dart'
     show
+        AccountRole,
         AccountType,
         BudgetAmount,
         CategoryPlan,
@@ -341,11 +342,13 @@ class PhoneSetSpan extends PhoneRowAct {
 /// `ready.*` preferences written together, as the computer's Savings page
 /// writes them, undone together. [aside] skips a step or brings it back,
 /// worked out from what's stored when it's written, so two quick taps both
-/// count.
+/// count. [role] marks what a card or loan counts as on step 2 (an account's
+/// role, null for debt to pay off).
 class PhoneSavingsAnswer extends PhoneRowAct {
-  const PhoneSavingsAnswer(this.values, {this.aside});
+  const PhoneSavingsAnswer(this.values, {this.aside, this.role});
   final Map<String, String?> values;
   final (ReadyStep, bool)? aside;
+  final (int, AccountRole?)? role;
 }
 
 /// An account added on the Accounts page (#529): its name, what it is,
@@ -1823,25 +1826,32 @@ Future<PhoneActed> actOnSavings(
   final before = <String, String?>{
     for (final key in values.keys) key: await db.preference(key),
   };
-  final changes = values.entries.any((e) => before[e.key] != e.value);
-  Future<void> write(Map<String, String?> v) async {
+  final role = act.role;
+  final roleWas = role == null
+      ? null
+      : (await db.loadLedger()).accounts[role.$1]?.role;
+  final changes =
+      values.entries.any((e) => before[e.key] != e.value) ||
+      (role != null && roleWas != role.$2);
+  Future<void> write(Map<String, String?> v, AccountRole? r) async {
     if (!changes) return;
     await db.transaction(() async {
       for (final e in v.entries) {
         await db.setPreference(e.key, e.value);
       }
+      if (role != null) await db.setAccountRole(role.$1, r);
     });
   }
 
-  await write(values);
+  await write(values, role?.$2);
   return (
     snapshot: await again(),
     undo: () async {
-      await write(before);
+      await write(before, roleWas);
       return again();
     },
     redo: () async {
-      await write(values);
+      await write(values, role?.$2);
       return again();
     },
   );

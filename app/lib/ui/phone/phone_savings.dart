@@ -476,6 +476,7 @@ class _SavingsStepPage extends StatelessWidget {
               key: ValueKey('savings-debt-${d.account.id}'),
               debt: d,
               r: r,
+              act: act,
             ),
           // What's done stays in sight while the rest is paid off.
           if (r.consumerDebts.isNotEmpty)
@@ -494,7 +495,10 @@ class _SavingsStepPage extends StatelessWidget {
                 key: ValueKey('savings-debt-${a.id}'),
                 debt: (account: a, owed: -data.balanceOf(a.id)),
                 r: r,
+                act: act,
               ),
+          if (r.consumerDebts.isNotEmpty)
+            _PhonePayoff(key: const ValueKey('savings-payoff'), r: r, act: act),
         ];
       case ReadyStep.future:
         final said = data.prefs[ReadyKeys.longLoans];
@@ -555,6 +559,7 @@ class _SavingsStepPage extends StatelessWidget {
                 key: ValueKey('savings-debt-${d.account.id}'),
                 debt: d,
                 r: r,
+                act: act,
               ),
             if (r.longLoans.isNotEmpty)
               _choices([
@@ -669,16 +674,22 @@ class _SavingsStepPage extends StatelessWidget {
 }
 
 /// A card or loan on a step: what's owed, its rate and what that costs a
-/// month, its payment, and the bar on the one getting the extra.
+/// month, its payment, and the bar on the one getting the extra. A debt to
+/// pay off opens its rate and its payment from their lines; its ⋯ pays
+/// extra on it and says what it counts as.
 class _PhoneDebtCard extends StatelessWidget {
   const _PhoneDebtCard({
     super.key,
     required this.debt,
     required this.r,
+    this.act,
     this.paidOff = false,
   });
   final Debt debt;
   final Readiness r;
+
+  /// Writes a change; null where nothing on the card changes anything.
+  final Future<void> Function(PhoneRowAct act, String said)? act;
 
   /// Paid off since the step's debts last owed nothing: kept in sight.
   final bool paidOff;
@@ -687,12 +698,16 @@ class _PhoneDebtCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final a = debt.account;
+    final c = CurrencyScope.of(context);
     String here(int v) => _saved(context, v);
+    final act = this.act;
     final consumer = r.consumerDebts.any((d) => d.account.id == a.id);
     final target = consumer && r.target?.account.id == a.id;
     final rate = r.rates[a.id];
     final pay = consumer ? r.payments[a.id] : null;
     final interest = consumer ? r.interestOf(debt) : null;
+    final lately = r.paidLately[a.id];
+    final typedHere = pay != null && pay.from == null;
     final carried = r.carriedSince[a.id];
     final most = r.mostOwed[a.id] ?? 0;
     final bar =
@@ -711,9 +726,21 @@ class _PhoneDebtCard extends StatelessWidget {
         ),
       ),
     );
+    final rateSaid = rate == null
+        ? null
+        : [
+            rateWords(t, rate),
+            if (interest != null)
+              t.planInterestAMonth(interestAbout(interest, c)),
+          ].join(' · ');
+    final paySaid = pay == null
+        ? null
+        : pay.from == null
+        ? t.planPays(here(pay.amount))
+        : t.planPaysFrom(here(pay.amount), pay.from!.name);
     return Container(
       margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      padding: const EdgeInsets.fromLTRB(14, 8, 4, 12),
       decoration: BoxDecoration(
         color: Mid.card,
         borderRadius: BorderRadius.circular(12),
@@ -723,8 +750,6 @@ class _PhoneDebtCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
             children: [
               Expanded(
                 child: Text(
@@ -742,67 +767,236 @@ class _PhoneDebtCard extends StatelessWidget {
                   debt.owed > 0 ? here(debt.owed) : t.planNothingOwed,
                   style: onest(15, tabular: true),
                 ),
+              if (act != null && !paidOff)
+                _DebtMenu(
+                  account: a,
+                  consumer: consumer,
+                  target: target,
+                  act: act,
+                )
+              else
+                const SizedBox(width: 10, height: 44),
             ],
           ),
-          if (!paidOff) ...[
-            if (consumer && rate != null)
-              dim(
-                [
-                  rateWords(t, rate),
-                  if (interest != null)
-                    t.planInterestAMonth(
-                      interestAbout(interest, CurrencyScope.of(context)),
+          if (!paidOff)
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (consumer && act != null)
+                    _PhoneRateField(
+                      key: ValueKey('savings-debt-${a.id}-rate-open'),
+                      debt: debt,
+                      r: r,
+                      act: act,
+                      opener: (open) => _CardLink(
+                        key: ValueKey('savings-debt-${a.id}-rate'),
+                        label: rateSaid ?? t.planRateAdd,
+                        empty: rate == null,
+                        onTap: open,
+                      ),
+                    )
+                  else if (consumer && rateSaid != null)
+                    dim(rateSaid, key: ValueKey('savings-debt-${a.id}-rate')),
+                  if (!consumer)
+                    dim(switch (a.role) {
+                      AccountRole.mortgage => t.planRoleMortgage,
+                      AccountRole.paidMonthly => t.planRolePaidMonthly,
+                      _ => t.planRoleConsumer,
+                    }),
+                  if (consumer && act != null)
+                    _PhoneAmountField(
+                      name: 'savings-debt-${a.id}-pay',
+                      currency: a.currency,
+                      start: typedHere
+                          ? _typedAmount(pay.amount, a.currency)
+                          : '',
+                      hint: pay == null
+                          ? ''
+                          : formatWhole(pay.amount, a.currency),
+                      wrongText: t.planPayWrong,
+                      notes: [
+                        if (lately != null) t.planPayLately(here(lately)),
+                        if (typedHere) t.planPayEmptyToRemove,
+                      ],
+                      extra: lately == null
+                          ? null
+                          : (use) => [
+                              _OutlineButton(
+                                key: ValueKey(
+                                  'savings-debt-${a.id}-pay-lately',
+                                ),
+                                label: t.planPayUse(here(lately)),
+                                onTap: () => use(lately),
+                              ),
+                            ],
+                      opener: (open) => _CardLink(
+                        key: ValueKey('savings-debt-${a.id}-pay'),
+                        label: paySaid ?? t.planPayAdd,
+                        empty: pay == null,
+                        onTap: open,
+                      ),
+                      onSave: (v) {
+                        if (v == null) {
+                          if (typedHere) {
+                            unawaited(
+                              act(
+                                PhoneSavingsAnswer({ReadyKeys.pay(a.id): null}),
+                                t.planPayRemoved(a.name),
+                              ),
+                            );
+                          }
+                        } else if (!(typedHere && pay.amount == v)) {
+                          unawaited(
+                            act(
+                              PhoneSavingsAnswer({ReadyKeys.pay(a.id): '$v'}),
+                              t.planPaySet(a.name, here(v)),
+                            ),
+                          );
+                        }
+                      },
+                    )
+                  else if (paySaid != null)
+                    dim(paySaid, key: ValueKey('savings-debt-${a.id}-pay')),
+                  // A mark, not a link: a tag beside the blue links above.
+                  if (target)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Mid.blueWash,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          t.planPayExtraHere,
+                          key: ValueKey('savings-debt-${a.id}-is-target'),
+                          style: onest(13, weight: 600, color: Mid.blue),
+                        ),
+                      ),
                     ),
-                ].join(' · '),
-                key: ValueKey('savings-debt-${a.id}-rate'),
+                  if (pay != null && interest != null && pay.amount <= interest)
+                    dim(
+                      onlyInterestSays(
+                        t,
+                        below: pay.amount < interest,
+                        behind: behind,
+                        amount: here(pay.amount),
+                      ),
+                      color: Mid.ink,
+                    ),
+                  if (bar) ...[
+                    const SizedBox(height: 8),
+                    StepBar(
+                      value: r.paidOffOf(debt) / most,
+                      done: false,
+                      muted: false,
+                      width: null,
+                    ),
+                    dim(
+                      t.planPaidOffOf(here(r.paidOffOf(debt)), here(most)),
+                      key: ValueKey('savings-debt-${a.id}-progress'),
+                    ),
+                  ],
+                  if (carried != null)
+                    dim(t.planCarried(sayFullDate(t, carried)), color: Mid.ink),
+                  if (consumer && r.looksPaidInFull.contains(a.id))
+                    dim(t.planLooksPaidInFull),
+                ],
               ),
-            if (!consumer)
-              dim(switch (a.role) {
-                AccountRole.mortgage => t.planRoleMortgage,
-                AccountRole.paidMonthly => t.planRolePaidMonthly,
-                _ => t.planRoleConsumer,
-              }),
-            if (pay != null)
-              dim(
-                pay.from == null
-                    ? t.planPays(here(pay.amount))
-                    : t.planPaysFrom(here(pay.amount), pay.from!.name),
-                key: ValueKey('savings-debt-${a.id}-pay'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A debt's ⋯: pay extra on it first, and what it counts as, the one it
+/// is ticked.
+class _DebtMenu extends StatelessWidget {
+  const _DebtMenu({
+    required this.account,
+    required this.consumer,
+    required this.target,
+    required this.act,
+  });
+  final AccountInfo account;
+  final bool consumer;
+  final bool target;
+  final Future<void> Function(PhoneRowAct act, String said) act;
+
+  /// A student loan marked under the six steps is debt to pay off already.
+  static AccountRole? _counted(AccountRole? r) =>
+      r == AccountRole.studentLoan ? null : r;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final a = account;
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: PopupMenuButton<Object>(
+        key: ValueKey('savings-debt-${a.id}-menu'),
+        color: Mid.raised,
+        padding: EdgeInsets.zero,
+        icon: Icon(Icons.more_horiz_rounded, color: Mid.ink2),
+        onSelected: (picked) {
+          if (picked == true) {
+            unawaited(
+              act(
+                PhoneSavingsAnswer({ReadyKeys.target: '${a.id}'}),
+                t.planPayingExtraOn(a.name),
               ),
-            if (target)
-              dim(
-                t.planPayExtraHere,
-                key: ValueKey('savings-debt-${a.id}-is-target'),
-                color: Mid.blue,
+            );
+            return;
+          }
+          final role = picked is AccountRole ? picked : null;
+          if (_counted(a.role) == role) return;
+          unawaited(
+            act(
+              PhoneSavingsAnswer(const {}, role: (a.id, role)),
+              switch (role) {
+                AccountRole.mortgage => t.planCountsAsMortgage(a.name),
+                AccountRole.paidMonthly => t.planCountsAsPaidMonthly(a.name),
+                _ => t.planCountsAsConsumer(a.name),
+              },
+            ),
+          );
+        },
+        itemBuilder: (_) => [
+          if (consumer && !target)
+            PopupMenuItem<Object>(
+              key: ValueKey('savings-debt-${a.id}-target'),
+              value: true,
+              child: Text(t.planPayExtraOnThis, style: onest(16)),
+            ),
+          for (final (role, label) in [
+            (null, t.planRoleConsumer),
+            (AccountRole.paidMonthly, t.planRolePaidMonthly),
+            (AccountRole.mortgage, t.planRoleMortgage),
+          ])
+            PopupMenuItem<Object>(
+              key: ValueKey('savings-debt-${a.id}-${role?.name ?? 'consumer'}'),
+              // A menu item's value can't be null: "debt to pay off" is
+              // said by false.
+              value: role ?? false,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 28,
+                    child: _counted(a.role) == role
+                        ? Icon(Icons.check_rounded, size: 18, color: Mid.blue)
+                        : null,
+                  ),
+                  Flexible(child: Text(label, style: onest(16))),
+                ],
               ),
-            if (pay != null && interest != null && pay.amount <= interest)
-              dim(
-                onlyInterestSays(
-                  t,
-                  below: pay.amount < interest,
-                  behind: behind,
-                  amount: here(pay.amount),
-                ),
-                color: Mid.ink,
-              ),
-            if (bar) ...[
-              const SizedBox(height: 8),
-              StepBar(
-                value: r.paidOffOf(debt) / most,
-                done: false,
-                muted: false,
-                width: null,
-              ),
-              dim(
-                t.planPaidOffOf(here(r.paidOffOf(debt)), here(most)),
-                key: ValueKey('savings-debt-${a.id}-progress'),
-              ),
-            ],
-            if (carried != null)
-              dim(t.planCarried(sayFullDate(t, carried)), color: Mid.ink),
-            if (consumer && r.looksPaidInFull.contains(a.id))
-              dim(t.planLooksPaidInFull),
-          ],
+            ),
         ],
       ),
     );
@@ -951,17 +1145,227 @@ class _SavingsChoice extends StatelessWidget {
 }
 
 /// A month of expenses: a button that opens a field for one typed over the
-/// budget's, Save and Cancel under it; empty goes back to the budget's.
-class _PhoneMonthField extends StatefulWidget {
+/// budget's; empty goes back to the budget's.
+class _PhoneMonthField extends StatelessWidget {
   const _PhoneMonthField({super.key, required this.r, required this.act});
   final Readiness r;
   final Future<void> Function(PhoneRowAct act, String said) act;
 
   @override
-  State<_PhoneMonthField> createState() => _PhoneMonthFieldState();
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final m = r.month;
+    final c = CurrencyScope.of(context);
+    return _PhoneAmountField(
+      name: 'savings-month',
+      currency: c,
+      start: m.typed ? _typedAmount(m.amount, c) : '',
+      hint: m.amount == 0 ? t.planMonthHint : formatWhole(m.amount, c),
+      wrongText: t.planMonthWrong,
+      notes: [if (m.typed) t.planEmptyToAverage],
+      opener: (open) => _OutlineButton(
+        key: const ValueKey('savings-month-edit'),
+        label: m.amount == 0
+            ? t.planTypeMonth
+            : m.typed
+            ? t.planChangeMonth
+            : t.planTypeOwnMonth,
+        onTap: open,
+      ),
+      onSave: (v) {
+        if (v == null) {
+          if (m.typed) {
+            unawaited(
+              act(
+                const PhoneSavingsAnswer({ReadyKeys.month: null}),
+                t.planMonthBackToAverage,
+              ),
+            );
+          }
+          return;
+        }
+        unawaited(
+          act(
+            // With its currency, so it can't turn into dollars when Savings
+            // does.
+            PhoneSavingsAnswer({ReadyKeys.month: '${c.code}:$v'}),
+            t.planMonthSet(formatShort(v, currency: c)),
+          ),
+        );
+      },
+    );
+  }
 }
 
-class _PhoneMonthFieldState extends State<_PhoneMonthField> {
+/// An amount as it's typed back into a field: whole units, and the cents
+/// when it has any, so Save on it saves what was there.
+String _typedAmount(int minor, Currency c) =>
+    '${formatWhole(minor, c)}${c.hasCents(minor) ? formatCents(minor, c) : ''}';
+
+/// A blue outlined button, 44 tall.
+class _OutlineButton extends StatelessWidget {
+  const _OutlineButton({super.key, required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 44),
+        side: BorderSide(color: Mid.blue, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Text(label, style: onest(15, weight: 600, color: Mid.blue)),
+    ),
+  );
+}
+
+/// A link on a card that opens a field: blue while there's nothing yet,
+/// the figure itself once there is.
+class _CardLink extends StatelessWidget {
+  const _CardLink({
+    super.key,
+    required this.label,
+    required this.empty,
+    required this.onTap,
+  });
+  final String label;
+  final bool empty;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(6),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 36),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          label,
+          style: onest(
+            13.5,
+            color: empty ? Mid.blue : Mid.ink2,
+            height: 1.35,
+            tabular: true,
+          ).copyWith(decoration: empty ? null : TextDecoration.underline),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Cancel and Save, side by side, under a field.
+class _CancelSave extends StatelessWidget {
+  const _CancelSave({
+    required this.name,
+    required this.onCancel,
+    required this.onSave,
+  });
+  final String name;
+  final VoidCallback onCancel;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            key: ValueKey('$name-cancel'),
+            onPressed: onCancel,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 48),
+              side: BorderSide(color: Mid.rule),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(t.setupCancel, style: onest(15, color: Mid.ink2)),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: FilledButton(
+            key: ValueKey('$name-save'),
+            onPressed: onSave,
+            style: FilledButton.styleFrom(
+              backgroundColor: Mid.blue,
+              minimumSize: const Size(0, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              t.planSave,
+              style: onest(15, weight: 600, color: Mid.ground),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+InputDecoration _fieldLook({
+  String? hint,
+  required bool wrong,
+  String? suffix,
+}) {
+  final edge = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: wrong ? Mid.coral : Mid.rule),
+  );
+  return InputDecoration(
+    hintText: hint,
+    suffixText: suffix,
+    filled: true,
+    fillColor: Mid.card,
+    border: edge,
+    enabledBorder: edge,
+  );
+}
+
+/// What [opener] shows until tapped, then an amount's field with lines
+/// under it ([notes], [extra]) and Cancel and Save. [onSave] gets null for
+/// an empty field; something that isn't an amount above zero is said under
+/// it and nothing is saved.
+class _PhoneAmountField extends StatefulWidget {
+  const _PhoneAmountField({
+    required this.name,
+    required this.currency,
+    required this.start,
+    required this.hint,
+    required this.wrongText,
+    required this.opener,
+    required this.onSave,
+    this.notes = const [],
+    this.extra,
+  });
+
+  /// Names the field's keys: `name-field`, `name-save`, `name-cancel`,
+  /// `name-wrong`.
+  final String name;
+  final Currency currency;
+  final String start;
+  final String hint;
+  final String wrongText;
+  final Widget Function(VoidCallback open) opener;
+  final ValueChanged<int?> onSave;
+  final List<String> notes;
+
+  /// Buttons under the field that save an amount of their own (Use ₮150,000).
+  final List<Widget> Function(ValueChanged<int> use)? extra;
+
+  @override
+  State<_PhoneAmountField> createState() => _PhoneAmountFieldState();
+}
+
+class _PhoneAmountFieldState extends State<_PhoneAmountField> {
   TextEditingController? _typed;
   var _wrong = false;
 
@@ -971,18 +1375,127 @@ class _PhoneMonthFieldState extends State<_PhoneMonthField> {
     super.dispose();
   }
 
-  void _open() {
-    final m = widget.r.month;
-    final c = CurrencyScope.of(context);
-    setState(() {
-      _wrong = false;
-      _typed = TextEditingController(
-        text: m.typed
-            ? '${formatWhole(m.amount, c)}${c.hasCents(m.amount) ? formatCents(m.amount, c) : ''}'
-            : '',
-      );
-    });
+  void _open() => setState(() {
+    _wrong = false;
+    _typed = TextEditingController(text: widget.start);
+  });
+
+  void _close() {
+    final gone = _typed;
+    setState(() => _typed = null);
+    WidgetsBinding.instance.addPostFrameCallback((_) => gone?.dispose());
   }
+
+  void _use(int v) {
+    widget.onSave(v);
+    _close();
+  }
+
+  void _save() {
+    final text = _typed!.text.trim();
+    if (text.isEmpty) {
+      widget.onSave(null);
+      return _close();
+    }
+    final v = parseAmount(text, widget.currency);
+    if (v == null || v <= 0) return setState(() => _wrong = true);
+    _use(v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final typed = _typed;
+    if (typed == null) return widget.opener(_open);
+    final name = widget.name;
+    final extra = widget.extra?.call(_use) ?? const [];
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            key: ValueKey('$name-field'),
+            controller: typed,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: [GroupedAmount(widget.currency)],
+            style: onest(17, tabular: true),
+            onSubmitted: (_) => _save(),
+            onChanged: (_) {
+              if (_wrong) setState(() => _wrong = false);
+            },
+            decoration: _fieldLook(hint: widget.hint, wrong: _wrong),
+          ),
+          if (_wrong)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                widget.wrongText,
+                key: ValueKey('$name-wrong'),
+                style: onest(14, color: Mid.coral),
+              ),
+            ),
+          for (final note in widget.notes)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(note, style: onest(13.5, color: Mid.ink2)),
+            ),
+          if (extra.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(spacing: 8, runSpacing: 8, children: extra),
+            ),
+          const SizedBox(height: 10),
+          _CancelSave(name: name, onCancel: _close, onSave: _save),
+        ],
+      ),
+    );
+  }
+}
+
+/// A debt's interest rate: what [opener] shows until tapped, then the
+/// field, a month's or a year's, the tip's words, and Cancel and Save. A
+/// rate that looks typed under the wrong period is said with its numbers,
+/// and saved as typed all the same.
+class _PhoneRateField extends StatefulWidget {
+  const _PhoneRateField({
+    super.key,
+    required this.debt,
+    required this.r,
+    required this.act,
+    required this.opener,
+  });
+  final Debt debt;
+  final Readiness r;
+  final Future<void> Function(PhoneRowAct act, String said) act;
+  final Widget Function(VoidCallback open) opener;
+
+  @override
+  State<_PhoneRateField> createState() => _PhoneRateFieldState();
+}
+
+class _PhoneRateFieldState extends State<_PhoneRateField> {
+  TextEditingController? _typed;
+  var _perYear = false;
+  var _wrong = false;
+
+  AccountInfo get _a => widget.debt.account;
+  DebtRate? get _had => widget.r.rates[_a.id];
+
+  @override
+  void dispose() {
+    _typed?.dispose();
+    super.dispose();
+  }
+
+  void _open() => setState(() {
+    final had = _had;
+    _wrong = false;
+    _perYear = had?.perYear ?? ratePerYearFor(_a.currency);
+    _typed = TextEditingController(
+      text: had == null ? '' : ratePercent(had.percent),
+    );
+  });
 
   void _close() {
     final gone = _typed;
@@ -992,147 +1505,555 @@ class _PhoneMonthFieldState extends State<_PhoneMonthField> {
 
   void _save() {
     final t = context.t;
-    final c = CurrencyScope.of(context);
-    final m = widget.r.month;
+    final had = _had;
     final text = _typed!.text.trim();
     if (text.isEmpty) {
-      if (m.typed) {
+      if (had != null) {
         unawaited(
           widget.act(
-            const PhoneSavingsAnswer({ReadyKeys.month: null}),
-            t.planMonthBackToAverage,
+            PhoneSavingsAnswer({ReadyKeys.rate(_a.id): null}),
+            t.planRateRemoved(_a.name),
           ),
         );
       }
       return _close();
     }
-    final v = parseAmount(text, c);
-    if (v == null || v <= 0) return setState(() => _wrong = true);
-    unawaited(
-      widget.act(
-        // With its currency, so it can't turn into dollars when Savings does.
-        PhoneSavingsAnswer({ReadyKeys.month: '${c.code}:$v'}),
-        t.planMonthSet(formatShort(v, currency: c)),
-      ),
-    );
+    final percent = parseRatePercent(text);
+    if (percent == null) return setState(() => _wrong = true);
+    final DebtRate rate = (percent: percent, perYear: _perYear);
+    if (had?.value != rate.value) {
+      unawaited(
+        widget.act(
+          PhoneSavingsAnswer({ReadyKeys.rate(_a.id): rate.value}),
+          t.planRateSet(_a.name, rateWords(t, rate)),
+        ),
+      );
+    }
     _close();
+  }
+
+  String? _warning(Words t) {
+    final percent = parseRatePercent(_typed!.text);
+    if (percent == null) return null;
+    final DebtRate r = (percent: percent, perYear: _perYear);
+    final typed = ratePercent(percent);
+    if (rateLooksYearly(r)) {
+      return t.planRateLooksYearly(typed, ratePercent(percent * 12));
+    }
+    if (rateLooksMonthly(r, _a.currency)) {
+      return t.planRateLooksMonthly(typed, ratePercent(percent / 12));
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final m = widget.r.month;
-    final c = CurrencyScope.of(context);
     final typed = _typed;
-    if (typed == null) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: OutlinedButton(
-          key: const ValueKey('savings-month-edit'),
-          onPressed: _open,
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(0, 44),
-            side: BorderSide(color: Mid.blue, width: 1.5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+    if (typed == null) return widget.opener(_open);
+    final id = _a.id;
+    final warning = _warning(t);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 110,
+                child: TextField(
+                  key: ValueKey('savings-debt-$id-rate-field'),
+                  controller: typed,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textAlign: TextAlign.right,
+                  style: onest(17, tabular: true),
+                  onSubmitted: (_) => _save(),
+                  onChanged: (_) => setState(() => _wrong = false),
+                  decoration: _fieldLook(wrong: _wrong, suffix: '%'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final year in [false, true])
+                      _SavingsChoice(
+                        key: ValueKey(
+                          'savings-debt-$id-rate-${year ? 'year' : 'month'}',
+                        ),
+                        label: year ? t.planRatePerYear : t.planRatePerMonth,
+                        on: _perYear == year,
+                        onTap: () => setState(() => _perYear = year),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (_wrong)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                t.planRateWrong,
+                key: ValueKey('savings-debt-$id-rate-wrong'),
+                style: onest(14, color: Mid.coral),
+              ),
+            ),
+          if (warning != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                warning,
+                key: ValueKey('savings-debt-$id-rate-warning'),
+                style: onest(13.5, color: Mid.ink, height: 1.4),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              t.planRateTip,
+              style: onest(13.5, color: Mid.ink2, height: 1.4),
             ),
           ),
-          child: Text(
-            m.amount == 0
-                ? t.planTypeMonth
-                : m.typed
-                ? t.planChangeMonth
-                : t.planTypeOwnMonth,
-            style: onest(15, weight: 600, color: Mid.blue),
+          if (_had != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                t.planRateEmptyToRemove,
+                style: onest(13.5, color: Mid.ink2),
+              ),
+            ),
+          const SizedBox(height: 10),
+          _CancelSave(
+            name: 'savings-debt-$id-rate',
+            onCancel: _close,
+            onSave: _save,
           ),
-        ),
-      );
-    }
+        ],
+      ),
+    );
+  }
+}
+
+/// Under step 2's debts: Extra each month, then the way being followed and
+/// Compare the two ways; or what is still needed to say when it's all paid
+/// off. The computer's lines under its two cards follow.
+class _PhonePayoff extends StatelessWidget {
+  const _PhonePayoff({super.key, required this.r, required this.act});
+  final Readiness r;
+  final Future<void> Function(PhoneRowAct act, String said) act;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final c = CurrencyScope.of(context);
+    String here(int v) => _saved(context, v);
+    Widget note(String text, {Key? key, Color? color}) => Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Text(
+        text,
+        key: key,
+        style: onest(14, color: color ?? Mid.ink2, height: 1.4, tabular: true),
+      ),
+    );
+    final extra = r.extra;
+    final missing = r.missingPayments;
+    final small = r.payoff(PayoffMethod.smallest);
+    final rate = r.payoff(PayoffMethod.highestRate);
+    final rated = r.consumerDebts.length - r.missingRates.length;
+    final both = small != null && rate != null && r.methodsDiffer;
+    final dated = small != null && small.months != null;
+    final netFirst =
+        dated &&
+        extra > 0 &&
+        !r.isDone(ReadyStep.oneMonth) &&
+        !r.setAside.contains(ReadyStep.oneMonth);
+    final followed = r.method;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          key: const ValueKey('savings-month-field'),
-          controller: typed,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: [GroupedAmount(c)],
-          style: onest(17, tabular: true),
-          onSubmitted: (_) => _save(),
-          onChanged: (_) {
-            if (_wrong) setState(() => _wrong = false);
-          },
-          decoration: InputDecoration(
-            hintText: m.amount == 0
-                ? t.planMonthHint
-                : formatWhole(m.amount, c),
-            filled: true,
-            fillColor: Mid.card,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: _wrong ? Mid.coral : Mid.rule),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: _wrong ? Mid.coral : Mid.rule),
-            ),
-          ),
-        ),
-        if (_wrong)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              t.planMonthWrong,
-              key: const ValueKey('savings-month-wrong'),
-              style: onest(14, color: Mid.coral),
-            ),
-          ),
-        if (m.typed)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              t.planEmptyToAverage,
-              style: onest(13.5, color: Mid.ink2),
-            ),
-          ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                key: const ValueKey('savings-month-cancel'),
-                onPressed: _close,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 48),
-                  side: BorderSide(color: Mid.rule),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+        const SizedBox(height: 16),
+        _PhoneAmountField(
+          name: 'savings-extra',
+          currency: c,
+          start: extra > 0 ? _typedAmount(extra, c) : '',
+          hint: '',
+          wrongText: t.planPayWrong,
+          notes: [if (extra > 0) t.planExtraEmptyToRemove],
+          opener: (open) => Row(
+            children: [
+              Expanded(
+                child: Text(
+                  t.planExtraLabel,
+                  style: onest(14, color: Mid.ink2, height: 1.35),
                 ),
-                child: Text(t.setupCancel, style: onest(15, color: Mid.ink2)),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: FilledButton(
-                key: const ValueKey('savings-month-save'),
-                onPressed: _save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Mid.blue,
-                  minimumSize: const Size(0, 48),
+              const SizedBox(width: 10),
+              OutlinedButton(
+                key: const ValueKey('savings-extra-edit'),
+                onPressed: open,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 44),
+                  side: BorderSide(color: Mid.blue, width: 1.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: Text(
-                  t.planSave,
-                  style: onest(15, weight: 600, color: Mid.ground),
+                  extra > 0 ? here(extra) : t.planExtraNone,
+                  style: onest(15, weight: 600, color: Mid.blue, tabular: true),
+                ),
+              ),
+            ],
+          ),
+          onSave: (v) {
+            if (v == null) {
+              if (extra > 0) {
+                unawaited(
+                  act(
+                    const PhoneSavingsAnswer({ReadyKeys.extra: null}),
+                    t.planExtraRemoved,
+                  ),
+                );
+              }
+            } else if (v != extra) {
+              unawaited(
+                act(
+                  // With its currency, as the month of expenses is kept.
+                  PhoneSavingsAnswer({ReadyKeys.extra: '${c.code}:$v'}),
+                  t.planExtraSet(here(v)),
+                ),
+              );
+            }
+          },
+        ),
+        if (missing.isNotEmpty)
+          note(
+            t.planPlanNeedsPay(namesAnd(t, missing.map((d) => d.account.name))),
+            key: const ValueKey('savings-payoff-needs-pay'),
+          )
+        else if (both) ...[
+          const SizedBox(height: 12),
+          // The way followed, as its card on the Compare page reads; a debt
+          // picked by hand is neither way, said instead.
+          if (r.picked == null)
+            _PhoneWayCard(
+              method: followed,
+              plan: followed == PayoffMethod.smallest ? small : rate,
+              gap: (small.interest - rate.interest).abs(),
+              r: r,
+            )
+          else
+            note(
+              t.phonePlanPicked(r.picked!.account.name),
+              key: const ValueKey('savings-payoff-picked'),
+            ),
+          const SizedBox(height: 10),
+          _OutlineButton(
+            key: const ValueKey('savings-compare'),
+            label: t.phoneCompareWays,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => _ComparePage(
+                  store: _storeOf(context),
+                  currency: c,
+                  act: act,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ] else if (small != null)
+          note(
+            small.months == null
+                ? t.planPlanNever
+                : small.interest > 0
+                ? t.planPlanOne(
+                    payoffMonth(t, r, small.months!),
+                    interestAbout(small.interest, c),
+                  )
+                : t.planPlanOneNoInterest(payoffMonth(t, r, small.months!)),
+            key: const ValueKey('savings-payoff-one'),
+            color: Mid.ink,
+          ),
+        if (missing.isEmpty && !both && rated < 2 && r.consumerDebts.length > 1)
+          note(
+            t.planPlanNeedRates,
+            key: const ValueKey('savings-payoff-need-rates'),
+          ),
+        ..._payoffNotes(t, c, r, netFirst: netFirst, note: note),
       ],
+    );
+  }
+}
+
+/// The lines under the two ways, on the step and on the Compare page:
+/// a card spent on lately, the safety net first, goals out of the extra,
+/// debts with no rate, and what the dates assume.
+List<Widget> _payoffNotes(
+  Words t,
+  Currency c,
+  Readiness r, {
+  required bool netFirst,
+  required Widget Function(String text, {Key? key, Color? color}) note,
+}) {
+  String here(int v) => formatShort(v, currency: c);
+  final missing = r.missingPayments;
+  final rated = r.consumerDebts.length - r.missingRates.length;
+  return [
+    if (missing.isEmpty)
+      for (final d in r.debtsInOrder)
+        if (r.chargedLately[d.account.id] case final v?)
+          note(
+            t.planPlanCharged(here(v), d.account.name),
+            key: ValueKey('savings-payoff-charged-${d.account.id}'),
+            color: Mid.ink,
+          ),
+    if (netFirst)
+      note(
+        t.planPlanNetFirst,
+        key: const ValueKey('savings-payoff-net-first'),
+        color: Mid.ink,
+      ),
+    if (r.extra > 0)
+      if (goalsAskOf(r, c) case (final asks, final name)?)
+        note(
+          name == null
+              ? t.goalsFromExtraMany(here(asks))
+              : t.goalsFromExtraOne(here(asks), name),
+          key: const ValueKey('savings-payoff-goals'),
+          color: Mid.ink,
+        ),
+    if (missing.isEmpty && r.missingRates.isNotEmpty && rated > 0)
+      note(
+        t.planPlanNoRate(
+          namesAnd(t, r.missingRates.map((d) => d.account.name)),
+        ),
+      ),
+    if (missing.isEmpty)
+      Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(t.planPlanAssume, style: onest(13, color: Mid.ink2)),
+      ),
+  ];
+}
+
+/// The phone's store, from the Savings tab above.
+PhoneStore _storeOf(BuildContext context) =>
+    context.findAncestorStateOfType<_SavingsScreenState>()!.widget.store;
+
+/// One way: when everything is paid off, about how much interest, which
+/// goes first. [onTap] picks it; the one followed is outlined and ticked.
+class _PhoneWayCard extends StatelessWidget {
+  const _PhoneWayCard({
+    required this.method,
+    required this.plan,
+    required this.gap,
+    required this.r,
+    this.onTap,
+  });
+  final PayoffMethod method;
+  final PayoffPlan plan;
+
+  /// The two ways' difference in interest, which the figure is said to.
+  final int gap;
+  final Readiness r;
+  final VoidCallback? onTap;
+
+  String _name(int id) =>
+      r.consumerDebts.firstWhere((d) => d.account.id == id).account.name;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final c = CurrencyScope.of(context);
+    final on = r.method == method && r.picked == null;
+    final order = r.orderOf(method);
+    final first = plan.firstIn(order);
+    // The first paid off may go by its own payments while the extra goes
+    // to another: that one is named too (budget review).
+    final extraTo = first != null && order.first != first.id
+        ? _name(order.first)
+        : null;
+    Widget line(String text) => Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(text, style: onest(14, color: Mid.ink2, tabular: true)),
+    );
+    return Semantics(
+      selected: on,
+      button: onTap != null,
+      child: Material(
+        color: on ? Mid.blueWash : Mid.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: on ? Mid.blue : Mid.rule, width: on ? 2 : 1),
+        ),
+        child: InkWell(
+          key: ValueKey('savings-way-${method.name}'),
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      on
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      size: 20,
+                      color: on ? Mid.blue : Mid.ink2,
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        method == PayoffMethod.smallest
+                            ? t.planMethodSmallest
+                            : t.planMethodRate,
+                        style: onest(15.5, weight: 600),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  plan.months == null
+                      ? t.planPlanNever
+                      : t.planPlanDone(payoffMonth(t, r, plan.months!)),
+                  style: onest(15, tabular: true),
+                ),
+                if (plan.months != null)
+                  line(
+                    t.planPlanInterest(payoffInterest(plan.interest, gap, c)),
+                  ),
+                if (first != null)
+                  line(
+                    t.planPlanFirst(
+                      _name(first.id),
+                      payoffMonth(t, r, first.month),
+                    ),
+                  ),
+                if (extraTo != null) line(t.planPlanExtraTo(extraTo)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Compare the two ways: both cards, one under the other, a tap on one
+/// following it; what differs said under them.
+class _ComparePage extends StatelessWidget {
+  const _ComparePage({
+    required this.store,
+    required this.currency,
+    required this.act,
+  });
+  final PhoneStore store;
+  final Currency currency;
+  final Future<void> Function(PhoneRowAct act, String said) act;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Scaffold(
+      backgroundColor: Mid.ground,
+      appBar: AppBar(
+        backgroundColor: Mid.ground,
+        foregroundColor: Mid.ink,
+        title: Text(t.phoneCompareWays, style: onest(19, weight: 600)),
+      ),
+      body: CurrencyScope(
+        currency: currency,
+        child: ListenableBuilder(
+          listenable: store,
+          builder: (context, _) {
+            final r = _readinessFor(store.snapshot);
+            final small = r?.payoff(PayoffMethod.smallest);
+            final rate = r?.payoff(PayoffMethod.highestRate);
+            // The two ways no longer differ (a debt paid off meanwhile):
+            // nothing to compare, and the step says what's left.
+            if (r == null ||
+                small == null ||
+                rate == null ||
+                !r.methodsDiffer) {
+              return const SizedBox.shrink();
+            }
+            final gap = (small.interest - rate.interest).abs();
+            final difference = payoffDifference(t, currency, r, small, rate);
+            Widget note(String text, {Key? key, Color? color}) => Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                text,
+                key: key,
+                style: onest(
+                  14.5,
+                  color: color ?? Mid.ink2,
+                  height: 1.4,
+                  tabular: true,
+                ),
+              ),
+            );
+            final dated = small.months != null;
+            final netFirst =
+                dated &&
+                r.extra > 0 &&
+                !r.isDone(ReadyStep.oneMonth) &&
+                !r.setAside.contains(ReadyStep.oneMonth);
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              children: [
+                for (final m in PayoffMethod.values) ...[
+                  if (m != PayoffMethod.values.first)
+                    const SizedBox(height: 12),
+                  _PhoneWayCard(
+                    method: m,
+                    plan: m == PayoffMethod.smallest ? small : rate,
+                    gap: gap,
+                    r: r,
+                    onTap: () {
+                      if (r.method == m && r.picked == null) return;
+                      final smallest = m == PayoffMethod.smallest;
+                      unawaited(
+                        act(
+                          PhoneSavingsAnswer({
+                            ReadyKeys.method: smallest ? null : 'rate',
+                            ReadyKeys.target: null,
+                          }),
+                          smallest
+                              ? t.planMethodSmallestUndo
+                              : t.planMethodRateUndo,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+                if (difference.isNotEmpty)
+                  note(
+                    difference,
+                    key: const ValueKey('savings-payoff-difference'),
+                    color: Mid.ink,
+                  ),
+                if (r.picked != null)
+                  note(
+                    t.phonePlanPicked(r.picked!.account.name),
+                    key: const ValueKey('savings-compare-picked'),
+                  ),
+                ..._payoffNotes(t, currency, r, netFirst: netFirst, note: note),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }

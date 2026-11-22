@@ -21,6 +21,7 @@ import 'package:betterbudget/domain/combine.dart'
 import 'package:betterbudget/domain/ledger.dart'
     show
         AccountInfo,
+        AccountRole,
         LedgerGroups,
         AccountType,
         dateKey,
@@ -2613,10 +2614,11 @@ void main() {
     final card = find.byKey(ValueKey('savings-debt-${visa.id}'));
     expect(card, findsOneWidget);
     expect(
-      tester
-          .widget<Text>(find.byKey(ValueKey('savings-debt-${visa.id}-rate')))
-          .data,
-      startsWith('3% a month · about '),
+      find.descendant(
+        of: find.byKey(ValueKey('savings-debt-${visa.id}-rate')),
+        matching: find.textContaining('3% a month · about '),
+      ),
+      findsOneWidget,
     );
     await expectLater(
       find.byType(PhoneApp),
@@ -2763,6 +2765,138 @@ void main() {
     await undo();
     expect(await pref(ReadyKeys.longLoans), isNull);
     expect(await pref(ReadyKeys.retirement), 'yes');
+  });
+
+  testWidgets('Savings step 2: a debt’s rate, payment and what it counts as, '
+      'Extra each month, and Compare the two ways, each with Undo (#533)', (
+    tester,
+  ) async {
+    late AppDatabase db;
+    late LedgerData data;
+    late int visa, loan;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      final first = await db.loadLedger();
+      visa = first.openAccounts.firstWhere((a) => a.name == 'Golomt Visa').id;
+      final checking = first.openAccounts.first.id;
+      loan = await db.createAccount(
+        name: 'Khan loan',
+        type: AccountType.liability,
+      );
+      // Borrowed into checking: the loan owes ₮5,000,000.
+      await db.postTransaction(
+        date: DateTime(2026, 8, 1),
+        lines: [
+          (accountId: loan, amount: -500000000, cleared: Cleared.cleared),
+          (accountId: checking, amount: 500000000, cleared: Cleared.cleared),
+        ],
+      );
+      await db.setPreference(ReadyKeys.rate(visa), '3 month');
+      await db.setPreference(ReadyKeys.rate(loan), '4 month');
+      await db.setPreference(ReadyKeys.pay(visa), '10000000');
+      await db.setPreference(ReadyKeys.pay(loan), '50000000');
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    final source = _ActingSource(db, () => _now, (d) => data = d);
+    store.actRowIn = (act) => source.act(act);
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<String?> pref(String key) async =>
+        tester.runAsync<String?>(() => db.preference(key));
+    Future<void> undo() async {
+      await tester.tap(find.text('Undo'));
+      await settle();
+    }
+
+    Future<void> tap(Key key) async {
+      await tester.ensureVisible(find.byKey(key));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(key));
+      await settle();
+    }
+
+    await tester.tap(find.byKey(const ValueKey('to-savings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('savings-stop-consumerDebt')));
+    await tester.pumpAndSettle();
+
+    // The way followed, smallest first until picked, and Compare.
+    expect(find.byKey(const ValueKey('savings-way-smallest')), findsOneWidget);
+    await tap(const ValueKey('savings-compare'));
+    expect(
+      find.byKey(const ValueKey('savings-way-highestRate')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('savings-payoff-difference')),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_savings_compare.png'),
+    );
+    await tap(const ValueKey('savings-way-highestRate'));
+    expect(await pref(ReadyKeys.method), 'rate');
+    await undo();
+    expect(await pref(ReadyKeys.method), isNull);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // A rate that looks like a year's is said, and saved as typed.
+    await tap(ValueKey('savings-debt-$loan-rate'));
+    await tester.enterText(
+      find.byKey(ValueKey('savings-debt-$loan-rate-field')),
+      '30',
+    );
+    await tester.pump();
+    expect(
+      find.byKey(ValueKey('savings-debt-$loan-rate-warning')),
+      findsOneWidget,
+    );
+    await tap(ValueKey('savings-debt-$loan-rate-save'));
+    expect(await pref(ReadyKeys.rate(loan)), '30 month');
+    await undo();
+    expect(await pref(ReadyKeys.rate(loan)), '4 month');
+
+    // What's paid a month.
+    await tap(ValueKey('savings-debt-$visa-pay'));
+    await tester.enterText(
+      find.byKey(ValueKey('savings-debt-$visa-pay-field')),
+      '150000',
+    );
+    await tap(ValueKey('savings-debt-$visa-pay-save'));
+    expect(await pref(ReadyKeys.pay(visa)), '15000000');
+
+    // Extra each month.
+    await tap(const ValueKey('savings-extra-edit'));
+    await tester.enterText(
+      find.byKey(const ValueKey('savings-extra-field')),
+      '200000',
+    );
+    await tap(const ValueKey('savings-extra-save'));
+    expect(await pref(ReadyKeys.extra), 'MNT:20000000');
+
+    // Pay extra on the loan first, then the Visa counted as paid in full.
+    await tap(ValueKey('savings-debt-$loan-menu'));
+    await tap(ValueKey('savings-debt-$loan-target'));
+    expect(await pref(ReadyKeys.target), '$loan');
+    await tap(ValueKey('savings-debt-$visa-menu'));
+    await tap(ValueKey('savings-debt-$visa-paidMonthly'));
+    expect(data.accounts[visa]!.role, AccountRole.paidMonthly);
+    await undo();
+    expect(data.accounts[visa]!.role, isNull);
   });
 
   testWidgets('Budget: a tap on the step band opens Savings on that step '

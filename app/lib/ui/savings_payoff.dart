@@ -473,17 +473,12 @@ class _Payoff extends StatelessWidget {
     final rate = r.payoff(PayoffMethod.highestRate);
     final rated = r.consumerDebts.length - r.missingRates.length;
     final both = small != null && rate != null && r.methodsDiffer;
-    final difference = both ? _difference(context, small, rate) : '';
+    final c = CurrencyScope.of(context);
+    final difference = both ? payoffDifference(t, c, r, small, rate) : '';
     // Interest on both cards to the place their difference needs, so the
     // two figures and the sentence agree (budget review).
-    final c = CurrencyScope.of(context);
     final gap = both ? (small.interest - rate.interest).abs() : 0;
-    final unit = gap == 0 ? 0 : _aboutUnit((gap / c.scale).round());
-    String interestOf(int minor) {
-      if (unit == 0) return _interest(context, minor);
-      final whole = ((minor / c.scale) / unit).round() * unit;
-      return formatShort(whole * c.scale, currency: c);
-    }
+    String interestOf(int minor) => payoffInterest(minor, gap, c);
 
     final dated = small != null && small.months != null;
     final netFirst =
@@ -590,72 +585,17 @@ class _Payoff extends StatelessWidget {
       ),
     );
   }
-
-  /// One to three sentences: what one way saves, ends sooner, clears first.
-  /// Empty when nothing differs that can be said.
-  String _difference(BuildContext context, PayoffPlan s, PayoffPlan h) {
-    final t = context.t;
-    final c = CurrencyScope.of(context);
-    final out = <String>[];
-    if ((s.months == null) != (h.months == null)) {
-      out.add(s.months == null ? t.planOnlyRateEnds : t.planOnlySmallestEnds);
-    }
-    if (s.months != null && h.months != null) {
-      final saved = s.interest - h.interest;
-      final about = roundAbout((saved.abs() / c.scale).round());
-      if (about > 0) {
-        final said = formatShort(about * c.scale, currency: c);
-        out.add(saved > 0 ? t.planRateSaves(said) : t.planSmallestSaves(said));
-      }
-      final sooner = s.months! - h.months!;
-      out.add(
-        sooner == 0
-            ? t.planBothEndSame
-            : sooner > 0
-            ? t.planRateEndsSooner(sooner)
-            : t.planSmallestEndsSooner(-sooner),
-      );
-    }
-    final fs = s.firstIn(r.orderOf(PayoffMethod.smallest));
-    final fh = h.firstIn(r.orderOf(PayoffMethod.highestRate));
-    if (fs != null && fh != null && fs.month != fh.month) {
-      out.add(
-        fs.month < fh.month
-            ? t.planSmallestFirstSooner(fh.month - fs.month)
-            : t.planRateFirstSooner(fs.month - fh.month),
-      );
-    }
-    return out.join(' ');
-  }
 }
 
 /// What the goals in Savings' currency ask a month while kept up with
 /// (not a one-off rest), and the goal's name when there's one; null when
 /// none asks anything.
-(int, String?)? _goalsAsk(BuildContext context, Readiness r) {
-  final currency = CurrencyScope.of(context);
-  final asking = [
-    for (final g in r.goals)
-      if (!g.ready && !g.finished && g.usual > 0 && g.currency == currency) g,
-  ];
-  if (asking.isEmpty) return null;
-  final sum = asking.fold(0, (s, g) => s + g.usual);
-  return (sum, asking.length == 1 ? asking.single.category.name : null);
-}
+(int, String?)? _goalsAsk(BuildContext context, Readiness r) =>
+    goalsAskOf(r, CurrencyScope.of(context));
 
 /// [months] after the month [r] was worked out in, as said: "June 2028".
 String _month(BuildContext context, Readiness r, int months) =>
     payoffMonth(context.t, r, months);
-
-/// The place [units] is said to with "about": two figures, so 53,412 is
-/// said to the thousand.
-int _aboutUnit(int units) {
-  var step = 1;
-  while (units.abs() / step >= 100) {
-    step *= 10;
-  }
-  return step;
-}
 
 /// One way, as a card to click: when, how much interest, which goes first.
 class _MethodCard extends StatelessWidget {
