@@ -11521,6 +11521,66 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'You’ve assigned more than you have, as the sum above says. Take some back from a category, or wait for more money to come in.'**
   String get walkAssignShort;
+
+  /// Phone app, first launch with no ledger: under Restore from backup.
+  ///
+  /// In en, this message translates to:
+  /// **'I have a backup file, saved with Back up to… in Settings. This phone gets its own copy.'**
+  String get phoneStartRestoreNote;
+
+  /// Phone app, first launch with no ledger: under Open ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'My household already uses BetterBudget on a computer or another phone, and the ledger is in a folder, such as Google Drive. This phone shares it.'**
+  String get phoneStartOpenNote;
+
+  /// Phone app, Start fresh: paragraph under the title, above the new recovery key.
+  ///
+  /// In en, this message translates to:
+  /// **'BetterBudget encrypts your ledger and its backups. This key opens them on a computer or another phone, and on a new phone if this one is lost. This is the only time it’s shown: BetterBudget doesn’t keep a copy, and it can’t be replaced.'**
+  String get phoneNewKeyIntro;
+
+  /// Phone app, Start fresh: small note right under the key.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it away from this phone, where the other person who manages the money can find it: printed with your important papers, or in a password manager.'**
+  String get phoneNewKeyWhere;
+
+  /// Phone app, Start fresh: after Copy, in place of the warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied · paste it somewhere off this phone before you continue. The clipboard is cleared in a minute.'**
+  String get phoneNewKeyCopiedWarning;
+
+  /// Phone app, Start fresh: warning in coral while the key hasn’t been copied.
+  ///
+  /// In en, this message translates to:
+  /// **'If you continue without copying it, it’s gone: BetterBudget can’t show it again, and if this phone is lost, your ledger and its backups can’t be opened.'**
+  String get phoneNewKeyNotKeptWarning;
+
+  /// Phone app, Start fresh: heading when making the ledger failed, above Try again.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t make a ledger on this phone'**
+  String get phoneNewLedgerFailed;
+
+  /// Phone app, first launch: under Restore from backup when restoring failed for a reason with no words of its own.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t restore that backup on this phone'**
+  String get phoneRestoreFailed;
+
+  /// Phone app: heading when the ledger kept on the phone (no folder) can't be opened, above Try again.
+  ///
+  /// In en, this message translates to:
+  /// **'The ledger on this phone couldn’t be opened'**
+  String get phoneOwnCantOpen;
+
+  /// Phone app, first launch: link under a problem screen reached from Open ledger, back to How do you want to start?
+  ///
+  /// In en, this message translates to:
+  /// **'Other ways to start'**
+  String get phoneOtherWays;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

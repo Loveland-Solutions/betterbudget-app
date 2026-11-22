@@ -7991,3 +7991,47 @@ Spending tab). The owner picked **B** ("let's do B").
   - Kept as decided: what a card owes isn't taken off All of it (the card's bill
     holds the payment); Assign what's planned stays the one button, above, and the
     band points to it.
+
+## A phone with no ledger: how it starts (owner, 2026-11-22, #534)
+
+The owner wants someone with only a phone to use BetterBudget ("Yes", 2026-11-19; ADR
+0005 "A phone on its own"). Until now a phone with no key opened on "Enter your
+recovery key" and then the folder, so it could only join a ledger made on a computer.
+Three sketches at 390 points, each a different kind: **A** the computer's three rows,
+"How do you want to start?" with Start fresh, Restore from backup and Open ledger;
+**B** Start fresh as the one big button, with "Already use BetterBudget?" and the
+other two as links under it; **C** "Have you used BetterBudget before?", Yes or No,
+then the ways. The owner picked **A** ("let's do a").
+
+- **The computer's words:** its title, its three names, and Start fresh's note ("My
+  household is new to BetterBudget."). The other two notes are the computer's in the
+  phone's form: "This phone gets its own copy", "This phone shares it", and Open
+  ledger's says "on a computer or another phone".
+- Start fresh is the filled row, as in the sketch: it is the way most people with only
+  a phone take. Restore from backup and Open ledger open where they are tapped, with
+  the recovery key's box, its hint, and the button that picks (Choose the backup…,
+  Choose the folder…), as on the computer; a tap on the open one's name closes it.
+  The demo key works in either box (#303).
+- **Start fresh shows the new key once**, as the computer does: what it is, the key,
+  where to keep it ("off this phone"), Copy, and in coral while it isn't copied what
+  is lost without it. **Continue goes on either way** (warn, don't block). The
+  sketch's "type the last five characters" was dropped for that reason. **Cancel**
+  goes back with nothing kept. The phone has no Save… for the key, since a phone has
+  no file to save it to that is off the phone; a password manager is named instead.
+- **A phone on its own** keeps its ledger on the phone and looks at no folder. It
+  shows no "From your computer…" line and nothing as waiting for a computer, and it
+  has no pull to refresh.
+- **Rejected:** B (the other two ways become links, and someone whose household
+  already uses it reads past them); C (a screen for everyone before any way is
+  offered).
+- **Built (0.147.0), the first piece:** the first screen, Start fresh with its key,
+  Restore from backup (the computer's checks, in its words, under the row), and Open
+  ledger, which takes the key and then the folder as before. A ledger started here
+  opens empty, with no accounts yet; the setup steps come next (ADR 0005, "How #534 is
+  cut"), and no build goes to the stores before them.
+- **From the code review** (decided along the lines above): a problem screen reached
+  under Open ledger before any key is kept has **Other ways to start**, back to the
+  first screen, forgetting the folder picked on the way; a phone on its own whose
+  ledger won't open says "The ledger on this phone couldn't be opened", with Try
+  again and Send feedback… and no folder to choose; Try again after a key the phone
+  couldn't keep keeps the same key, since it may be written down.

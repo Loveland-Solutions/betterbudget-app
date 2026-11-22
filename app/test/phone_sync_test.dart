@@ -289,6 +289,51 @@ void main() {
     expect(macPayees.where((p) => p == 'Nomin'), hasLength(1));
   });
 
+  test('a phone on its own (#534) lists nothing as waiting for a computer, '
+      'and Start fresh makes an empty ledger it opens', () async {
+    final ledger = await phone.db!.loadLedger();
+    int id(String name) =>
+        ledger.accounts.values.singleWhere((a) => a.name == name).id;
+    await phone.take(
+      PhoneInbox(
+        device: 'bbbb',
+        entries: [
+          PhoneEntry(
+            id: 'e1',
+            categoryId: '${id('Groceries')}',
+            accountId: '${id('TDB Checking')}',
+            payee: 'Nomin',
+            amountMinor: -1250000,
+            date: tuesday,
+            madeAt: tuesday,
+          ),
+        ],
+      ),
+      tuesday,
+    );
+    // On a folder, no computer has it yet.
+    var shown = await phone.asItStands(tuesday);
+    expect(shown.mine, isNotEmpty);
+    expect(shown.onItsOwn, isFalse);
+    phone.onItsOwn = true;
+    shown = await phone.asItStands(tuesday);
+    expect(shown.mine, isEmpty);
+    expect(shown.onItsOwn, isTrue);
+
+    final fresh = PhoneSync(
+      dir: Directory('${root.path}/fresh'),
+      dataKey: key,
+      device: 'cccc',
+    )..onItsOwn = true;
+    addTearDown(fresh.close);
+    expect(fresh.joined, isFalse);
+    await fresh.startNew();
+    expect(fresh.joined, isTrue);
+    final empty = await fresh.asItStands(tuesday);
+    expect(empty.accounts, isEmpty);
+    expect(empty.onItsOwn, isTrue);
+  });
+
   test('a look says what it brought in, once, and a look with nothing new '
       'says nothing', () async {
     await phone.look(drive.path, monday);

@@ -12282,5 +12282,45 @@
   "phoneWalkDone": "“{step}” done",
   "@phoneWalkDone": {"description": "Phone snack bar after That’s all my bills or That’s all my everyday spending on the walkthrough band, with Undo. step is the step's name, such as Bills.", "placeholders": {"step": {"type": "String"}}},
   "walkAssignShort": "You’ve assigned more than you have, as the sum above says. Take some back from a category, or wait for more money to come in.",
-  "@walkAssignShort": {"description": "Walkthrough band, the assign step, when more is assigned than there is (Not assigned below zero). Both computer and phone."}
+  "@walkAssignShort": {"description": "Walkthrough band, the assign step, when more is assigned than there is (Not assigned below zero). Both computer and phone."},
+  "phoneStartRestoreNote": "I have a backup file, saved with Back up to… in Settings. This phone gets its own copy.",
+  "@phoneStartRestoreNote": {
+    "description": "Phone app, first launch with no ledger: under Restore from backup."
+  },
+  "phoneStartOpenNote": "My household already uses BetterBudget on a computer or another phone, and the ledger is in a folder, such as Google Drive. This phone shares it.",
+  "@phoneStartOpenNote": {
+    "description": "Phone app, first launch with no ledger: under Open ledger."
+  },
+  "phoneNewKeyIntro": "BetterBudget encrypts your ledger and its backups. This key opens them on a computer or another phone, and on a new phone if this one is lost. This is the only time it’s shown: BetterBudget doesn’t keep a copy, and it can’t be replaced.",
+  "@phoneNewKeyIntro": {
+    "description": "Phone app, Start fresh: paragraph under the title, above the new recovery key."
+  },
+  "phoneNewKeyWhere": "Keep it away from this phone, where the other person who manages the money can find it: printed with your important papers, or in a password manager.",
+  "@phoneNewKeyWhere": {
+    "description": "Phone app, Start fresh: small note right under the key."
+  },
+  "phoneNewKeyCopiedWarning": "Copied · paste it somewhere off this phone before you continue. The clipboard is cleared in a minute.",
+  "@phoneNewKeyCopiedWarning": {
+    "description": "Phone app, Start fresh: after Copy, in place of the warning."
+  },
+  "phoneNewKeyNotKeptWarning": "If you continue without copying it, it’s gone: BetterBudget can’t show it again, and if this phone is lost, your ledger and its backups can’t be opened.",
+  "@phoneNewKeyNotKeptWarning": {
+    "description": "Phone app, Start fresh: warning in coral while the key hasn’t been copied."
+  },
+  "phoneNewLedgerFailed": "Couldn’t make a ledger on this phone",
+  "@phoneNewLedgerFailed": {
+    "description": "Phone app, Start fresh: heading when making the ledger failed, above Try again."
+  },
+  "phoneRestoreFailed": "Couldn’t restore that backup on this phone",
+  "@phoneRestoreFailed": {
+    "description": "Phone app, first launch: under Restore from backup when restoring failed for a reason with no words of its own."
+  },
+  "phoneOwnCantOpen": "The ledger on this phone couldn’t be opened",
+  "@phoneOwnCantOpen": {
+    "description": "Phone app: heading when the ledger kept on the phone (no folder) can't be opened, above Try again."
+  },
+  "phoneOtherWays": "Other ways to start",
+  "@phoneOtherWays": {
+    "description": "Phone app, first launch: link under a problem screen reached from Open ledger, back to How do you want to start?"
+  }
 }

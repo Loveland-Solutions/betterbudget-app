@@ -4,7 +4,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' show Random;
 
+import 'package:betterbudget/data/backup.dart' show RestoreNeedsKeyException;
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/incoming_file.dart';
@@ -50,6 +52,8 @@ import 'package:betterbudget/ui/ledger_screen.dart' show phonePlanNotes;
 import 'package:betterbudget/ui/phone/phone_app.dart';
 import 'package:betterbudget/ui/phone/phone_asking.dart' show PhoneAnswer;
 import 'package:betterbudget/ui/phone/phone_start.dart';
+import 'package:betterbudget/ui/recovery_key_screen.dart'
+    show RecoveryKeyDisplay;
 import 'package:betterbudget/ui/category_types.dart' show TypeCards;
 import 'package:betterbudget/ui/schemes.dart';
 import 'package:betterbudget/ui/theme.dart';
@@ -251,12 +255,22 @@ Future<void> _type(WidgetTester tester, String keys) async {
 /// Stands in for the phone's key storage.
 class _FakeKeys extends KeyStore {
   Uint8List? kept;
+  bool? saved;
+
+  /// The phone's key store refuses to keep a key.
+  bool failWrites = false;
 
   @override
   Future<Uint8List?> readDataKey() async => kept;
 
   @override
-  Future<void> writeDataKey(Uint8List key) async => kept = key;
+  Future<void> writeDataKey(Uint8List key) async {
+    if (failWrites) throw PlatformException(code: 'no-keychain');
+    kept = key;
+  }
+
+  @override
+  Future<void> writeKeySaved(bool saved) async => this.saved = saved;
 }
 
 /// Stands in for the system folder picker and the folder behind it.
@@ -592,6 +606,24 @@ class _FakeSource implements PhoneLedgerSource {
   bool get joined => _marker.existsSync();
 
   @override
+  bool onItsOwn = false;
+
+  /// Start fresh (#534): an empty ledger, here only a mark that there is
+  /// one; the key it was made under goes in [joins].
+  @override
+  Future<void> startNew() async {
+    joins.add(key);
+    _marker.writeAsStringSync('1');
+  }
+
+  /// Refuses a backup the key doesn't open, as `Backups.inspect` does.
+  @override
+  Future<void> restoreFrom(String path, DateTime now) async {
+    if (opens != null && !_same(key, opens!)) throw RestoreNeedsKeyException();
+    _marker.writeAsStringSync('1');
+  }
+
+  @override
   Future<void> join(Uint8List folderLedger) async {
     joins.add(key);
     if (opens != null && !_same(key, opens!)) throw WrongKeyException();
@@ -601,19 +633,26 @@ class _FakeSource implements PhoneLedgerSource {
   PhoneSnapshot _snapshot(DateTime madeAt) {
     final snapshot = previewSnapshot(madeAt);
     final kept = taken?.call();
-    return kept == null
+    return kept == null && !onItsOwn
         ? snapshot
         : PhoneSnapshot(
             madeAt: snapshot.madeAt,
             categories: snapshot.categories,
             accounts: snapshot.accounts,
             payees: snapshot.payees,
-            taken: kept,
+            taken: kept ?? const {},
+            onItsOwn: onItsOwn,
           );
   }
 
   @override
-  Future<PhoneSnapshot> asItStands(DateTime now) async => _snapshot(
+  Future<PhoneSnapshot> asItStands(DateTime now) async {
+    // A phone on its own whose ledger can't be opened.
+    if (onItsOwn && (fails?.call() ?? false)) throw StateError('cannot open');
+    return _asItStands(now);
+  }
+
+  PhoneSnapshot _asItStands(DateTime now) => _snapshot(
     _looked.existsSync()
         ? DateTime.fromMillisecondsSinceEpoch(
             int.parse(_looked.readAsStringSync()),
@@ -8027,6 +8066,7 @@ void main() {
       Map<String, PhoneTaken> Function()? taken,
       ProblemLog? problems,
       bool Function()? fails,
+      Random? random,
     }) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -8043,6 +8083,7 @@ void main() {
             dir: dir ?? _phoneDir(),
             now: () => _now,
             problems: problems,
+            random: random,
             open:
                 ({
                   required dir,
@@ -8069,12 +8110,8 @@ void main() {
     testWidgets('the demo key opens made-up figures, reads and keeps nothing '
         '(Play review)', (tester) async {
       final s = await start(tester);
-      await tester.enterText(
-        find.byKey(const ValueKey('phone-key')),
-        'demo demo demo demo demo',
-      );
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
+      // Play's reviewer opens Open ledger and types it (Sign in details).
+      await _openWay(tester, 'start-open', 'demo demo demo demo demo');
       expect(
         find.text('Made-up figures for a look around. Nothing here is saved.'),
         findsOneWidget,
@@ -8093,34 +8130,48 @@ void main() {
       );
     });
 
-    testWidgets('the key, then the folder, then Ledger', (tester) async {
+    testWidgets('a phone with no ledger asks how to start, as the computer '
+        'does; Open ledger takes the key, then the folder, then Ledger', (
+      tester,
+    ) async {
       final key = RecoveryKey.generate();
       final s = await start(tester);
-      expect(find.text('Enter your recovery key'), findsOneWidget);
+      expect(find.text('How do you want to start?'), findsOneWidget);
+      expect(find.text('Start fresh'), findsOneWidget);
+      expect(find.text('Restore from backup'), findsOneWidget);
+      expect(find.text('Open ledger'), findsOneWidget);
+      // Nothing is asked of the folder before a way is picked.
+      expect(s.folder.asked, isEmpty);
       await expectLater(
         find.byType(PhoneFrame),
-        matchesGoldenFile('goldens/phone_key.png'),
+        matchesGoldenFile('goldens/phone_start.png'),
       );
 
-      // A mistyped key is caught before anything else is asked.
-      await tester.enterText(find.byKey(const ValueKey('phone-key')), 'ABCDE');
-      await tester.tap(find.text('Continue'));
+      // Open ledger opens where it is, with the box for the key; a tap on
+      // its name closes it again.
+      await tester.tap(find.byKey(const ValueKey('start-open')));
       await tester.pumpAndSettle();
-      expect(find.text('Enter your recovery key'), findsOneWidget);
-      expect(find.text('Where is your ledger?'), findsNothing);
+      expect(find.byKey(const ValueKey('start-open-open')), findsOneWidget);
+      await expectLater(
+        find.byType(PhoneFrame),
+        matchesGoldenFile('goldens/phone_start_open.png'),
+      );
+      await tester.tap(find.byKey(const ValueKey('start-open')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('start-open-open')), findsNothing);
+
+      // A mistyped key is caught before the folder is asked for.
+      await _openWay(tester, 'start-open', 'ABCDE');
+      expect(find.byKey(const ValueKey('start-open-open')), findsOneWidget);
+      expect(s.folder.picked, isNull);
 
       await tester.enterText(
         find.byKey(const ValueKey('phone-key')),
         key.display,
       );
-      await tester.tap(find.text('Continue'));
+      await tester.tap(find.byKey(const ValueKey('start-open-choose')));
       await tester.pumpAndSettle();
-      expect(find.text('Where is your ledger?'), findsOneWidget);
-      // Not kept until it has opened the ledger.
-      expect(s.keys.kept, isNull);
-
-      await tester.tap(find.text('Choose the folder'));
-      await tester.pumpAndSettle();
+      expect(s.folder.picked, 'drive:BetterBudget');
       // It opens on Ledger; the figures are on Budget.
       expect(find.text('Save'), findsOneWidget);
       await _toBudget(tester);
@@ -8137,17 +8188,343 @@ void main() {
       expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
     });
 
+    testWidgets('Start fresh shows a new key once, warns while it isn’t '
+        'copied, and opens a ledger kept on the phone, with no folder', (
+      tester,
+    ) async {
+      final dir = _phoneDir();
+      final keys = _FakeKeys();
+      final folder = _FakeFolder()..willPick = null;
+      await start(
+        tester,
+        keys: keys,
+        folder: folder,
+        dir: dir,
+        random: Random(534),
+      );
+      await tester.tap(find.byKey(const ValueKey('start-fresh')));
+      await tester.pumpAndSettle();
+      expect(find.text('Your recovery key'), findsOneWidget);
+      expect(
+        find.textContaining('If you continue without copying it'),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(PhoneFrame),
+        matchesGoldenFile('goldens/phone_new_key.png'),
+      );
+
+      // Cancel keeps nothing.
+      await tester.tap(find.byKey(const ValueKey('recovery-key-cancel')));
+      await tester.pumpAndSettle();
+      expect(find.text('How do you want to start?'), findsOneWidget);
+      expect(keys.kept, isNull);
+      expect(File('${dir.path}/started-here').existsSync(), isFalse);
+
+      await tester.tap(find.byKey(const ValueKey('start-fresh')));
+      await tester.pumpAndSettle();
+      // The system's clipboard, for Copy.
+      String? clipped;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipped = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final shown = tester
+          .widget<RecoveryKeyDisplay>(find.byType(RecoveryKeyDisplay))
+          .display;
+      await tester.tap(find.byKey(const ValueKey('copy-recovery-key')));
+      await tester.pumpAndSettle();
+      expect(clipped, shown);
+      expect(
+        find.textContaining('paste it somewhere off this phone'),
+        findsOneWidget,
+      );
+      await _tapReal(
+        tester,
+        find.byKey(const ValueKey('recovery-key-continue')),
+      );
+      // The ledger is on the phone: no folder was asked about or picked.
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+      expect(
+        _same(keys.kept!, deriveDataKey(RecoveryKey.parse(shown)!)),
+        isTrue,
+      );
+      expect(folder.picked, isNull);
+      expect(folder.asked, isEmpty);
+      // Copied, as the computer keeps it for Check my recovery key.
+      expect(keys.saved, isTrue);
+      await _toBudget(tester);
+      // No computer's copy to say the age of.
+      expect(find.byKey(const ValueKey('from-mac')), findsNothing);
+
+      // The next launch opens it straight away, still with no folder.
+      await tester.pumpWidget(const SizedBox());
+      await start(tester, keys: keys, folder: folder, dir: dir);
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+      expect(folder.asked, isEmpty);
+      // The copied key is cleared from the clipboard a minute later.
+      await tester.pump(const Duration(minutes: 1));
+    });
+
+    testWidgets('Restore from backup takes the key, then the file, and opens '
+        'it on the phone; a backup the key doesn’t open says so in the row', (
+      tester,
+    ) async {
+      final dialogs = _FakePicker()..openPath = '/picked/Ledger.betterbudget';
+      final before = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = dialogs;
+      addTearDown(() => FileSelectorPlatform.instance = before);
+      final rightKey = RecoveryKey.generate();
+      final dir = _phoneDir();
+      final keys = _FakeKeys();
+      final folder = _FakeFolder()..willPick = null;
+      await start(
+        tester,
+        keys: keys,
+        folder: folder,
+        dir: dir,
+        opens: deriveDataKey(rightKey),
+      );
+      await _openWay(tester, 'start-restore', RecoveryKey.generate().display);
+      expect(
+        find.text(
+          'That key doesn’t open this backup · it may be from another '
+          'ledger, or damaged',
+        ),
+        findsOneWidget,
+      );
+      expect(keys.kept, isNull);
+      expect(File('${dir.path}/started-here').existsSync(), isFalse);
+
+      // Nothing picked: nothing happens.
+      dialogs.openPath = null;
+      await tester.enterText(
+        find.byKey(const ValueKey('phone-key')),
+        rightKey.display,
+      );
+      await _tapReal(
+        tester,
+        find.byKey(const ValueKey('start-restore-choose')),
+      );
+      expect(find.text('How do you want to start?'), findsOneWidget);
+      expect(keys.kept, isNull);
+
+      dialogs.openPath = '/picked/Ledger.betterbudget';
+      await _tapReal(
+        tester,
+        find.byKey(const ValueKey('start-restore-choose')),
+      );
+      expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+      expect(_same(keys.kept!, deriveDataKey(rightKey)), isTrue);
+      expect(folder.asked, isEmpty);
+    });
+
+    testWidgets('a ledger just started on the phone, with nothing in it, '
+        'opens on each tab', (tester) async {
+      final data = (await tester.runAsync(() async {
+        final db = AppDatabase(NativeDatabase.memory());
+        final d = await db.loadLedger();
+        await db.close();
+        return d;
+      }))!;
+      await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now, onItsOwn: true),
+      );
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_fresh_ledger.png'),
+      );
+      await _toBudget(tester);
+      expect(find.byKey(const ValueKey('from-mac')), findsNothing);
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_fresh_budget.png'),
+      );
+      await tester.tap(find.byKey(const ValueKey('to-accounts')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('from-mac')), findsNothing);
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_fresh_accounts.png'),
+      );
+    });
+
+    group('a way that is left part way (from the review of #534)', () {
+      File mark(Directory dir) =>
+          File('${dir.path}/started-here')..createSync(recursive: true);
+
+      Future<String> freshKey(WidgetTester tester) async {
+        await tester.tap(find.byKey(const ValueKey('start-fresh')));
+        await tester.pumpAndSettle();
+        return tester
+            .widget<RecoveryKeyDisplay>(find.byType(RecoveryKeyDisplay))
+            .display;
+      }
+
+      testWidgets('a key typed under Open ledger, its folder picker '
+          'cancelled, is not the key Start fresh’s ledger is made under', (
+        tester,
+      ) async {
+        final keys = _FakeKeys();
+        final folder = _FakeFolder()..willPick = null;
+        final s = await start(tester, keys: keys, folder: folder);
+        await _openWay(tester, 'start-open', RecoveryKey.generate().display);
+        expect(find.text('How do you want to start?'), findsOneWidget);
+        final shown = await freshKey(tester);
+        await _tapReal(
+          tester,
+          find.byKey(const ValueKey('recovery-key-continue')),
+        );
+        final made = deriveDataKey(RecoveryKey.parse(shown)!);
+        expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+        expect(_same(s.read.single, made), isTrue);
+        expect(_same(keys.kept!, made), isTrue);
+      });
+
+      testWidgets('a folder picked on an earlier try doesn’t stop Start '
+          'fresh, and is forgotten', (tester) async {
+        final keys = _FakeKeys();
+        final folder = _FakeFolder()
+          ..picked = 'drive:Photos'
+          ..ledger = null;
+        final s = await start(tester, keys: keys, folder: folder);
+        expect(find.text('How do you want to start?'), findsOneWidget);
+        await freshKey(tester);
+        await _tapReal(
+          tester,
+          find.byKey(const ValueKey('recovery-key-continue')),
+        );
+        expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+        expect(s.read, hasLength(1));
+        expect(folder.forgotten, ['drive:Photos']);
+        expect(folder.asked, isEmpty);
+      });
+
+      testWidgets('Open ledger after a Start fresh cut short takes the mark '
+          'away, so a folder lost later is asked for', (tester) async {
+        final dir = _phoneDir();
+        mark(dir);
+        final keys = _FakeKeys();
+        final folder = _FakeFolder();
+        await start(tester, keys: keys, folder: folder, dir: dir);
+        expect(find.text('How do you want to start?'), findsOneWidget);
+        await _openWay(tester, 'start-open', RecoveryKey.generate().display);
+        expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+        expect(File('${dir.path}/started-here').existsSync(), isFalse);
+
+        folder.picked = null;
+        await tester.pumpWidget(const SizedBox());
+        await start(tester, keys: keys, folder: folder, dir: dir);
+        expect(find.text('Where is your ledger?'), findsOneWidget);
+        // A key is kept: no way back to the first screen.
+        expect(find.byKey(const ValueKey('other-ways')), findsNothing);
+      });
+
+      testWidgets('a launch cut short after the key was kept still makes the '
+          'ledger, under that key', (tester) async {
+        final dir = _phoneDir();
+        mark(dir);
+        final key = deriveDataKey(RecoveryKey.generate());
+        final keys = _FakeKeys()..kept = key;
+        final folder = _FakeFolder();
+        final s = await start(tester, keys: keys, folder: folder, dir: dir);
+        expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+        expect(_same(s.read.single, key), isTrue);
+        expect(folder.asked, isEmpty);
+      });
+
+      testWidgets('a launch cut short before the key was kept opens the '
+          'first screen', (tester) async {
+        final dir = _phoneDir();
+        mark(dir);
+        await start(tester, dir: dir);
+        expect(find.text('How do you want to start?'), findsOneWidget);
+      });
+
+      testWidgets('a key the phone can’t keep: the mark goes, and Try again '
+          'keeps the same key', (tester) async {
+        final dir = _phoneDir();
+        final keys = _FakeKeys()..failWrites = true;
+        await start(tester, keys: keys, dir: dir);
+        final shown = await freshKey(tester);
+        await _tapReal(
+          tester,
+          find.byKey(const ValueKey('recovery-key-continue')),
+        );
+        expect(
+          find.text('Couldn’t make a ledger on this phone'),
+          findsOneWidget,
+        );
+        expect(File('${dir.path}/started-here').existsSync(), isFalse);
+        expect(keys.kept, isNull);
+
+        keys.failWrites = false;
+        await _tapReal(tester, find.text('Try again'));
+        expect(find.byKey(const ValueKey('to-budget')), findsOneWidget);
+        expect(
+          _same(keys.kept!, deriveDataKey(RecoveryKey.parse(shown)!)),
+          isTrue,
+        );
+      });
+
+      testWidgets('a phone on its own whose ledger won’t open says so, with no '
+          'folder to choose', (tester) async {
+        final dir = _phoneDir();
+        mark(dir);
+        File('${dir.path}/fake-joined').writeAsStringSync('1');
+        final keys = _FakeKeys()..kept = deriveDataKey(RecoveryKey.generate());
+        await start(tester, keys: keys, dir: dir, fails: () => true);
+        expect(
+          find.text('The ledger on this phone couldn’t be opened'),
+          findsOneWidget,
+        );
+        expect(find.text('Choose another folder'), findsNothing);
+        expect(find.byKey(const ValueKey('report-problem')), findsOneWidget);
+      });
+
+      testWidgets('a problem under Open ledger has the way back to the first '
+          'screen, and forgets the folder picked', (tester) async {
+        final folder = _FakeFolder()..ledger = null;
+        await start(tester, folder: folder);
+        await _openWay(tester, 'start-open', RecoveryKey.generate().display);
+        expect(find.text('There is no ledger in that folder'), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('other-ways')));
+        await tester.pumpAndSettle();
+        expect(find.text('How do you want to start?'), findsOneWidget);
+        expect(folder.forgotten, ['drive:BetterBudget']);
+      });
+
+      testWidgets('the demo key works in Restore from backup’s box too', (
+        tester,
+      ) async {
+        final s = await start(tester);
+        await _openWay(tester, 'start-restore', 'DEMO-DEMO-DEMO-DEMO-DEMO');
+        expect(
+          find.text(
+            'Made-up figures for a look around. Nothing here is saved.',
+          ),
+          findsOneWidget,
+        );
+        expect(s.keys.kept, isNull);
+      });
+    });
+
     testWidgets('a key that is not this ledger’s is not kept', (tester) async {
       final right = deriveDataKey(RecoveryKey.generate());
       final s = await start(tester, opens: right);
-      await tester.enterText(
-        find.byKey(const ValueKey('phone-key')),
-        RecoveryKey.generate().display,
-      );
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Choose the folder'));
-      await tester.pumpAndSettle();
+      await _openWay(tester, 'start-open', RecoveryKey.generate().display);
       expect(
         find.text('That recovery key doesn’t open the ledger in this folder'),
         findsOneWidget,
@@ -8169,14 +8546,7 @@ void main() {
       final keys = _FakeKeys();
       final folder = _FakeFolder();
       await start(tester, keys: keys, folder: folder, dir: dir, opens: right);
-      await tester.enterText(
-        find.byKey(const ValueKey('phone-key')),
-        RecoveryKey.generate().display,
-      );
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Choose the folder'));
-      await tester.pumpAndSettle();
+      await _openWay(tester, 'start-open', RecoveryKey.generate().display);
       expect(
         find.text('That recovery key doesn’t open the ledger in this folder'),
         findsOneWidget,
@@ -9274,6 +9644,28 @@ String _stamp(DateTime at) {
   String two(int n) => n.toString().padLeft(2, '0');
   return '${at.year}-${two(at.month)}-${two(at.day)} '
       '${two(at.hour)}:${two(at.minute)}';
+}
+
+/// Opens [way] on the first screen (#534), types [key] and taps its button.
+Future<void> _openWay(WidgetTester tester, String way, String key) async {
+  if (find.byKey(ValueKey('$way-open')).evaluate().isEmpty) {
+    await tester.tap(find.byKey(ValueKey(way)));
+    await tester.pumpAndSettle();
+  }
+  await tester.enterText(find.byKey(const ValueKey('phone-key')), key);
+  await _tapReal(tester, find.byKey(ValueKey('$way-choose')));
+}
+
+/// Taps [target] and lets what it starts on the phone's own files finish:
+/// real file work doesn't move on the test's clock.
+Future<void> _tapReal(WidgetTester tester, Finder target) async {
+  await tester.tap(target);
+  for (var i = 0; i < 20; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pumpAndSettle();
+  }
 }
 
 /// Stands in for the phone's own file picker.
