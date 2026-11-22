@@ -5,6 +5,7 @@
 // the Mac takes them in.
 import 'dart:async';
 import 'dart:io' show Directory;
+import 'dart:typed_data' show Uint8List;
 import 'dart:math';
 
 import 'package:file_selector/file_selector.dart' show XFile, openFile;
@@ -63,6 +64,7 @@ import '../../data/phone_sync.dart'
         PhoneUndoReconcile;
 import '../../data/account_edit.dart' show AccountEdit;
 import '../../data/import_figures.dart';
+import '../../data/incoming_file.dart';
 import '../../data/picked_copy.dart';
 import '../../import/mapping.dart';
 import '../../import/sheet.dart';
@@ -133,6 +135,14 @@ class PhoneStore extends ChangeNotifier {
   /// An account the Ledger tab is asked to narrow to (#529): the Accounts
   /// page sets it and the register takes it, and the home shows the tab.
   final registerRequest = ValueNotifier<int?>(null);
+
+  /// A bank file sent to the app from another app (#531), waiting until
+  /// the home can ask which account it is for.
+  final sent = ValueNotifier<SentFile?>(null);
+
+  /// A row the register opens, and scrolls to, as it takes
+  /// [registerRequest]'s account: set first, by the import's Show.
+  int? registerRow;
 
   /// A reconcile is open on the Ledger tab (#530): its Cancel and Lock take
   /// the place of the Ledger and Budget tabs until it is locked or left.
@@ -909,11 +919,46 @@ class _PhoneHomeState extends State<PhoneHome> {
     widget.store.news.addListener(_brought);
     widget.store.asking.addListener(_asked);
     widget.store.registerRequest.addListener(_showRegister);
+    for (final l in _sentWaitsOn(widget.store)) {
+      l.addListener(_takeSent);
+    }
     // What the first look brought in was set before this screen was up.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _brought();
       _asked();
+      _takeSent();
     });
+  }
+
+  /// What a sent file waits on: itself, the ledger, and an import or
+  /// reconcile already open, which it doesn't break into.
+  List<Listenable> _sentWaitsOn(PhoneStore store) => [
+    store.sent,
+    store,
+    store.importing,
+    store.reconciling,
+  ];
+
+  /// A bank file sent from another app, taken once nothing is in its way.
+  void _takeSent() {
+    final store = widget.store;
+    final file = store.sent.value;
+    if (file == null ||
+        !mounted ||
+        store.snapshot.data == null ||
+        store.importing.value ||
+        store.reconciling.value) {
+      return;
+    }
+    store.sent.value = null;
+    // After this frame: a listener may be called while something builds.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        _openSentFile(context, store: store, file: file, today: widget.now()),
+      );
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   /// The Accounts page asked the Ledger tab to narrow to an account (#529):
@@ -988,6 +1033,15 @@ class _PhoneHomeState extends State<PhoneHome> {
   void didUpdateWidget(PhoneHome old) {
     super.didUpdateWidget(old);
     widget.store.now = widget.now;
+    if (old.store != widget.store) {
+      for (final l in _sentWaitsOn(old.store)) {
+        l.removeListener(_takeSent);
+      }
+      for (final l in _sentWaitsOn(widget.store)) {
+        l.addListener(_takeSent);
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) => _takeSent());
+    }
   }
 
   @override
@@ -995,6 +1049,9 @@ class _PhoneHomeState extends State<PhoneHome> {
     widget.store.news.removeListener(_brought);
     widget.store.asking.removeListener(_asked);
     widget.store.registerRequest.removeListener(_showRegister);
+    for (final l in _sentWaitsOn(widget.store)) {
+      l.removeListener(_takeSent);
+    }
     _draft.dispose();
     super.dispose();
   }

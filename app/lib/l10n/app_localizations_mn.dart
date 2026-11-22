@@ -3469,6 +3469,29 @@ class WordsMn extends Words {
   }
 
   @override
+  String get importWhichAccount => 'Энэ файл аль дансных вэ?';
+
+  @override
+  String importSentNoAccount(Object file) {
+    return '$file файлыг оруулахын тулд эхлээд түүний банкны данс эсвэл картыг Данс хуудсанд нэмнэ үү.';
+  }
+
+  @override
+  String importFileDays(Object from, Object to) {
+    return 'Мөрүүд: $from – $to';
+  }
+
+  @override
+  String importFileOneDay(Object day) {
+    return 'Мөрүүд: $day';
+  }
+
+  @override
+  String importLocked(Object file) {
+    return '$file файл түгжээтэй байна. Түүнийг Excel эсвэл Numbers-д нээж (нууц үг асуувал оруулаад), нууц үггүй хуулбар хадгалж, тэр хуулбарыг оруулна уу.';
+  }
+
+  @override
   String importCouldntReadDamaged(Object file) {
     return '$file файлыг уншиж чадсангүй. Файл гэмтсэн байж магадгүй; банкнаасаа дахин татаж авна уу.';
   }

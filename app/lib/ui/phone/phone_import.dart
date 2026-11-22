@@ -8,9 +8,16 @@ part of 'phone_app.dart';
 // skips the columns. The file is read here and nothing of it is kept but
 // the rows.
 
-/// What the page hands back once the rows are in: the act, for Undo, and
-/// what the bar says.
-typedef _Imported = ({PhoneActed acted, ImportRecord record, String said});
+/// What the page hands back once the rows are in: the act, for Undo, what
+/// the bar says, and the row its Show opens: one that may have paid a
+/// bill, else a transfer that may be the same money twice, as the
+/// computer's Show does.
+typedef _Imported = ({
+  PhoneActed acted,
+  ImportRecord record,
+  String said,
+  ({int account, int txn})? show,
+});
 
 /// How long the bar after an import stays, with its Undo.
 const _importSnackTime = Duration(seconds: 15);
@@ -49,17 +56,6 @@ Future<bool> _pickAndImport(
 }) async {
   final t = context.t;
   final messenger = ScaffoldMessenger.of(context);
-  void say(String words) => messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        persist: false,
-        duration: phoneSnackTime,
-        key: const ValueKey('import-said'),
-        backgroundColor: Mid.raised,
-        content: Text(words, style: onest(15, color: Mid.ink)),
-      ),
-    );
   final XFile? picked;
   try {
     // Every file is offered: a bank's file comes out of Drive or a mail app
@@ -68,10 +64,52 @@ Future<bool> _pickAndImport(
     picked = await openFile();
   } catch (e) {
     debugPrint('The phone\'s file picker failed: $e');
-    say(t.ledgerCouldntOpenFileDialog);
+    _importSay(messenger, t.ledgerCouldntOpenFileDialog);
     return false;
   }
   if (picked == null || !context.mounted) return false;
+  Uint8List bytes;
+  try {
+    bytes = await picked.readAsBytes();
+  } catch (e) {
+    debugPrint('Reading the picked file failed: $e');
+    bytes = Uint8List(0);
+  }
+  await _dropPickedCopy(picked.path);
+  if (!context.mounted) return false;
+  return _importBytes(
+    context,
+    store: store,
+    account: account,
+    today: today,
+    file: (name: picked.name, bytes: bytes),
+  );
+}
+
+/// Says [words] in the import's bar.
+void _importSay(ScaffoldMessengerState messenger, String words) => messenger
+  ..hideCurrentSnackBar()
+  ..showSnackBar(
+    SnackBar(
+      persist: false,
+      duration: phoneSnackTime,
+      key: const ValueKey('import-said'),
+      backgroundColor: Mid.raised,
+      content: Text(words, style: onest(15, color: Mid.ink)),
+    ),
+  );
+
+/// [file] read into [account]: the page, then what it did with an Undo.
+Future<bool> _importBytes(
+  BuildContext context, {
+  required PhoneStore store,
+  required AccountInfo account,
+  required DateTime today,
+  required SentFile file,
+}) async {
+  final t = context.t;
+  final messenger = ScaffoldMessenger.of(context);
+  void say(String words) => _importSay(messenger, words);
   final data = store.snapshot.data;
   if (data == null) return false;
   final saved = SavedMapping.decode(
@@ -79,26 +117,20 @@ Future<bool> _pickAndImport(
   );
   final OpenedBankFile opened;
   try {
-    final bytes = await picked.readAsBytes();
-    await _dropPickedCopy(picked.path);
-    opened = openBankFile(bytes, picked.name, saved);
+    opened = openBankFile(file.bytes, file.name, saved);
   } catch (e) {
     debugPrint('Reading a bank file on the phone failed: $e');
-    say(
-      isBankFileName(picked.name)
-          ? t.importCouldntReadDamaged(picked.name)
-          : t.importCouldntRead(picked.name),
-    );
+    say(couldntReadSays(t, e, file.name));
     return false;
   }
   if (!opened.fits && !opened.mapping.hasDate) {
-    say(t.importNoDates(picked.name));
+    say(t.importNoDates(file.name));
     return false;
   }
   if (!context.mounted) return false;
   // What an earlier try said has no place over the page.
   messenger.hideCurrentSnackBar();
-  final name = picked.name;
+  final name = file.name;
   // Nothing in it yet: the file answers what was in it, as the computer's
   // "Or import a file from your bank" does (owner, 2026-10-06).
   final register = data.registerFor(account.id);
@@ -129,7 +161,36 @@ Future<bool> _pickAndImport(
         duration: _importSnackTime,
         key: const ValueKey('import-done'),
         backgroundColor: Mid.raised,
-        content: Text(done.said, style: onest(15, color: Mid.ink)),
+        content: switch (done.show) {
+          null => Text(done.said, style: onest(15, color: Mid.ink)),
+          final show => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(done.said, style: onest(15, color: Mid.ink)),
+              // Undo is the bar's own button; Show goes under the words,
+              // where it reads as about them.
+              TextButton(
+                key: const ValueKey('import-show'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Mid.blue,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(48, 44),
+                  alignment: Alignment.centerLeft,
+                ),
+                // The bar stays: its Undo is the import's one way back,
+                // and whoever checks a row may find they want it.
+                onPressed: () {
+                  // A reconcile begun since isn't ended by it.
+                  if (store.reconciling.value) return;
+                  store.registerRow = show.txn;
+                  store.registerRequest.value = show.account;
+                },
+                child: Text(t.ledgerShowMoved, style: onest(15, weight: 600)),
+              ),
+            ],
+          ),
+        },
         action: SnackBarAction(
           label: t.ledgerUndo,
           textColor: Mid.blue,
@@ -403,6 +464,11 @@ class _ImportPageState extends State<_ImportPage> {
         billsPaid: done.billsPaid,
         billsToCheck: done.billsToCheck,
       ),
+      show: switch ((done.checkRow, done.record.doubts.firstOrNull)) {
+        (final txn?, _) => (account: _a.id, txn: txn),
+        (null, final d?) => (account: d.accountId, txn: d.transactionId),
+        _ => null,
+      },
     ));
   }
 
@@ -1448,6 +1514,202 @@ class _ImportRolePicker extends StatelessWidget {
               ),
             ),
             Icon(Icons.expand_more_rounded, size: 18, color: Mid.ink2),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------- a file sent from another app ----------
+
+/// The accounts a bank file can go into: a bank account or card, not cash,
+/// shown on Accounts.
+List<AccountInfo> _importable(LedgerData data) =>
+    [
+      for (final a in data.accounts.values)
+        if (a.isBalanceSheet && !a.isCash && !a.archived && !a.deleted) a,
+    ]..sort(
+      (a, b) => a.sortOrder != b.sortOrder
+          ? a.sortOrder.compareTo(b.sortOrder)
+          : compareNames(a.name, b.name),
+    );
+
+/// A bank file sent to BetterBudget from another app (#531): asked which
+/// account it is for, nothing picked for the person and not asked with
+/// one, then the same page as Import transactions…. The Ledger shows that
+/// account once its rows are in.
+Future<void> _openSentFile(
+  BuildContext context, {
+  required PhoneStore store,
+  required SentFile file,
+  required DateTime today,
+}) async {
+  final t = context.t;
+  final messenger = ScaffoldMessenger.of(context);
+  final nav = Navigator.of(context);
+  final data = store.snapshot.data;
+  if (data == null) return;
+  // A file it can't read is said before anything is asked; one the phone
+  // couldn't hand over comes with nothing in it. Whether it has dated rows
+  // waits for the account, whose saved columns may find them.
+  (DateTime, DateTime)? span;
+  try {
+    if (file.bytes.isEmpty) throw const UnreadableFileException('empty');
+    final opened = openBankFile(file.bytes, file.name, null);
+    // Its days, read with the columns guessed (a statement is known by
+    // them more than by its file's name), unless they read two ways.
+    try {
+      final read = readRows(opened.sheet, opened.mapping);
+      if (dateReadBothWays(opened.sheet, opened.mapping) == null) {
+        span = fileSpan(read);
+      }
+    } catch (_) {}
+  } catch (e) {
+    debugPrint('Reading a file sent to the phone failed: $e');
+    return _importSay(messenger, couldntReadSays(t, e, file.name));
+  }
+  final accounts = _importable(data);
+  if (accounts.isEmpty) {
+    return _importSay(messenger, t.importSentNoAccount(file.name));
+  }
+  if (store.importing.value) return;
+  store.importing.value = true;
+  try {
+    final account = accounts.length == 1
+        ? accounts.single
+        : await nav.push(
+            MaterialPageRoute<AccountInfo>(
+              fullscreenDialog: true,
+              builder: (_) =>
+                  _WhichAccountPage(
+                    fileName: file.name,
+                    span: span,
+                    accounts: accounts,
+                  ),
+            ),
+          );
+    final place = nav.context;
+    if (account == null || !place.mounted) return;
+    final imported = await _importBytes(
+      place,
+      store: store,
+      account: account,
+      today: dateOnly(today),
+      file: file,
+    );
+    // The rows it brought, where they are; a Show pressed meanwhile has
+    // already asked for its own.
+    if (imported && store.registerRequest.value == null) {
+      store.registerRequest.value = account.id;
+    }
+  } finally {
+    store.importing.value = false;
+  }
+}
+
+/// "Which account is this file for?": each bank account and card, under
+/// the Accounts page's headings. A tap is the answer; back leaves the file.
+class _WhichAccountPage extends StatelessWidget {
+  const _WhichAccountPage({
+    required this.fileName,
+    required this.span,
+    required this.accounts,
+  });
+  final String fileName;
+
+  /// The file's first and last days, when they could be read.
+  final (DateTime, DateTime)? span;
+  final List<AccountInfo> accounts;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final groups = [
+      (t.ledgerGroupBank, [for (final a in accounts) if (!a.isOwed) a]),
+      (t.ledgerGroupCredit, [for (final a in accounts) if (a.isOwed) a]),
+    ].where((g) => g.$2.isNotEmpty).toList();
+    return Scaffold(
+      key: const ValueKey('import-which-account'),
+      backgroundColor: Mid.ground,
+      appBar: AppBar(
+        backgroundColor: Mid.ground,
+        foregroundColor: Mid.ink,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          key: const ValueKey('import-which-back'),
+          tooltip: t.ledgerCancel,
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          children: [
+            Text(
+              t.importWhichAccount,
+              style: onest(22, weight: 600, color: Mid.ink),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              fileName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: onest(15, color: Mid.ink2),
+            ),
+            if (span case (final from, final to))
+              Text(
+                from == to
+                    ? t.importFileOneDay(sayDate(t, from))
+                    : t.importFileDays(sayDate(t, from), sayDate(t, to)),
+                key: const ValueKey('import-which-days'),
+                style: onest(15, color: Mid.ink2),
+              ),
+            for (final (heading, list) in groups) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+                child: Text(
+                  heading,
+                  style: onest(13, weight: 500, color: Mid.ink2),
+                ),
+              ),
+              for (final (i, a) in list.indexed) ...[
+                if (i > 0) const SizedBox(height: 8),
+                Material(
+                  color: Mid.card,
+                  borderRadius: BorderRadius.circular(14),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: ValueKey('import-into-${a.id}'),
+                    onTap: () => Navigator.of(context).pop(a),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 56),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                a.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: onest(17, weight: 500),
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: Mid.ink2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ],
         ),
       ),

@@ -3560,6 +3560,29 @@ class WordsEn extends Words {
   }
 
   @override
+  String get importWhichAccount => 'Which account is this file for?';
+
+  @override
+  String importSentNoAccount(Object file) {
+    return 'To import $file, first add the bank account or card it’s from on Accounts.';
+  }
+
+  @override
+  String importFileDays(Object from, Object to) {
+    return 'Rows from $from to $to';
+  }
+
+  @override
+  String importFileOneDay(Object day) {
+    return 'Rows on $day';
+  }
+
+  @override
+  String importLocked(Object file) {
+    return '$file is locked. Open it in Excel or Numbers (type its password if it asks for one), save a copy without a password, and import that copy.';
+  }
+
+  @override
   String importCouldntReadDamaged(Object file) {
     return 'Couldn’t read $file. The file may be damaged; download it from your bank again.';
   }

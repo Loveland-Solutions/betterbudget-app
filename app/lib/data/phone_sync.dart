@@ -449,8 +449,10 @@ class PhoneImport extends PhoneRowAct {
   final String? mapping;
 
   /// What it wrote, once done, with how many bills its rows paid and how
-  /// many more a row may have paid: the snack bar says them.
-  ({ImportRecord record, int billsPaid, int billsToCheck})? done;
+  /// many more a row may have paid: the snack bar says them, and its Show
+  /// opens [checkRow], the first row that may have paid one.
+  ({ImportRecord record, int billsPaid, int billsToCheck, int? checkRow})?
+  done;
 }
 
 /// An act done: the ledger after it, and what Undo and Redo do, each
@@ -1848,6 +1850,18 @@ Future<PhoneActed> actOnImport(
   final ties =
       <({Future<void> Function() undo, Future<void> Function() redo})>[];
   var toCheck = 0;
+  // The earliest row to check, which the bar's Show opens.
+  RegisterRow? checkRow;
+  void toAsk(RegisterRow r) {
+    toCheck++;
+    final c = checkRow;
+    if (c == null ||
+        r.date.isBefore(c.date) ||
+        (r.date == c.date && r.txnId < c.txnId)) {
+      checkRow = r;
+    }
+  }
+
   if (record.added.isNotEmpty) {
     try {
       final data = await db.loadLedger();
@@ -1863,7 +1877,7 @@ Future<PhoneActed> actOnImport(
         }
         // Not near its bill: left for the person, who is asked on the row.
         if (p.fit != BillFit.paid) {
-          toCheck++;
+          toAsk(p.row);
           continue;
         }
         // One that can't be tied is left to be asked about, and the rest
@@ -1872,7 +1886,7 @@ Future<PhoneActed> actOnImport(
           ties.add(await tieBill(db, PhoneBillPaid(p.bill, p.row), now));
         } catch (e) {
           debugPrint('Tying an imported row to its bill failed: $e');
-          toCheck++;
+          toAsk(p.row);
         }
       }
     } catch (e) {
@@ -1891,7 +1905,12 @@ Future<PhoneActed> actOnImport(
       debugPrint('Saving the import columns failed: $e');
     }
   }
-  act.done = (record: record, billsPaid: ties.length, billsToCheck: toCheck);
+  act.done = (
+    record: record,
+    billsPaid: ties.length,
+    billsToCheck: toCheck,
+    checkRow: checkRow?.txnId,
+  );
   return (
     snapshot: await again(),
     // One write each way: a tie undone and the import refused would leave

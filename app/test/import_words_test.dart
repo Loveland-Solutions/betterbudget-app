@@ -2,6 +2,7 @@ import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/import/mapping.dart';
+import 'package:betterbudget/import/sheet.dart';
 import 'package:betterbudget/ui/import_words.dart';
 import 'package:betterbudget/ui/language.dart';
 import 'package:flutter/widgets.dart';
@@ -79,6 +80,22 @@ void main() {
     expect(
       said(const ImportRecord(added: {3: 'x'}, matched: [typed, bill])),
       'Imported 1 row · 1 typed row now cleared · 1 bill paid.',
+    );
+  });
+
+  test('a file locked with a password says so, not that it is damaged', () {
+    expect(
+      couldntReadSays(t, const LockedFileException(), 'statement.xlsx'),
+      t.importLocked('statement.xlsx'),
+    );
+    const broken = UnreadableFileException('cut short');
+    expect(
+      couldntReadSays(t, broken, 'statement.xls'),
+      t.importCouldntReadDamaged('statement.xls'),
+    );
+    expect(
+      couldntReadSays(t, broken, 'photo.jpg'),
+      t.importCouldntRead('photo.jpg'),
     );
   });
 }

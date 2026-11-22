@@ -5005,6 +5005,36 @@ abstract class Words {
   /// **'Couldn’t read {file}. BetterBudget reads Excel (.xls, .xlsx), CSV and OFX files.'**
   String importCouldntRead(Object file);
 
+  /// Heading of the phone's page when a bank file is sent to BetterBudget from another app: the person taps the bank account or card it is from.
+  ///
+  /// In en, this message translates to:
+  /// **'Which account is this file for?'**
+  String get importWhichAccount;
+
+  /// Said on the phone when a bank file is sent to BetterBudget from another app and the ledger has no bank account or card to put it in.
+  ///
+  /// In en, this message translates to:
+  /// **'To import {file}, first add the bank account or card it’s from on Accounts.'**
+  String importSentNoAccount(Object file);
+
+  /// Under a bank file's name on the phone's "Which account is this file for?" page: the first and last days of the file's rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows from {from} to {to}'**
+  String importFileDays(Object from, Object to);
+
+  /// Under a bank file's name on the phone's "Which account is this file for?" page, when all its rows are on one day.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows on {day}'**
+  String importFileOneDay(Object day);
+
+  /// Said when a bank file is locked with a password (an Excel file saved with one), so it can't be read.
+  ///
+  /// In en, this message translates to:
+  /// **'{file} is locked. Open it in Excel or Numbers (type its password if it asks for one), save a copy without a password, and import that copy.'**
+  String importLocked(Object file);
+
   /// Plain popup when a file of a kind BetterBudget reads (Excel, CSV, OFX) couldn't be read.
   ///
   /// In en, this message translates to:

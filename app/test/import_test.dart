@@ -90,6 +90,20 @@ void main() {
       );
     });
 
+    test('a file locked with a password says so, as .xls and as .xlsx', () {
+      expect(
+        () => readSheet(buildXls(tdbLike(), locked: true), 'x.xls'),
+        throwsA(isA<LockedFileException>()),
+      );
+      expect(fileKindOf(lockedXlsx(), 'x.xlsx'), FileKind.xls);
+      expect(
+        () => readSheet(lockedXlsx(), 'x.xlsx'),
+        throwsA(isA<LockedFileException>()),
+      );
+      // One that isn't locked isn't taken for one.
+      expect(readSheet(buildXls(tdbLike()), 'x.xls').rows, isNotEmpty);
+    });
+
     test('a file that is not an xls says so', () {
       expect(
         () => readSheet(Uint8List.fromList([0, 1, 2, 3, 0]), 'x.xls'),

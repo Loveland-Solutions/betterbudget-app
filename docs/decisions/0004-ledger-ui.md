@@ -7733,9 +7733,49 @@ balance asks what is in the account today, in a field under the question. The op
 balance it writes is in the import's one Undo. The Added bar's Undo is the account's;
 the import's bar replaces it.
 
-Not built with this, on #531: a file sent to BetterBudget from another app (the bank's
-app, Files, mail), which asks "Which account is this file for?" and picks nothing for the
-person.
+**A file sent to BetterBudget from another app** (0.139.0): Share or Open with from the
+bank's app, Files or mail, on Android and iPhone, as #531 set it out. The page "Which
+account is this file for?" has the file's name under it, then its days ("Rows from 11.01
+to 11.30", read with the columns guessed: a statement is known by its days more than by a
+name like `statement.xls`), and each bank account and card as
+a line under the Accounts page's headings (Bank, Credit), cash left out. Nothing is
+picked; a tap is the answer and the import page opens for that account; the close button
+leaves the file. With one bank account or card it isn't asked; with none, the bar says
+to add one on Accounts first. A file that can't be read, or has no dated rows, is said
+before anything is asked. A file sent while an import or a reconcile is open waits until
+it ends. After its rows are in, the Ledger shows that account. The file is read into
+memory and nothing of it is written: on Android a small activity reads it while the
+sending app's permission holds and brings the app's own window forward (so no second
+copy of the app opens inside the other app); an iPhone deletes the copy iOS puts in the
+app's Inbox once read. `PRIVACY.md`'s line holds.
+
+**A statement locked with a password** (0.139.0, computer and phone): an Excel file saved
+with a password says "statement.xlsx is locked. Open it in Excel or Numbers (type its
+password if it asks for one), save a copy without a password, and import that copy."
+instead of "the file may be damaged", which sent the person back to the bank for the
+same locked file. Not Google Sheets, which refuses such files; and "if it asks", since an
+old .xls that is only protected is encrypted with Excel's built-in password and opens
+without asking. The app doesn't ask for the password: it would have to decrypt Excel's
+formats itself, for a case the person can get past in the app that made the file.
+
+**Show on the phone's import bar** (0.139.0), as the computer's popup has: when a row
+may have paid a bill, or a transfer may be the same money twice, the bar's words have
+**Show** under them (Undo stays the bar's own button). It opens that row where it is, on
+its account's Ledger, scrolled to it, with the bill's question under it. The bar stays
+up with its Undo: whoever checks a row may find they want the whole import back.
+
+After the two review passes on these (decided by me, along the owner's rules): Show
+does nothing while a reconcile is open, so it never ends one; it opens the earliest row
+to check; a sent file is refused before the account is asked only when it can't be read
+(whether it has dated rows waits for the account's saved columns), and its days are left
+out when they read two ways (03.04); a file sent while a reconcile or an import is open
+waits; Android's receiving activity reads a file once even if the phone turns, and
+leaves whatever is open over the app; an iPhone opened from Files while the app wasn't
+running also finds the file in its Inbox, in case the scene's first call doesn't reach
+the app's code, and deletes Inbox copies left by an earlier run. Android offers the app
+for files typed only `application/octet-stream`, since mail apps give OFX files that
+type; such a file that isn't a bank's says "Couldn't read". Not `text/plain`, which
+would offer the app for every shared note.
 
 ## An import pays a bill waiting for Confirm (owner, 2026-11-21, #597)
 
