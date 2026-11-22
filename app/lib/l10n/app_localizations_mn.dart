@@ -7866,4 +7866,43 @@ class WordsMn extends Words {
   String reconcileOwedWillBe(String amount) {
     return 'Өр $amount болно.';
   }
+
+  @override
+  String phonePayeesFit(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Энэ хугацааны ангилаагүй $count мөр энд байгаа харилцагчид таарч байна',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phonePayeesFileLine(
+    int count,
+    String payee,
+    String amount,
+    String category,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$payee: $count мөр, $amount, $category руу',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get phonePayeesFind => 'Харилцагч хайх';
+
+  @override
+  String phonePayeesFiled(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count мөрийг ангилав',
+    );
+    return '$_temp0';
+  }
 }

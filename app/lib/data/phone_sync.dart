@@ -54,7 +54,8 @@ import '../domain/pay.dart'
         budgetPeriod,
         noRegularPayKey,
         payNever;
-import '../domain/payee_rules.dart' show Remembered;
+import '../domain/payee_offers.dart';
+import '../domain/payee_rules.dart' show PayeeBefore, PayeeRuleInfo, Remembered;
 import '../domain/phone.dart';
 import '../domain/money.dart' show Currency;
 import '../domain/readiness.dart' show ReadyKeys;
@@ -82,6 +83,7 @@ import 'database.dart'
         TxnSnapshot;
 import '../import/mapping.dart' show ImportRow;
 import 'folder_io.dart';
+import 'payee_acts.dart';
 import 'phone_ledger.dart';
 import 'phone_own_ledger.dart';
 
@@ -383,6 +385,39 @@ class PhoneDeleteAccount extends PhoneRowAct {
   final int account;
 }
 
+/// A payee saved on the Payees page (#532): new ([before] null) or
+/// changed, as the computer's Save is, with its twins taken into it.
+class PhoneSavePayee extends PhoneRowAct {
+  PhoneSavePayee(this.before, this.after);
+  final PayeeRuleInfo? before;
+  final PayeeRuleInfo after;
+
+  /// The payee as written, once done.
+  PayeeRuleInfo? saved;
+}
+
+/// A payee deleted: the app stops filing by it; rows already filed stay.
+class PhoneDeletePayee extends PhoneRowAct {
+  const PhoneDeletePayee(this.rule);
+  final PayeeRuleInfo rule;
+}
+
+/// The offer to file what is still in Not categorized (this period's) for
+/// each of these payees, as one change. [filed] is how many rows went.
+class PhoneFilePayees extends PhoneRowAct {
+  PhoneFilePayees(this.rules);
+  final List<int> rules;
+  int filed = 0;
+}
+
+/// The offer to show these payees' names on the rows already in that don't
+/// (each keeping the bank's words in its memo). [shown] is how many.
+class PhoneShowPayeeNames extends PhoneRowAct {
+  PhoneShowPayeeNames(this.rules);
+  final List<int> rules;
+  int shown = 0;
+}
+
 class PhoneDeleteRow extends PhoneRowAct {
   const PhoneDeleteRow(this.txn);
   final int txn;
@@ -451,8 +486,7 @@ class PhoneImport extends PhoneRowAct {
   /// What it wrote, once done, with how many bills its rows paid and how
   /// many more a row may have paid: the snack bar says them, and its Show
   /// opens [checkRow], the first row that may have paid one.
-  ({ImportRecord record, int billsPaid, int billsToCheck, int? checkRow})?
-  done;
+  ({ImportRecord record, int billsPaid, int billsToCheck, int? checkRow})? done;
 }
 
 /// An act done: the ledger after it, and what Undo and Redo do, each
@@ -1385,6 +1419,11 @@ class PhoneSync implements PhoneLedgerSource {
           PhoneArchiveAccount() ||
           PhoneDeleteAccount():
         return actOnAccount(db, act, now, again);
+      case PhoneSavePayee() ||
+          PhoneDeletePayee() ||
+          PhoneFilePayees() ||
+          PhoneShowPayeeNames():
+        return actOnPayee(db, act, now, again);
       case PhoneDeleteRow(:final txn):
         final deleted = await db.softDeleteMany([txn]);
         if (deleted.isEmpty) throw LockedException(DbProblem.reconciled);
@@ -1985,6 +2024,133 @@ Future<PhoneActed> actOnReconcile(
       );
     default:
       throw ArgumentError('Not a reconcile: $act');
+  }
+}
+
+/// Does a payee's act (#532), each with its undo and redo, as the
+/// computer's Payees page does. Shared by the phone's ledger and the tests'
+/// stand-in, so there is one copy.
+Future<PhoneActed> actOnPayee(
+  AppDatabase db,
+  PhoneRowAct act,
+  DateTime now,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  switch (act) {
+    case PhoneSavePayee(before: final opened, :final after):
+      final data = await db.loadLedger();
+      // As it stands now, not as the card opened on it: a change brought in
+      // from another computer since is what Undo puts back.
+      final before = opened == null
+          ? null
+          : data.payeeRules.where((r) => r.id == opened.id).firstOrNull;
+      if (opened != null && before == null) {
+        throw NotFoundException(DbProblem.changedSince);
+      }
+      final (:twins, :clash) = payeeOverlaps(data, before, after);
+      if (clash != null) {
+        throw StateError('Another payee already goes by those words');
+      }
+      final written = await writePayee(db, before, after, twins);
+      act.saved = written.saved;
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await written.undo();
+          return again();
+        },
+        redo: () async {
+          await written.redo();
+          return again();
+        },
+      );
+    case PhoneDeletePayee(rule: final opened):
+      // As it stands now: a change brought in since isn't written over.
+      final rule = (await db.loadLedger()).payeeRules
+          .where((r) => r.id == opened.id)
+          .firstOrNull;
+      if (rule == null) throw NotFoundException(DbProblem.changedSince);
+      final gone = rule.copyWith(deleted: true);
+      await db.putPayeeRule(gone);
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.putPayeeRule(rule);
+          return again();
+        },
+        redo: () async {
+          await db.putPayeeRule(gone);
+          return again();
+        },
+      );
+    case PhoneFilePayees(:final rules):
+      final data = await db.loadLedger();
+      final filings = [
+        for (final r in data.payeeRules)
+          if (rules.contains(r.id) && !r.deleted)
+            WaitingFiling(db, data, r, payeeWaitingFor(data, r, now), now),
+      ];
+      await db.transaction(() async {
+        for (final f in filings) {
+          await f.write();
+        }
+      });
+      act.filed = filings.fold(0, (n, f) => n + f.waiting.length);
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.transaction(() async {
+            for (final f in filings.reversed) {
+              await f.undo();
+            }
+          });
+          return again();
+        },
+        redo: () async {
+          await db.transaction(() async {
+            for (final f in filings) {
+              await f.write();
+            }
+          });
+          return again();
+        },
+      );
+    case PhoneShowPayeeNames(:final rules):
+      final data = await db.loadLedger();
+      // Each row once, under the payee its own words pick.
+      final byRule = {
+        for (final r in data.payeeRules)
+          if (rules.contains(r.id) && !r.deleted)
+            r: {for (final x in payeeUnnamedFor(data, r)) x.txnId},
+      };
+      var before = <int, PayeeBefore>{};
+      Future<void> write() => db.transaction(() async {
+        before = {};
+        for (final e in byRule.entries) {
+          if (e.value.isEmpty) continue;
+          before.addAll(
+            await db.renamePayeeMany(
+              transactionIds: e.value,
+              name: e.key.shownAs.trim(),
+            ),
+          );
+        }
+      });
+      await write();
+      act.shown = before.length;
+      return (
+        snapshot: await again(),
+        undo: () async {
+          await db.restorePayees(before);
+          return again();
+        },
+        redo: () async {
+          await write();
+          return again();
+        },
+      );
+    default:
+      throw ArgumentError('Not a payee act: $act');
   }
 }
 

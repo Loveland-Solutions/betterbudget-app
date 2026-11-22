@@ -1840,5 +1840,9 @@
   "accountToBank": "{name} банкны данс болно. Гүйлгээнүүдийн дүн өөрчлөгдөхгүй, цэвэр хөрөнгө {before} хэвээр үлдэнэ.",
   "reconcileStayUncleared": "{count, plural, other{{date} хүртэлх {count} гүйлгээ баталгаажаагүй бөгөөд хэвээр үлдэнэ.}}",
   "reconcileWorkingWillBe": "Үлдэгдэл {amount} болно.",
-  "reconcileOwedWillBe": "Өр {amount} болно."
+  "reconcileOwedWillBe": "Өр {amount} болно.",
+  "phonePayeesFit": "{count, plural, other{Энэ хугацааны ангилаагүй {count} мөр энд байгаа харилцагчид таарч байна}}",
+  "phonePayeesFind": "Харилцагч хайх",
+  "phonePayeesFiled": "{count, plural, other{{count} мөрийг ангилав}}",
+  "phonePayeesFileLine": "{count, plural, other{{payee}: {count} мөр, {amount}, {category} руу}}"
 }

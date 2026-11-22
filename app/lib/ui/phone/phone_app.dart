@@ -39,8 +39,12 @@ import '../../data/phone_sync.dart'
         PhoneAssign,
         PhoneAsking,
         PhoneBillPaid,
+        PhoneFilePayees,
+        PhoneSavePayee,
+        PhoneShowPayeeNames,
         PhoneDeleteAccount,
         PhoneDeleteCategory,
+        PhoneDeletePayee,
         PhoneDeleteRow,
         PhoneEditAccount,
         PhoneEditCategory,
@@ -76,6 +80,8 @@ import '../../domain/forecast.dart';
 import '../../domain/ledger.dart';
 import '../../domain/money.dart';
 import '../../domain/pay.dart';
+import '../../data/payee_acts.dart' show payeeOverlaps;
+import '../../domain/payee_offers.dart';
 import '../../domain/payee_rules.dart';
 import '../../domain/phone.dart';
 import '../../domain/readiness.dart';
@@ -103,6 +109,7 @@ part 'phone_count.dart';
 part 'phone_form_rows.dart';
 part 'phone_import.dart';
 part 'phone_income.dart';
+part 'phone_payees.dart';
 part 'phone_move.dart';
 part 'phone_new_category.dart';
 part 'phone_pay.dart';
@@ -5193,6 +5200,21 @@ class _AccountsScreenState extends State<_AccountsScreen> {
           ],
           if (data != null) ...[
             const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                key: const ValueKey('to-payees'),
+                onPressed: () => unawaited(
+                  _openPayees(context, store: store, now: widget.now),
+                ),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(44, 44),
+                  foregroundColor: Mid.blue,
+                  textStyle: onest(15, weight: 500),
+                ),
+                child: Text(t.ledgerPayees),
+              ),
+            ),
             FilledButton.icon(
               key: const ValueKey('add-account'),
               onPressed: _add,

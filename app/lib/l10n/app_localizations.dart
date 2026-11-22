@@ -11246,6 +11246,35 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Owed will be {amount}.'**
   String reconcileOwedWillBe(String amount);
+
+  /// Phone, Payees page: over the lines phonePayeesFileLine and the button that files them (payeesFileWaiting), while payees fit rows still in Not categorized this period.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row in Not categorized this period fits a payee here} other{{count} rows in Not categorized this period fit a payee here}}'**
+  String phonePayeesFit(int count);
+
+  /// Phone, Payees page: one line per payee under phonePayeesFit, saying where its waiting rows go before the button files them. {amount} is what they come to, money out with a minus, each currency once, joined by ' · '.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{payee}: 1 row, {amount}, to {category}} other{{payee}: {count} rows, {amount}, to {category}}}'**
+  String phonePayeesFileLine(
+    int count,
+    String payee,
+    String amount,
+    String category,
+  );
+
+  /// Phone, Payees page: the hint in the search field over a long list.
+  ///
+  /// In en, this message translates to:
+  /// **'Find a payee'**
+  String get phonePayeesFind;
+
+  /// Phone, Payees page: the snack bar after payeesFileWaiting's button is tapped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Filed 1 row} other{Filed {count} rows}}'**
+  String phonePayeesFiled(int count);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

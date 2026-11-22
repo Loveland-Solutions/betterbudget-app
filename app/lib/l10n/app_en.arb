@@ -12151,5 +12151,45 @@
         "type": "String"
       }
     }
+  },
+  "phonePayeesFit": "{count, plural, =1{1 row in Not categorized this period fits a payee here} other{{count} rows in Not categorized this period fit a payee here}}",
+  "@phonePayeesFit": {
+    "description": "Phone, Payees page: over the lines phonePayeesFileLine and the button that files them (payeesFileWaiting), while payees fit rows still in Not categorized this period.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "phonePayeesFileLine": "{count, plural, =1{{payee}: 1 row, {amount}, to {category}} other{{payee}: {count} rows, {amount}, to {category}}}",
+  "@phonePayeesFileLine": {
+    "description": "Phone, Payees page: one line per payee under phonePayeesFit, saying where its waiting rows go before the button files them. {amount} is what they come to, money out with a minus, each currency once, joined by ' · '.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "payee": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "phonePayeesFind": "Find a payee",
+  "@phonePayeesFind": {
+    "description": "Phone, Payees page: the hint in the search field over a long list."
+  },
+  "phonePayeesFiled": "{count, plural, =1{Filed 1 row} other{Filed {count} rows}}",
+  "@phonePayeesFiled": {
+    "description": "Phone, Payees page: the snack bar after payeesFileWaiting's button is tapped.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }
