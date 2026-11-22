@@ -36,7 +36,7 @@ class _PhoneSetupState extends State<_PhoneSetup> with _FormRows<_PhoneSetup> {
   late final _emergency = TextEditingController(
     text: switch (setupEmergency(_data)) {
       0 => '',
-      final v => _typedAmount(v, mainCurrency(_data)),
+      final v => _typedAmount(v, setupSaveIn(_data)),
     },
   );
 
@@ -45,8 +45,10 @@ class _PhoneSetupState extends State<_PhoneSetup> with _FormRows<_PhoneSetup> {
 
   LedgerData get _data => widget.store.snapshot.data!;
 
+  /// The currency saved in (#616): the Safety net's, and the emergency
+  /// question's.
   @override
-  Currency get _currency => mainCurrency(_data);
+  Currency get _currency => setupSaveIn(_data);
 
   @override
   DateTime get _today => dateOnly(widget.now());
@@ -213,11 +215,14 @@ class _PhoneSetupState extends State<_PhoneSetup> with _FormRows<_PhoneSetup> {
 
   /// What the budget will use of [c]'s money as the page shows it; null
   /// while Some of it has nothing that can be read.
-  int? _hadNow(Currency c, int held) => switch (_choice(c)) {
-    _PhoneHad.all => held,
-    _PhoneHad.none => 0,
-    _PhoneHad.part => _partAmount(c),
-  };
+  int? _hadNow(Currency c, int held) => held < 0
+      // Overdrawn: the budget starts that much short (#617).
+      ? held
+      : switch (_choice(c)) {
+          _PhoneHad.all => held,
+          _PhoneHad.none => 0,
+          _PhoneHad.part => _partAmount(c),
+        };
 
   void _pickHad(Currency c, _PhoneHad h) {
     setState(() => _picked[c] = h);
@@ -231,6 +236,15 @@ class _PhoneSetupState extends State<_PhoneSetup> with _FormRows<_PhoneSetup> {
     };
     if (v != null) unawaited(_keep({SetupKeys.had(c): v}));
     if (h == _PhoneHad.part) _focus('setup-had-${c.code}').requestFocus();
+  }
+
+  void _pickSaveIn(Currency c) {
+    if (c == _currency) return;
+    setState(() {
+      // An amount typed in the other currency means nothing in this one.
+      _emergency.clear();
+    });
+    unawaited(_keep({SetupKeys.saveIn: c.code, SetupKeys.emergency: null}));
   }
 
   /// The emergency amount as typed: 0 when empty, null when unreadable.
@@ -259,7 +273,10 @@ class _PhoneSetupState extends State<_PhoneSetup> with _FormRows<_PhoneSetup> {
     final t = context.t;
     final messenger = ScaffoldMessenger.of(context);
     final had = <Currency, int>{};
+    // All of it, or overdrawn: follows the accounts (#618).
+    final follows = <Currency>{};
     for (final MapEntry(key: c, value: held) in setupHeld(_data).entries) {
+      if (held < 0 || _choice(c) == _PhoneHad.all) follows.add(c);
       final v = _hadNow(c, held);
       if (v == null) {
         _focus('setup-had-${c.code}').requestFocus();
@@ -288,6 +305,8 @@ class _PhoneSetupState extends State<_PhoneSetup> with _FormRows<_PhoneSetup> {
           had: had,
           emergency: emergency,
           safetyNetName: _safetyNetName(t),
+          follows: follows,
+          saveIn: _data.prefs[SetupKeys.saveIn] == null ? null : _currency,
         ),
       );
       // Setup has left the screen: the bar goes on Budget.
@@ -775,8 +794,24 @@ class _PhoneSetupState extends State<_PhoneSetup> with _FormRows<_PhoneSetup> {
     final usedMain = held.containsKey(main) ? _hadNow(main, held[main]!) : null;
     final emergency = _emergencyAmount;
     final short = (emergency ?? 0) - (usedMain ?? 0);
+    final asOf = setupDate(data, _today);
+    // The budget begins with this period: balances from before it are
+    // followed up to its first day by the rows added in between (#618).
+    final starts = budgetPeriod(_today, data.periodSchedule).start;
+    final follows = asOf.isBefore(starts)
+        ? t.setupHadFollows(
+            sayDate(t, starts),
+            sayDate(t, asOf.add(const Duration(days: 1))),
+            sayDate(t, starts.subtract(const Duration(days: 1))),
+          )
+        : null;
+    final currencies = setupCurrencies(data);
     return [
-      _heading(t.setupMoneyHeading),
+      _heading(
+        asOf == _today
+            ? t.setupMoneyHeading
+            : t.setupMoneyHeadingOn(sayDate(t, asOf)),
+      ),
       _line(t.setupMoneyLine),
       const SizedBox(height: 16),
       Material(
@@ -854,74 +889,105 @@ class _PhoneSetupState extends State<_PhoneSetup> with _FormRows<_PhoneSetup> {
       ),
       for (final MapEntry(key: c, value: amount) in held.entries) ...[
         const SizedBox(height: 16),
-        Builder(
-          builder: (context) {
-            final choice = _choice(c);
-            final part = _partOf(c);
-            final used = _hadNow(c, amount);
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _card([
-                  _choices([
-                    (
-                      'setup-had-all-${c.code}',
-                      t.setupHadAll(formatShort(amount, currency: c)),
-                      choice == _PhoneHad.all,
-                      () => _pickHad(c, _PhoneHad.all),
-                    ),
-                    (
-                      'setup-had-part-${c.code}',
-                      t.setupHadPart,
-                      choice == _PhoneHad.part,
-                      () => _pickHad(c, _PhoneHad.part),
-                    ),
-                    (
-                      'setup-had-none-${c.code}',
-                      t.setupHadNone,
-                      choice == _PhoneHad.none,
-                      () => _pickHad(c, _PhoneHad.none),
-                    ),
-                  ]),
-                  if (choice == _PhoneHad.part)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                      child: _amountField(
-                        'setup-had-${c.code}',
-                        part,
-                        c,
-                        wrong: part.text.trim().isNotEmpty && used == null,
-                        onDone: () => _keepPart(c),
+        // Overdrawn: said, and the budget starts that much short (#617).
+        if (amount < 0)
+          _line(
+            t.setupOverdrawn(formatShort(-amount, currency: c)),
+            key: 'setup-overdrawn-${c.code}',
+            color: Mid.coral,
+          )
+        else
+          Builder(
+            builder: (context) {
+              final choice = _choice(c);
+              final part = _partOf(c);
+              final used = _hadNow(c, amount);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _card([
+                    _choices([
+                      (
+                        'setup-had-all-${c.code}',
+                        t.setupHadAll(formatShort(amount, currency: c)),
+                        choice == _PhoneHad.all,
+                        () => _pickHad(c, _PhoneHad.all),
                       ),
-                    ),
-                ]),
-                _aside(
-                  switch (used) {
-                    null when part.text.trim().isNotEmpty => t.setupCantRead(
-                      part.text.trim(),
-                    ),
-                    null => t.phoneSetupHadType,
-                    0 => t.setupHadNoneLine,
-                    // Said, never refused: more than there is starts short.
-                    final int v when v > amount => t.setupHadMore(
-                      formatShort(v - amount, currency: c),
-                    ),
-                    // The phone has no Settings page yet to point to.
-                    final int v => t.phoneSetupHadUses(
-                      formatShort(v, currency: c),
-                    ),
-                  },
-                  key: 'setup-had-line-${c.code}',
-                  color:
-                      (used == null && part.text.trim().isNotEmpty) ||
-                          (used != null && used > amount)
-                      ? Mid.coral
-                      : Mid.ink2,
+                      (
+                        'setup-had-part-${c.code}',
+                        t.setupHadPart,
+                        choice == _PhoneHad.part,
+                        () => _pickHad(c, _PhoneHad.part),
+                      ),
+                      (
+                        'setup-had-none-${c.code}',
+                        t.setupHadNone,
+                        choice == _PhoneHad.none,
+                        () => _pickHad(c, _PhoneHad.none),
+                      ),
+                    ]),
+                    if (choice == _PhoneHad.part)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: _amountField(
+                          'setup-had-${c.code}',
+                          part,
+                          c,
+                          wrong: part.text.trim().isNotEmpty && used == null,
+                          onDone: () => _keepPart(c),
+                        ),
+                      ),
+                  ]),
+                  _aside(
+                    switch (used) {
+                      null when part.text.trim().isNotEmpty => t.setupCantRead(
+                        part.text.trim(),
+                      ),
+                      null => t.phoneSetupHadType,
+                      0 => t.setupHadNoneLine,
+                      // Said, never refused: more than there is starts short.
+                      final int v when v > amount => t.setupHadMore(
+                        formatShort(v - amount, currency: c),
+                      ),
+                      // The phone has no Settings page yet to point to.
+                      final int v => t.phoneSetupHadUses(
+                        formatShort(v, currency: c),
+                      ),
+                    },
+                    key: 'setup-had-line-${c.code}',
+                    color:
+                        (used == null && part.text.trim().isNotEmpty) ||
+                            (used != null && used > amount)
+                        ? Mid.coral
+                        : Mid.ink2,
+                  ),
+                  if (follows != null && choice == _PhoneHad.all)
+                    _aside(follows, key: 'setup-had-follows-${c.code}'),
+                ],
+              );
+            },
+          ),
+      ],
+      // With money in more than one currency: which one is saved in
+      // (owner, 2026-11-23, #616), the one most accounts are in to begin
+      // with.
+      if (currencies.length > 1) ...[
+        const SizedBox(height: 20),
+        _card([
+          _asked(
+            t.setupSaveInQ,
+            _choices([
+              for (final c in currencies)
+                (
+                  'setup-save-in-${c.code}',
+                  '${c.code} ${c.symbol}',
+                  c == main,
+                  () => _pickSaveIn(c),
                 ),
-              ],
-            );
-          },
-        ),
+            ]),
+          ),
+        ]),
+        _aside(t.setupSaveInHint),
       ],
       // Asked while the budget uses some of its own currency's money: the
       // Safety net is in that currency.

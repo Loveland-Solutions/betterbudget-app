@@ -2641,7 +2641,7 @@ class WordsMn extends Words {
 
   @override
   String setupOverdrawn(String amount) {
-    return 'Данс хасах үлдэгдэлтэй · $amount дутуу.';
+    return 'Таны дансууд $amount-өөр хэтэрсэн тул төсөв $amount дутуу эхэлнэ.';
   }
 
   @override
@@ -8122,4 +8122,32 @@ class WordsMn extends Words {
   @override
   String get phoneNoRegularPayToast =>
       'Тогтмол орлогогүй: апп үүнийг асуухгүй. Өөрчлөхийн тулд Төсөв дээрх Орлого дээр дарна уу.';
+
+  @override
+  String get setupSaveInQ => 'Та аль валютаар хуримтлал хийдэг вэ?';
+
+  @override
+  String get setupSaveInHint =>
+      'Таны Аюулгүйн сан энэ валютаар хадгалагдах бөгөөд төсөв эхлээд үүгээр тоолно.';
+
+  @override
+  String setupMoneyHeadingOn(String date) {
+    return '$date-ны өдөр таны дансанд байсан мөнгө';
+  }
+
+  @override
+  String setupHadFollows(String start, String from, String end) {
+    return 'Таны төсөв $start-ны өдөр дансанд байсан мөнгийг ашиглана. $from-аас $end хүртэл нэмсэн гүйлгээ үүнийг өөрчилнө.';
+  }
+
+  @override
+  String get planSumOverdrawn => 'Төсөв эхлэхэд хэтэрсэн';
+
+  @override
+  String get planKeyOverOverdrawn => 'Төсөв эхлэхэд хэтэрсэн';
+
+  @override
+  String planKeyOverOverdrawnPart(String amount) {
+    return 'Төсөв эхлэхэд $amount хэтэрсэн';
+  }
 }

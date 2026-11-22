@@ -2725,7 +2725,7 @@ class WordsEn extends Words {
 
   @override
   String setupOverdrawn(String amount) {
-    return 'It’s $amount overdrawn.';
+    return 'Your accounts are $amount overdrawn, so your budget starts $amount short.';
   }
 
   @override
@@ -8398,4 +8398,32 @@ class WordsEn extends Words {
   @override
   String get phoneNoRegularPayToast =>
       'No regular income: the app won’t ask for it. Tap Income on Budget to change this.';
+
+  @override
+  String get setupSaveInQ => 'Which currency do you save in?';
+
+  @override
+  String get setupSaveInHint =>
+      'Your Safety net is kept in it, and your budget counts in it first.';
+
+  @override
+  String setupMoneyHeadingOn(String date) {
+    return 'The money in your accounts on $date';
+  }
+
+  @override
+  String setupHadFollows(String start, String from, String end) {
+    return 'Your budget uses what was in your accounts on $start. Rows you add from $from to $end change it.';
+  }
+
+  @override
+  String get planSumOverdrawn => 'Overdrawn when the budget began';
+
+  @override
+  String get planKeyOverOverdrawn => 'Overdrawn when the budget began';
+
+  @override
+  String planKeyOverOverdrawnPart(String amount) {
+    return '$amount overdrawn when the budget began';
+  }
 }

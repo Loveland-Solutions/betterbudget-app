@@ -99,7 +99,9 @@ import '../../domain/setup.dart'
         setupAsksMoney,
         setupDate,
         setupEmergency,
+        setupCurrencies,
         setupHeld,
+        setupSaveIn,
         walkOf;
 import '../language.dart';
 import '../plan_form.dart';
@@ -1808,6 +1810,15 @@ class _PhoneSum extends StatelessWidget {
               t.planSumHadBefore,
               p.hadBefore,
               hue: Mid.green,
+              key: 'sum-had',
+            ),
+          // Overdrawn when it began (#617): it starts that much short.
+          if (p.hadBefore < 0)
+            line(
+              '−',
+              t.planSumOverdrawn,
+              -p.hadBefore,
+              hue: Mid.coral,
               key: 'sum-had',
             ),
           if (p.exchanged != 0)

@@ -355,10 +355,17 @@ class PhoneFinishSetup extends PhoneRowAct {
     required this.had,
     required this.emergency,
     required this.safetyNetName,
+    this.follows = const {},
+    this.saveIn,
   });
   final Map<Currency, int> had;
   final int emergency;
   final String safetyNetName;
+
+  /// The currencies whose money follows the accounts (#618), and the one
+  /// picked to save in (#616): `finishSetup`'s.
+  final Set<Currency> follows;
+  final Currency? saveIn;
 }
 
 /// How far every forecast looks, picked on the Ledger tab's header (#529):
@@ -1893,13 +1900,21 @@ Future<PhoneActed> actOnSetup(
           return again();
         },
       );
-    case PhoneFinishSetup(:final had, :final emergency, :final safetyNetName):
+    case PhoneFinishSetup(
+      :final had,
+      :final emergency,
+      :final safetyNetName,
+      :final follows,
+      :final saveIn,
+    ):
       final done = await finishSetup(
         db,
         had: had,
         emergency: emergency,
         today: dateOnly(now),
         safetyNetName: safetyNetName,
+        follows: follows,
+        saveIn: saveIn,
       );
       return (
         snapshot: await again(),

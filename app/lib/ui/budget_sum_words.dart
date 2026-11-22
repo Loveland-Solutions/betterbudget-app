@@ -18,6 +18,8 @@ import 'language.dart';
 }) {
   final label = switch (cause) {
     ShortBy(exchanged: > 0) => t.planKeyOverMixed,
+    _ when cause.causes > 1 => t.planKeyOverMixed,
+    ShortBy(overdrawn: > 0) => t.planKeyOverOverdrawn,
     ShortBy(carried: 0, assigned: 0) => t.planKeyOverSpent,
     _ when cause.causes > 1 => t.planKeyOverMixed,
     ShortBy(carried: > 0) when byPay => t.planKeyOverCarriedPay,
@@ -34,6 +36,8 @@ import 'language.dart';
                     short(cause.carried),
                     beforeMonth,
                   ),
+          if (cause.overdrawn > 0)
+            t.planKeyOverOverdrawnPart(short(cause.overdrawn)),
           if (cause.exchanged > 0)
             t.planKeyOverExchangedPart(short(cause.exchanged)),
           if (cause.assigned > 0)

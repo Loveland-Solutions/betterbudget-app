@@ -1204,6 +1204,17 @@ class _BudgetPageState extends State<_BudgetPage> {
                   hue: Mid.green,
                 ),
               ),
+            // Overdrawn when it began (#617): it starts that much short.
+            if (p.hadBefore < 0)
+              after(
+                '−',
+                _SumBox(
+                  key: ValueKey('sum-had$tag'),
+                  label: t.planSumOverdrawn,
+                  figure: short(-p.hadBefore),
+                  hue: Mid.coral,
+                ),
+              ),
             // Changed into this currency, or out of it (#461).
             if (p.exchanged != 0)
               after(

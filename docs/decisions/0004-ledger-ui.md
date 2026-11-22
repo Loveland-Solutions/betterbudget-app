@@ -8089,3 +8089,53 @@ time.
     which would cover its questions; a Cash account left unnamed is called Cash.
   - Finish holds from the first tap, so a second can't finish a finished setup and
     leave an Undo that puts back "done".
+
+## Money you have: the currency saved in, an overdrawn start, and balances from before (owner, 2026-11-23, #616, #617, #618)
+
+Three questions from the budget review of setup on the phone, about how setup counts
+money on both platforms.
+
+- **The currency saved in (#616).** The budget's own currency was the one most
+  accounts are in, so a household with its salary in Khan (tugrik) and two dollar
+  accounts got a dollar budget and a dollar Safety net. The owner: "They'll need to
+  decide which currency they'll save in in savings if there are multiple currencies."
+  While the bank and cash accounts hold more than one currency, Money you have asks
+  **Which currency do you save in?**, one answer per currency, the one most accounts are
+  in picked to begin with (a default, not a required choice). The emergency question
+  asks in it, the Safety net is made in it, and finishing setup fixes it as the
+  budget's own currency, with Undo. Picking another clears an emergency amount typed in
+  the first, which means nothing in the second.
+- **An overdrawn start (#617).** Money you have was asked only above ₮0, so someone
+  ₮400,000 overdrawn started at ₮0 and their next salary all looked free. The owner:
+  "Yes", it starts short. Below zero, the step says "Your accounts are ₮400,000
+  overdrawn, so your budget starts ₮400,000 short." in coral in place of All, Some or
+  None, and the budget's sum starts that much short.
+- **Balances from before the budget began (#618).** The budget begins with this
+  period; balances as of an earlier day left whatever came and went before the 1st
+  counted nowhere. The owner asked the committee and followed its recommendation (the
+  budget expert's and the budget-app reviewer's; the first-time user expected the budget
+  to begin in the month picked, but what confused them was the wording): **the budget
+  keeps beginning with this period, and All of it follows the accounts.** What the
+  household had is what the bank and cash accounts held at the end of the later of the
+  balances' day and the day before the budget began, worked out from the rows each time
+  the budget is shown, so October's salary typed in a week later counts in it, as it
+  does in the bank's balance. While the balances are from before the budget's first day,
+  All of it says "Your budget uses what was in your accounts on 11.01. Rows you add from
+  10.08 to 10.31 change it." Money you have's heading names the day when it isn't today.
+  Some of it stays the amount typed (it was the person's own choice); a figure typed in
+  Settings' Had before the budget takes the place of the one that follows, with Undo.
+  An overdrawn start follows the accounts too.
+- **Rejected:** the budget beginning in the month the balances are from (#618's (a)):
+  October would open as a month nobody planned, its spending in categories given
+  nothing, red the person can do nothing about, and by paycheck several such periods.
+- **From the code review** (decided along the lines above): All of it follows the
+  accounts only while the balances are from before the budget's first day, the case the
+  "Rows you add … change it" line names; balances from inside the first period are kept
+  as an amount, as before, since a row typed later counts in the period itself and
+  following it too counted it twice. An overdrawn start is its own box in the sum on both
+  platforms, coral, "− Overdrawn when the budget began", and when it leaves the result
+  short the result says so ("Overdrawn when the budget began"), not "Still short from
+  October" in a budget's first month. Settings' Had before the budget box saves only what
+  was typed in it, and shows the figure with its sign and cents. The currency saved in to
+  begin with is one of the answers offered (the one most bank and cash accounts are in),
+  and picking one always makes it the budget's own currency.

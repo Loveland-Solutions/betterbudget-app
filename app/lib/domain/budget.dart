@@ -45,6 +45,12 @@ abstract final class BudgetKeys {
   /// for ever (owner, 2026-11-17, #461). Set in Settings' Budget card.
   static String hadBefore(Currency c) => 'budget.hadBefore.${c.code}';
 
+  /// Set by setup's All of it (owner, 2026-11-23, #618): the day setup's
+  /// balances are as of. While it's set, what the household had follows
+  /// the accounts ([hadBeforeOf]); a figure typed in Settings takes its
+  /// place.
+  static String hadFrom(Currency c) => 'budget.hadFrom.${c.code}';
+
   /// 'yes': a category picked as a Fund with no amount set (#429). With no
   /// plan to say its money is built up, this keeps it on the Fund card;
   /// it changes no figure.
@@ -438,19 +444,29 @@ class BudgetPool {
     // Money exchanged out is its own cause, after what the periods before
     // left short (budget review): not "short from October".
     final out = exchanged < 0 ? -exchanged : 0;
-    final there = income + toCome + fromBefore + hadBefore + exchanged + out;
+    // So is starting overdrawn (#617): not "short from October" in a
+    // budget's first period, which had no October. This period's income
+    // covers it first.
+    final od = hadBefore < 0 ? -hadBefore : 0;
+    final there =
+        income + toCome + fromBefore + hadBefore + exchanged + out + od;
     final carried = there < 0 ? min(-there, short) : 0;
-    final exchangedPart = (out - max(there, 0))
+    final overdrawnPart = (od - max(there, 0))
         .clamp(0, short - carried)
         .toInt();
-    final left = max(there - out, 0);
-    final past = (assigned + ahead - left)
-        .clamp(0, short - carried - exchangedPart)
+    final available = max(max(there, 0) - od, 0);
+    final exchangedPart = (out - available)
+        .clamp(0, short - carried - overdrawnPart)
         .toInt();
-    final rest = short - carried - exchangedPart - past;
+    final left = max(available - out, 0);
+    final past = (assigned + ahead - left)
+        .clamp(0, short - carried - overdrawnPart - exchangedPart)
+        .toInt();
+    final rest = short - carried - overdrawnPart - exchangedPart - past;
     final loosePart = min(rest, loose);
     return ShortBy(
       carried: carried,
+      overdrawn: overdrawnPart,
       exchanged: exchangedPart,
       assigned: past,
       spent: rest - loosePart,
@@ -463,6 +479,7 @@ class BudgetPool {
 class ShortBy {
   const ShortBy({
     this.carried = 0,
+    this.overdrawn = 0,
     this.assigned = 0,
     this.spent = 0,
     this.loose = 0,
@@ -471,6 +488,10 @@ class ShortBy {
 
   /// Money exchanged into another currency, past what there was (#461).
   final int exchanged;
+
+  /// The accounts were overdrawn when the budget began, past what came in
+  /// since (#617).
+  final int overdrawn;
 
   /// Left short by the periods before, more than this period's income.
   final int carried;
@@ -484,23 +505,31 @@ class ShortBy {
   /// Money out with no category, past what wasn't assigned.
   final int loose;
 
-  int get total => carried + exchanged + assigned + spent + loose;
+  int get total => carried + overdrawn + exchanged + assigned + spent + loose;
 
   /// How many of the four are in it.
-  int get causes =>
-      [carried, exchanged, assigned, spent, loose].where((v) => v > 0).length;
+  int get causes => [
+    carried,
+    overdrawn,
+    exchanged,
+    assigned,
+    spent,
+    loose,
+  ].where((v) => v > 0).length;
 
   @override
   bool operator ==(Object other) =>
       other is ShortBy &&
       other.carried == carried &&
+      other.overdrawn == overdrawn &&
       other.exchanged == exchanged &&
       other.assigned == assigned &&
       other.spent == spent &&
       other.loose == loose;
 
   @override
-  int get hashCode => Object.hash(carried, exchanged, assigned, spent, loose);
+  int get hashCode =>
+      Object.hash(carried, overdrawn, exchanged, assigned, spent, loose);
 
   @override
   String toString() =>
@@ -1225,8 +1254,8 @@ class Budget {
           // What they had when the budget began counts as income that
           // day: in the period it began in, its own term; later, part of
           // what the periods before left.
-          final had = int.tryParse(data.prefs[BudgetKeys.hadBefore(c)] ?? '');
           final starts = beganFor(c);
+          final had = hadBeforeOf(data, c, starts);
           var hadIn = 0, hadEarlier = 0;
           if (had != null && had != 0 && starts != null && !starts.isAfter(e)) {
             if (starts.isBefore(s)) {
@@ -2584,4 +2613,34 @@ Map<int, int> _payTied(
     }
   }
   return tied;
+}
+
+/// What the household had in [c] when the budget began ([began]), counted
+/// as income that day (#461). Setup's All of it (#618) follows the
+/// accounts: what the bank and cash accounts in [c] held at the end of the
+/// later of setup's balances' day and the day before the budget began, so a
+/// row typed later between those days changes it, as it changed the bank's
+/// balance. Otherwise the amount kept, as typed in setup or Settings; null
+/// for none.
+int? hadBeforeOf(LedgerData data, Currency c, DateTime? began) {
+  if (data.prefs[BudgetKeys.hadFrom(c)] case final String from) {
+    final asOf = parseDateKey(from);
+    final eve = began == null
+        ? asOf
+        : DateTime(began.year, began.month, began.day - 1);
+    final day = eve.isAfter(asOf) ? eve : asOf;
+    final held = {
+      for (final a in data.accounts.values)
+        if (!a.deleted && a.type == AccountType.asset && a.currency == c) a.id,
+    };
+    var sum = 0;
+    for (final t in data.txns) {
+      if (t.scheduled || dateOnly(t.date).isAfter(day)) continue;
+      for (final e in t.entries) {
+        if (held.contains(e.accountId)) sum += e.amount;
+      }
+    }
+    return sum;
+  }
+  return int.tryParse(data.prefs[BudgetKeys.hadBefore(c)] ?? '');
 }
