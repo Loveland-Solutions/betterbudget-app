@@ -593,6 +593,13 @@ abstract class PhoneLedgerSource {
   /// null with no ledger to copy.
   Future<BackupHealth?> dailyCopy(DateTime now) async => null;
 
+  /// Schedules each pay's next payday and each plan's next bill in the
+  /// phone's own ledger, as a computer does each time it opens (#624): a
+  /// phone on its own has no computer to do it, so one left closed past a
+  /// payday would have nothing waiting after it. Run when the ledger is
+  /// opened or read again, at most once an hour. Never throws.
+  Future<void> keepScheduled(DateTime now) async {}
+
   /// How the copies stand for the Backups page (#534 piece 3): the daily
   /// copy's, after making today's if it is due, and when Back up to… last
   /// worked. Null with no ledger of the phone's own.
@@ -856,6 +863,32 @@ class PhoneSync implements PhoneLedgerSource {
       if (identical(_daily, running)) _daily = null;
     }
     return backups.health.value;
+  }
+
+  /// When [keepScheduled] last ran, and on which ledger: one put in its
+  /// place (a restore) is scheduled afresh.
+  DateTime? _scheduledAt;
+  AppDatabase? _scheduledIn;
+
+  @override
+  Future<void> keepScheduled(DateTime now) async {
+    final db = _db;
+    if (_closed || db == null) return;
+    final last = _scheduledAt;
+    if (identical(_scheduledIn, db) &&
+        last != null &&
+        !now.isBefore(last) &&
+        now.difference(last) < const Duration(hours: 1)) {
+      return;
+    }
+    _scheduledAt = now;
+    _scheduledIn = db;
+    try {
+      await db.ensurePaydays(now);
+      await db.ensurePlanBills(now);
+    } catch (e) {
+      debugPrint('Scheduling paydays and bills on the phone failed: $e');
+    }
   }
 
   @override

@@ -541,6 +541,9 @@ class _FakeSource implements PhoneLedgerSource {
   Future<BackupHealth?> dailyCopy(DateTime now) async => null;
 
   @override
+  Future<void> keepScheduled(DateTime now) async {}
+
+  @override
   Future<PhoneBackups?> backups(DateTime now) async => null;
 
   @override
