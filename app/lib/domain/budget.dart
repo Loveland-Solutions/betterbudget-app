@@ -2296,6 +2296,14 @@ typedef BillPayment = ({
   int bills,
 });
 
+/// A category's bill found by a row still in Not categorized, by its amount
+/// alone (#558): it is asked about, never paid without asking, and Yes
+/// files the row under the bill's category.
+bool billFoundByAmount(BillPayment p) =>
+    p.bill.planCategoryId != null &&
+    p.row.kind == RowKind.simple &&
+    p.row.categoryId != p.bill.planCategoryId;
+
 /// What part of [r] is in [categoryId]: the row, or its line there.
 int _amountIn(RegisterRow r, int categoryId) {
   if (r.categoryId == categoryId) return r.amount;
@@ -2445,6 +2453,30 @@ Map<int, BillPayment> billPayments(
               Budget.billDate(plan, r.date, pay: pay) == b.date) {
             found = r;
             amount = part;
+            break;
+          }
+        }
+        // Nothing filed under it: a row the bank's file brought in, still in
+        // Not categorized, of exactly the bill's amount, in the bill's
+        // account and in the days a bank's row takes (#558; as an import
+        // pays one, #597). Only the amount says so, so it is asked about.
+        if (found == null && uncategorizedId != null) {
+          for (final r in posted) {
+            if (r.categoryId != uncategorizedId ||
+                r.kind != RowKind.simple ||
+                r.accountId != b.accountId ||
+                r.amount != b.amount ||
+                taken.contains(r.txnId) ||
+                r.projected ||
+                r.planCategoryId != null ||
+                r.payScheduleId != null ||
+                notIt.contains(r.txnId)) {
+              continue;
+            }
+            final since = daysBefore(b.date, r.date);
+            if (since < -bankDaysBefore || since > bankDaysAfter) continue;
+            found = r;
+            amount = r.amount;
             break;
           }
         }

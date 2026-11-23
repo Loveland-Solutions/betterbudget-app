@@ -1154,6 +1154,80 @@ void main() {
     expect(fit(12450000), (fit: BillFit.several, bills: 3));
   });
 
+  test('a bill is found by a row in Not categorized of exactly its amount, '
+      'in its account, from 3 days before to 10 after; asked, never paid '
+      'without asking (#558)', () {
+    AccountInfo account(int id, AccountType type, [String? name]) =>
+        AccountInfo(id: id, name: name ?? 'A$id', type: type);
+    const tithing = 3, none = 4, groceries = 5;
+    TxnData txn(
+      int id,
+      int day, {
+      int from = 1,
+      int to = none,
+      bool scheduled = false,
+      int amount = -10000000,
+      int? plan,
+    }) => TxnData(
+      id: id,
+      date: DateTime(2026, 11, day),
+      payee: scheduled ? null : 'POS Purchase',
+      scheduled: scheduled,
+      planCategoryId: plan,
+      entries: [
+        EntryData(id: id * 10, accountId: from, amount: amount),
+        EntryData(id: id * 10 + 1, accountId: to, amount: -amount),
+      ],
+    );
+    final plan = CategoryPlan(
+      categoryId: tithing,
+      kind: PlanKind.byDate,
+      amount: 10000000,
+      start: DateTime(2026, 10, 1),
+      due: DateTime(2026, 10, 16),
+      everyMonths: 1,
+      paidFrom: 1,
+    );
+    Map<int, BillPayment> found(List<TxnData> txns) => billPayments(
+      LedgerData(
+        accounts: [
+          account(1, AccountType.asset),
+          account(2, AccountType.asset),
+          account(tithing, AccountType.expense, 'Tithing'),
+          account(none, AccountType.expense, 'Not categorized'),
+          account(groceries, AccountType.expense),
+        ],
+        txns: txns,
+        plans: [plan],
+      ),
+      DateTime(2026, 11, 22),
+      uncategorizedId: none,
+    );
+    Map<int, int> paid(List<TxnData> txns) =>
+        found(txns).map((k, v) => MapEntry(k, v.row.txnId));
+
+    final bill = txn(1, 16, to: tithing, scheduled: true, plan: tithing);
+    // The owner's: the bank's row four days after the bill.
+    final p = found([bill, txn(5, 20)])[1]!;
+    expect(p.row.txnId, 5);
+    expect(p.fit, BillFit.paid);
+    expect(billFoundByAmount(p), isTrue);
+    // From 3 days before to 10 after.
+    expect(paid([bill, txn(5, 13)]), {1: 5});
+    expect(paid([bill, txn(5, 12)]), isEmpty);
+    expect(paid([bill, txn(5, 26)]), {1: 5});
+    expect(paid([bill, txn(5, 27)]), isEmpty);
+    // Only exactly the amount, only in the bill's account, only Not
+    // categorized.
+    expect(paid([bill, txn(5, 20, amount: -10000100)]), isEmpty);
+    expect(paid([bill, txn(5, 20, from: 2)]), isEmpty);
+    expect(paid([bill, txn(5, 20, to: groceries)]), isEmpty);
+    // A row filed under Tithing goes first, and isn't asked about.
+    final filed = found([bill, txn(5, 18), txn(6, 19, to: tithing)])[1]!;
+    expect(filed.row.txnId, 6);
+    expect(billFoundByAmount(filed), isFalse);
+  });
+
   test(
     'a row in a bill’s category pays the bill of its date, in any '
     'account; the soonest bill first, each row once; No kept as a setting',

@@ -3350,6 +3350,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       List<int> made,
       List<int> skipped,
       Map<String, String> wrote,
+      Map<int, int> filed,
       DateTime? next,
     })
     done;
@@ -3365,6 +3366,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         rest: rest,
         notIt: notIt,
         bills: bills,
+        file: billFoundByAmount(p)
+            ? (accountId: found.accountId, from: found.categoryId!)
+            : null,
       );
       billAfter = await db.snapshot(bill.txnId);
     } on DbException catch (e) {
@@ -3402,6 +3406,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (hadSkipped.isNotEmpty) await db.restoreMany(hadSkipped);
         // Only its tie: whatever was done to the row since stays.
         if (tie) await db.setPlanBill(found.txnId, tiedBefore);
+        if (done.filed.isNotEmpty) {
+          await db.restoreCategories(done.filed, found.accountId);
+        }
         await db.restoreSnapshot(billBefore);
         await db.setPreference(notItKey, notItBefore);
         for (final k in done.wrote.keys) {
@@ -3411,6 +3418,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
       redo: () => db.transaction(() async {
         await db.restoreSnapshot(billAfter);
         if (tie) await db.setPlanBill(found.txnId, planned);
+        if (done.filed.isNotEmpty && planned != null) {
+          await db.setCategoryMany(
+            transactionIds: done.filed.keys,
+            accountId: found.accountId,
+            categoryId: planned,
+            onlyFrom: done.filed.values.first,
+          );
+        }
         if (planned != null) await db.bringBackPlanBills(done.made, planned);
         if (done.skipped.isNotEmpty) await db.softDeleteMany(done.skipped);
         await db.setPreference(notItKey, notIt);
@@ -3840,7 +3855,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         )
         .firstOrNull;
     if (p == null || !mounted) return;
-    if (p.fit == BillFit.paid) return _billPaid(p, close: false);
+    if (p.fit == BillFit.paid && !billFoundByAmount(p)) {
+      return _billPaid(p, close: false);
+    }
     if (_editing?.controller.isDirty() ?? false) return;
     await _askBill(p, keys: false, close: false);
   }
@@ -3860,7 +3877,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         if (!ids.contains(p.row.txnId) || p.bill.planCategoryId == null) {
           continue;
         }
-        if (p.fit != BillFit.paid) {
+        if (p.fit != BillFit.paid || billFoundByAmount(p)) {
           unsure.add(p);
           continue;
         }

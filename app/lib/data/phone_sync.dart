@@ -20,6 +20,7 @@ import '../domain/budget.dart'
         Budget,
         BudgetKeys,
         CategoryType,
+        billFoundByAmount,
         billPayments,
         isUncategorized,
         uncategorizedNames;
@@ -2652,6 +2653,10 @@ Future<({Future<void> Function() undo, Future<void> Function() redo})> tieBill(
     rest: rest,
     notIt: notIt,
     bills: act.bills,
+    file:
+        billFoundByAmount((bill: bill, row: found, fit: BillFit.paid, bills: 1))
+        ? (accountId: found.accountId, from: found.categoryId!)
+        : null,
   );
   final billAfter = await db.snapshot(bill.txnId);
   // Bills scheduled before and skipped with this one come back on undo.
@@ -2666,6 +2671,9 @@ Future<({Future<void> Function() undo, Future<void> Function() redo})> tieBill(
         if (hadSkipped.isNotEmpty) await db.restoreMany(hadSkipped);
         // Only its tie: whatever was done to the row since stays.
         if (tie) await db.setPlanBill(found.txnId, tiedBefore);
+        if (done.filed.isNotEmpty) {
+          await db.restoreCategories(done.filed, found.accountId);
+        }
         await db.restoreSnapshot(billBefore);
         await db.setPreference(notItKey, notItBefore);
         for (final k in done.wrote.keys) {
@@ -2677,6 +2685,14 @@ Future<({Future<void> Function() undo, Future<void> Function() redo})> tieBill(
       await db.transaction(() async {
         await db.restoreSnapshot(billAfter);
         if (tie) await db.setPlanBill(found.txnId, planned);
+        if (done.filed.isNotEmpty && planned != null) {
+          await db.setCategoryMany(
+            transactionIds: done.filed.keys,
+            accountId: found.accountId,
+            categoryId: planned,
+            onlyFrom: done.filed.values.first,
+          );
+        }
         if (planned != null) await db.bringBackPlanBills(done.made, planned);
         if (done.skipped.isNotEmpty) await db.softDeleteMany(done.skipped);
         await db.setPreference(notItKey, notIt);
@@ -2736,7 +2752,7 @@ Future<PhoneActed> actOnImport(
           continue;
         }
         // Not near its bill: left for the person, who is asked on the row.
-        if (p.fit != BillFit.paid) {
+        if (p.fit != BillFit.paid || billFoundByAmount(p)) {
           toAsk(p.row);
           continue;
         }
