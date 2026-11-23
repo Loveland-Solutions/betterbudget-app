@@ -557,6 +557,10 @@ typedef PhoneActed = ({
 /// are going, and when Back up to… last worked.
 typedef PhoneBackups = ({BackupHealth health, CopiedElsewhere? elsewhere});
 
+/// A copy kept on the phone, for Restore from…: a daily copy, or what was
+/// there before a restore.
+typedef PhoneKeptCopy = ({String path, DateTime madeAt, bool beforeRestore});
+
 /// Where in the phone's folder [dir] its own ledger is kept.
 Directory phoneOwnDir(Directory dir) => Directory('${dir.path}/own');
 
@@ -598,6 +602,10 @@ abstract class PhoneLedgerSource {
   /// to hand to the phone's Save to; the caller deletes it after.
   Future<File> copyForBackup(DateTime now) =>
       throw UnsupportedError('This source keeps no ledger to back up');
+
+  /// The copies kept beside the phone's own ledger, newest first: the
+  /// person can't reach them with the phone's file picker.
+  Future<List<PhoneKeptCopy>> keptCopies() async => const [];
 
   /// Back up to… saved the copy somewhere off the phone at [now].
   Future<void> backedUp(DateTime now) async {}
@@ -823,10 +831,17 @@ class PhoneSync implements PhoneLedgerSource {
     return backups;
   }
 
+  /// The daily copy being made, which a second ask waits for.
+  Future<void>? _daily;
+
   @override
   Future<BackupHealth?> dailyCopy(DateTime now) async {
     if (_closed || _db == null) return null;
     final backups = _ownBackups;
+    if (_daily case final running?) {
+      await running;
+      return backups.health.value;
+    }
     final last = _dailyAt;
     if (last != null &&
         !now.isBefore(last) &&
@@ -834,8 +849,26 @@ class PhoneSync implements PhoneLedgerSource {
       return backups.health.value;
     }
     _dailyAt = now;
-    await backups.runDaily(now);
+    final running = _daily = backups.runDaily(now);
+    try {
+      await running;
+    } finally {
+      if (identical(_daily, running)) _daily = null;
+    }
     return backups.health.value;
+  }
+
+  @override
+  Future<List<PhoneKeptCopy>> keptCopies() async {
+    if (_closed || _db == null) return const [];
+    final backups = _ownBackups;
+    final copies = <PhoneKeptCopy>[
+      for (final f in await backups.automatic())
+        (path: f.path, madeAt: Backups.madeAtOf(f), beforeRestore: false),
+      for (final f in await backups.beforeRestore())
+        (path: f.path, madeAt: Backups.madeAtOf(f), beforeRestore: true),
+    ]..sort((a, b) => b.madeAt.compareTo(a.madeAt));
+    return copies;
   }
 
   @override
@@ -847,15 +880,25 @@ class PhoneSync implements PhoneLedgerSource {
     return (health: health, elsewhere: backups.elsewhere.value);
   }
 
+  /// What [copyForBackup] writes is named so: not `.tmp`, which the daily
+  /// copy sweeps away, as it may while the phone's Save to is still open.
+  static const _outgoing = 'outgoing-';
+
   @override
   Future<File> copyForBackup(DateTime now) async {
     final backups = _ownBackups;
     final dir = (await backups.folder())!;
     await dir.create(recursive: true);
-    // Not a name the daily copies or a restore take up, and gone before the
-    // next daily copy if the app quit with it here (its `.tmp`).
+    // One left by an app that quit while Save to was open.
+    for (final f in dir.listSync().whereType<File>()) {
+      final name = f.uri.pathSegments.last;
+      if (name.startsWith(_outgoing) &&
+          now.difference(f.lastModifiedSync()) > const Duration(hours: 1)) {
+        await f.delete();
+      }
+    }
     final file = File(
-      '${dir.path}/export-${fileStamp(now)}.${Backups.extension}.tmp',
+      '${dir.path}/$_outgoing${fileStamp(now)}.${Backups.extension}',
     );
     if (file.existsSync()) await file.delete();
     await _db!.copyTo(file.path);

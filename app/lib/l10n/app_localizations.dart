@@ -11696,10 +11696,10 @@ abstract class Words {
   /// **'Not yet · Back up to… saves a copy off this phone'**
   String get phoneCopiedElsewhereNever;
 
-  /// Phone, Backups page: under the lines, above Back up to… and Restore from…. The computer’s says “another drive or a USB stick”.
+  /// Phone, Backups page on Android: under the lines, above Back up to… and Restore from…. The computer’s says “another drive or a USB stick”; the iPhone’s is phoneBackupsNoteIos.
   ///
   /// In en, this message translates to:
-  /// **'The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to Google Drive or iCloud Drive now and then. Restoring saves what you have first, and Undo brings it back.'**
+  /// **'The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to Google Drive now and then. A backup opens only with your recovery key, so keep that off this phone too. Restoring saves what you have first, and Undo brings it back.'**
   String get phoneBackupsNote;
 
   /// Phone, the snack bar after Back up to… saved the copy where the person chose.
@@ -11719,6 +11719,30 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Restored the copy from {date} · what you had is saved'**
   String phoneRestoredFrom(String date);
+
+  /// Phone, Backups page on an iPhone: the note above Back up to…. phoneBackupsNote is Android’s.
+  ///
+  /// In en, this message translates to:
+  /// **'The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to iCloud Drive or Google Drive now and then. A backup opens only with your recovery key, so keep that off this phone too. Restoring saves what you have first, and Undo brings it back.'**
+  String get phoneBackupsNoteIos;
+
+  /// Phone, Backups page: heading over the daily copies and the copies saved before a restore, each of which can be restored. The phone’s file picker can’t reach them.
+  ///
+  /// In en, this message translates to:
+  /// **'Copies on this phone'**
+  String get phoneCopiesHere;
+
+  /// Phone, Backups page, a copy under Copies on this phone: what the ledger was before a restore. {when} reads “Today 14:05”.
+  ///
+  /// In en, this message translates to:
+  /// **'{when} · saved before a restore'**
+  String phoneCopyBeforeRestore(String when);
+
+  /// Phone, the snack bar when Back up to… saved the copy on the phone itself (Downloads, its storage): it is saved, but isn’t counted as a backup.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this phone · it won’t help if the phone is lost. Back up to Google Drive instead.'**
+  String get phoneSavedOnPhone;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

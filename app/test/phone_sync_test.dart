@@ -131,8 +131,11 @@ void main() {
     expect(health?.failed, isFalse);
     expect(made(), hasLength(1));
     expect(health?.newest, isNotNull);
-    // Again within the hour, and again that day: still the one.
+    // Within the hour nothing is looked at again: with today's copy gone,
+    // none is made. An hour on, it is made again.
+    made().single.deleteSync();
     await alone.dailyCopy(monday.add(const Duration(minutes: 5)));
+    expect(made(), isEmpty);
     await alone.dailyCopy(monday.add(const Duration(hours: 1, minutes: 5)));
     expect(made(), hasLength(1));
     // The next day, a second.
@@ -198,6 +201,14 @@ void main() {
     expect(await names(), ['Khan Checking', 'Wallet']);
     await done.redo();
     expect(await names(), ['Khan Checking']);
+    // Restore from… lists the copies kept here, the one saved before the
+    // restore among them.
+    final kept = await alone.keptCopies();
+    expect(kept.where((c) => c.beforeRestore), isNotEmpty);
+    expect(kept.where((c) => !c.beforeRestore), isNotEmpty);
+    // Back up to…'s copy isn't named as the daily copy sweeps away.
+    expect(copy.path.split('/').last, startsWith('outgoing-'));
+    expect(copy.path, isNot(endsWith('.tmp')));
     // What was here was saved first, beside the ledger.
     expect(
       Directory('${root.path}/alone/own/Backups')

@@ -551,6 +551,9 @@ class _FakeSource implements PhoneLedgerSource {
   Future<void> backedUp(DateTime now) async {}
 
   @override
+  Future<List<PhoneKeptCopy>> keptCopies() async => const [];
+
+  @override
   Future<RestoreCandidate> inspectBackup(
     String path,
     DateTime now, {
@@ -9775,7 +9778,7 @@ void main() {
       final button = find.byKey(const ValueKey('net-worth-back-up'));
       expect(button, findsOneWidget);
 
-      fake.saveAnswer = false;
+      fake.saveAnswer = null;
       await tester.tap(button);
       await tester.pumpAndSettle();
       expect(find.byType(SnackBar), findsNothing);
@@ -9786,14 +9789,58 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Couldn’t back up · try again'), findsOneWidget);
 
+      // Saved, but on the phone itself: said, and not counted.
       fake
         ..saveError = null
-        ..saveAnswer = true;
+        ..saveAnswer = SavedTo.thisPhone;
       await tester.tap(button);
       await tester.pumpAndSettle();
-      expect(fake.saves, 3);
+      expect(
+        find.text(
+          'Saved on this phone · it won’t help if the phone is lost. '
+          'Back up to Google Drive instead.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('No backup yet'), findsOneWidget);
+
+      // A second tap while Save to is open opens nothing more.
+      fake
+        ..saveAnswer = SavedTo.elsewhere
+        ..holdSave = Completer<void>();
+      await tester.tap(button);
+      await tester.pump();
+      await tester.tap(button);
+      await tester.pump();
+      fake.holdSave!.complete();
+      await tester.pumpAndSettle();
+      expect(fake.saves, 4);
       expect(find.text('Backed up'), findsOneWidget);
       expect(find.byKey(const ValueKey('backup-line')), findsNothing);
+    });
+
+    testWidgets('a copy kept on this phone is listed under Restore from…, '
+        'and restoring one asks first', (tester) async {
+      final (_, fake) = await pumpAlone(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('to-backups')));
+      await tester.tap(find.byKey(const ValueKey('to-backups')));
+      await tester.pumpAndSettle();
+      expect(find.text('Copies on this phone'), findsOneWidget);
+      expect(
+        find.text('Yesterday 14:05 · saved before a restore'),
+        findsOneWidget,
+      );
+      final today = find.byKey(
+        const ValueKey('kept-betterbudget-20261007-081000.betterbudget'),
+      );
+      await tester.ensureVisible(today);
+      await tester.tap(today);
+      await tester.pumpAndSettle();
+      expect(find.text('Restore this backup?'), findsOneWidget);
+      expect(fake.inspected, 1);
+      await tester.tap(find.byKey(const ValueKey('restore-cancel')));
+      await tester.pumpAndSettle();
+      expect(fake.discarded, 1);
     });
 
     testWidgets('a month after the last backup, Net worth says how long', (
@@ -9960,8 +10007,11 @@ class _FakeBackups {
   _FakeBackups(this.now);
   final DateTime now;
   DateTime? copied;
-  bool saveAnswer = true;
+  SavedTo? saveAnswer = SavedTo.elsewhere;
   Object? saveError;
+
+  /// Held open until completed, for a second tap while Save to is open.
+  Completer<void>? holdSave;
   RestoreProblem? refuse;
   var saves = 0, inspected = 0, discarded = 0, restored = 0, undone = 0;
 
@@ -9977,10 +10027,23 @@ class _FakeBackups {
     state: () async => _state,
     backUp: () async {
       saves++;
+      await holdSave?.future;
       if (saveError case final e?) throw e;
-      if (saveAnswer) copied = now;
+      if (saveAnswer == SavedTo.elsewhere) copied = now;
       return saveAnswer;
     },
+    kept: () async => [
+      (
+        path: '/own/Backups/betterbudget-20261007-081000.betterbudget',
+        madeAt: DateTime(2026, 10, 7, 8, 10),
+        beforeRestore: false,
+      ),
+      (
+        path: '/own/Backups/before-restore-20261006-140500.betterbudget',
+        madeAt: DateTime(2026, 10, 6, 14, 5),
+        beforeRestore: true,
+      ),
+    ],
     inspect: (path) async {
       inspected++;
       if (refuse case final p?) throw RestoreException(p);

@@ -525,15 +525,21 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
             copy.path,
             'BetterBudget ${fullDate(now)}.${Backups.extension}',
           );
-          if (saved) await source.backedUp(widget.now());
+          // A copy left on this phone is no backup off it.
+          if (saved == SavedTo.elsewhere) await source.backedUp(widget.now());
           return saved;
         } finally {
           if (copy.existsSync()) await copy.delete();
         }
       },
+      kept: () => open().keptCopies(),
       inspect: (path) => open().inspectBackup(path, widget.now()),
       discard: (candidate) => open().discardBackup(candidate),
       restore: (candidate) async {
+        // Not under a read already running, whose figures would come up
+        // after the restore's (as an answer waits for it).
+        await _reading;
+        _looks++;
         final done = await open().restoreBackup(candidate, widget.now());
         unawaited(_load());
         return done;

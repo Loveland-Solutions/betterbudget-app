@@ -12462,9 +12462,9 @@
   "@phoneCopiedElsewhereNever": {
     "description": "Phone, Backups page, beside Backed up: Back up to… has never worked on this phone."
   },
-  "phoneBackupsNote": "The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to Google Drive or iCloud Drive now and then. Restoring saves what you have first, and Undo brings it back.",
+  "phoneBackupsNote": "The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to Google Drive now and then. A backup opens only with your recovery key, so keep that off this phone too. Restoring saves what you have first, and Undo brings it back.",
   "@phoneBackupsNote": {
-    "description": "Phone, Backups page: under the lines, above Back up to… and Restore from…. The computer’s says “another drive or a USB stick”."
+    "description": "Phone, Backups page on Android: under the lines, above Back up to… and Restore from…. The computer’s says “another drive or a USB stick”; the iPhone’s is phoneBackupsNoteIos."
   },
   "phoneBackedUp": "Backed up",
   "@phoneBackedUp": {
@@ -12482,5 +12482,26 @@
         "type": "String"
       }
     }
+  },
+  "phoneBackupsNoteIos": "The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to iCloud Drive or Google Drive now and then. A backup opens only with your recovery key, so keep that off this phone too. Restoring saves what you have first, and Undo brings it back.",
+  "@phoneBackupsNoteIos": {
+    "description": "Phone, Backups page on an iPhone: the note above Back up to…. phoneBackupsNote is Android’s."
+  },
+  "phoneCopiesHere": "Copies on this phone",
+  "@phoneCopiesHere": {
+    "description": "Phone, Backups page: heading over the daily copies and the copies saved before a restore, each of which can be restored. The phone’s file picker can’t reach them."
+  },
+  "phoneCopyBeforeRestore": "{when} · saved before a restore",
+  "@phoneCopyBeforeRestore": {
+    "description": "Phone, Backups page, a copy under Copies on this phone: what the ledger was before a restore. {when} reads “Today 14:05”.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneSavedOnPhone": "Saved on this phone · it won’t help if the phone is lost. Back up to Google Drive instead.",
+  "@phoneSavedOnPhone": {
+    "description": "Phone, the snack bar when Back up to… saved the copy on the phone itself (Downloads, its storage): it is saved, but isn’t counted as a backup."
   }
 }

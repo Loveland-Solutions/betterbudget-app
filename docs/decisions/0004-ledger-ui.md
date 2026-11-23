@@ -8170,6 +8170,14 @@ picked once, which each day's copy also goes to. The owner picked **A** ("a").
   computers keep the copies. The demo key shows neither.
 - **Rejected:** B (a second kind of folder on the phone beside piece 4's, where the
   phone's ledger itself moves into a folder and so is copied off the phone anyway).
+- **From the reviews** (decided along the lines above): the copies kept on the phone,
+  daily ones and the one saved before a restore, are listed under Restore from… as
+  **Copies on this phone**, each with Restore, since the phone's file picker can't reach
+  them; a copy Back up to… saved on the phone itself (Downloads, its own storage, a card
+  in it; told apart on Android) says "Saved on this phone · it won't help if the phone
+  is lost. Back up to Google Drive instead." and isn't counted as a backup; the note
+  names the platform's own cloud and says a backup opens only with the recovery key;
+  Back up to… does nothing more while its Save to is open.
 - **Left for later:** a backup made under another ledger's recovery key is refused with
   the computer's words ("can't be opened with this ledger's key"); the computer asks for
   that backup's key there, and the phone doesn't yet.

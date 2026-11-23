@@ -1717,7 +1717,11 @@ storage, which iCloud and Google backups leave out. `backups` says how they stan
 the computer's `CopiedElsewhere` record (`own/copied-elsewhere`); `copyForBackup` writes
 the copy that Back up to… hands to the phone's Save to (`PhoneFolder.save`: Android's
 `ACTION_CREATE_DOCUMENT` in `MainActivity.kt`, iPhone's export sheet, `SaveSheet` in
-`FolderChannel.swift`), and `backedUp` records it once saved. `inspectBackup`,
+`FolderChannel.swift`), which answer whether the place is the phone itself (Android
+tells by the provider; the iPhone doesn't tell apart yet), and `backedUp` records it
+only when it isn't. A second save while one is open is refused, and Android deletes a
+document it couldn't write. `keptCopies` lists the copies kept on the phone for
+Restore from…. `inspectBackup`,
 `discardBackup` and `restoreBackup` are the computer's Restore from…: what was here is
 saved first, paydays and bills are scheduled after, and the undo and redo take back the
 restore's changes, or put the saved file back. The screens reach them through

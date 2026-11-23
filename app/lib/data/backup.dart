@@ -734,6 +734,14 @@ class Backups {
     }
   }
 
+  /// When the copy [f] was made, for a list of them.
+  static DateTime madeAtOf(File f) => _madeAt(f);
+
+  /// The copies saved before a restore, newest first: what Undo puts back,
+  /// for Restore from… once Undo is gone.
+  Future<List<File>> beforeRestore() =>
+      _files(RegExp(r'^before-restore-\d{8}-\d{6}\.(?:sqlite|betterbudget)$'));
+
   /// From the time in the file's name when it has one (every copy the app
   /// makes does), otherwise when the file was last changed.
   static DateTime _madeAt(File f) {

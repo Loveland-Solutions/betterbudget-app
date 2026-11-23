@@ -19,11 +19,17 @@ class PhoneFolder {
   Future<String?> pick() => _channel.invokeMethod<String>('pick');
 
   /// Back up to… (#534): the phone's own Save to for the file at [path],
-  /// offered as [name]. True once it is saved there, false when nothing was
-  /// chosen; throws when it couldn't be written.
-  Future<bool> save(String path, String name) async =>
-      await _channel.invokeMethod<bool>('save', {'path': path, 'name': name}) ??
-      false;
+  /// offered as [name]. Where it went, or null when nothing was chosen;
+  /// throws when it couldn't be written, or while another is open.
+  Future<SavedTo?> save(String path, String name) async =>
+      switch (await _channel.invokeMethod<String>('save', {
+        'path': path,
+        'name': name,
+      })) {
+        'phone' => SavedTo.thisPhone,
+        null => null,
+        _ => SavedTo.elsewhere,
+      };
 
   /// The folder picked on an earlier launch, if the phone still allows it.
   Future<String?> kept() => _channel.invokeMethod<String>('kept');
@@ -123,3 +129,8 @@ class PhoneFolderIo extends FolderIo {
 
 /// The recovery key typed on this phone doesn't open the ledger in the folder.
 class WrongKeyException implements Exception {}
+
+/// Where Back up to… saved its copy: somewhere off the phone (a cloud
+/// service, or a place the phone can't tell), or on the phone itself
+/// (Downloads, its own storage, a card in it), which is lost with it.
+enum SavedTo { elsewhere, thisPhone }

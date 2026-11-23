@@ -86,12 +86,16 @@ class FolderChannel: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationC
         }
       }
     // Back up to… (#534): the Files sheet's own Save to, with the copy at
-    // "path" under "name". True once saved, false when nothing was chosen.
+    // "path" under "name". "elsewhere" once saved, nil when nothing was
+    // chosen. (Which places are this iPhone itself isn't told apart yet.)
     case "save":
       guard let path = args["path"] as? String, let name = args["name"] as? String else {
         return result(badArguments(call))
       }
-      saving?.finish(false)
+      // One at a time: a second tap waits for the first sheet.
+      if saving != nil {
+        return result(FlutterError(code: "Busy", message: "A save is already open", details: nil))
+      }
       let named = FileManager.default.temporaryDirectory.appendingPathComponent(name)
       do {
         try? FileManager.default.removeItem(at: named)
@@ -105,7 +109,7 @@ class FolderChannel: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationC
       }
       let save = SaveSheet(file: named) { [weak self] saved in
         self?.saving = nil
-        result(saved)
+        result(saved ? "elsewhere" : nil)
       }
       saving = save
       let picker = UIDocumentPickerViewController(forExporting: [named], asCopy: true)

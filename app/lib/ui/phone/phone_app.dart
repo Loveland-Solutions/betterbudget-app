@@ -31,10 +31,12 @@ import '../../data/database.dart'
         SplitPart,
         TxnSnapshot;
 import '../../data/backup.dart' show RestoreCandidate, RestoreException;
+import '../../data/phone_ledger.dart' show SavedTo;
 import '../../data/phone_sync.dart'
     show
         PhoneActed,
         PhoneBackups,
+        PhoneKeptCopy,
         PhoneAddAccount,
         PhoneArchiveAccount,
         PhoneArchiveCategory,
@@ -282,6 +284,10 @@ class PhoneStore extends ChangeNotifier {
   /// piece 3); null on a phone on a folder, whose computers keep copies.
   PhoneBackupActs? backupActs;
 
+  /// Back up to… is open: its buttons wait, so a second tap can't open a
+  /// second Save to.
+  final backingUp = ValueNotifier(false);
+
   /// How the copies stand, for the line under Net worth and the Backups
   /// page; null until asked, or with no backups here.
   final backups = ValueNotifier<PhoneBackups?>(null);
@@ -306,6 +312,9 @@ class PhoneStore extends ChangeNotifier {
     if (acts == null) throw UnsupportedError('No backups on this phone');
     await settle?.call();
     final done = await acts.restore(candidate);
+    // What was taken into the ledger before is in what was replaced: a
+    // Remove now would take back rows the restore already settled.
+    _tookBy.clear();
     _snapshot = done.snapshot;
     _changes++;
     notifyListeners();

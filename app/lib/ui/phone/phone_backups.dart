@@ -14,6 +14,7 @@ class PhoneBackupActs {
   const PhoneBackupActs({
     required this.state,
     required this.backUp,
+    required this.kept,
     required this.inspect,
     required this.discard,
     required this.restore,
@@ -22,9 +23,12 @@ class PhoneBackupActs {
   /// How the copies stand, making today's if it is due.
   final Future<PhoneBackups?> Function() state;
 
-  /// Back up to…: a copy through the phone's own Save to. True once it is
-  /// saved, false when nothing was chosen; throws when it couldn't be.
-  final Future<bool> Function() backUp;
+  /// Back up to…: a copy through the phone's own Save to. Where it was
+  /// saved, or null when nothing was chosen; throws when it couldn't be.
+  final Future<SavedTo?> Function() backUp;
+
+  /// The copies kept on this phone, newest first.
+  final Future<List<PhoneKeptCopy>> Function() kept;
 
   /// Reads a picked backup without changing anything.
   final Future<RestoreCandidate> Function(String path) inspect;
@@ -93,15 +97,20 @@ class _NetWorthBackup extends StatelessWidget {
                     ),
                   ),
                 ),
-                TextButton(
-                  key: const ValueKey('net-worth-back-up'),
-                  onPressed: () => unawaited(_backUp(context, store)),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(44, 44),
-                    foregroundColor: Mid.blue,
-                    textStyle: onest(15),
+                ValueListenableBuilder(
+                  valueListenable: store.backingUp,
+                  builder: (context, busy, _) => TextButton(
+                    key: const ValueKey('net-worth-back-up'),
+                    onPressed: busy
+                        ? null
+                        : () => unawaited(_backUp(context, store)),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(44, 44),
+                      foregroundColor: Mid.blue,
+                      textStyle: onest(15),
+                    ),
+                    child: Text(t.ledgerBackUpTo),
                   ),
-                  child: Text(t.ledgerBackUpTo),
                 ),
               ],
             ),
@@ -113,23 +122,34 @@ class _NetWorthBackup extends StatelessWidget {
 }
 
 /// Back up to…: the phone's Save to, then a snack bar for a copy saved, or
-/// why none could be. Nothing at all for one not chosen.
+/// why none could be. Nothing at all for one not chosen, and a second tap
+/// while one is open does nothing.
 Future<void> _backUp(BuildContext context, PhoneStore store) async {
   final acts = store.backupActs;
-  if (acts == null) return;
+  if (acts == null || store.backingUp.value) return;
   final messenger = ScaffoldMessenger.of(context);
   final t = context.t;
-  bool saved;
+  store.backingUp.value = true;
+  SavedTo? saved;
   try {
     saved = await acts.backUp();
   } catch (e) {
     debugPrint('Back up to… on the phone failed: $e');
     _backupSnack(messenger, t.phoneCouldntBackUp, key: 'back-up-failed');
     return;
+  } finally {
+    store.backingUp.value = false;
   }
-  if (!saved) return;
-  await store.refreshBackups();
-  _backupSnack(messenger, t.phoneBackedUp, key: 'backed-up');
+  switch (saved) {
+    case null:
+      return;
+    // Saved, and said so; but it's on this phone, so it isn't counted.
+    case SavedTo.thisPhone:
+      _backupSnack(messenger, t.phoneSavedOnPhone, key: 'saved-on-phone');
+    case SavedTo.elsewhere:
+      await store.refreshBackups();
+      _backupSnack(messenger, t.phoneBackedUp, key: 'backed-up');
+  }
 }
 
 void _backupSnack(
@@ -212,7 +232,7 @@ class _BackupsPageState extends State<_BackupsPage> {
   @override
   void initState() {
     super.initState();
-    unawaited(store.refreshBackups());
+    unawaited(store.refreshBackups().then((_) => _loadKept()));
   }
 
   Widget _line(String label, Widget value) => Padding(
@@ -227,6 +247,22 @@ class _BackupsPageState extends State<_BackupsPage> {
     ),
   );
 
+  /// The copies kept on this phone, for Restore from…; asked again after
+  /// a restore or a backup.
+  List<PhoneKeptCopy> _kept = const [];
+
+  Future<void> _loadKept() async {
+    final acts = store.backupActs;
+    if (acts == null) return;
+    try {
+      final kept = await acts.kept();
+      if (mounted) setState(() => _kept = kept);
+    } catch (e) {
+      debugPrint('Listing the copies on the phone failed: $e');
+    }
+  }
+
+  /// Restore from…: a backup picked with the phone's own file picker.
   Future<void> _restore() async {
     final acts = store.backupActs;
     if (acts == null || _restoring) return;
@@ -244,12 +280,27 @@ class _BackupsPageState extends State<_BackupsPage> {
       );
       return;
     }
-    if (picked == null || !mounted) return;
+    if (picked == null) return;
+    try {
+      if (mounted) await _restoreFrom(picked.path);
+    } finally {
+      // The phone's copy of the picked file: read by now, or not wanted.
+      unawaited(dropPhonePickedCopy(picked.path));
+    }
+  }
+
+  /// Reads the backup at [path], asks, and puts it in with Undo: one picked,
+  /// or one of the copies kept on this phone.
+  Future<void> _restoreFrom(String path) async {
+    final acts = store.backupActs;
+    if (acts == null || _restoring) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final t = context.t;
     setState(() => _restoring = true);
     try {
       final RestoreCandidate candidate;
       try {
-        candidate = await acts.inspect(picked.path);
+        candidate = await acts.inspect(path);
       } on RestoreException catch (e) {
         _backupSnack(
           messenger,
@@ -306,8 +357,7 @@ class _BackupsPageState extends State<_BackupsPage> {
       );
     } finally {
       if (mounted) setState(() => _restoring = false);
-      // The phone's copy of the picked file: read by now, or not wanted.
-      unawaited(dropPhonePickedCopy(picked.path));
+      unawaited(_loadKept());
     }
   }
 
@@ -385,25 +435,30 @@ class _BackupsPageState extends State<_BackupsPage> {
               ),
               const SizedBox(height: 16),
               Text(
-                t.phoneBackupsNote,
+                defaultTargetPlatform == TargetPlatform.iOS
+                    ? t.phoneBackupsNoteIos
+                    : t.phoneBackupsNote,
                 style: onest(15, color: Mid.ink2, height: 1.45),
               ),
               const SizedBox(height: 16),
-              FilledButton(
-                key: const ValueKey('back-up'),
-                onPressed: _restoring
-                    ? null
-                    : () => unawaited(_backUp(context, store)),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                  backgroundColor: Mid.fill,
-                  foregroundColor: Mid.onFill,
-                  textStyle: onest(17, weight: 600),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+              ValueListenableBuilder(
+                valueListenable: store.backingUp,
+                builder: (context, busy, _) => FilledButton(
+                  key: const ValueKey('back-up'),
+                  onPressed: _restoring || busy
+                      ? null
+                      : () => unawaited(_backUp(context, store)),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    backgroundColor: Mid.fill,
+                    foregroundColor: Mid.onFill,
+                    textStyle: onest(17, weight: 600),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
+                  child: Text(t.ledgerBackUpTo),
                 ),
-                child: Text(t.ledgerBackUpTo),
               ),
               const SizedBox(height: 10),
               OutlinedButton(
@@ -420,6 +475,59 @@ class _BackupsPageState extends State<_BackupsPage> {
                 ),
                 child: Text(t.ledgerRestoreFrom),
               ),
+              // The copies kept here, which the phone's file picker can't
+              // reach: each opens Restore from…'s question.
+              if (_kept.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(2, 24, 2, 6),
+                  child: Text(
+                    t.phoneCopiesHere,
+                    style: onest(13, weight: 700, color: Mid.ink2),
+                  ),
+                ),
+                for (final c in _kept)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Material(
+                      color: Mid.card,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(color: Mid.rule),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        key: ValueKey('kept-${c.path.split('/').last}'),
+                        onTap: _restoring
+                            ? null
+                            : () => unawaited(_restoreFrom(c.path)),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 52),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    c.beforeRestore
+                                        ? t.phoneCopyBeforeRestore(
+                                            _phoneWhen(t, c.madeAt, now),
+                                          )
+                                        : _phoneWhen(t, c.madeAt, now),
+                                    style: onest(16),
+                                  ),
+                                ),
+                                Text(
+                                  t.ledgerRestore,
+                                  style: onest(15, color: Mid.blue),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ],
           );
         },

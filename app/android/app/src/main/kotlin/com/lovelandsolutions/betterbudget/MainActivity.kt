@@ -20,6 +20,14 @@ class MainActivity : FlutterActivity() {
     private val saveRequest = 4712
     private var pendingSave: Pair<MethodChannel.Result, String>? = null
 
+    // Save to's places that are this phone itself, lost with it: its own
+    // storage or a card in it, Downloads, and its pictures and media.
+    private val onThisPhone = setOf(
+        "com.android.externalstorage.documents",
+        "com.android.providers.downloads.documents",
+        "com.android.providers.media.documents",
+    )
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "betterbudget/folder")
@@ -128,10 +136,15 @@ class MainActivity : FlutterActivity() {
                 null
             }
             // Back up to…: Android's own Save to (Drive, Files), and the file
-            // at "path" copied to what was chosen. True once written, false
-            // when nothing was chosen.
+            // at "path" copied to what was chosen. "phone" when that is on
+            // this phone itself, "elsewhere" otherwise, null when nothing
+            // was chosen.
             "save" -> {
-                pendingSave?.first?.success(false)
+                // One at a time: a second tap waits for the first sheet.
+                if (pendingSave != null) {
+                    result.error("Busy", "A save is already open", null)
+                    return
+                }
                 pendingSave = Pair(result, call.argument<String>("path")!!)
                 startActivityForResult(
                     Intent(Intent.ACTION_CREATE_DOCUMENT)
@@ -175,17 +188,24 @@ class MainActivity : FlutterActivity() {
             pendingSave = null
             val uri = data?.data
             if (resultCode != Activity.RESULT_OK || uri == null) {
-                result.success(false)
+                result.success(null)
                 return
             }
             background(result) {
-                val out = try {
-                    contentResolver.openOutputStream(uri, "wt")
-                } catch (e: IllegalArgumentException) {
-                    contentResolver.openOutputStream(uri, "w")
-                } ?: throw IllegalStateException("The place chosen took no file")
-                out.use { o -> java.io.File(path).inputStream().use { it.copyTo(o) } }
-                true
+                try {
+                    // A new document: nothing in it to cut short.
+                    val out = contentResolver.openOutputStream(uri, "w")
+                        ?: throw IllegalStateException("The place chosen took no file")
+                    out.use { o -> java.io.File(path).inputStream().use { it.copyTo(o) } }
+                } catch (e: Throwable) {
+                    // Not left there looking like a backup it isn't.
+                    try {
+                        DocumentsContract.deleteDocument(contentResolver, uri)
+                    } catch (_: Throwable) {
+                    }
+                    throw e
+                }
+                if (uri.authority in onThisPhone) "phone" else "elsewhere"
             }
             return
         }
