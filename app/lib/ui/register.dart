@@ -1851,6 +1851,39 @@ class _ScheduledRow extends StatelessWidget {
     child: Builder(builder: _build),
   );
 
+  /// What's said under the row's name (#556), each after a dot but the
+  /// first: late, and how many more are, in full ink (late is the one thing
+  /// on this row to notice, now that it isn't gold); the account; else
+  /// "next of 4 scheduled".
+  List<Widget> _notes(String? overdue) {
+    final ink = onest(13, weight: 600, color: Mid.ink);
+    final soft = onest(13, color: Mid.ink3);
+    final parts = <(String, TextStyle, Key?, bool)>[
+      if (overdue != null)
+        (overdue, ink, const ValueKey('overdue-note'), false),
+      if (overdue != null && overdueMore != null)
+        (overdueMore!, ink, const ValueKey('overdue-count'), true),
+      if (accountName != null) (accountName!, soft, null, false),
+      if (extra != null && overdue == null) (extra!, soft, null, true),
+    ];
+    return [
+      for (final (i, (text, style, key, opens)) in parts.indexed)
+        Hoverable(
+          key: key,
+          onTap: opens ? onMore : null,
+          builder: (h) => Text(
+            i == 0 ? text : '· $text',
+            style: style.copyWith(
+              decoration: opens && onMore != null && h
+                  ? TextDecoration.underline
+                  : null,
+              decorationColor: style.color,
+            ),
+          ),
+        ),
+    ];
+  }
+
   Widget _build(BuildContext context) {
     final t = context.t;
     final selected = bar != null;
@@ -1884,8 +1917,8 @@ class _ScheduledRow extends StatelessWidget {
               children: [
                 // The row's line is chosen with ↑ ↓; only its bar takes Tab.
                 ExcludeFocus(
-                  child: SizedBox(
-                    height: 46,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 46),
                     child: Row(
                       children: [
                         SizedBox(
@@ -1909,92 +1942,22 @@ class _ScheduledRow extends StatelessWidget {
                         ),
                         const SizedBox(width: Cols.gap),
                         Expanded(
-                          child: Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  label,
-                                  style: onest(14, color: Mid.ink2),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              // Past its date and not confirmed: it isn't in
-                              // Working, though it probably happened.
-                              if (overdue != null) ...[
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    '· $overdue',
-                                    key: const ValueKey('overdue-note'),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    // Full ink and heavier: late is the one thing on this
-                                    // row to notice, now that it isn't gold.
-                                    style: onest(
-                                      14,
-                                      weight: 600,
-                                      color: Mid.ink,
-                                    ),
-                                  ),
-                                ),
+                          // The name, and under it what's said of the row,
+                          // as a posted row has its memo: late, how many more
+                          // are, the account, "next of 4 scheduled". Too long
+                          // for the column, that line goes onto another,
+                          // never cut (#556).
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(label, style: onest(14, color: Mid.ink2)),
+                                if (_notes(overdue).isNotEmpty)
+                                  Wrap(spacing: 6, children: _notes(overdue)),
                               ],
-                              if (overdue != null && overdueMore != null) ...[
-                                const SizedBox(width: 8),
-                                Hoverable(
-                                  onTap: onMore,
-                                  builder: (h) => Text(
-                                    '· $overdueMore',
-                                    key: const ValueKey('overdue-count'),
-                                    style:
-                                        onest(
-                                          14,
-                                          weight: 600,
-                                          color: Mid.ink,
-                                        ).copyWith(
-                                          decoration: onMore != null && h
-                                              ? TextDecoration.underline
-                                              : null,
-                                          decorationColor: Mid.ink,
-                                        ),
-                                  ),
-                                ),
-                              ],
-                              // The overdue note takes the place of "next of
-                              // N scheduled", which the Scheduled tab also
-                              // counts, so the payee keeps its room.
-                              if (accountName != null) ...[
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    '· $accountName',
-                                    style: onest(14, color: Mid.ink3),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                              if (extra != null && overdue == null) ...[
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Hoverable(
-                                    onTap: onMore,
-                                    builder: (h) => Text(
-                                      '· $extra',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: onest(14, color: Mid.ink3)
-                                          .copyWith(
-                                            decoration: onMore != null && h
-                                                ? TextDecoration.underline
-                                                : null,
-                                            decorationColor: Mid.ink3,
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
+                            ),
                           ),
                         ),
                         const SizedBox(width: Cols.gap),

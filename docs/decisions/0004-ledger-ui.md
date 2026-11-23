@@ -784,7 +784,12 @@ What's known so far:
     account never says it: nothing clears cash. **A late bill counts the other late
     ones**: All shows only the first scheduled row, so it reads "· due 7 days ago ·
     1 more overdue", and the count opens the Scheduled tab as "next of N scheduled"
-    does ("2 overdue" read as two others). **Confirm names a row already in**
+    does ("2 overdue" read as two others). **What's said of a scheduled row goes
+    under its name** (#556, 2026-11-23; the owner: "I can't read the text on this
+    entry, and hovering over it or clicking it doesn't tell me what it says"), as
+    a posted row's memo does: "due 7 days ago · not in Working yet · 1 more
+    overdue", the account in All, or "next of 4 scheduled", on a line of its own
+    that wraps rather than being cut. **Confirm names a row already in**
     (since 2026-10-21 the bill's row says it without Confirm: see "A bill paid
     another way" under rule 27). Confirming a late bill that was typed from the bank
     app, or imported, put it in twice. A row for it is one the

@@ -5512,6 +5512,44 @@ void main() {
     await db.close();
   });
 
+  testWidgets('a late bill\'s note goes onto a second line in a narrow '
+      'window, never cut (#556)', (tester) async {
+    final db = await pumpLedger(tester, size: const Size(1000, 800));
+    await tester.runAsync(() async {
+      final ledger = await db.loadLedger();
+      final checking = ledger.balanceSheetAccounts.first.id;
+      final phone = ledger.categories
+          .firstWhere((c) => c.name == 'Phone & internet')
+          .id;
+      await db.postTransaction(
+        date: DateTime(2026, 9, 9),
+        payee: 'Mobicom Corporation monthly plan',
+        scheduled: true,
+        lines: [
+          (accountId: checking, amount: -4000000, cleared: Cleared.uncleared),
+          (accountId: phone, amount: 4000000, cleared: Cleared.uncleared),
+        ],
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    final note = find.text('due 7 days ago · not in Working yet');
+    expect(note, findsOneWidget);
+    final paragraph = tester.renderObject<RenderParagraph>(note);
+    expect(paragraph.didExceedMaxLines, isFalse);
+    final name = tester.getRect(find.text('Mobicom Corporation monthly plan'));
+    final said = tester.getRect(note);
+    // Under the name, not beside it, and all of it before the category.
+    expect(said.top, greaterThanOrEqualTo(name.bottom));
+    expect(
+      said.right,
+      lessThanOrEqualTo(
+        tester.getRect(find.text('Phone & internet').last).left,
+      ),
+    );
+    await tidy(tester, db);
+  });
+
   testWidgets('old items say why Working may be off', (tester) async {
     final db = await pumpLedger(tester);
     await tester.runAsync(() async {
@@ -5554,7 +5592,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
+    expect(find.text('due 7 days ago · not in Working yet'), findsOneWidget);
     expect(find.text('Mobicom'), findsOneWidget); // now the next scheduled
     // The only late one: no count.
     expect(find.byKey(const ValueKey('overdue-count')), findsNothing);
@@ -5605,7 +5643,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await settle(tester);
-    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
+    expect(find.text('due 7 days ago · not in Working yet'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -5681,7 +5719,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
+    expect(find.text('due 7 days ago · not in Working yet'), findsOneWidget);
     expect(find.text('· 1 more overdue'), findsOneWidget);
 
     // Asked on the bill's row, without opening it, and under the forecast.
@@ -5700,16 +5738,16 @@ void main() {
     await tapAndWrite(tester, find.byKey(const ValueKey('looks-paid-yes')));
     expect(find.text('Mobicom bill paid.'), findsOneWidget);
     // Univision is the next, and the only late one left.
-    expect(find.text('· due 4 days ago · not in Working yet'), findsOneWidget);
+    expect(find.text('due 4 days ago · not in Working yet'), findsOneWidget);
     expect(find.byKey(const ValueKey('overdue-count')), findsNothing);
     expect(find.byKey(const ValueKey('looks-paid')), findsNothing);
     expect(find.byKey(const ValueKey('forecast-maybe-paid')), findsNothing);
 
     await tapAndWait(tester, find.text('Undo'));
-    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
+    expect(find.text('due 7 days ago · not in Working yet'), findsOneWidget);
     expect(find.text('· 1 more overdue'), findsOneWidget);
     await redo(tester);
-    expect(find.text('· due 4 days ago · not in Working yet'), findsOneWidget);
+    expect(find.text('due 4 days ago · not in Working yet'), findsOneWidget);
 
     // Nothing like it in the account: Confirm opens with no such line.
     await tapAndWait(tester, find.text('Confirm'));
@@ -5861,7 +5899,7 @@ void main() {
 
     // Late, so October's is scheduled too.
     await expectState([DateTime(2026, 9, 12), DateTime(2026, 10, 12)], null);
-    expect(find.text('· due 4 days ago · not in Working yet'), findsOneWidget);
+    expect(find.text('due 4 days ago · not in Working yet'), findsOneWidget);
 
     const line = 'Paid on 09.14? IB TRANSFER 0412, −₮270,000.00';
     int outlined() =>
@@ -5996,7 +6034,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('looks-paid')), findsNothing);
-    expect(find.text('· due 7 days ago · not in Working yet'), findsOneWidget);
+    expect(find.text('due 7 days ago · not in Working yet'), findsOneWidget);
     await tapAndWait(tester, find.text('Undo'));
     expect(find.byKey(const ValueKey('looks-paid')), findsOneWidget);
     await tidy(tester, db);
