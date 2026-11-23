@@ -277,6 +277,9 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
           return;
         }
         _show(own, key, null);
+        // Its copy a day (#534 piece 3): no computer keeps one of this
+        // ledger.
+        unawaited(source.dailyCopy(widget.now()));
         return;
       }
       final inFolder = folder!;

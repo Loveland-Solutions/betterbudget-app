@@ -577,6 +577,13 @@ abstract class PhoneLedgerSource {
   Future<void> restoreFrom(String path, DateTime now) =>
       throw UnsupportedError('This source can’t make a ledger');
 
+  /// The phone's copy a day of its own ledger, as a computer makes (#534
+  /// piece 3): the newest 14 and the first of each of 12 months, beside the
+  /// ledger on this phone. Run when the ledger is opened or read again,
+  /// at most once an hour. Never throws; returns how the copies stand, or
+  /// null with no ledger to copy.
+  Future<BackupHealth?> dailyCopy(DateTime now) async => null;
+
   /// Looks at the folder and shows the phone's own ledger as of [now]: its
   /// change file written, the others' brought in. Never throws for the
   /// folder not answering: the figures are the ledger's as it stands, said
@@ -760,6 +767,29 @@ class PhoneSync implements PhoneLedgerSource {
   Future<void> restoreFrom(String path, DateTime now) async {
     if (_db != null) throw StateError('The phone already has a ledger open');
     _db = await _own.restore(path, device, now);
+  }
+
+  /// The copies of [_db], made again only an hour after the last try, as a
+  /// computer checks hourly; a ledger put in its place starts afresh.
+  Backups? _backups;
+  DateTime? _dailyAt;
+
+  @override
+  Future<BackupHealth?> dailyCopy(DateTime now) async {
+    final db = _db;
+    if (_closed || db == null) return null;
+    var backups = _backups;
+    if (backups == null || !identical(backups.db, db)) {
+      backups = _backups = Backups(db, dataKey: _key);
+      _dailyAt = null;
+    }
+    final last = _dailyAt;
+    if (last != null && now.difference(last) < const Duration(hours: 1)) {
+      return backups.health.value;
+    }
+    _dailyAt = now;
+    await backups.runDaily(now);
+    return backups.health.value;
   }
 
   Future<String> _name() async {

@@ -6,7 +6,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' show Random;
 
-import 'package:betterbudget/data/backup.dart' show RestoreNeedsKeyException;
+import 'package:betterbudget/data/backup.dart'
+    show BackupHealth, RestoreNeedsKeyException;
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/incoming_file.dart';
@@ -529,6 +530,10 @@ class _ActingSource {
 }
 
 class _FakeSource implements PhoneLedgerSource {
+  /// No ledger file here to copy.
+  @override
+  Future<BackupHealth?> dailyCopy(DateTime now) async => null;
+
   @override
   Future<int> categoryRows(int id) => throw UnsupportedError('no ledger');
 

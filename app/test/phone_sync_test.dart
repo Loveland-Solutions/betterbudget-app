@@ -104,6 +104,50 @@ void main() {
     for (final t in (await phone.db!.loadLedger()).txns) t.payee,
   ];
 
+  test('a phone on its own makes its copy a day beside its ledger, '
+      'once a day, readable as a backup (#534 piece 3)', () async {
+    final alone = PhoneSync(
+      dir: await Directory('${root.path}/alone').create(),
+      dataKey: key,
+      device: 'dddd',
+      io: const DirectoryFolderIo(),
+    )..onItsOwn = true;
+    addTearDown(alone.close);
+    // No ledger yet: nothing to copy.
+    expect(await alone.dailyCopy(monday), isNull);
+    await alone.startNew();
+    await alone.db!.addAccount(name: 'Khan Checking', type: AccountType.asset);
+    await alone.asItStands(monday);
+    final copies = Directory('${root.path}/alone/own/Backups');
+    List<File> made() => copies.existsSync()
+        ? copies
+              .listSync()
+              .whereType<File>()
+              .where((f) => f.path.contains('/betterbudget-'))
+              .toList()
+        : const [];
+
+    final health = await alone.dailyCopy(monday);
+    expect(health?.failed, isFalse);
+    expect(made(), hasLength(1));
+    expect(health?.newest, isNotNull);
+    // Again within the hour, and again that day: still the one.
+    await alone.dailyCopy(monday.add(const Duration(minutes: 5)));
+    await alone.dailyCopy(monday.add(const Duration(hours: 1, minutes: 5)));
+    expect(made(), hasLength(1));
+    // The next day, a second.
+    await alone.dailyCopy(tuesday);
+    expect(made(), hasLength(2));
+
+    // A copy is a backup this key restores.
+    final candidate = await Backups(
+      alone.db!,
+      dataKey: key,
+    ).inspect(made().first.path, tuesday);
+    expect(candidate.accounts, 1);
+    await Backups(alone.db!, dataKey: key).discard(candidate);
+  });
+
   test(
     'a phone with a ledger of its own is joined, and one without is not',
     () {
