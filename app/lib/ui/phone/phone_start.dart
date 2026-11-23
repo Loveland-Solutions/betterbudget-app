@@ -580,10 +580,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
           // The new mark before the old goes: a launch cut short between
           // finds the ledger on its own, and moving again finds its own
           // file in the folder.
-          await _movedHere.writeAsString(
-            '$folder\n${name ?? ''}',
-            flush: true,
-          );
+          await _movedHere.writeAsString('$folder\n${name ?? ''}', flush: true);
           _dropStartedHere();
           _movedTo = folder;
           _movedName = name;

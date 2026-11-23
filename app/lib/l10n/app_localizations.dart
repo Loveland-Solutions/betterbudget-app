@@ -3341,7 +3341,7 @@ abstract class Words {
   /// **'Split'**
   String get rowsSplitOption;
 
-  /// Split card, top right: how much of the total has no category yet, e.g. '₮37,500.00 left'.
+  /// Split, under the parts' amounts: how much of the total has no category yet, e.g. '₮37,500.00 left'.
   ///
   /// In en, this message translates to:
   /// **'{amount} left'**

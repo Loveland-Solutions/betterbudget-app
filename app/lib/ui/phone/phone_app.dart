@@ -4568,7 +4568,13 @@ class _SplitPageState extends State<_SplitPage> {
     // (#543): one tap, not reading the figure and typing it.
     final chosen = _chosen < _lines.length ? _lines[_chosen] : null;
     final fill =
-        left != null && left > 0 && chosen != null && chosen.typed.isEmpty
+        left != null &&
+            left > 0 &&
+            chosen != null &&
+            chosen.typed.isEmpty &&
+            // A line marked returned goes the other way: filling it would
+            // widen the gap.
+            !chosen.back
         ? left
         : null;
     return Scaffold(

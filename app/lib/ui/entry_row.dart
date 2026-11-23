@@ -149,7 +149,7 @@ class EditInitial {
        memo = r.memo,
        category = switch (r.kind) {
          RowKind.transfer => '→ ${r.payee}',
-         // Its lines are in the split card.
+         // Its lines are the split's parts, in the row.
          RowKind.split => '',
          _ => r.categoryLabel,
        },
@@ -380,11 +380,6 @@ class _EntryRowState extends State<EntryRow> {
     return byId.values.toList();
   }
 
-  /// The split card is open under the row.
-  /// The parts show in the row whenever it is a split (#545): no card to
-  /// open or close.
-  bool get _splitOpen => _split != null;
-
   /// What Category said before "Split" was picked, which
   /// puts its own words in the field.
   String _categoryTyped = '';
@@ -602,7 +597,7 @@ class _EntryRowState extends State<EntryRow> {
           f.mounted &&
           f.findAncestorStateOfType<_EntryRowState>() == this;
     };
-    // A split's category double-clicked: its card opens.
+    // A split's category double-clicked: to its first part.
     if (_split != null && _initial!.focus == EditField.category) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _split!.first.categoryFocus.requestFocus();
@@ -978,7 +973,7 @@ class _EntryRowState extends State<EntryRow> {
     }
   }
 
-  // ---------- the split card ----------
+  // ---------- the split's parts ----------
 
   _SplitLine _newLine({
     String category = '',
@@ -1007,7 +1002,7 @@ class _EntryRowState extends State<EntryRow> {
     return l;
   }
 
-  /// Lines taken off: disposed once the card no longer shows them.
+  /// Lines taken off: disposed once the row no longer shows them.
   void _dropLines(Iterable<_SplitLine>? lines) {
     final gone = [...?lines];
     if (gone.isEmpty) return;
@@ -1062,7 +1057,7 @@ class _EntryRowState extends State<EntryRow> {
     (s, l) => s + (_lineValue(l) ?? 0),
   );
 
-  /// The sum the card shows: a line being typed counts as it was when the
+  /// The sum the row shows: a line being typed counts as it was when the
   /// person went into it (#542). What Add checks is [_splitSum].
   int get _splitShownSum => (_split ?? const <_SplitLine>[]).fold(
     0,
@@ -1177,7 +1172,7 @@ class _EntryRowState extends State<EntryRow> {
     return named.isNotEmpty && named.every((c) => c?.isIncome ?? false);
   }
 
-  /// Opens the card: on the lines there are, or on two new ones, the first
+  /// Starts the parts: on the lines there are, or on two new ones, the first
   /// taking the category Category named, if it named one.
   void _openSplit() {
     final fresh = _split == null;
@@ -1205,22 +1200,23 @@ class _EntryRowState extends State<EntryRow> {
     });
   }
 
-  /// With Amount empty, the lines' sum goes in it, as a typed amount: money
-  /// out unless the row says in.
-  void _totalFromLines() {
+  /// With Amount empty, what the parts' sum would read as there, money out
+  /// unless the row says in; null when Amount is typed or locked. Add uses
+  /// it without writing it, so an Add that fails leaves Amount as it was
+  /// and the way can still be switched.
+  String? get _totalFromLines {
     final sum = _splitSum;
-    if (_splitTotal != null || _lockAmount) return;
+    if (_split == null || _splitTotal != null || _lockAmount) return null;
     if (sum == 0) {
       // Lines that even out: a total of 0, nothing in or out.
-      if (_splitEven) _amount.text = editableAmount(0, _hereCurrency);
-      return;
+      return _splitEven ? editableAmount(0, _hereCurrency) : null;
     }
-    _amount.text = editableAmount(_linesIn ? sum : -sum, _hereCurrency);
+    return editableAmount(_linesIn ? sum : -sum, _hereCurrency);
   }
 
   /// Lines typed with Amount empty: whether their total is money in. Money
-  /// out unless the row says in (a `+`, or every line Income), or the card's
-  /// button was clicked: a default, not a question (owner, 2026-09-18).
+  /// out unless the row says in (a `+`, or every line Income), or its
+  /// switch was clicked: a default, not a question (owner, 2026-09-18).
   bool? _linesInChosen;
   bool get _linesIn =>
       _linesInChosen ?? (_amount.text.trim().startsWith('+') || _splitIsIncome);
@@ -1361,20 +1357,9 @@ class _EntryRowState extends State<EntryRow> {
     return (parts: parts, error: null);
   }
 
-  /// How many categories: while the card is open, its lines; once Done,
-  /// the categories they name, one named twice counted once.
-  int get _splitCount {
-    if (_splitOpen) return _split!.length;
-    final names = {
-      for (final l in _split!)
-        if (l.category.text.trim().isNotEmpty)
-          l.category.text.trim().toLowerCase(),
-    };
-    return names.isEmpty ? _split!.length : names.length;
-  }
-
-  /// What Category shows for a split: how many categories, a click opening
-  /// the card.
+  /// What Category shows for a split: "Split", its parts right under it
+  /// saying the rest (a count there read "1 category" over two parts); a
+  /// click goes to the first part.
   Widget _splitButton(Words t) => Tooltip(
     message: _split!
         .map((l) => l.category.text)
@@ -1399,7 +1384,7 @@ class _EntryRowState extends State<EntryRow> {
           children: [
             Expanded(
               child: Text(
-                t.startSplitCategories(_splitCount),
+                t.rowsSplitOption,
                 style: onest(13.5, color: Mid.ink2),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1457,7 +1442,13 @@ class _EntryRowState extends State<EntryRow> {
           l.category.text.trim().isEmpty &&
           !l.categoryFocus.hasFocus &&
           !l.amountFocus.hasFocus;
-      final fill = l.amount.text.trim().isEmpty && left != null && left > 0
+      // Offered while no other part's amount is being typed, so its
+      // figure doesn't move under the person (#542).
+      final fill =
+          l.amount.text.trim().isEmpty &&
+              left != null &&
+              left > 0 &&
+              !lines.any((o) => !identical(o, l) && o.amountFocus.hasFocus)
           ? rest(l)
           : null;
       return Padding(
@@ -1540,6 +1531,9 @@ class _EntryRowState extends State<EntryRow> {
                       top: 4,
                       right: 4,
                       bottom: 4,
+                      // The box's left end stays the box's: a click there
+                      // types.
+                      left: 40,
                       child: _FillButton(
                         key: const ValueKey('split-fill'),
                         label: t.rowsSplitPutHere(
@@ -1548,12 +1542,21 @@ class _EntryRowState extends State<EntryRow> {
                         onTap: () {
                           setState(() {
                             l.amount.text = _lineText(fill);
-                            l.held = null;
+                            for (final o in lines) {
+                              o.held = null;
+                            }
                           });
                           // Where they'd go next: the category, if it has
-                          // none yet.
+                          // none yet; else the amount just put, selected,
+                          // so a key typed replaces it.
                           if (l.category.text.trim().isEmpty) {
                             l.categoryFocus.requestFocus();
+                          } else {
+                            l.amountFocus.requestFocus();
+                            l.amount.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: l.amount.text.length,
+                            );
                           }
                         },
                       ),
@@ -1677,9 +1680,6 @@ class _EntryRowState extends State<EntryRow> {
   /// Enter in any field, or the Add/Save button, lands here.
   Future<void> _submit() async {
     if (_busy) return;
-    // Add with the card open: its lines as they stand, an empty Amount
-    // taking their sum as Done would.
-    if (_splitOpen) _totalFromLines();
     if (_category.text.trim().isEmpty && _split == null) {
       await _prefillCategory();
     }
@@ -1698,7 +1698,8 @@ class _EntryRowState extends State<EntryRow> {
     final lockAmount = _lockAmount;
     final date = parseRowDate(_date.text, widget.today);
     final counter = lockCategory ? null : _counterFor(_category.text);
-    final raw = _amount.text.trim();
+    // A split's parts with Amount empty: their sum stands for it.
+    final raw = _totalFromLines ?? _amount.text.trim();
     final isInflow =
         raw.startsWith('+') ||
         (_split == null
@@ -1769,7 +1770,6 @@ class _EntryRowState extends State<EntryRow> {
     if (_split != null && !splitUntouched) {
       final checked = _checkSplit(isInflow, parsed?.abs());
       if (checked.error case (final message, final node)) {
-        if (!_splitOpen) _openSplit();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) node.requestFocus();
         });
@@ -3654,8 +3654,10 @@ class _FillButton extends StatelessWidget {
       canRequestFocus: false,
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 9),
-        child: Center(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        // A long amount, or the Mongolian, shrinks rather than being cut.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
           child: Text(
             label,
             style: onest(12, weight: 500, color: Mid.blue),
@@ -3864,7 +3866,7 @@ class _AccountPicker extends StatelessWidget {
   );
 }
 
-/// One line of the split card: a category and its share of the total.
+/// One of a split's parts: a category and its share of the total.
 class _SplitLine {
   _SplitLine({String category = '', String amount = ''})
     : category = TextEditingController(text: category),
@@ -3883,7 +3885,7 @@ class _SplitLine {
   final categoryFocus = FocusNode(debugLabel: 'split-category');
   final amountFocus = FocusNode(debugLabel: 'split-amount');
 
-  /// What the amount said when the person went into it: the card's left
+  /// What the amount said when the person went into it: the left
   /// figure counts this until they leave, so it doesn't change under them
   /// while they type (#542).
   String? held;

@@ -2490,10 +2490,7 @@ Future<PhoneActed> actOnStartOver(
   Future<PhoneSnapshot> Function() again,
 ) async {
   await saveFirst(now);
-  var erased = await db.startNewLedger(
-    now,
-    keepCategories: act.keepCategories,
-  );
+  var erased = await db.startNewLedger(now, keepCategories: act.keepCategories);
   return (
     snapshot: await again(),
     undo: () async {

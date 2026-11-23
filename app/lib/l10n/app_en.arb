@@ -3598,7 +3598,7 @@
   },
   "rowsSplitLeft": "{amount} left",
   "@rowsSplitLeft": {
-    "description": "Split card, top right: how much of the total has no category yet, e.g. '₮37,500.00 left'.",
+    "description": "Split, under the parts' amounts: how much of the total has no category yet, e.g. '₮37,500.00 left'.",
     "placeholders": {
       "amount": {
         "type": "String"

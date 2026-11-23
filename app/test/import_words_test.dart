@@ -12,11 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 // paid (#597): the window's line, and the sentence after.
 void main() {
   final t = lookupWords(const Locale('en'));
-  const account = AccountInfo(
-    id: 1,
-    name: 'Checking',
-    type: AccountType.asset,
-  );
+  const account = AccountInfo(id: 1, name: 'Checking', type: AccountType.asset);
 
   ImportPlanRow billRow(String name) => ImportPlanRow(
     row: ImportRow(
@@ -40,14 +36,11 @@ void main() {
 
   test('the window names each bill, its amount, due date, the bank\'s day '
       'and the bank\'s words; past three, how many more', () {
-    expect(
-      importBillsPaidLines(t, [billRow('Giving')], Currency.mnt),
-      [
-        'Giving −₮500,000.00, due ${sayFullDate(t, DateTime(2026, 9, 16))}, '
-            'was paid on ${sayFullDate(t, DateTime(2026, 9, 20))} by '
-            '“POS Purchase”: it’s confirmed and cleared.',
-      ],
-    );
+    expect(importBillsPaidLines(t, [billRow('Giving')], Currency.mnt), [
+      'Giving −₮500,000.00, due ${sayFullDate(t, DateTime(2026, 9, 16))}, '
+          'was paid on ${sayFullDate(t, DateTime(2026, 9, 20))} by '
+          '“POS Purchase”: it’s confirmed and cleared.',
+    ]);
     final five = importBillsPaidLines(t, [
       for (final n in ['A', 'B', 'C', 'D', 'E']) billRow(n),
     ], Currency.mnt);
@@ -69,10 +62,7 @@ void main() {
       accounts: const {1: account},
       uncategorized: 'Not categorized',
     );
-    expect(
-      said(const ImportRecord(added: {}, matched: [bill])),
-      '1 bill paid',
-    );
+    expect(said(const ImportRecord(added: {}, matched: [bill])), '1 bill paid');
     expect(
       said(const ImportRecord(added: {}, matched: [typed, bill])),
       '1 typed row now cleared · 1 bill paid.',

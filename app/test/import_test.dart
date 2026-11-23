@@ -824,59 +824,61 @@ void main() {
           if (x.scheduled && x.planCategoryId == giving) x.id,
       };
 
-      test('the bank\'s row of exactly its amount pays it: confirmed on the '
-          'bank\'s day, cleared, no second row; Undo puts it back waiting',
-          () async {
-        final bill = await billOn16th();
-        final before = waiting(await db.loadLedger());
-        final rows = [row(20, -50000000, 'POS Purchase')];
-        final p = await plan(rows);
-        expect(p.single.fate, ImportFate.match);
-        expect(p.single.match!.bill, isTrue);
-        expect(p.single.match!.transactionId, bill);
-        // Named by its category, as the window says it.
-        expect(p.single.match!.payee, 'Giving');
+      test(
+        'the bank\'s row of exactly its amount pays it: confirmed on the '
+        'bank\'s day, cleared, no second row; Undo puts it back waiting',
+        () async {
+          final bill = await billOn16th();
+          final before = waiting(await db.loadLedger());
+          final rows = [row(20, -50000000, 'POS Purchase')];
+          final p = await plan(rows);
+          expect(p.single.fate, ImportFate.match);
+          expect(p.single.match!.bill, isTrue);
+          expect(p.single.match!.transactionId, bill);
+          // Named by its category, as the window says it.
+          expect(p.single.match!.payee, 'Giving');
 
-        final record = await db.applyImport(
-          accountId: bank,
-          plan: p,
-          uncategorizedNames: ['Not categorized'],
-          today: DateTime(2026, 9, 21),
-        );
-        expect(record.added, isEmpty);
-        expect(record.matched.single.confirmed, isTrue);
-        var data = await db.loadLedger();
-        final paid = data.txns.singleWhere((x) => x.id == bill);
-        expect(paid.scheduled, isFalse);
-        expect(paid.date, DateTime(2026, 9, 20));
-        expect(
-          paid.entries.firstWhere((e) => e.accountId == bank).cleared,
-          Cleared.cleared,
-        );
-        expect(
-          data.txns.where((x) => x.entries.any((e) => e.accountId == bank)),
-          hasLength(waiting(data).length + 1),
-        );
-        // The same file again is already in.
-        expect((await plan(rows)).single.fate, ImportFate.already);
+          final record = await db.applyImport(
+            accountId: bank,
+            plan: p,
+            uncategorizedNames: ['Not categorized'],
+            today: DateTime(2026, 9, 21),
+          );
+          expect(record.added, isEmpty);
+          expect(record.matched.single.confirmed, isTrue);
+          var data = await db.loadLedger();
+          final paid = data.txns.singleWhere((x) => x.id == bill);
+          expect(paid.scheduled, isFalse);
+          expect(paid.date, DateTime(2026, 9, 20));
+          expect(
+            paid.entries.firstWhere((e) => e.accountId == bank).cleared,
+            Cleared.cleared,
+          );
+          expect(
+            data.txns.where((x) => x.entries.any((e) => e.accountId == bank)),
+            hasLength(waiting(data).length + 1),
+          );
+          // The same file again is already in.
+          expect((await plan(rows)).single.fate, ImportFate.already);
 
-        await db.undoImport(record);
-        data = await db.loadLedger();
-        final back = data.txns.singleWhere((x) => x.id == bill);
-        expect(back.scheduled, isTrue);
-        expect(back.date, DateTime(2026, 9, 16));
-        expect(
-          back.entries.firstWhere((e) => e.accountId == bank).cleared,
-          Cleared.uncleared,
-        );
-        expect(waiting(data), before);
-        expect((await plan(rows)).single.match!.bill, isTrue);
+          await db.undoImport(record);
+          data = await db.loadLedger();
+          final back = data.txns.singleWhere((x) => x.id == bill);
+          expect(back.scheduled, isTrue);
+          expect(back.date, DateTime(2026, 9, 16));
+          expect(
+            back.entries.firstWhere((e) => e.accountId == bank).cleared,
+            Cleared.uncleared,
+          );
+          expect(waiting(data), before);
+          expect((await plan(rows)).single.match!.bill, isTrue);
 
-        await db.redoImport(record, bank);
-        data = await db.loadLedger();
-        expect(data.txns.singleWhere((x) => x.id == bill).scheduled, isFalse);
-        expect((await plan(rows)).single.fate, ImportFate.already);
-      });
+          await db.redoImport(record, bank);
+          data = await db.loadLedger();
+          expect(data.txns.singleWhere((x) => x.id == bill).scheduled, isFalse);
+          expect((await plan(rows)).single.fate, ImportFate.already);
+        },
+      );
 
       test('left waiting: a bill scheduled by hand, one whose payment was '
           'typed at another amount, and one when the bank row\'s payee is '
@@ -903,17 +905,15 @@ void main() {
         );
 
         // An ATM withdrawal remembered as money moved to Cash.
-        await db.rememberPayee(
-          accountId: bank,
-          payee: 'ATM',
-          categoryId: cash,
-        );
+        await db.rememberPayee(accountId: bank, payee: 'ATM', categoryId: cash);
         expect(
           (await plan([row(20, -50000000, 'ATM')])).single.fate,
           ImportFate.add,
         );
         expect(
-          (await plan([row(20, -50000000, 'POS Purchase')])).single.match!
+          (await plan([row(20, -50000000, 'POS Purchase')]))
+              .single
+              .match!
               .transactionId,
           bill,
         );
@@ -933,32 +933,37 @@ void main() {
         );
       });
 
-      test('the oldest bill already due is paid before the next one ahead',
-          () async {
-        giving = await db.createCategory('Giving');
-        await db.setCategoryPlan(
-          giving,
-          CategoryPlan(
-            categoryId: giving,
-            kind: PlanKind.byDate,
-            amount: 5000000,
-            start: DateTime(2026, 9, 1),
-            due: DateTime(2026, 9, 9),
-            everyDays: 7,
-            paidFrom: bank,
-          ),
-        );
-        await db.ensurePlanBills(DateTime(2026, 9, 1));
-        await db.ensurePlanBills(DateTime(2026, 9, 14));
-        final due = (await db.loadLedger()).txns
-            .where((x) => x.planCategoryId == giving && x.scheduled)
-            .map((x) => x.date)
-            .toList();
-        expect(due, containsAll([DateTime(2026, 9, 9), DateTime(2026, 9, 16)]));
-        // The 14th: five days after the 9th's, two before the 16th's.
-        final p = await plan([row(14, -5000000, 'POS Purchase')]);
-        expect(p.single.match!.date, DateTime(2026, 9, 9));
-      });
+      test(
+        'the oldest bill already due is paid before the next one ahead',
+        () async {
+          giving = await db.createCategory('Giving');
+          await db.setCategoryPlan(
+            giving,
+            CategoryPlan(
+              categoryId: giving,
+              kind: PlanKind.byDate,
+              amount: 5000000,
+              start: DateTime(2026, 9, 1),
+              due: DateTime(2026, 9, 9),
+              everyDays: 7,
+              paidFrom: bank,
+            ),
+          );
+          await db.ensurePlanBills(DateTime(2026, 9, 1));
+          await db.ensurePlanBills(DateTime(2026, 9, 14));
+          final due = (await db.loadLedger()).txns
+              .where((x) => x.planCategoryId == giving && x.scheduled)
+              .map((x) => x.date)
+              .toList();
+          expect(
+            due,
+            containsAll([DateTime(2026, 9, 9), DateTime(2026, 9, 16)]),
+          );
+          // The 14th: five days after the 9th's, two before the 16th's.
+          final p = await plan([row(14, -5000000, 'POS Purchase')]);
+          expect(p.single.match!.date, DateTime(2026, 9, 9));
+        },
+      );
 
       test('a typed row of the amount wins; another amount, or a bank row '
           'too long after, leaves the bill waiting', () async {
