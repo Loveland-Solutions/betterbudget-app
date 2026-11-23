@@ -8326,3 +8326,49 @@ typing and have the list filtered by what I typed."
   none of this.
 - The cause: Flutter's autocomplete works its list out only when the text changes, so
   the box now owns its list (`_Autocomplete` in `ui/entry_row.dart`).
+
+## A split's parts in the row: one Add, a fill button, a figure that holds still (owner, 2026-11-23, #545, #543, #542)
+
+The owner, 2026-11-19: "It lets you click 'Done' but not 'Add' … We shouldn't have both.
+Split should expand the existing dialog, not add another. They shouldn't have to click
+two buttons to add a transaction." And: "I hate how, in a split category the amount left
+updates as I'm typing. It should update when I leave a field." And: "We might consider
+adding an 'Assign remaining amount' button next to the split category amount." Shown two
+live sketches on 2026-11-23, they chose **A, the parts in the row's own columns**. This
+replaces the card's Cancel and Done from "One receipt over several categories" above;
+the rest of that section stands.
+
+- **The parts are in the row.** Picking Split puts a part's category under the row's
+  Category and its amount under Amount, one line each, ✕ beside the amount; "+ Another
+  category" and, with Amount empty, which way the total goes sit under the categories;
+  what's left ("₮37,500.00 left", "₮2,000.00 too much") under the amounts. The row only
+  grows down. Category reads "Split" (a count read "1 category" over two parts); a click
+  on it goes to the first part.
+- **One Add saves it all**, checked as before ("Place the last ₮37,500.00", the part to fix
+  focused). With Amount empty, Add puts the parts' sum there, money out unless switched,
+  and Amount isn't asked for. One part that takes the whole amount is saved as an
+  ordinary row. Enter in the last part's amount, with nothing left to place, adds the row,
+  as Enter does in any field. Esc and the row's Cancel cancel the row, as for any row.
+- **A part with an amount and no category** gets the warning edge and "Which category is
+  ₮37,500.00 for?" under it as soon as both its boxes are left, before Add.
+- **An Add that fails** (no payee, say) leaves Amount empty: the parts' sum is used, not
+  written, so the way can still be switched and nothing is checked against a total the
+  person never typed.
+- **The left figure holds still while an amount is typed**, counting that part as it was
+  when the box was entered, and catches up when it's left (Tab, Enter, a click). Add
+  checks what is typed, not the figure.
+- **Put ₮37,500 here** sits inside each empty part's amount box while something is left
+  to place, and puts the rest there (the total less what the other parts hold as typed);
+  a part with no category yet gets the cursor next, else the amount put, selected. It
+  waits while another part's amount is being typed, so its figure doesn't move, and it
+  leaves the box's left end free: a click there types. The owner's words were "Assign
+  remaining amount"; **Assigned** is the budget's word, so the button says the act.
+- **On the phone** the split stays a page: the number pad fills the entry screen, so there
+  is no room for the parts in it, and its Done only goes back to the entry screen, which
+  Save still saves. The page offers **Put ₮37,500 on Clothing** under what's left to
+  place, for the line the pad is on while it's empty (not on a line marked returned,
+  which goes the other way). The figure there still changes as
+  the pad is pressed: the pad has no box to leave, so a held figure would stay wrong.
+- **Rejected:** B, the parts in a block under the row with one button under them naming
+  where the rest goes: the block starts at the Category column, leaving the width under
+  Date and Payee empty.

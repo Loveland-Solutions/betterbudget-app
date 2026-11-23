@@ -158,10 +158,7 @@ void main() {
         for (final a in (await db.loadLedger()).accounts.values) a.name,
       };
       expect(names, containsAll(['TDB Checking', 'Groceries']));
-      expect(
-        Directory('${mine.dir.path}.restoring').existsSync(),
-        isFalse,
-      );
+      expect(Directory('${mine.dir.path}.restoring').existsSync(), isFalse);
       // A ledger the phone has is never written over.
       await expectLater(
         mine.restore(backup.path, 'bbbb', today),
@@ -178,10 +175,7 @@ void main() {
         throwsA(isA<RestoreException>()),
       );
       expect(other.exists, isFalse);
-      expect(
-        Directory('${other.dir.path}.restoring').existsSync(),
-        isFalse,
-      );
+      expect(Directory('${other.dir.path}.restoring').existsSync(), isFalse);
 
       // Not a backup at all.
       final junk = File('${root.path}/junk.betterbudget')

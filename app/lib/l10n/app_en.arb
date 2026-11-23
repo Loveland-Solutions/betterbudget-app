@@ -3596,21 +3596,39 @@
   "@rowsSplitOption": {
     "description": "First entry in an entry row’s Category list, beside the split icon: opens the card that shares the amount over several categories (one receipt for groceries and clothing)."
   },
-  "rowsSplitTitle": "{payee}, {amount}",
-  "@rowsSplitTitle": {
-    "description": "Heading of the split card under an entry row: the payee and the receipt’s total, e.g. 'Nomin, ₮135,500.00'.",
+  "rowsSplitLeft": "{amount} left",
+  "@rowsSplitLeft": {
+    "description": "Split, under the parts' amounts: how much of the total has no category yet, e.g. '₮37,500.00 left'.",
     "placeholders": {
-      "payee": {
-        "type": "String"
-      },
       "amount": {
         "type": "String"
       }
     }
   },
-  "rowsSplitLeft": "{amount} left",
-  "@rowsSplitLeft": {
-    "description": "Split card, top right: how much of the total has no category yet, e.g. '₮37,500.00 left'.",
+  "phoneSplitPutOn": "Put {amount} on {category}",
+  "@phoneSplitPutOn": {
+    "description": "Phone's split page, under what's left to place: a button that puts what is left on the line the pad is typing into, e.g. 'Put ₮37,500 on Clothing'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsSplitPutHere": "Put {amount} here",
+  "@rowsSplitPutHere": {
+    "description": "Split, inside an empty part's amount box: a button that puts what is left of the total in that part, e.g. 'Put ₮37,500 here'.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rowsSplitWhichCategory": "Which category is {amount} for?",
+  "@rowsSplitWhichCategory": {
+    "description": "Split, under a part with an amount and no category, once the person has left it: e.g. 'Which category is ₮37,500.00 for?'.",
     "placeholders": {
       "amount": {
         "type": "String"

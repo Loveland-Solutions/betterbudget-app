@@ -2423,13 +2423,23 @@ class WordsEn extends Words {
   String get rowsSplitOption => 'Split';
 
   @override
-  String rowsSplitTitle(String payee, String amount) {
-    return '$payee, $amount';
+  String rowsSplitLeft(String amount) {
+    return '$amount left';
   }
 
   @override
-  String rowsSplitLeft(String amount) {
-    return '$amount left';
+  String phoneSplitPutOn(String amount, String category) {
+    return 'Put $amount on $category';
+  }
+
+  @override
+  String rowsSplitPutHere(String amount) {
+    return 'Put $amount here';
+  }
+
+  @override
+  String rowsSplitWhichCategory(String amount) {
+    return 'Which category is $amount for?';
   }
 
   @override

@@ -168,8 +168,7 @@ Uint8List buildXls(
 
 /// An .xlsx saved with a password, as Excel writes it: an OLE2 file whose
 /// streams are how it was locked and the encrypted workbook.
-Uint8List lockedXlsx() =>
-    _ole(List.filled(600, 7), name: 'EncryptionInfo');
+Uint8List lockedXlsx() => _ole(List.filled(600, 7), name: 'EncryptionInfo');
 
 Uint8List _ole(List<int> stream, {String name = 'Workbook'}) {
   const size = 512;

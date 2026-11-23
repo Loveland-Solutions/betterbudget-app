@@ -4564,6 +4564,19 @@ class _SplitPageState extends State<_SplitPage> {
     };
     final shown = total ?? sum.abs();
     final shownIn = widget.moneyIn != flipped;
+    // What's left, offered to the line the pad is on while it's empty
+    // (#543): one tap, not reading the figure and typing it.
+    final chosen = _chosen < _lines.length ? _lines[_chosen] : null;
+    final fill =
+        left != null &&
+            left > 0 &&
+            chosen != null &&
+            chosen.typed.isEmpty &&
+            // A line marked returned goes the other way: filling it would
+            // widen the gap.
+            !chosen.back
+        ? left
+        : null;
     return Scaffold(
       backgroundColor: Mid.ground,
       body: SafeArea(
@@ -4622,6 +4635,31 @@ class _SplitPageState extends State<_SplitPage> {
                     ),
                 ],
               ),
+              if (fill != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    key: const ValueKey('split-fill'),
+                    onPressed: () => setState(() {
+                      _lines[_chosen] = (
+                        categoryId: chosen.categoryId,
+                        typed: typedOfMinor(fill, currency),
+                        back: chosen.back,
+                      );
+                    }),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(44, 44),
+                      foregroundColor: Mid.blue,
+                      textStyle: onest(15, weight: 500),
+                    ),
+                    child: Text(
+                      t.phoneSplitPutOn(
+                        money(fill),
+                        _categoryOf(chosen!.categoryId)?.name ?? '',
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 14),
               Expanded(
                 child: ListView(

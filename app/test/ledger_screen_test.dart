@@ -4269,7 +4269,10 @@ void main() {
     // The list builds only the rows that fit: Bank fees and Childcare
     // lead it, Split is pinned above it.
     bool listed(String name) => find
-        .descendant(of: find.byType(ListView), matching: find.text(name))
+        .descendant(
+          of: find.byKey(const ValueKey('choice-list')),
+          matching: find.text(name),
+        )
         .evaluate()
         .isNotEmpty;
     bool open() => listed('Bank fees') && listed('Childcare');
@@ -4352,7 +4355,10 @@ void main() {
         )
         .first;
     bool listed(String name) => find
-        .descendant(of: find.byType(ListView), matching: find.text(name))
+        .descendant(
+          of: find.byKey(const ValueKey('choice-list')),
+          matching: find.text(name),
+        )
         .evaluate()
         .isNotEmpty;
 
@@ -4381,7 +4387,10 @@ void main() {
     await tester.enterText(payee, 'Saku');
     await tester.pumpAndSettle();
     bool listed(String name) => find
-        .descendant(of: find.byType(ListView), matching: find.text(name))
+        .descendant(
+          of: find.byKey(const ValueKey('choice-list')),
+          matching: find.text(name),
+        )
         .evaluate()
         .isNotEmpty;
     expect(listed('Sakura Coffee'), isTrue);
@@ -4451,9 +4460,8 @@ void main() {
     await tidy(tester, db);
   });
 
-  testWidgets('one receipt split over categories: the card, Add waits, edit', (
-    tester,
-  ) async {
+  testWidgets('one receipt split over categories: the parts in the row, '
+      'one Add, edit', (tester) async {
     final db = await pumpLedger(tester);
     Finder inCard(Finder f) => find.descendant(
       of: find.byKey(const ValueKey('split-card')),
@@ -4461,10 +4469,14 @@ void main() {
     );
     Finder lineCategory(int i) => inCard(find.byType(TextField)).at(i * 2);
     Finder lineAmount(int i) => inCard(find.byType(TextField)).at(i * 2 + 1);
-    Future<void> enter() => tester.runAsync(() async {
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-    });
+    String text(Finder f) => tester.widget<TextField>(f).controller!.text;
+    Future<void> add() async {
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('entry-submit')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+    }
 
     await openEntry(tester);
     await tester.enterText(
@@ -4476,41 +4488,50 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Split'));
     await tester.pumpAndSettle();
+    // The parts open in the row itself: no card, no Done (#545).
     expect(find.byKey(const ValueKey('split-card')), findsOneWidget);
-    expect(find.text('Nomin, ₮135,500.00'), findsOneWidget);
+    expect(find.byKey(const ValueKey('split-done')), findsNothing);
     expect(inCard(find.byType(TextField)), findsNWidgets(4));
 
     await tester.enterText(lineCategory(0), 'Groceries');
     await tester.enterText(lineAmount(0), '98000');
     await tester.pumpAndSettle();
+    // While the amount is typed, the left figure holds still; it catches
+    // up when the box is left (#542).
+    expect(find.text('₮135,500.00 left'), findsOneWidget);
+    await tester.tap(lineCategory(0));
+    await tester.pumpAndSettle();
     expect(find.text('₮37,500.00 left'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape); // the list
+    await tester.pumpAndSettle();
+    // The empty part offers to take what's left (#543).
+    expect(find.text('Put ₮37,500 here'), findsOneWidget);
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/split_card.png'),
     );
 
     // Add waits while some of the total has no category (owner, 2026-10-17).
-    await tester.tap(find.byKey(const ValueKey('entry-submit')));
-    await settle(tester);
+    await add();
     expect(find.text('Place the last ₮37,500.00'), findsOneWidget);
     expect(find.byKey(const ValueKey('split-card')), findsOneWidget);
 
-    await tester.enterText(lineCategory(1), 'Clothing');
-    await tester.enterText(lineAmount(1), '37500');
+    // The button puts it there; the part says it has no category once
+    // it's left.
+    await tester.tap(find.byKey(const ValueKey('split-fill')));
     await tester.pumpAndSettle();
+    expect(text(lineAmount(1)), '37,500');
     expect(find.byKey(const ValueKey('split-left')), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('split-done')));
+    expect(find.byKey(const ValueKey('split-fill')), findsNothing);
+    await tester.tap(lineAmount(0));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('split-card')), findsNothing);
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('split-categories')),
-        matching: find.text('2 categories'),
-      ),
-      findsOneWidget,
-    );
-    await enter();
-    await settle(tester);
+    expect(find.text('Which category is ₮37,500.00 for?'), findsOneWidget);
+    await tester.enterText(lineCategory(1), 'Clothing');
+    await tester.pumpAndSettle();
+    expect(find.text('Which category is ₮37,500.00 for?'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape); // the list
+    await tester.pumpAndSettle();
+    await add();
 
     RegisterRow nomin(LedgerData d) =>
         checking(d).posted.firstWhere((r) => r.payee == 'Nomin');
@@ -4522,35 +4543,25 @@ void main() {
       ('Clothing', -3750000),
     ]);
 
-    // Edit: the card opens on its lines; Esc puts back what it opened on.
+    // Edit: the parts are in the row; Esc leaves the row as it was.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Nomin'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Edit'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('split-categories')));
-    await tester.pumpAndSettle();
-    expect(
-      tester.widget<TextField>(lineCategory(0)).controller!.text,
-      'Groceries',
-    );
+    expect(text(lineCategory(0)), 'Groceries');
     await tester.enterText(lineAmount(0), '1');
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('split-card')), findsNothing);
-    expect(find.byKey(const ValueKey('split-categories')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('split-categories')));
+    await tester.tap(find.text('Edit'));
     await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(lineAmount(0)).controller!.text, '98,000');
+    expect(text(lineAmount(0)), '98,000');
     await tester.enterText(lineAmount(0), '88000');
     await tester.enterText(lineAmount(1), '37500+10000');
-    await tester.tap(find.byKey(const ValueKey('split-done')));
-    await tester.pumpAndSettle();
-    // Done leaves the cursor in Amount: Enter saves.
-    await enter();
-    await settle(tester);
+    await add();
     expect(find.byKey(const ValueKey('entry-submit')), findsNothing);
     row = nomin((await tester.runAsync(() => db.loadLedger()))!);
     expect(row.amount, -13550000);
@@ -4569,21 +4580,98 @@ void main() {
     // Still picked after the undo: its actions are open under it.
     await tester.tap(find.text('Edit'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('split-categories')));
-    await tester.pumpAndSettle();
     await tester.tap(inCard(find.byIcon(Icons.close_rounded)).last);
     await tester.pumpAndSettle();
     expect(inCard(find.byIcon(Icons.close_rounded)), findsNothing);
     await tester.enterText(lineAmount(0), '135500');
-    await tester.tap(find.byKey(const ValueKey('split-done')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('split-categories')), findsNothing);
-    await enter();
-    await settle(tester);
+    await add();
     row = nomin((await tester.runAsync(() => db.loadLedger()))!);
     expect(row.kind, RowKind.simple);
     expect(row.categoryLabel, 'Groceries');
     expect(row.amount, -13550000);
+    await tidy(tester, db);
+  });
+
+  testWidgets('split parts: a failed Add leaves Amount as it was; the fill '
+      'waits while another part is typed; Enter in the last part adds '
+      '(#543, #545)', (tester) async {
+    final db = await pumpLedger(tester);
+    Finder inCard(Finder f) => find.descendant(
+      of: find.byKey(const ValueKey('split-card')),
+      matching: f,
+    );
+    Finder lineCategory(int i) => inCard(find.byType(TextField)).at(i * 2);
+    Finder lineAmount(int i) => inCard(find.byType(TextField)).at(i * 2 + 1);
+    final amount = find.byWidgetPredicate(
+      (w) => w is TextField && w.focusNode?.debugLabel == 'entry-amount',
+    );
+    String text(Finder f) => tester.widget<TextField>(f).controller!.text;
+
+    await openEntry(tester);
+    await tester.tap(find.widgetWithText(TextField, 'Category'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Split'));
+    await tester.pumpAndSettle();
+    await tester.enterText(lineCategory(0), 'Groceries');
+    await tester.enterText(lineAmount(0), '10000');
+    await tester.enterText(lineCategory(1), 'Clothing');
+    await tester.enterText(lineAmount(1), '5000');
+    await tester.tap(lineCategory(0));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape); // the list
+    await tester.pumpAndSettle();
+
+    // No payee: Add says so, and Amount stays empty, the way still open.
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('entry-submit')));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('Enter a payee'), findsOneWidget);
+    expect(text(amount), '');
+    expect(find.byKey(const ValueKey('split-switch-way')), findsOneWidget);
+
+    // A total typed, a third part: its fill waits while another part's
+    // amount is being typed, so its figure doesn't move.
+    await tester.enterText(
+      find.widgetWithText(TextField, 'New transaction — payee'),
+      'Nomin',
+    );
+    await tester.enterText(amount, '20000');
+    await tester.tap(find.byKey(const ValueKey('split-another')));
+    await tester.pumpAndSettle();
+    await tester.enterText(lineAmount(0), '1000');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('split-fill')), findsNothing);
+    await tester.enterText(lineAmount(0), '10000');
+    await tester.tap(lineCategory(2));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape); // the list
+    await tester.pumpAndSettle();
+    expect(find.text('Put ₮5,000 here'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('split-fill')));
+    await tester.pumpAndSettle();
+    expect(text(lineAmount(2)), '5,000');
+    await tester.enterText(lineCategory(2), 'Household');
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape); // the list
+
+    // Enter in the last part, nothing left to place: the row is added.
+    await tester.tap(lineAmount(2));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    final d = (await tester.runAsync(() => db.loadLedger()))!;
+    final row = checking(d).posted.firstWhere((r) => r.payee == 'Nomin');
+    expect(row.amount, -2000000);
+    expect(row.splitLines.map((l) => (l.name, l.amount)), [
+      ('Groceries', -1000000),
+      ('Clothing', -500000),
+      ('Household', -500000),
+    ]);
     await tidy(tester, db);
   });
 
@@ -4877,10 +4965,11 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('split-switch-way')));
     await tester.pumpAndSettle();
     expect(find.text('The total is money in.'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('split-done')));
-    await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextField, '+135,500'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('entry-submit')));
+    // Add puts the parts' sum in Amount that way, and saves (#545).
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('entry-submit')));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
     await settle(tester);
     var d = (await tester.runAsync(() => db.loadLedger()))!;
     var row = checking(d).posted.firstWhere((r) => r.payee == 'Nomin');

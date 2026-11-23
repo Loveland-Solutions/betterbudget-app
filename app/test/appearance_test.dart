@@ -35,10 +35,7 @@ void main() {
         'setup made its key', () async {
       final file = File('${dir.path}/appearance');
       await AppearanceController.loadForPhone(file, inUse: false);
-      final again = await AppearanceController.loadForPhone(
-        file,
-        inUse: true,
-      );
+      final again = await AppearanceController.loadForPhone(file, inUse: true);
       expect(again.value, Appearance.system);
       expect(again.scheme.id, defaultScheme.id);
     });
@@ -46,10 +43,7 @@ void main() {
     test('a choice made in Settings is kept over the one a phone in use '
         'started with', () async {
       final file = File('${dir.path}/appearance');
-      final first = await AppearanceController.loadForPhone(
-        file,
-        inUse: true,
-      );
+      final first = await AppearanceController.loadForPhone(file, inUse: true);
       await first.set(Appearance.light);
       await first.setScheme(betterBudgetScheme);
       final c = await AppearanceController.loadForPhone(file, inUse: true);

@@ -37,10 +37,8 @@ void main() {
     return id;
   }
 
-  Future<int> category(String name) => db.createAccount(
-    name: name,
-    type: AccountType.expense,
-  );
+  Future<int> category(String name) =>
+      db.createAccount(name: name, type: AccountType.expense);
 
   Future<void> spend(int from, int to, int amount, DateTime on) =>
       db.postSimple(
@@ -154,45 +152,43 @@ void main() {
     expect(b.pools.single.shortBy().carried, 0);
   });
 
-  test('the currency saved in, picked when the accounts hold two, is the '
-      'Safety net\'s and the budget\'s own; undo puts it back (#616)', () async {
-    await db.setPreference(SetupKeys.date, dateKey(today));
-    await account('Khan Checking', 120000000, today);
-    await account(
-      'Golomt Savings',
-      300000,
-      today,
-      currency: Currency.usd,
-    );
-    await account('TDB Deposit', 500000, today, currency: Currency.usd);
-    var data = await db.loadLedger();
-    expect(setupCurrencies(data), [Currency.mnt, Currency.usd]);
-    // Two of three bank and cash accounts are in dollars: dollars to begin
-    // with, one of the answers offered.
-    expect(setupSaveIn(data), Currency.usd);
-    await db.setPreference(SetupKeys.saveIn, Currency.mnt.code);
-    data = await db.loadLedger();
-    expect(setupSaveIn(data), Currency.mnt);
+  test(
+    'the currency saved in, picked when the accounts hold two, is the '
+    'Safety net\'s and the budget\'s own; undo puts it back (#616)',
+    () async {
+      await db.setPreference(SetupKeys.date, dateKey(today));
+      await account('Khan Checking', 120000000, today);
+      await account('Golomt Savings', 300000, today, currency: Currency.usd);
+      await account('TDB Deposit', 500000, today, currency: Currency.usd);
+      var data = await db.loadLedger();
+      expect(setupCurrencies(data), [Currency.mnt, Currency.usd]);
+      // Two of three bank and cash accounts are in dollars: dollars to begin
+      // with, one of the answers offered.
+      expect(setupSaveIn(data), Currency.usd);
+      await db.setPreference(SetupKeys.saveIn, Currency.mnt.code);
+      data = await db.loadLedger();
+      expect(setupSaveIn(data), Currency.mnt);
 
-    final done = await finishSetup(
-      db,
-      had: {Currency.mnt: 120000000, Currency.usd: 800000},
-      emergency: 50000000,
-      today: today,
-      safetyNetName: 'Safety net',
-      follows: {Currency.mnt, Currency.usd},
-      saveIn: Currency.mnt,
-    );
-    data = await db.loadLedger();
-    final net = data.accounts.values.singleWhere(isSafetyNet);
-    expect(net.currency, Currency.mnt);
-    expect(Budget.currencyOf(data), Currency.mnt);
-    expect(data.prefs[BudgetKeys.currency], Currency.mnt.code);
-    await done.undo();
-    data = await db.loadLedger();
-    expect(data.prefs[BudgetKeys.currency], isNull);
-    expect(data.prefs[SetupKeys.done], isNull);
-    await done.redo();
-    expect((await db.loadLedger()).prefs[BudgetKeys.currency], 'MNT');
-  });
+      final done = await finishSetup(
+        db,
+        had: {Currency.mnt: 120000000, Currency.usd: 800000},
+        emergency: 50000000,
+        today: today,
+        safetyNetName: 'Safety net',
+        follows: {Currency.mnt, Currency.usd},
+        saveIn: Currency.mnt,
+      );
+      data = await db.loadLedger();
+      final net = data.accounts.values.singleWhere(isSafetyNet);
+      expect(net.currency, Currency.mnt);
+      expect(Budget.currencyOf(data), Currency.mnt);
+      expect(data.prefs[BudgetKeys.currency], Currency.mnt.code);
+      await done.undo();
+      data = await db.loadLedger();
+      expect(data.prefs[BudgetKeys.currency], isNull);
+      expect(data.prefs[SetupKeys.done], isNull);
+      await done.redo();
+      expect((await db.loadLedger()).prefs[BudgetKeys.currency], 'MNT');
+    },
+  );
 }

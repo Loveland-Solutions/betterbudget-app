@@ -110,9 +110,8 @@ void main() {
     late PhoneSync alone;
 
     setUp(() async {
-      shared = await Directory(
-        '${root.path}/My Drive/Ours',
-      ).create(recursive: true);
+      shared = await Directory('${root.path}/My Drive/Ours')
+          .create(recursive: true);
       alone = PhoneSync(
         dir: await Directory('${root.path}/alone').create(),
         dataKey: key,
