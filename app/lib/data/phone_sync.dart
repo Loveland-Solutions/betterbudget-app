@@ -82,7 +82,8 @@ import 'database.dart'
         PhoneTake,
         ReconcileRecord,
         SplitPart,
-        TxnSnapshot;
+        TxnSnapshot,
+        fileStamp;
 import '../import/mapping.dart' show ImportRow;
 import 'folder_io.dart';
 import 'payee_acts.dart';
@@ -552,6 +553,10 @@ typedef PhoneActed = ({
   Future<PhoneSnapshot> Function() redo,
 });
 
+/// What the phone's Backups page says (#534 piece 3): how the daily copies
+/// are going, and when Back up to… last worked.
+typedef PhoneBackups = ({BackupHealth health, CopiedElsewhere? elsewhere});
+
 /// Where in the phone's folder [dir] its own ledger is kept.
 Directory phoneOwnDir(Directory dir) => Directory('${dir.path}/own');
 
@@ -583,6 +588,37 @@ abstract class PhoneLedgerSource {
   /// at most once an hour. Never throws; returns how the copies stand, or
   /// null with no ledger to copy.
   Future<BackupHealth?> dailyCopy(DateTime now) async => null;
+
+  /// How the copies stand for the Backups page (#534 piece 3): the daily
+  /// copy's, after making today's if it is due, and when Back up to… last
+  /// worked. Null with no ledger of the phone's own.
+  Future<PhoneBackups?> backups(DateTime now) async => null;
+
+  /// A copy of the ledger as it is now, written beside it for Back up to…
+  /// to hand to the phone's Save to; the caller deletes it after.
+  Future<File> copyForBackup(DateTime now) =>
+      throw UnsupportedError('This source keeps no ledger to back up');
+
+  /// Back up to… saved the copy somewhere off the phone at [now].
+  Future<void> backedUp(DateTime now) async {}
+
+  /// Reads the backup file at [path] without changing anything, as the
+  /// computer's Restore from… does; [backupKey] opens one made under
+  /// another ledger's key. Throws a `RestoreException` for a file it
+  /// refuses.
+  Future<RestoreCandidate> inspectBackup(
+    String path,
+    DateTime now, {
+    Uint8List? backupKey,
+  }) => throw UnsupportedError('This source keeps no ledger to restore into');
+
+  /// Lets go of what [inspectBackup] read, when the restore isn't wanted.
+  Future<void> discardBackup(RestoreCandidate candidate) async {}
+
+  /// Puts [candidate] in place of the phone's own ledger. What was here is
+  /// saved first; the undo puts it back and the redo the backup again.
+  Future<PhoneActed> restoreBackup(RestoreCandidate candidate, DateTime now) =>
+      throw UnsupportedError('This source keeps no ledger to restore into');
 
   /// Looks at the folder and shows the phone's own ledger as of [now]: its
   /// change file written, the others' brought in. Never throws for the
@@ -774,22 +810,118 @@ class PhoneSync implements PhoneLedgerSource {
   Backups? _backups;
   DateTime? _dailyAt;
 
-  @override
-  Future<BackupHealth?> dailyCopy(DateTime now) async {
+  Backups get _ownBackups {
     final db = _db;
-    if (_closed || db == null) return null;
+    if (_closed || db == null) {
+      throw StateError('The phone has no ledger of its own open');
+    }
     var backups = _backups;
     if (backups == null || !identical(backups.db, db)) {
       backups = _backups = Backups(db, dataKey: _key);
       _dailyAt = null;
     }
+    return backups;
+  }
+
+  @override
+  Future<BackupHealth?> dailyCopy(DateTime now) async {
+    if (_closed || _db == null) return null;
+    final backups = _ownBackups;
     final last = _dailyAt;
-    if (last != null && now.difference(last) < const Duration(hours: 1)) {
+    if (last != null &&
+        !now.isBefore(last) &&
+        now.difference(last) < const Duration(hours: 1)) {
       return backups.health.value;
     }
     _dailyAt = now;
     await backups.runDaily(now);
     return backups.health.value;
+  }
+
+  @override
+  Future<PhoneBackups?> backups(DateTime now) async {
+    final health = await dailyCopy(now);
+    if (health == null) return null;
+    final backups = _ownBackups;
+    await backups.loadElsewhere(now);
+    return (health: health, elsewhere: backups.elsewhere.value);
+  }
+
+  @override
+  Future<File> copyForBackup(DateTime now) async {
+    final backups = _ownBackups;
+    final dir = (await backups.folder())!;
+    await dir.create(recursive: true);
+    // Not a name the daily copies or a restore take up, and gone before the
+    // next daily copy if the app quit with it here (its `.tmp`).
+    final file = File(
+      '${dir.path}/export-${fileStamp(now)}.${Backups.extension}.tmp',
+    );
+    if (file.existsSync()) await file.delete();
+    await _db!.copyTo(file.path);
+    return file;
+  }
+
+  @override
+  Future<void> backedUp(DateTime now) async {
+    if (_closed || _db == null) return;
+    final backups = _ownBackups;
+    await backups.loadElsewhere(now);
+    await backups.copiedElsewhere(now);
+  }
+
+  @override
+  Future<RestoreCandidate> inspectBackup(
+    String path,
+    DateTime now, {
+    Uint8List? backupKey,
+  }) => _ownBackups.inspect(path, now, backupKey: backupKey);
+
+  @override
+  Future<void> discardBackup(RestoreCandidate candidate) async {
+    if (_closed || _db == null) return;
+    await _ownBackups.discard(candidate);
+  }
+
+  @override
+  Future<PhoneActed> restoreBackup(
+    RestoreCandidate candidate,
+    DateTime now,
+  ) async {
+    final backups = _ownBackups;
+    final db = _db!;
+    final done = await backups.restore(candidate, now);
+    // A restored file's pay schedules get their next paydays, and its plans
+    // their next bills, as the computer's restore does.
+    try {
+      await db.ensurePaydays(now);
+      await db.ensurePlanBills(now);
+    } catch (e) {
+      debugPrint('Scheduling after a restore on the phone failed: $e');
+    }
+    // As the computer's: written as changes, its undo takes back those
+    // rows; a whole replace takes the saved file back.
+    var changes = done.changes;
+    Future<void> flip(File whole) async {
+      final ran = changes;
+      if (ran != null) {
+        changes = await db.revertChanges(ran);
+        return;
+      }
+      await backups.replaceWith(whole, now);
+    }
+
+    return (
+      snapshot: await asItStands(now),
+      undo: () async {
+        await flip(done.before);
+        return asItStands(now);
+      },
+      redo: () async {
+        await flip(done.restored);
+        return asItStands(now);
+      },
+    );
   }
 
   Future<String> _name() async {

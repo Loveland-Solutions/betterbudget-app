@@ -1708,3 +1708,19 @@ drift apart. A phone on a folder whose ledger is in setup on a computer sees the
 steps: it is the same ledger. No build goes to the stores before
 piece 3 either (budget review): a ledger kept only on one phone, with no copy anywhere,
 is lost with the phone, whatever the recovery key.
+
+**Built, 2026-11-23 (0.150.0): #534 piece 3, backups on the phone** (ADR 0004 "Backups
+on the phone", the owner's pick of sketch A). `PhoneSync.dailyCopy` runs the computer's
+`Backups.runDaily` on the phone's own ledger when `PhoneStart` opens or reads it again,
+at most once an hour; the copies stay in `own/Backups` beside it, in the app's own
+storage, which iCloud and Google backups leave out. `backups` says how they stand with
+the computer's `CopiedElsewhere` record (`own/copied-elsewhere`); `copyForBackup` writes
+the copy that Back up to… hands to the phone's Save to (`PhoneFolder.save`: Android's
+`ACTION_CREATE_DOCUMENT` in `MainActivity.kt`, iPhone's export sheet, `SaveSheet` in
+`FolderChannel.swift`), and `backedUp` records it once saved. `inspectBackup`,
+`discardBackup` and `restoreBackup` are the computer's Restore from…: what was here is
+saved first, paydays and bills are scheduled after, and the undo and redo take back the
+restore's changes, or put the saved file back. The screens reach them through
+`PhoneBackupActs`, which `PhoneStart` sets on the store only on a phone on its own. The
+privacy policy already covers both: the copies are on the device, encrypted, and a
+backup goes only where the person saves it.

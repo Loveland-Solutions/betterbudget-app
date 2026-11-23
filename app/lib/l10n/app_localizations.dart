@@ -11671,6 +11671,54 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'This account isn’t a cash account any more, so this count can’t go in.'**
   String get phoneCountCantGoInOwn;
+
+  /// Phone, Backups page (#534 piece 3), beside Daily copy: when the newest copy was made. {when} reads “Today 08:10”. The computer’s says “on this computer”.
+  ///
+  /// In en, this message translates to:
+  /// **'{when} · on this phone'**
+  String phoneDailyCopyWhen(String when);
+
+  /// Phone, Backups page: the daily copy has been failing for two days. {when} reads “Yesterday 08:10”.
+  ///
+  /// In en, this message translates to:
+  /// **'Failing · the last one is from {when}. Check the phone has room, and back up off it.'**
+  String phoneDailyCopyFailingSince(String when);
+
+  /// Phone, Backups page: the daily copy fails and none has ever been made.
+  ///
+  /// In en, this message translates to:
+  /// **'Failing. Check the phone has room, and back up off it.'**
+  String get phoneDailyCopyFailingNone;
+
+  /// Phone, Backups page, beside Backed up: Back up to… has never worked on this phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet · Back up to… saves a copy off this phone'**
+  String get phoneCopiedElsewhereNever;
+
+  /// Phone, Backups page: under the lines, above Back up to… and Restore from…. The computer’s says “another drive or a USB stick”.
+  ///
+  /// In en, this message translates to:
+  /// **'The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to Google Drive or iCloud Drive now and then. Restoring saves what you have first, and Undo brings it back.'**
+  String get phoneBackupsNote;
+
+  /// Phone, the snack bar after Back up to… saved the copy where the person chose.
+  ///
+  /// In en, this message translates to:
+  /// **'Backed up'**
+  String get phoneBackedUp;
+
+  /// Phone, the snack bar when Back up to… couldn’t write the copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t back up · try again'**
+  String get phoneCouldntBackUp;
+
+  /// Phone, the snack bar after Restore from…, with Undo. {date} reads “2026.11.10”.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored the copy from {date} · what you had is saved'**
+  String phoneRestoredFrom(String date);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -8182,4 +8182,37 @@ class WordsMn extends Words {
   @override
   String get phoneCountCantGoInOwn =>
       'Энэ данс бэлэн мөнгөний данс байхаа больсон тул энэ тооллогыг оруулах боломжгүй.';
+
+  @override
+  String phoneDailyCopyWhen(String when) {
+    return '$when · энэ утсан дээр';
+  }
+
+  @override
+  String phoneDailyCopyFailingSince(String when) {
+    return 'Хийгдэхгүй байна · сүүлийн хуулбар: $when. Утсанд зай байгаа эсэхийг шалгаад утаснаас гадна нөөцлөнө үү.';
+  }
+
+  @override
+  String get phoneDailyCopyFailingNone =>
+      'Хийгдэхгүй байна. Утсанд зай байгаа эсэхийг шалгаад утаснаас гадна нөөцлөнө үү.';
+
+  @override
+  String get phoneCopiedElsewhereNever =>
+      'Хараахан үгүй · “Нөөцлөх…” утаснаас гадна хуулбар хадгална';
+
+  @override
+  String get phoneBackupsNote =>
+      'Өдөр бүрийн хуулбарууд энэ утсан дээр байдаг тул утас алга болох, эвдэрвэл тус болохгүй: үе үе Google Drive эсвэл iCloud Drive руу нөөцлөөрэй. Сэргээхээс өмнө одоо байгаа өгөгдлийг тань хадгалах ба Буцаах нь түүнийг эргүүлж авчирна.';
+
+  @override
+  String get phoneBackedUp => 'Нөөцөллөө';
+
+  @override
+  String get phoneCouldntBackUp => 'Нөөцөлж чадсангүй · дахин оролдоно уу';
+
+  @override
+  String phoneRestoredFrom(String date) {
+    return '$date өдрийн хуулбарыг сэргээлээ · өмнөх өгөгдөл тань хадгалагдсан';
+  }
 }

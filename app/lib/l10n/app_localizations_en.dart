@@ -8472,4 +8472,37 @@ class WordsEn extends Words {
   @override
   String get phoneCountCantGoInOwn =>
       'This account isn’t a cash account any more, so this count can’t go in.';
+
+  @override
+  String phoneDailyCopyWhen(String when) {
+    return '$when · on this phone';
+  }
+
+  @override
+  String phoneDailyCopyFailingSince(String when) {
+    return 'Failing · the last one is from $when. Check the phone has room, and back up off it.';
+  }
+
+  @override
+  String get phoneDailyCopyFailingNone =>
+      'Failing. Check the phone has room, and back up off it.';
+
+  @override
+  String get phoneCopiedElsewhereNever =>
+      'Not yet · Back up to… saves a copy off this phone';
+
+  @override
+  String get phoneBackupsNote =>
+      'The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to Google Drive or iCloud Drive now and then. Restoring saves what you have first, and Undo brings it back.';
+
+  @override
+  String get phoneBackedUp => 'Backed up';
+
+  @override
+  String get phoneCouldntBackUp => 'Couldn’t back up · try again';
+
+  @override
+  String phoneRestoredFrom(String date) {
+    return 'Restored the copy from $date · what you had is saved';
+  }
 }

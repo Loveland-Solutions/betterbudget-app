@@ -16,6 +16,10 @@ class MainActivity : FlutterActivity() {
     private val pickRequest = 4711
     private var pendingPick: MethodChannel.Result? = null
 
+    // Back up to… (#534): the system's own Save to, then the copy written there.
+    private val saveRequest = 4712
+    private var pendingSave: Pair<MethodChannel.Result, String>? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "betterbudget/folder")
@@ -123,6 +127,20 @@ class MainActivity : FlutterActivity() {
                 )
                 null
             }
+            // Back up to…: Android's own Save to (Drive, Files), and the file
+            // at "path" copied to what was chosen. True once written, false
+            // when nothing was chosen.
+            "save" -> {
+                pendingSave?.first?.success(false)
+                pendingSave = Pair(result, call.argument<String>("path")!!)
+                startActivityForResult(
+                    Intent(Intent.ACTION_CREATE_DOCUMENT)
+                        .addCategory(Intent.CATEGORY_OPENABLE)
+                        .setType("application/octet-stream")
+                        .putExtra(Intent.EXTRA_TITLE, call.argument<String>("name")!!),
+                    saveRequest,
+                )
+            }
             "forget" -> {
                 val uri = Uri.parse(call.argument<String>("folder")!!)
                 val held = contentResolver.persistedUriPermissions.firstOrNull { it.uri == uri }
@@ -152,6 +170,25 @@ class MainActivity : FlutterActivity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == saveRequest) {
+            val (result, path) = pendingSave ?: return
+            pendingSave = null
+            val uri = data?.data
+            if (resultCode != Activity.RESULT_OK || uri == null) {
+                result.success(false)
+                return
+            }
+            background(result) {
+                val out = try {
+                    contentResolver.openOutputStream(uri, "wt")
+                } catch (e: IllegalArgumentException) {
+                    contentResolver.openOutputStream(uri, "w")
+                } ?: throw IllegalStateException("The place chosen took no file")
+                out.use { o -> java.io.File(path).inputStream().use { it.copyTo(o) } }
+                true
+            }
+            return
+        }
         if (requestCode != pickRequest) return
         val result = pendingPick ?: return
         pendingPick = null

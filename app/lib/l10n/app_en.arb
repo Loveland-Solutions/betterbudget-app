@@ -12435,5 +12435,52 @@
   "phoneCountCantGoInOwn": "This account isn’t a cash account any more, so this count can’t go in.",
   "@phoneCountCantGoInOwn": {
     "description": "Under a waiting count, on a phone with its own ledger, whose account was deleted, archived or made not cash (#534)."
+  },
+  "phoneDailyCopyWhen": "{when} · on this phone",
+  "@phoneDailyCopyWhen": {
+    "description": "Phone, Backups page (#534 piece 3), beside Daily copy: when the newest copy was made. {when} reads “Today 08:10”. The computer’s says “on this computer”.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneDailyCopyFailingSince": "Failing · the last one is from {when}. Check the phone has room, and back up off it.",
+  "@phoneDailyCopyFailingSince": {
+    "description": "Phone, Backups page: the daily copy has been failing for two days. {when} reads “Yesterday 08:10”.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneDailyCopyFailingNone": "Failing. Check the phone has room, and back up off it.",
+  "@phoneDailyCopyFailingNone": {
+    "description": "Phone, Backups page: the daily copy fails and none has ever been made."
+  },
+  "phoneCopiedElsewhereNever": "Not yet · Back up to… saves a copy off this phone",
+  "@phoneCopiedElsewhereNever": {
+    "description": "Phone, Backups page, beside Backed up: Back up to… has never worked on this phone."
+  },
+  "phoneBackupsNote": "The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to Google Drive or iCloud Drive now and then. Restoring saves what you have first, and Undo brings it back.",
+  "@phoneBackupsNote": {
+    "description": "Phone, Backups page: under the lines, above Back up to… and Restore from…. The computer’s says “another drive or a USB stick”."
+  },
+  "phoneBackedUp": "Backed up",
+  "@phoneBackedUp": {
+    "description": "Phone, the snack bar after Back up to… saved the copy where the person chose."
+  },
+  "phoneCouldntBackUp": "Couldn’t back up · try again",
+  "@phoneCouldntBackUp": {
+    "description": "Phone, the snack bar when Back up to… couldn’t write the copy."
+  },
+  "phoneRestoredFrom": "Restored the copy from {date} · what you had is saved",
+  "@phoneRestoredFrom": {
+    "description": "Phone, the snack bar after Restore from…, with Undo. {date} reads “2026.11.10”.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   }
 }

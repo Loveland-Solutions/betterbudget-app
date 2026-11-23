@@ -18,6 +18,13 @@ class PhoneFolder {
   /// Opens the picker; the folder's address, or null when none was chosen.
   Future<String?> pick() => _channel.invokeMethod<String>('pick');
 
+  /// Back up to… (#534): the phone's own Save to for the file at [path],
+  /// offered as [name]. True once it is saved there, false when nothing was
+  /// chosen; throws when it couldn't be written.
+  Future<bool> save(String path, String name) async =>
+      await _channel.invokeMethod<bool>('save', {'path': path, 'name': name}) ??
+      false;
+
   /// The folder picked on an earlier launch, if the phone still allows it.
   Future<String?> kept() => _channel.invokeMethod<String>('kept');
 

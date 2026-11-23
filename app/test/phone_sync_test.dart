@@ -148,6 +148,65 @@ void main() {
     await Backups(alone.db!, dataKey: key).discard(candidate);
   });
 
+  test('a phone on its own: Back up to…\'s copy is a backup, is recorded '
+      'once saved, and Restore from… puts it back with Undo and Redo '
+      '(#534 piece 3)', () async {
+    final alone = PhoneSync(
+      dir: await Directory('${root.path}/alone').create(),
+      dataKey: key,
+      device: 'dddd',
+      io: const DirectoryFolderIo(),
+    )..onItsOwn = true;
+    addTearDown(alone.close);
+    expect(await alone.backups(monday), isNull);
+    await alone.startNew();
+    final db = alone.db!;
+    await db.addAccount(name: 'Khan Checking', type: AccountType.asset);
+    await alone.asItStands(monday);
+
+    // No Back up to… yet: counted from today.
+    var state = (await alone.backups(monday))!;
+    expect(state.health.newest, isNotNull);
+    expect(state.elsewhere?.copied, isNull);
+    expect(state.elsewhere?.since, monday);
+
+    // The copy handed to the phone's Save to, kept here as a backup file.
+    final copy = await alone.copyForBackup(monday);
+    final saved = File('${root.path}/Drive copy.betterbudget');
+    await copy.copy(saved.path);
+    await copy.delete();
+    await alone.backedUp(monday);
+    state = (await alone.backups(tuesday))!;
+    expect(state.elsewhere?.copied, monday);
+
+    // An account added after the backup goes with the restore, and Undo
+    // brings it back.
+    await db.addAccount(name: 'Wallet', type: AccountType.asset);
+    Future<List<String>> names() async => [
+      for (final a in (await db.loadLedger()).balanceSheetAccounts) a.name,
+    ];
+    expect(await names(), ['Khan Checking', 'Wallet']);
+    final candidate = await alone.inspectBackup(saved.path, tuesday);
+    expect(candidate.accounts, 1);
+    final done = await alone.restoreBackup(candidate, tuesday);
+    expect(await names(), ['Khan Checking']);
+    expect(
+      done.snapshot.accounts.map((a) => a.name),
+      isNot(contains('Wallet')),
+    );
+    await done.undo();
+    expect(await names(), ['Khan Checking', 'Wallet']);
+    await done.redo();
+    expect(await names(), ['Khan Checking']);
+    // What was here was saved first, beside the ledger.
+    expect(
+      Directory('${root.path}/alone/own/Backups')
+          .listSync()
+          .map((f) => f.path.split('/').last),
+      contains(startsWith('before-restore-')),
+    );
+  });
+
   test(
     'a phone with a ledger of its own is joined, and one without is not',
     () {

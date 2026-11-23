@@ -7,7 +7,13 @@ import 'dart:io';
 import 'dart:math' show Random;
 
 import 'package:betterbudget/data/backup.dart'
-    show BackupHealth, RestoreNeedsKeyException;
+    show
+        BackupHealth,
+        CopiedElsewhere,
+        RestoreCandidate,
+        RestoreException,
+        RestoreNeedsKeyException,
+        RestoreProblem;
 import 'package:betterbudget/data/database.dart';
 import 'package:betterbudget/data/demo_seed.dart';
 import 'package:betterbudget/data/incoming_file.dart';
@@ -533,6 +539,30 @@ class _FakeSource implements PhoneLedgerSource {
   /// No ledger file here to copy.
   @override
   Future<BackupHealth?> dailyCopy(DateTime now) async => null;
+
+  @override
+  Future<PhoneBackups?> backups(DateTime now) async => null;
+
+  @override
+  Future<File> copyForBackup(DateTime now) =>
+      throw UnsupportedError('no ledger');
+
+  @override
+  Future<void> backedUp(DateTime now) async {}
+
+  @override
+  Future<RestoreCandidate> inspectBackup(
+    String path,
+    DateTime now, {
+    Uint8List? backupKey,
+  }) => throw UnsupportedError('no ledger');
+
+  @override
+  Future<void> discardBackup(RestoreCandidate candidate) async {}
+
+  @override
+  Future<PhoneActed> restoreBackup(RestoreCandidate candidate, DateTime now) =>
+      throw UnsupportedError('no ledger');
 
   @override
   Future<int> categoryRows(int id) => throw UnsupportedError('no ledger');
@@ -9710,6 +9740,152 @@ void main() {
       expect(find.byKey(const ValueKey('import-done')), findsOneWidget);
     });
   });
+
+  group('backups on a phone on its own (#534 piece 3)', () {
+    /// The demo ledger as a phone on its own shows it, and stand-in acts
+    /// for its backups.
+    Future<(PhoneStore, _FakeBackups)> pumpAlone(
+      WidgetTester tester, {
+      bool acts = true,
+    }) async {
+      final data = (await tester.runAsync(() async {
+        final db = AppDatabase(NativeDatabase.memory());
+        await seedDemoIfEmpty(db, _now);
+        final data = await db.loadLedger();
+        await db.close();
+        return data;
+      }))!;
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now, onItsOwn: true),
+      );
+      final fake = _FakeBackups(_now);
+      if (acts) store.backupActs = fake.acts(store);
+      await _toBudget(tester);
+      await tester.tap(find.byKey(const ValueKey('to-accounts')));
+      await tester.pumpAndSettle();
+      return (store, fake);
+    }
+
+    testWidgets('under Net worth, "No backup yet" with Back up to… beside '
+        'it, gone once a backup is saved; cancelled says nothing, failed '
+        'says so', (tester) async {
+      final (_, fake) = await pumpAlone(tester);
+      expect(find.text('No backup yet'), findsOneWidget);
+      final button = find.byKey(const ValueKey('net-worth-back-up'));
+      expect(button, findsOneWidget);
+
+      fake.saveAnswer = false;
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.byType(SnackBar), findsNothing);
+      expect(find.text('No backup yet'), findsOneWidget);
+
+      fake.saveError = StateError('no room');
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.text('Couldn’t back up · try again'), findsOneWidget);
+
+      fake
+        ..saveError = null
+        ..saveAnswer = true;
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(fake.saves, 3);
+      expect(find.text('Backed up'), findsOneWidget);
+      expect(find.byKey(const ValueKey('backup-line')), findsNothing);
+    });
+
+    testWidgets('a month after the last backup, Net worth says how long', (
+      tester,
+    ) async {
+      final (store, fake) = await pumpAlone(tester);
+      fake.copied = _now.subtract(const Duration(days: 41));
+      await store.refreshBackups();
+      await tester.pumpAndSettle();
+      expect(find.text('Last backup 41 days ago'), findsOneWidget);
+    });
+
+    testWidgets('the Backups page says the computer\'s lines in the '
+        'phone\'s words; Restore from… asks first, Cancel changes nothing, '
+        'Restore puts the backup in with Undo', (tester) async {
+      final (_, fake) = await pumpAlone(tester);
+      final dialogs = _FakePicker();
+      final before = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = dialogs;
+      addTearDown(() => FileSelectorPlatform.instance = before);
+
+      await tester.ensureVisible(find.byKey(const ValueKey('to-backups')));
+      await tester.tap(find.byKey(const ValueKey('to-backups')));
+      await tester.pumpAndSettle();
+      expect(find.text('Today 08:10 · on this phone'), findsOneWidget);
+      expect(
+        find.text('The newest 14, plus the first of each month for a year'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Not yet · Back up to… saves a copy off this phone'),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_backups.png'),
+      );
+
+      // Nothing picked: nothing asked.
+      await tester.tap(find.byKey(const ValueKey('restore-from')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('restore-ask')), findsNothing);
+      expect(fake.inspected, 0);
+
+      dialogs.openPath = '/picked/BetterBudget 01.10.2026.betterbudget';
+      await tester.tap(find.byKey(const ValueKey('restore-from')));
+      await tester.pumpAndSettle();
+      expect(find.text('Restore this backup?'), findsOneWidget);
+      expect(find.text('12 transactions · 3 accounts'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('restore-cancel')));
+      await tester.pumpAndSettle();
+      expect(fake.discarded, 1);
+      expect(fake.restored, 0);
+      await tester.tap(find.byKey(const ValueKey('restore-from')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('restore-go')));
+      await tester.pumpAndSettle();
+      expect(fake.restored, 1);
+      expect(
+        find.text('Restored the copy from 2026.10.01 · what you had is saved'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(fake.undone, 1);
+    });
+
+    testWidgets('a backup the phone refuses says why, and nothing is asked', (
+      tester,
+    ) async {
+      final (_, fake) = await pumpAlone(tester);
+      final dialogs = _FakePicker()..openPath = '/picked/notes.txt';
+      final before = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = dialogs;
+      addTearDown(() => FileSelectorPlatform.instance = before);
+      fake.refuse = RestoreProblem.notABackup;
+      await tester.ensureVisible(find.byKey(const ValueKey('to-backups')));
+      await tester.tap(find.byKey(const ValueKey('to-backups')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('restore-from')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('restore-ask')), findsNothing);
+      expect(find.byKey(const ValueKey('restore-refused')), findsOneWidget);
+    });
+
+    testWidgets('a phone on a folder has neither the line nor Backups: its '
+        'computers keep the copies', (tester) async {
+      await pumpAlone(tester, acts: false);
+      expect(find.byKey(const ValueKey('backup-line')), findsNothing);
+      expect(find.byKey(const ValueKey('to-backups')), findsNothing);
+    });
+  });
 }
 
 bool _same(Uint8List a, Uint8List b) {
@@ -9776,4 +9952,58 @@ class _FakePicker extends FileSelectorPlatform {
     String? initialDirectory,
     String? confirmButtonText,
   }) async => openPath == null ? null : XFile(openPath!);
+}
+
+/// Stands in for the phone's backups: says how they stand, and counts what
+/// was asked of it.
+class _FakeBackups {
+  _FakeBackups(this.now);
+  final DateTime now;
+  DateTime? copied;
+  bool saveAnswer = true;
+  Object? saveError;
+  RestoreProblem? refuse;
+  var saves = 0, inspected = 0, discarded = 0, restored = 0, undone = 0;
+
+  PhoneBackups get _state => (
+    health: BackupHealth(newest: DateTime(now.year, now.month, now.day, 8, 10)),
+    elsewhere: CopiedElsewhere(
+      since: now.subtract(const Duration(days: 60)),
+      copied: copied,
+    ),
+  );
+
+  PhoneBackupActs acts(PhoneStore store) => PhoneBackupActs(
+    state: () async => _state,
+    backUp: () async {
+      saves++;
+      if (saveError case final e?) throw e;
+      if (saveAnswer) copied = now;
+      return saveAnswer;
+    },
+    inspect: (path) async {
+      inspected++;
+      if (refuse case final p?) throw RestoreException(p);
+      return RestoreCandidate(
+        file: File(path),
+        madeAt: DateTime(2026, 10, 1, 21, 30),
+        transactions: 12,
+        accounts: 3,
+        sourceKeyBind: null,
+      );
+    },
+    discard: (_) async => discarded++,
+    restore: (_) async {
+      restored++;
+      final snapshot = store.snapshot;
+      return (
+        snapshot: snapshot,
+        undo: () async {
+          undone++;
+          return snapshot;
+        },
+        redo: () async => snapshot,
+      );
+    },
+  );
 }

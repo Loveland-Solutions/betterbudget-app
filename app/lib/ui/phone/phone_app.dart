@@ -30,9 +30,11 @@ import '../../data/database.dart'
         ReconcileMismatchException,
         SplitPart,
         TxnSnapshot;
+import '../../data/backup.dart' show RestoreCandidate, RestoreException;
 import '../../data/phone_sync.dart'
     show
         PhoneActed,
+        PhoneBackups,
         PhoneAddAccount,
         PhoneArchiveAccount,
         PhoneArchiveCategory,
@@ -123,6 +125,7 @@ import 'phone_asking.dart';
 
 part 'phone_account.dart';
 part 'phone_account_edit.dart';
+part 'phone_backups.dart';
 part 'phone_bill_ask.dart';
 part 'phone_count.dart';
 part 'phone_form_rows.dart';
@@ -274,6 +277,40 @@ class PhoneStore extends ChangeNotifier {
 
   /// Set by whoever keeps the ledger: does what a row's ⋯ menu asked.
   Future<PhoneActed> Function(PhoneRowAct act)? actRowIn;
+
+  /// Backups, set by whoever keeps the ledger on a phone on its own (#534
+  /// piece 3); null on a phone on a folder, whose computers keep copies.
+  PhoneBackupActs? backupActs;
+
+  /// How the copies stand, for the line under Net worth and the Backups
+  /// page; null until asked, or with no backups here.
+  final backups = ValueNotifier<PhoneBackups?>(null);
+
+  /// Asks again how the copies stand (making today's if it is due).
+  Future<void> refreshBackups() async {
+    final acts = backupActs;
+    if (acts == null) {
+      backups.value = null;
+      return;
+    }
+    try {
+      backups.value = await acts.state();
+    } catch (e) {
+      debugPrint('Asking how the backups stand failed: $e');
+    }
+  }
+
+  /// Restore from…: [candidate] in place of the ledger, shown at once.
+  Future<PhoneActed> restoreBackup(RestoreCandidate candidate) async {
+    final acts = backupActs;
+    if (acts == null) throw UnsupportedError('No backups on this phone');
+    await settle?.call();
+    final done = await acts.restore(candidate);
+    _snapshot = done.snapshot;
+    _changes++;
+    notifyListeners();
+    return done;
+  }
 
   /// Counts the rows filed under a category in the ledger as it is now.
   Future<int> Function(int id)? categoryRowsIn;
@@ -4992,6 +5029,13 @@ class _AccountsScreen extends StatefulWidget {
 class _AccountsScreenState extends State<_AccountsScreen> {
   PhoneStore get store => widget.store;
 
+  @override
+  void initState() {
+    super.initState();
+    // The line under Net worth: how the backups stand now.
+    unawaited(store.refreshBackups());
+  }
+
   /// Which accounts run out within sixty days, worked out once per ledger.
   LedgerData? _runsFor;
   Map<int, ({DateTime date, int low})> _runs = const {};
@@ -5087,7 +5131,7 @@ class _AccountsScreenState extends State<_AccountsScreen> {
 
   /// Net worth, each currency on its own line, with what archived accounts
   /// hold said under it so it isn't a mystery sum.
-  Widget _netWorth(Words t, LedgerData data) {
+  Widget _netWorth(Words t, LedgerData data, {bool backups = false}) {
     final net = data.balancesByCurrency(data.balanceSheetAccounts);
     final archived = data.balancesByCurrency(data.archivedAccounts)
       ..removeWhere((_, v) => v == 0);
@@ -5132,6 +5176,8 @@ class _AccountsScreenState extends State<_AccountsScreen> {
                 style: onest(13, color: Mid.ink2, tabular: true),
               ),
             ),
+          // A phone on its own: what this phone did about backups (#534).
+          if (backups) _NetWorthBackup(store: store, now: widget.now),
         ],
       ),
     );
@@ -5279,7 +5325,7 @@ class _AccountsScreenState extends State<_AccountsScreen> {
               child: _FromMac(made: snapshot.madeAt, today: widget.now()),
             ),
           if (data != null && data.balanceSheetAccounts.isNotEmpty) ...[
-            _netWorth(t, data),
+            _netWorth(t, data, backups: store.backupActs != null),
             const SizedBox(height: 8),
           ],
           for (final (name, accounts) in groups) ...[
@@ -5383,6 +5429,11 @@ class _AccountsScreenState extends State<_AccountsScreen> {
                 textStyle: onest(16, weight: 600),
               ),
             ),
+            // A phone on its own keeps its backups here (#534 piece 3).
+            if (store.backupActs != null) ...[
+              const SizedBox(height: 24),
+              _BackupsRow(store: store, now: widget.now),
+            ],
           ],
         ],
       ),
