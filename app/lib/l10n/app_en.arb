@@ -6998,7 +6998,7 @@
   "@settingsHadBefore": {
     "description": "Settings' Budget card: the label of a box for the money the household already had when the budget began, in cash and the bank (#461). The owner's own words."
   },
-  "settingsHadBeforeHintOn": "The budget counts the income that comes in from {date} on. Money you already had that day doesn’t count until you type it here.",
+  "settingsHadBeforeHintOn": "The budget uses the income that comes in from {date} on, and the money you had that day, typed here.",
   "@settingsHadBeforeHintOn": {
     "description": "Settings' Budget card, under Had before the budget, once the budget has begun. {date} is the day it began, like 10.01.",
     "placeholders": {
@@ -7007,7 +7007,7 @@
       }
     }
   },
-  "settingsHadBeforeHintOff": "The budget counts the income that comes in from the day you first assign money. Money you already had that day doesn’t count until you type it here.",
+  "settingsHadBeforeHintOff": "The budget uses the income that comes in from the day you first assign money, and the money you had that day, typed here.",
   "@settingsHadBeforeHintOff": {
     "description": "Settings' Budget card, under Had before the budget, before any money is assigned."
   },
@@ -7020,7 +7020,7 @@
       }
     }
   },
-  "settingsHadBeforeCleared": "Had before the budget no longer counted",
+  "settingsHadBeforeCleared": "Had before the budget no longer used",
   "@settingsHadBeforeCleared": {
     "description": "Toast after the amount had before the budget is emptied in Settings: it no longer counts."
   },
@@ -12323,15 +12323,6 @@
   "@phoneOtherWays": {
     "description": "Phone app, first launch: link under a problem screen reached from Open ledger, back to How do you want to start?"
   },
-  "phoneSetupHadUses": "Your budget will use this {amount} as well.",
-  "@phoneSetupHadUses": {
-    "description": "Phone setup, Money you have: under the answers. {amount} reads ₮1,200,000. (The phone has no Settings page yet, so it doesn't point to one.)",
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
   "phoneSetupHadType": "Type how much of it your budget uses.",
   "@phoneSetupHadType": {
     "description": "Phone setup, Money you have: under Some of it while its amount is empty."
@@ -12663,5 +12654,72 @@
   "phoneShareBackAskOthers": "The other phones and computers that opened it will stop getting this phone’s changes, and what is entered on them won’t reach this phone. Each will have its own ledger from then on. The file in the folder stays there.",
   "@phoneShareBackAskOthers": {
     "description": "Phone, under phoneShareBackAskTitle when more than one, or one with no name, has opened the ledger."
+  },
+  "languageSameAsPhone": "Same as this phone",
+  "@languageSameAsPhone": {
+    "description": "Phone Settings: Appearance and Language follow what the phone itself is set to."
+  },
+  "thePhone": "the phone",
+  "@thePhone": {
+    "description": "Phone Settings: fills {system} in 'Showing dark now · changes when {system} does'."
+  },
+  "phoneSettingsThisPhone": "This phone",
+  "@phoneSettingsThisPhone": {
+    "description": "Phone Settings: the card with this phone's name."
+  },
+  "phoneSettingsName": "Name for this phone",
+  "@phoneSettingsName": {
+    "description": "Phone Settings: label of the box for this phone's name."
+  },
+  "phoneSettingsNameNote": "Shown beside what you enter on this phone, wherever your ledger is opened.",
+  "@phoneSettingsNameNote": {
+    "description": "Phone Settings: under the name box."
+  },
+  "phoneSecurityNote": "Your ledger and backups are encrypted. Your recovery key opens them on another phone or computer. BetterBudget doesn’t keep a copy of the key.",
+  "@phoneSecurityNote": {
+    "description": "Phone Settings: the Security card's note."
+  },
+  "phoneShowInAccounts": "Show in Accounts",
+  "@phoneShowInAccounts": {
+    "description": "Phone Settings: button beside an archived account, bringing it back to the Accounts page."
+  },
+  "phoneBackInAccounts": "{name} back in Accounts",
+  "@phoneBackInAccounts": {
+    "description": "Phone Settings: snack bar after an archived account is shown in Accounts again.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsHadBeforeSetLeft": "Had before the budget: {amount} · Not assigned is now {left}",
+  "@settingsHadBeforeSetLeft": {
+    "description": "Phone Settings: toast after Had before the budget is saved; left is the budget's Not assigned after it, such as ₮2,500,000 or −₮300,000.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "left": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsHadBeforeIn": "Had before the budget, in {currency}",
+  "@settingsHadBeforeIn": {
+    "description": "Phone Settings: the label of Had before the budget when the budget has more than one currency; currency is its code, such as USD.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneCopyBeforeStartOver": "{when} · saved before Start over",
+  "@phoneCopyBeforeStartOver": {
+    "description": "Phone, Backups page: a copy kept on the phone, saved just before Settings' Start over erased the ledger. when reads Today 08:10.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
   }
 }

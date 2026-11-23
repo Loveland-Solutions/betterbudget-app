@@ -4759,12 +4759,12 @@ class WordsEn extends Words {
 
   @override
   String settingsHadBeforeHintOn(String date) {
-    return 'The budget counts the income that comes in from $date on. Money you already had that day doesn’t count until you type it here.';
+    return 'The budget uses the income that comes in from $date on, and the money you had that day, typed here.';
   }
 
   @override
   String get settingsHadBeforeHintOff =>
-      'The budget counts the income that comes in from the day you first assign money. Money you already had that day doesn’t count until you type it here.';
+      'The budget uses the income that comes in from the day you first assign money, and the money you had that day, typed here.';
 
   @override
   String settingsHadBeforeSet(String amount) {
@@ -4772,8 +4772,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get settingsHadBeforeCleared =>
-      'Had before the budget no longer counted';
+  String get settingsHadBeforeCleared => 'Had before the budget no longer used';
 
   @override
   String get planSumFromPay => 'From the pay period before';
@@ -8388,11 +8387,6 @@ class WordsEn extends Words {
   String get phoneOtherWays => 'Other ways to start';
 
   @override
-  String phoneSetupHadUses(String amount) {
-    return 'Your budget will use this $amount as well.';
-  }
-
-  @override
   String get phoneSetupHadType => 'Type how much of it your budget uses.';
 
   @override
@@ -8639,4 +8633,47 @@ class WordsEn extends Words {
   @override
   String get phoneShareBackAskOthers =>
       'The other phones and computers that opened it will stop getting this phone’s changes, and what is entered on them won’t reach this phone. Each will have its own ledger from then on. The file in the folder stays there.';
+
+  @override
+  String get languageSameAsPhone => 'Same as this phone';
+
+  @override
+  String get thePhone => 'the phone';
+
+  @override
+  String get phoneSettingsThisPhone => 'This phone';
+
+  @override
+  String get phoneSettingsName => 'Name for this phone';
+
+  @override
+  String get phoneSettingsNameNote =>
+      'Shown beside what you enter on this phone, wherever your ledger is opened.';
+
+  @override
+  String get phoneSecurityNote =>
+      'Your ledger and backups are encrypted. Your recovery key opens them on another phone or computer. BetterBudget doesn’t keep a copy of the key.';
+
+  @override
+  String get phoneShowInAccounts => 'Show in Accounts';
+
+  @override
+  String phoneBackInAccounts(String name) {
+    return '$name back in Accounts';
+  }
+
+  @override
+  String settingsHadBeforeSetLeft(String amount, String left) {
+    return 'Had before the budget: $amount · Not assigned is now $left';
+  }
+
+  @override
+  String settingsHadBeforeIn(String currency) {
+    return 'Had before the budget, in $currency';
+  }
+
+  @override
+  String phoneCopyBeforeStartOver(String when) {
+    return '$when · saved before Start over';
+  }
 }

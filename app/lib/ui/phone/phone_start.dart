@@ -525,6 +525,11 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     } else {
       store.snapshot = snapshot;
     }
+    // Settings' Check my recovery key… (#534 piece 5): the key typed is
+    // worked out as the ledger's is, and only compared.
+    _store?.checkKey = _demo
+        ? null
+        : (typed) async => sameKey(deriveDataKey(typed), key);
     // Backups on a phone on its own (#534 piece 3): no computer keeps a
     // copy of this ledger.
     final movedHere = _source?.movedHere ?? false;

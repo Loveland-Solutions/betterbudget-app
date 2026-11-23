@@ -46,6 +46,31 @@ class AppearanceController extends ChangeNotifier {
     return AppearanceController(initial: initial, scheme: scheme, file: file);
   }
 
+  /// A phone's choice (#534 piece 5). A phone [inUse] before it had one
+  /// keeps what it always showed, dark Blue eclipse, until changed in its
+  /// Settings, so nothing changes under a person mid-use; a phone started
+  /// fresh begins as the computer does.
+  static Future<AppearanceController> loadForPhone(
+    File file, {
+    required bool inUse,
+  }) async {
+    if (!file.existsSync()) {
+      // Written at once either way, so the file's absence only ever means
+      // a phone from before Settings: a phone started fresh keeps its look
+      // once setup has made its key.
+      final first = inUse
+          ? AppearanceController(
+              initial: Appearance.dark,
+              scheme: blueEclipseScheme,
+              file: file,
+            )
+          : AppearanceController(file: file);
+      await first._changed();
+      return first;
+    }
+    return load(file);
+  }
+
   Future<void> _writing = Future.value();
 
   Future<void> set(Appearance a) {

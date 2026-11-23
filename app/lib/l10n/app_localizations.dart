@@ -6698,13 +6698,13 @@ abstract class Words {
   /// Settings' Budget card, under Had before the budget, once the budget has begun. {date} is the day it began, like 10.01.
   ///
   /// In en, this message translates to:
-  /// **'The budget counts the income that comes in from {date} on. Money you already had that day doesn’t count until you type it here.'**
+  /// **'The budget uses the income that comes in from {date} on, and the money you had that day, typed here.'**
   String settingsHadBeforeHintOn(String date);
 
   /// Settings' Budget card, under Had before the budget, before any money is assigned.
   ///
   /// In en, this message translates to:
-  /// **'The budget counts the income that comes in from the day you first assign money. Money you already had that day doesn’t count until you type it here.'**
+  /// **'The budget uses the income that comes in from the day you first assign money, and the money you had that day, typed here.'**
   String get settingsHadBeforeHintOff;
 
   /// Toast after the amount had before the budget is typed in Settings. {amount} with its currency, like ₮2,000,000.
@@ -6716,7 +6716,7 @@ abstract class Words {
   /// Toast after the amount had before the budget is emptied in Settings: it no longer counts.
   ///
   /// In en, this message translates to:
-  /// **'Had before the budget no longer counted'**
+  /// **'Had before the budget no longer used'**
   String get settingsHadBeforeCleared;
 
   /// Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. As planSumFromMonth, when the Budget page is by pay period.
@@ -11582,12 +11582,6 @@ abstract class Words {
   /// **'Other ways to start'**
   String get phoneOtherWays;
 
-  /// Phone setup, Money you have: under the answers. {amount} reads ₮1,200,000. (The phone has no Settings page yet, so it doesn't point to one.)
-  ///
-  /// In en, this message translates to:
-  /// **'Your budget will use this {amount} as well.'**
-  String phoneSetupHadUses(String amount);
-
   /// Phone setup, Money you have: under Some of it while its amount is empty.
   ///
   /// In en, this message translates to:
@@ -11923,6 +11917,72 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'The other phones and computers that opened it will stop getting this phone’s changes, and what is entered on them won’t reach this phone. Each will have its own ledger from then on. The file in the folder stays there.'**
   String get phoneShareBackAskOthers;
+
+  /// Phone Settings: Appearance and Language follow what the phone itself is set to.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as this phone'**
+  String get languageSameAsPhone;
+
+  /// Phone Settings: fills {system} in 'Showing dark now · changes when {system} does'.
+  ///
+  /// In en, this message translates to:
+  /// **'the phone'**
+  String get thePhone;
+
+  /// Phone Settings: the card with this phone's name.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone'**
+  String get phoneSettingsThisPhone;
+
+  /// Phone Settings: label of the box for this phone's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name for this phone'**
+  String get phoneSettingsName;
+
+  /// Phone Settings: under the name box.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown beside what you enter on this phone, wherever your ledger is opened.'**
+  String get phoneSettingsNameNote;
+
+  /// Phone Settings: the Security card's note.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger and backups are encrypted. Your recovery key opens them on another phone or computer. BetterBudget doesn’t keep a copy of the key.'**
+  String get phoneSecurityNote;
+
+  /// Phone Settings: button beside an archived account, bringing it back to the Accounts page.
+  ///
+  /// In en, this message translates to:
+  /// **'Show in Accounts'**
+  String get phoneShowInAccounts;
+
+  /// Phone Settings: snack bar after an archived account is shown in Accounts again.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} back in Accounts'**
+  String phoneBackInAccounts(String name);
+
+  /// Phone Settings: toast after Had before the budget is saved; left is the budget's Not assigned after it, such as ₮2,500,000 or −₮300,000.
+  ///
+  /// In en, this message translates to:
+  /// **'Had before the budget: {amount} · Not assigned is now {left}'**
+  String settingsHadBeforeSetLeft(String amount, String left);
+
+  /// Phone Settings: the label of Had before the budget when the budget has more than one currency; currency is its code, such as USD.
+  ///
+  /// In en, this message translates to:
+  /// **'Had before the budget, in {currency}'**
+  String settingsHadBeforeIn(String currency);
+
+  /// Phone, Backups page: a copy kept on the phone, saved just before Settings' Start over erased the ledger. when reads Today 08:10.
+  ///
+  /// In en, this message translates to:
+  /// **'{when} · saved before Start over'**
+  String phoneCopyBeforeStartOver(String when);
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

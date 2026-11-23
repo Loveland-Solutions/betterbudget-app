@@ -4584,12 +4584,12 @@ class WordsMn extends Words {
 
   @override
   String settingsHadBeforeHintOn(String date) {
-    return 'Төсөв $date-с хойш орж ирсэн орлогыг тоолно. Тэр өдөр танд аль хэдийн байсан мөнгө энд бичих хүртэл тоологдохгүй.';
+    return 'Төсөв $date-с хойш орж ирсэн орлого болон тэр өдөр танд байсан, энд бичсэн мөнгийг ашиглана.';
   }
 
   @override
   String get settingsHadBeforeHintOff =>
-      'Төсөв анх мөнгө хуваарилсан өдрөөс хойш орж ирсэн орлогыг тоолно. Тэр өдөр танд аль хэдийн байсан мөнгө энд бичих хүртэл тоологдохгүй.';
+      'Төсөв анх мөнгө хуваарилсан өдрөөс хойш орж ирсэн орлого болон тэр өдөр танд байсан, энд бичсэн мөнгийг ашиглана.';
 
   @override
   String settingsHadBeforeSet(String amount) {
@@ -4598,7 +4598,7 @@ class WordsMn extends Words {
 
   @override
   String get settingsHadBeforeCleared =>
-      'Төсөв эхлэхэд байсан мөнгийг тоолохоо больсон';
+      'Төсөв эхлэхэд байсан мөнгийг ашиглахаа больсон';
 
   @override
   String get planSumFromPay => 'Өмнөх орлогын үеийн үлдэгдэл';
@@ -8112,11 +8112,6 @@ class WordsMn extends Words {
   String get phoneOtherWays => 'Эхлэх өөр арга';
 
   @override
-  String phoneSetupHadUses(String amount) {
-    return 'Таны төсөв энэ $amount-г бас ашиглана.';
-  }
-
-  @override
   String get phoneSetupHadType => 'Төсөв үүнээс хэдийг ашиглахыг бичнэ үү.';
 
   @override
@@ -8349,4 +8344,47 @@ class WordsMn extends Words {
   @override
   String get phoneShareBackAskOthers =>
       'Үүнийг нээсэн бусад утас, компьютер энэ утасны өөрчлөлтийг авахаа больж, тэдгээр дээр оруулсан зүйл энэ утсанд ирэхгүй. Түүнээс хойш тус бүр өөрийн дэвтэртэй болно. Хавтас доторх файл тэндээ үлдэнэ.';
+
+  @override
+  String get languageSameAsPhone => 'Энэ утастай адил';
+
+  @override
+  String get thePhone => 'утас';
+
+  @override
+  String get phoneSettingsThisPhone => 'Энэ утас';
+
+  @override
+  String get phoneSettingsName => 'Энэ утасны нэр';
+
+  @override
+  String get phoneSettingsNameNote =>
+      'Таны дэвтрийг хаана ч нээсэн, энэ утаснаас оруулсан зүйлсийн хажууд харагдана.';
+
+  @override
+  String get phoneSecurityNote =>
+      'Таны дэвтэр болон нөөц хуулбаруудыг шифрлэсэн. Сэргээх түлхүүр тань тэдгээрийг өөр утас эсвэл компьютер дээр нээнэ. BetterBudget түлхүүрийн хуулбарыг хадгалдаггүй.';
+
+  @override
+  String get phoneShowInAccounts => 'Дансанд харуулах';
+
+  @override
+  String phoneBackInAccounts(String name) {
+    return '$name Данс руу буцаж орлоо';
+  }
+
+  @override
+  String settingsHadBeforeSetLeft(String amount, String left) {
+    return 'Төсөв эхлэхэд байсан мөнгө: $amount · Хуваарилаагүй мөнгө одоо $left';
+  }
+
+  @override
+  String settingsHadBeforeIn(String currency) {
+    return 'Төсөв эхлэхэд байсан мөнгө, $currency-р';
+  }
+
+  @override
+  String phoneCopyBeforeStartOver(String when) {
+    return '$when · Шинээр эхлэхээс өмнө хадгалсан';
+  }
 }

@@ -53,8 +53,9 @@ import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/readiness.dart' show ReadyKeys, isGoal;
 import 'package:betterbudget/domain/sync.dart' show MadeHow;
 import 'package:betterbudget/import/mapping.dart' show ImportRow;
-import 'package:betterbudget/l10n/app_localizations.dart';
 import 'package:betterbudget/phone_preview.dart';
+import 'package:betterbudget/ui/appearance.dart';
+import 'package:betterbudget/ui/language.dart';
 import 'package:betterbudget/ui/ledger_screen.dart' show phonePlanNotes;
 import 'package:betterbudget/ui/phone/phone_app.dart';
 import 'package:betterbudget/ui/phone/phone_asking.dart' show PhoneAnswer;
@@ -90,6 +91,8 @@ Future<PhoneStore> _pump(
   PhoneSnapshot? snapshot,
   Size size = const Size(390, 844),
   ProblemLog? problems,
+  AppearanceController? appearance,
+  LanguageController? language,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -97,9 +100,15 @@ Future<PhoneStore> _pump(
   final store = PhoneStore(
     snapshot ?? previewSnapshot(DateTime(2026, 10, 7, 8, 10)),
   );
-  await tester.pumpWidget(
-    PhoneApp(store: store, now: () => _now, problems: problems),
-  );
+  Widget app = PhoneApp(store: store, now: () => _now, problems: problems);
+  // As the app runs on a phone (#534 piece 5): the look and the language
+  // chosen in its Settings, the palette put back after.
+  if (language != null) app = LanguageScope(controller: language, child: app);
+  if (appearance != null) {
+    app = AppearanceScope(controller: appearance, child: app);
+    addTearDown(usePhoneColors);
+  }
+  await tester.pumpWidget(app);
   await tester.pumpAndSettle();
   return store;
 }
@@ -507,6 +516,11 @@ class _ActingSource {
         return actOnPay(db, act, now(), _after);
       case PhoneSetSpan():
         return actOnSpan(db, act, _after);
+      case PhoneSetPrefs():
+        return actOnPrefs(db, act, _after);
+      case PhoneStartOver():
+        // The copy before is `PhoneSync`'s, tested in `phone_sync_test.dart`.
+        return actOnStartOver(db, (_) async {}, act, now(), _after);
       case PhoneSetupDate() || PhoneBudgetBy() || PhoneFinishSetup():
         return actOnSetup(db, act, now(), _after);
       case PhoneSavingsAnswer():
@@ -3488,7 +3502,7 @@ void main() {
     expect(link.queryParameters['from'], 'betterbudget');
   });
 
-  testWidgets('Recent problems ends Budget while there are any, and Copy '
+  testWidgets('Recent problems is in Settings while there are any, and Copy '
       'all copies them', (tester) async {
     final dir = _phoneDir();
     final problems = ProblemLog(
@@ -3498,7 +3512,7 @@ void main() {
     );
     await _pump(tester, problems: problems);
     await _toBudget(tester);
-    await tester.drag(find.byType(Scrollable).last, const Offset(0, -3000));
+    await tester.tap(find.byKey(const ValueKey('to-settings')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('recent-problems')), findsNothing);
 
@@ -3509,6 +3523,8 @@ void main() {
         PlatformException(code: 'full', message: 'No space left'),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('recent-problems')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('recent-problems')));
     await tester.pumpAndSettle();
@@ -9876,7 +9892,9 @@ void main() {
       );
       expect(find.text('Stored in BetterBudget'), findsOneWidget);
       expect(
-        find.text('Nothing has opened it yet. When one does, it is named here.'),
+        find.text(
+          'Nothing has opened it yet. When one does, it is named here.',
+        ),
         findsOneWidget,
       );
       expect(find.byKey(const ValueKey('move-to-folder')), findsNothing);
@@ -9915,9 +9933,7 @@ void main() {
     });
 
     testWidgets('once another has opened it, it is named on the page and '
-        'the row; Move it back says the file stays, with Undo', (
-      tester,
-    ) async {
+        'the row; Move it back says the file stays, with Undo', (tester) async {
       final (store, fake) = await pumpShare(tester);
       fake
         ..where = 'content://drive/tree/ours'
@@ -10160,6 +10176,308 @@ void main() {
       expect(find.byKey(const ValueKey('to-backups')), findsNothing);
     });
   });
+
+  group('Settings on the phone (#534 piece 5)', () {
+    /// The demo ledger on the phone, its acts on a ledger the test holds,
+    /// and Settings open from Budget's gear.
+    Future<(PhoneStore, AppDatabase, AppearanceController, LanguageController)>
+    pumpSettings(
+      WidgetTester tester, {
+      bool alone = false,
+      bool archived = false,
+      ProblemLog? problems,
+      String? sharedIn,
+    }) async {
+      late AppDatabase db;
+      late LedgerData data;
+      await tester.runAsync(() async {
+        db = AppDatabase(NativeDatabase.memory());
+        await seedDemoIfEmpty(db, _now);
+        if (archived) {
+          final first = (await db.loadLedger()).balanceSheetAccounts.first;
+          await db.setArchived(first.id, true);
+        }
+        data = await db.loadLedger();
+      });
+      addTearDown(() => tester.runAsync(db.close));
+      final appearance = AppearanceController(
+        initial: Appearance.dark,
+        scheme: blueEclipseScheme,
+      );
+      final language = LanguageController();
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now, onItsOwn: alone),
+        appearance: appearance,
+        language: language,
+        problems: problems,
+      );
+      final source = _ActingSource(db, () => _now, (_) {});
+      store.actRowIn = source.act;
+      if (alone) store.backupActs = _FakeBackups(_now).acts(store);
+      if (sharedIn != null) {
+        store.shareActs = (_FakeShare()..where = sharedIn).acts();
+      }
+      await _toBudget(tester);
+      await tester.tap(find.byKey(const ValueKey('to-settings')));
+      await tester.pumpAndSettle();
+      return (store, db, appearance, language);
+    }
+
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapShown(WidgetTester tester, Finder f) async {
+      final list = find.byKey(const ValueKey('settings-list'));
+      if (list.evaluate().isNotEmpty && f.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          f,
+          200,
+          scrollable: find
+              .descendant(of: list, matching: find.byType(Scrollable))
+              .first,
+        );
+      }
+      await tester.ensureVisible(f);
+      await tester.pumpAndSettle();
+      await tester.tap(f);
+    }
+
+    testWidgets('the gear beside Accounts opens Settings: the computer\'s '
+        'cards in its order, Start over only where Backups is', (tester) async {
+      await pumpSettings(tester, alone: true, archived: true);
+      expect(find.text('Settings'), findsOneWidget);
+      double top(String key) =>
+          tester.getTopLeft(find.byKey(ValueKey(key), skipOffstage: false)).dy;
+      final order = [
+        'settings-appearance',
+        'settings-language',
+        'settings-budget',
+        'settings-this-phone',
+        'settings-security',
+        'settings-archived',
+        'settings-start-over',
+      ];
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_settings.png'),
+      );
+      await tester.drag(
+        find.byKey(const ValueKey('settings-list')),
+        const Offset(0, -3000),
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_settings_end.png'),
+      );
+      // Every card built at once, to see their order.
+      tester.view.physicalSize = const Size(390, 4000);
+      await tester.pumpAndSettle();
+      for (var i = 1; i < order.length; i++) {
+        expect(top(order[i]), greaterThan(top(order[i - 1])), reason: order[i]);
+      }
+    });
+
+    testWidgets('a phone on a computer\'s folder has no Start over', (
+      tester,
+    ) async {
+      await pumpSettings(tester);
+      await tester.drag(
+        find.byKey(const ValueKey('settings-list')),
+        const Offset(0, -3000),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('settings-security')), findsOneWidget);
+      expect(find.byKey(const ValueKey('settings-start-over')), findsNothing);
+    });
+
+    testWidgets('Light turns the phone light; every color is offered and '
+        'one picked shows at once', (tester) async {
+      final (_, _, appearance, _) = await pumpSettings(tester);
+      await tester.tap(find.byKey(const ValueKey('appearance-light')));
+      await tester.pumpAndSettle();
+      expect(appearance.value, Appearance.light);
+      expect(Mid.isLight, isTrue);
+      await tapShown(tester, find.byKey(const ValueKey('colors-all')));
+      await tester.pumpAndSettle();
+      final ours = find.byKey(const ValueKey('scheme-betterbudget'));
+      await tapShown(tester, ours);
+      await tester.pumpAndSettle();
+      expect(appearance.scheme.id, betterBudgetScheme.id);
+      await tester.drag(
+        find.byKey(const ValueKey('settings-list')),
+        const Offset(0, 3000),
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_settings_light.png'),
+      );
+      // Budget behind it, in the same colors.
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_budget_light.png'),
+      );
+    });
+
+    testWidgets('Монгол puts the phone in Mongolian', (tester) async {
+      final (_, _, _, language) = await pumpSettings(tester);
+      await tester.tap(find.byKey(const ValueKey('language-mongolian')));
+      await tester.pumpAndSettle();
+      expect(language.value, Language.mongolian);
+      expect(find.text('Тохиргоо'), findsOneWidget);
+      expect(find.text('Хэл'), findsOneWidget);
+    });
+
+    testWidgets('Had before the budget is saved with Undo; this phone\'s '
+        'name is saved quietly', (tester) async {
+      final (store, db, _, _) = await pumpSettings(tester);
+      final field = find.byKey(const ValueKey('had-before-field-MNT'));
+      await tapShown(tester, field);
+      await tester.enterText(field, '500000');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      Future<String?> pref(String key) async =>
+          await tester.runAsync<String?>(() => db.preference(key));
+      expect(await pref(BudgetKeys.hadBefore(Currency.mnt)), '50000000');
+      expect(find.byKey(const ValueKey('had-before-done')), findsOneWidget);
+      // What it made of Not assigned, so a figure mistyped shows at once.
+      expect(
+        find.textContaining(
+          'Had before the budget: ₮500,000.00 · Not assigned is now ',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Undo'));
+      await settle(tester);
+      expect(await pref(BudgetKeys.hadBefore(Currency.mnt)), isNull);
+
+      final name = find.byKey(const ValueKey('phone-name-field'));
+      await tapShown(tester, name);
+      await tester.enterText(name, ' Pixel ');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(await pref('$phoneNamePrefix${store.device}'), 'Pixel');
+    });
+
+    testWidgets('a figure or name typed and left with Back is saved', (
+      tester,
+    ) async {
+      final (store, db, _, _) = await pumpSettings(tester);
+      final field = find.byKey(const ValueKey('had-before-field-MNT'));
+      await tapShown(tester, field);
+      await tester.enterText(field, '700000');
+      final name = find.byKey(const ValueKey('phone-name-field'));
+      await tapShown(tester, name);
+      await tester.enterText(name, 'Pixel');
+      await tester.pageBack();
+      await settle(tester);
+      Future<String?> pref(String key) =>
+          tester.runAsync<String?>(() => db.preference(key)).then((v) => v);
+      expect(await pref(BudgetKeys.hadBefore(Currency.mnt)), '70000000');
+      expect(await pref('$phoneNamePrefix${store.device}'), 'Pixel');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an archived account is shown in Accounts again, with Undo', (
+      tester,
+    ) async {
+      final (_, db, _, _) = await pumpSettings(tester, archived: true);
+      final id = (await tester.runAsync(db.loadLedger))!
+          .archivedAccounts
+          .single
+          .id;
+      await tapShown(tester, find.byKey(ValueKey('unarchive-$id')));
+      await settle(tester);
+      Future<bool> archived() async =>
+          (await tester.runAsync(db.loadLedger))!.accounts[id]!.archived;
+      expect(await archived(), isFalse);
+      expect(find.byKey(const ValueKey('settings-archived')), findsNothing);
+      await tester.tap(find.text('Undo'));
+      await settle(tester);
+      expect(await archived(), isTrue);
+    });
+
+    testWidgets('Check my recovery key… says whether a typed key opens '
+        'this ledger', (tester) async {
+      final good = RecoveryKey.generate(random: Random(7));
+      final other = RecoveryKey.generate(random: Random(8));
+      final (store, _, _, _) = await pumpSettings(tester);
+      store.checkKey = (k) async => k.display == good.display;
+      // Asked for again: the button shows once there is a check.
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('to-settings')));
+      await tester.pumpAndSettle();
+      await tapShown(tester, find.byKey(const ValueKey('check-recovery-key')));
+      await tester.pumpAndSettle();
+      final field = find.byKey(const ValueKey('check-key-field'));
+      await tester.enterText(field, 'ABC');
+      await tester.tap(find.byKey(const ValueKey('check-key-go')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('check-key-said')), findsNothing);
+      await tester.enterText(field, other.display);
+      await tester.tap(find.byKey(const ValueKey('check-key-go')));
+      await settle(tester);
+      expect(
+        find.text('No · this key doesn’t open this ledger'),
+        findsOneWidget,
+      );
+      await tester.enterText(field, good.display);
+      await tester.tap(find.byKey(const ValueKey('check-key-go')));
+      await settle(tester);
+      expect(find.text('Yes · this key opens this ledger'), findsOneWidget);
+    });
+
+    testWidgets('Start over says what goes, Cancel keeps it, Erase '
+        'everything erases with Undo', (tester) async {
+      final (_, db, _, _) = await pumpSettings(tester, alone: true);
+      expect(find.byKey(const ValueKey('erase-shared')), findsNothing);
+      Future<int> rows() async =>
+          (await tester.runAsync(db.loadLedger))!.txns.length;
+      final before = await rows();
+      expect(before, greaterThan(0));
+      await tapShown(tester, find.byKey(const ValueKey('start-over')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('erase-ask')), findsOneWidget);
+      expect(find.text('$before transactions'), findsOneWidget);
+      await tapShown(tester, find.byKey(const ValueKey('erase-cancel')));
+      await tester.pumpAndSettle();
+      expect(await rows(), before);
+
+      await tapShown(tester, find.byKey(const ValueKey('start-over')));
+      await tester.pumpAndSettle();
+      await tapShown(tester, find.byKey(const ValueKey('erase-go')));
+      await settle(tester);
+      expect(await rows(), 0);
+      expect(find.byKey(const ValueKey('erased')), findsOneWidget);
+      await tester.tap(find.text('Undo'));
+      await settle(tester);
+      expect(await rows(), before);
+    });
+
+    testWidgets('Start over on a ledger moved from here to a folder says '
+        'the others sharing it are erased too', (tester) async {
+      await pumpSettings(tester, alone: true, sharedIn: 'My Drive/BB');
+      await tapShown(tester, find.byKey(const ValueKey('start-over')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'The other computers and phones that share BetterBudget are erased '
+          'too. What they changed and haven’t sent yet comes in afterwards.',
+        ),
+        findsOneWidget,
+      );
+    });
+  });
 }
 
 bool _same(Uint8List a, Uint8List b) {
@@ -10264,12 +10582,14 @@ class _FakeBackups {
         path: '/own/Backups/betterbudget-20261007-081000.betterbudget',
         madeAt: DateTime(2026, 10, 7, 8, 10),
         beforeRestore: false,
+        beforeStartOver: false,
         fromFolder: false,
       ),
       (
         path: '/own/Backups/before-restore-20261006-140500.betterbudget',
         madeAt: DateTime(2026, 10, 6, 14, 5),
         beforeRestore: true,
+        beforeStartOver: false,
         fromFolder: false,
       ),
     ],
