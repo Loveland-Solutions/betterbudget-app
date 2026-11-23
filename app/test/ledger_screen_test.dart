@@ -4483,7 +4483,14 @@ void main() {
     await tester.enterText(lineCategory(0), 'Groceries');
     await tester.enterText(lineAmount(0), '98000');
     await tester.pumpAndSettle();
+    // While the amount is typed, the left figure holds still; it catches
+    // up when the box is left (#542).
+    expect(find.text('₮135,500.00 left'), findsOneWidget);
+    await tester.tap(lineCategory(0));
+    await tester.pumpAndSettle();
     expect(find.text('₮37,500.00 left'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape); // the list
+    await tester.pumpAndSettle();
     await expectLater(
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/split_card.png'),
@@ -4497,6 +4504,10 @@ void main() {
 
     await tester.enterText(lineCategory(1), 'Clothing');
     await tester.enterText(lineAmount(1), '37500');
+    await tester.pumpAndSettle();
+    await tester.tap(lineCategory(1)); // leave the amount
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape); // the list
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('split-left')), findsNothing);
     await tester.tap(find.byKey(const ValueKey('split-done')));

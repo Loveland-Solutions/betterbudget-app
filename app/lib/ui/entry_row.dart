@@ -993,6 +993,15 @@ class _EntryRowState extends State<EntryRow> {
     l.amount.addListener(_splitEdited);
     l.categoryFocus.addListener(_focusChanged);
     l.amountFocus.addListener(_focusChanged);
+    l.amountFocus.addListener(() {
+      if (!mounted) return;
+      if (l.amountFocus.hasFocus) {
+        l.held = l.amount.text;
+      } else if (l.held != null) {
+        // Left: the figure catches up with what was typed.
+        setState(() => l.held = null);
+      }
+    });
     return l;
   }
 
@@ -1053,6 +1062,18 @@ class _EntryRowState extends State<EntryRow> {
   int get _splitSum => (_split ?? const <_SplitLine>[]).fold(
     0,
     (s, l) => s + (_lineValue(l) ?? 0),
+  );
+
+  /// The sum the card shows: a line being typed counts as it was when the
+  /// person went into it (#542). What Add checks is [_splitSum].
+  int get _splitShownSum => (_split ?? const <_SplitLine>[]).fold(
+    0,
+    (s, l) =>
+        s +
+        ((l.held == null
+                ? _lineValue(l)
+                : parseAmount(l.held!, _hereCurrency)) ??
+            0),
   );
 
   /// The categories a line can take: the row's currency, not archived (a
@@ -1458,7 +1479,7 @@ class _EntryRowState extends State<EntryRow> {
   /// an amount on each line, Cancel and Done.
   Widget _splitCard(Words t, double width) {
     final total = _splitTotal;
-    final sum = _splitSum;
+    final sum = _splitShownSum;
     String money(int v) => formatMoney(v.abs(), currency: _hereCurrency);
     final payee = _payee.text.trim();
     final title = total == null
@@ -3896,6 +3917,11 @@ class _SplitLine {
   String? newName;
   final categoryFocus = FocusNode(debugLabel: 'split-category');
   final amountFocus = FocusNode(debugLabel: 'split-amount');
+
+  /// What the amount said when the person went into it: the card's left
+  /// figure counts this until they leave, so it doesn't change under them
+  /// while they type (#542).
+  String? held;
 
   void dispose() {
     category.dispose();
