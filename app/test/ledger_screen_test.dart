@@ -7378,6 +7378,22 @@ void main() {
     Future<void> editCategory(WidgetTester tester, String name) =>
         categoryMenu(tester, name, 'category-edit');
 
+    testWidgets('Settings\' Had before the budget takes a minus typed in: '
+        'an overdrawn start (#617)', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Settings').first);
+      await tester.pumpAndSettle();
+      final field = find.byKey(const ValueKey('had-before-field-MNT'));
+      await reveal(tester, field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '-500000');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      final data = (await tester.runAsync(db.loadLedger))!;
+      expect(data.prefs[BudgetKeys.hadBefore(Currency.mnt)], '-50000000');
+      await tidy(tester, db);
+    });
+
     group('by keys alone (#163)', () {
       // Whether focus is on, or inside, the widget keyed [k].
       bool focusIn(Key k) {

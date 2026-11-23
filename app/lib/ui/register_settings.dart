@@ -323,7 +323,8 @@ class _HadBeforeState extends State<_HadBefore> {
     if (!_edited) return;
     final text = _controller.text.trim();
     final v = text.isEmpty ? null : parseAmount(text, widget.currency);
-    if (text.isNotEmpty && (v == null || v < 0)) {
+    // A minus is an overdrawn start, which setup can set (#617).
+    if (text.isNotEmpty && v == null) {
       if (mounted) setState(() => _wrong = true);
       return;
     }

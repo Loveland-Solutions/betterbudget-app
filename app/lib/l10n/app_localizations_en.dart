@@ -8426,4 +8426,50 @@ class WordsEn extends Words {
   String planKeyOverOverdrawnPart(String amount) {
     return '$amount overdrawn when the budget began';
   }
+
+  @override
+  String phoneWaitingOwn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count entries aren’t in your ledger yet',
+      one: '1 entry isn’t in your ledger yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phoneWaitingCategoriesOwn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new categories aren’t in your ledger yet',
+      one: '1 new category isn’t in your ledger yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phoneWaitingBothOwn(int entries, int categories) {
+    String _temp0 = intl.Intl.pluralLogic(
+      entries,
+      locale: localeName,
+      other: '$entries entries',
+      one: '1 entry',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      categories,
+      locale: localeName,
+      other: '$categories new categories',
+      one: '1 new category',
+    );
+    return '$_temp0 and $_temp1 aren’t in your ledger yet';
+  }
+
+  @override
+  String get phoneWaitingTitleOwn => 'Not in your ledger yet';
+
+  @override
+  String get phoneCountCantGoInOwn =>
+      'This account isn’t a cash account any more, so this count can’t go in.';
 }

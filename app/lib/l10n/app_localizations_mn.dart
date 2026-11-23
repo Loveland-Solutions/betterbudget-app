@@ -8150,4 +8150,36 @@ class WordsMn extends Words {
   String planKeyOverOverdrawnPart(String amount) {
     return 'Төсөв эхлэхэд $amount хэтэрсэн';
   }
+
+  @override
+  String phoneWaitingOwn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count гүйлгээ таны дэвтэрт хараахан ороогүй байна',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phoneWaitingCategoriesOwn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count шинэ ангилал таны дэвтэрт хараахан ороогүй байна',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String phoneWaitingBothOwn(int entries, int categories) {
+    return '$entries гүйлгээ, $categories шинэ ангилал таны дэвтэрт хараахан ороогүй байна';
+  }
+
+  @override
+  String get phoneWaitingTitleOwn => 'Дэвтэрт хараахан ороогүй';
+
+  @override
+  String get phoneCountCantGoInOwn =>
+      'Энэ данс бэлэн мөнгөний данс байхаа больсон тул энэ тооллогыг оруулах боломжгүй.';
 }
