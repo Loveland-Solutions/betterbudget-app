@@ -14,6 +14,8 @@ class FolderChannel: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationC
   // thread only.
   private var held: URL?
   private var pendingPick: FlutterResult?
+  // Back up to…'s sheet while it is open.
+  private var saving: SaveSheet?
 
   init(messenger: FlutterBinaryMessenger) {
     super.init()
@@ -83,6 +85,37 @@ class FolderChannel: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationC
           return nil
         }
       }
+    // Back up to… (#534): the Files sheet's own Save to, with the copy at
+    // "path" under "name". "elsewhere" once saved, nil when nothing was
+    // chosen. (Which places are this iPhone itself isn't told apart yet.)
+    case "save":
+      guard let path = args["path"] as? String, let name = args["name"] as? String else {
+        return result(badArguments(call))
+      }
+      // One at a time: a second tap waits for the first sheet.
+      if saving != nil {
+        return result(FlutterError(code: "Busy", message: "A save is already open", details: nil))
+      }
+      let named = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+      do {
+        try? FileManager.default.removeItem(at: named)
+        try FileManager.default.copyItem(at: URL(fileURLWithPath: path), to: named)
+      } catch {
+        return result(FlutterError(code: "Copy", message: error.localizedDescription, details: nil))
+      }
+      guard let top = topController() else {
+        try? FileManager.default.removeItem(at: named)
+        return result(FlutterError(code: "NoWindow", message: "Nothing to show the picker on", details: nil))
+      }
+      let save = SaveSheet(file: named) { [weak self] saved in
+        self?.saving = nil
+        result(saved ? "elsewhere" : nil)
+      }
+      saving = save
+      let picker = UIDocumentPickerViewController(forExporting: [named], asCopy: true)
+      picker.delegate = save
+      top.present(picker, animated: true)
+      picker.presentationController?.delegate = save
     case "forget":
       guard let address = args["folder"] as? String else { return result(badArguments(call)) }
       // Only the folder named: a new pick has already taken the bookmark's place.
@@ -351,5 +384,35 @@ enum FolderError: Error {
     case .notKept: return "NotKept"
     case .notRead: return "NotRead"
     }
+  }
+}
+
+// Back up to…'s Files sheet: answers once, whichever way it closes, and
+// deletes the named copy it was handed.
+final class SaveSheet: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
+  private let file: URL
+  private var answer: ((Bool) -> Void)?
+
+  init(file: URL, answer: @escaping (Bool) -> Void) {
+    self.file = file
+    self.answer = answer
+  }
+
+  func finish(_ saved: Bool) {
+    try? FileManager.default.removeItem(at: file)
+    answer?(saved)
+    answer = nil
+  }
+
+  func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+    finish(!urls.isEmpty)
+  }
+
+  func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+    finish(false)
+  }
+
+  func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+    finish(false)
   }
 }

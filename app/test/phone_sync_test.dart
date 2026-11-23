@@ -104,6 +104,120 @@ void main() {
     for (final t in (await phone.db!.loadLedger()).txns) t.payee,
   ];
 
+  test('a phone on its own makes its copy a day beside its ledger, '
+      'once a day, readable as a backup (#534 piece 3)', () async {
+    final alone = PhoneSync(
+      dir: await Directory('${root.path}/alone').create(),
+      dataKey: key,
+      device: 'dddd',
+      io: const DirectoryFolderIo(),
+    )..onItsOwn = true;
+    addTearDown(alone.close);
+    // No ledger yet: nothing to copy.
+    expect(await alone.dailyCopy(monday), isNull);
+    await alone.startNew();
+    await alone.db!.addAccount(name: 'Khan Checking', type: AccountType.asset);
+    await alone.asItStands(monday);
+    final copies = Directory('${root.path}/alone/own/Backups');
+    List<File> made() => copies.existsSync()
+        ? copies
+              .listSync()
+              .whereType<File>()
+              .where((f) => f.path.contains('/betterbudget-'))
+              .toList()
+        : const [];
+
+    final health = await alone.dailyCopy(monday);
+    expect(health?.failed, isFalse);
+    expect(made(), hasLength(1));
+    expect(health?.newest, isNotNull);
+    // Within the hour nothing is looked at again: with today's copy gone,
+    // none is made. An hour on, it is made again.
+    made().single.deleteSync();
+    await alone.dailyCopy(monday.add(const Duration(minutes: 5)));
+    expect(made(), isEmpty);
+    await alone.dailyCopy(monday.add(const Duration(hours: 1, minutes: 5)));
+    expect(made(), hasLength(1));
+    // The next day, a second.
+    await alone.dailyCopy(tuesday);
+    expect(made(), hasLength(2));
+
+    // A copy is a backup this key restores.
+    final candidate = await Backups(
+      alone.db!,
+      dataKey: key,
+    ).inspect(made().first.path, tuesday);
+    expect(candidate.accounts, 1);
+    await Backups(alone.db!, dataKey: key).discard(candidate);
+  });
+
+  test('a phone on its own: Back up to…\'s copy is a backup, is recorded '
+      'once saved, and Restore from… puts it back with Undo and Redo '
+      '(#534 piece 3)', () async {
+    final alone = PhoneSync(
+      dir: await Directory('${root.path}/alone').create(),
+      dataKey: key,
+      device: 'dddd',
+      io: const DirectoryFolderIo(),
+    )..onItsOwn = true;
+    addTearDown(alone.close);
+    expect(await alone.backups(monday), isNull);
+    await alone.startNew();
+    final db = alone.db!;
+    await db.addAccount(name: 'Khan Checking', type: AccountType.asset);
+    await alone.asItStands(monday);
+
+    // No Back up to… yet: counted from today.
+    var state = (await alone.backups(monday))!;
+    expect(state.health.newest, isNotNull);
+    expect(state.elsewhere?.copied, isNull);
+    expect(state.elsewhere?.since, monday);
+
+    // The copy handed to the phone's Save to, kept here as a backup file.
+    final copy = await alone.copyForBackup(monday);
+    final saved = File('${root.path}/Drive copy.betterbudget');
+    await copy.copy(saved.path);
+    await copy.delete();
+    await alone.backedUp(monday);
+    state = (await alone.backups(tuesday))!;
+    expect(state.elsewhere?.copied, monday);
+
+    // An account added after the backup goes with the restore, and Undo
+    // brings it back.
+    await db.addAccount(name: 'Wallet', type: AccountType.asset);
+    Future<List<String>> names() async => [
+      for (final a in (await db.loadLedger()).balanceSheetAccounts) a.name,
+    ];
+    expect(await names(), ['Khan Checking', 'Wallet']);
+    final candidate = await alone.inspectBackup(saved.path, tuesday);
+    expect(candidate.accounts, 1);
+    final done = await alone.restoreBackup(candidate, tuesday);
+    expect(await names(), ['Khan Checking']);
+    expect(
+      done.snapshot.accounts.map((a) => a.name),
+      isNot(contains('Wallet')),
+    );
+    await done.undo();
+    expect(await names(), ['Khan Checking', 'Wallet']);
+    await done.redo();
+    expect(await names(), ['Khan Checking']);
+    // Restore from… lists the copies kept here, the one saved before the
+    // restore among them.
+    final kept = await alone.keptCopies();
+    expect(kept.where((c) => c.beforeRestore), isNotEmpty);
+    expect(kept.where((c) => !c.beforeRestore), isNotEmpty);
+    // Back up to…'s copy isn't named as the daily copy sweeps away.
+    expect(copy.path.split('/').last, startsWith('outgoing-'));
+    expect(copy.path, isNot(endsWith('.tmp')));
+    // What was here was saved first, beside the ledger.
+    expect(
+      Directory('${root.path}/alone/own/Backups')
+          .listSync()
+          .map((f) => f.path.split('/').last),
+      contains(startsWith('before-restore-')),
+    );
+  });
+
   test(
     'a phone with a ledger of its own is joined, and one without is not',
     () {

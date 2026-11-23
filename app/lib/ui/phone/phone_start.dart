@@ -13,7 +13,7 @@ import 'dart:typed_data';
 import 'package:file_selector/file_selector.dart' show XFile, openFile;
 import 'package:flutter/material.dart';
 
-import '../../data/backup.dart' show RestoreException, RestoreProblem;
+import '../../data/backup.dart' show Backups, RestoreException, RestoreProblem;
 import '../../data/incoming_file.dart';
 import '../../data/keys.dart';
 import '../../data/ledger_file.dart';
@@ -277,6 +277,9 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
           return;
         }
         _show(own, key, null);
+        // Its copy a day (#534 piece 3): no computer keeps one of this
+        // ledger.
+        unawaited(source.dailyCopy(widget.now()));
         return;
       }
       final inFolder = folder!;
@@ -493,11 +496,55 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     } else {
       store.snapshot = snapshot;
     }
+    // Backups on a phone on its own (#534 piece 3): no computer keeps a
+    // copy of this ledger.
+    final backupsHere = _onItsOwn && !_demo;
+    if (backupsHere != (_store?.backupActs != null)) {
+      _store?.backupActs = backupsHere ? _backupActs() : null;
+    }
     final news = _source?.takeNews() ?? const <PhoneNews>[];
     if (news.isNotEmpty) _store?.news.value = news;
     _store?.asking.value = _source?.asking;
     _keep();
     setState(() => _step = _Step.ready);
+  }
+
+  /// What the Backups page and Net worth's line ask of the phone's own
+  /// ledger, through whichever source has it open at the time.
+  PhoneBackupActs _backupActs() {
+    PhoneLedgerSource open() =>
+        _source ?? (throw StateError('The phone has no ledger open'));
+    return PhoneBackupActs(
+      state: () async => open().backups(widget.now()),
+      backUp: () async {
+        final source = open();
+        final now = widget.now();
+        final copy = await source.copyForBackup(now);
+        try {
+          final saved = await widget.folder.save(
+            copy.path,
+            'BetterBudget ${fullDate(now)}.${Backups.extension}',
+          );
+          // A copy left on this phone is no backup off it.
+          if (saved == SavedTo.elsewhere) await source.backedUp(widget.now());
+          return saved;
+        } finally {
+          if (copy.existsSync()) await copy.delete();
+        }
+      },
+      kept: () => open().keptCopies(),
+      inspect: (path) => open().inspectBackup(path, widget.now()),
+      discard: (candidate) => open().discardBackup(candidate),
+      restore: (candidate) async {
+        // Not under a read already running, whose figures would come up
+        // after the restore's (as an answer waits for it).
+        await _reading;
+        _looks++;
+        final done = await open().restoreBackup(candidate, widget.now());
+        unawaited(_load());
+        return done;
+      },
+    );
   }
 
   /// Keeps what is waiting on the phone and writes it to the folder, one

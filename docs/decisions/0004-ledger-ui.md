@@ -8139,3 +8139,50 @@ money on both platforms.
   was typed in it, and shows the figure with its sign and cents. The currency saved in to
   begin with is one of the answers offered (the one most bank and cash accounts are in),
   and picking one always makes it the budget's own currency.
+
+## Backups on the phone (owner, 2026-11-23, #534)
+
+A phone on its own keeps the only copy of its ledger (ADR 0005, "How #534 is cut",
+piece 3), so it needs the computer's backups. Two sketches at 390 points, of different
+kinds, each with a **Backups** row at the foot of Accounts: **A** the computer's way,
+Back up to… through the phone's own Save to, with "No backup yet" under Net worth until
+it has worked and "Last backup 41 days ago" past a month; **B** a Google Drive folder
+picked once, which each day's copy also goes to. The owner picked **A** ("a").
+
+- **The computer's Backups card in the phone's form**, its words: Daily copy ("Today
+  08:10 · on this phone"), Kept, Backed up ("Not yet · Back up to… saves a copy off
+  this phone"), the note that the daily copies won't help if the phone is lost (naming
+  Google Drive or iCloud Drive where the computer names another drive or a USB stick),
+  then **Back up to…** and **Restore from…**. A failing daily copy is said in coral, on
+  the page and under Net worth, as on the computer.
+- **Under Net worth** only what this phone did, in the button's own word: "No backup
+  yet" from the first day (a phone on its own has no other copy anywhere), nothing once
+  Back up to… has worked, and "Last backup 41 days ago" after 30 days. Back up to… sits
+  beside the line.
+- **Back up to…** opens Android's and iPhone's own Save to, offering the computer's name
+  ("BetterBudget 2026.11.23.betterbudget"). A copy saved says "Backed up"; one not
+  saved says nothing; one that couldn't be written says "Couldn't back up · try again".
+- **Restore from…** is the computer's: the phone's file picker, the computer's checks
+  and words for a file it refuses, then "Restore this backup?" as a sheet (Backup
+  from, It holds, Here now, the note, Cancel and Restore), and a snack bar "Restored
+  the copy from … · what you had is saved" with Undo.
+- **Only on a phone on its own**: a phone on a folder shows neither, since its
+  computers keep the copies. The demo key shows neither.
+- **The reminder stays** (owner, 2026-11-23). Asked whether the line was needed when
+  the phone copies by itself ("Why would we remind them to backup if it's doing it
+  automatically?"), and told that the daily copies stay on the phone and are lost with
+  it, the owner kept it as built: "No backup yet" until one copy is off the phone,
+  then quiet for 30 days, as on the computer.
+- **Rejected:** B (a second kind of folder on the phone beside piece 4's, where the
+  phone's ledger itself moves into a folder and so is copied off the phone anyway).
+- **From the reviews** (decided along the lines above): the copies kept on the phone,
+  daily ones and the one saved before a restore, are listed under Restore from… as
+  **Copies on this phone**, each with Restore, since the phone's file picker can't reach
+  them; a copy Back up to… saved on the phone itself (Downloads, its own storage, a card
+  in it; told apart on Android) says "Saved on this phone · it won't help if the phone
+  is lost. Back up to Google Drive instead." and isn't counted as a backup; the note
+  names the platform's own cloud and says a backup opens only with the recovery key;
+  Back up to… does nothing more while its Save to is open.
+- **Left for later:** a backup made under another ledger's recovery key is refused with
+  the computer's words ("can't be opened with this ledger's key"); the computer asks for
+  that backup's key there, and the phone doesn't yet.

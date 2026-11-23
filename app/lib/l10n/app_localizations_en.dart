@@ -8472,4 +8472,53 @@ class WordsEn extends Words {
   @override
   String get phoneCountCantGoInOwn =>
       'This account isn’t a cash account any more, so this count can’t go in.';
+
+  @override
+  String phoneDailyCopyWhen(String when) {
+    return '$when · on this phone';
+  }
+
+  @override
+  String phoneDailyCopyFailingSince(String when) {
+    return 'Failing · the last one is from $when. Check the phone has room, and back up off it.';
+  }
+
+  @override
+  String get phoneDailyCopyFailingNone =>
+      'Failing. Check the phone has room, and back up off it.';
+
+  @override
+  String get phoneCopiedElsewhereNever =>
+      'Not yet · Back up to… saves a copy off this phone';
+
+  @override
+  String get phoneBackupsNote =>
+      'The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to Google Drive now and then. A backup opens only with your recovery key, so keep that off this phone too. Restoring saves what you have first, and Undo brings it back.';
+
+  @override
+  String get phoneBackedUp => 'Backed up';
+
+  @override
+  String get phoneCouldntBackUp => 'Couldn’t back up · try again';
+
+  @override
+  String phoneRestoredFrom(String date) {
+    return 'Restored the copy from $date · what you had is saved';
+  }
+
+  @override
+  String get phoneBackupsNoteIos =>
+      'The daily copies are on this phone, so they won’t help if it’s lost or breaks: back up to iCloud Drive or Google Drive now and then. A backup opens only with your recovery key, so keep that off this phone too. Restoring saves what you have first, and Undo brings it back.';
+
+  @override
+  String get phoneCopiesHere => 'Copies on this phone';
+
+  @override
+  String phoneCopyBeforeRestore(String when) {
+    return '$when · saved before a restore';
+  }
+
+  @override
+  String get phoneSavedOnPhone =>
+      'Saved on this phone · it won’t help if the phone is lost. Back up to Google Drive instead.';
 }

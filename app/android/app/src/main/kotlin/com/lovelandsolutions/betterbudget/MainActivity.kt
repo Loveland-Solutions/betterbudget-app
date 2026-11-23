@@ -16,6 +16,18 @@ class MainActivity : FlutterActivity() {
     private val pickRequest = 4711
     private var pendingPick: MethodChannel.Result? = null
 
+    // Back up to… (#534): the system's own Save to, then the copy written there.
+    private val saveRequest = 4712
+    private var pendingSave: Pair<MethodChannel.Result, String>? = null
+
+    // Save to's places that are this phone itself, lost with it: its own
+    // storage or a card in it, Downloads, and its pictures and media.
+    private val onThisPhone = setOf(
+        "com.android.externalstorage.documents",
+        "com.android.providers.downloads.documents",
+        "com.android.providers.media.documents",
+    )
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "betterbudget/folder")
@@ -123,6 +135,25 @@ class MainActivity : FlutterActivity() {
                 )
                 null
             }
+            // Back up to…: Android's own Save to (Drive, Files), and the file
+            // at "path" copied to what was chosen. "phone" when that is on
+            // this phone itself, "elsewhere" otherwise, null when nothing
+            // was chosen.
+            "save" -> {
+                // One at a time: a second tap waits for the first sheet.
+                if (pendingSave != null) {
+                    result.error("Busy", "A save is already open", null)
+                    return
+                }
+                pendingSave = Pair(result, call.argument<String>("path")!!)
+                startActivityForResult(
+                    Intent(Intent.ACTION_CREATE_DOCUMENT)
+                        .addCategory(Intent.CATEGORY_OPENABLE)
+                        .setType("application/octet-stream")
+                        .putExtra(Intent.EXTRA_TITLE, call.argument<String>("name")!!),
+                    saveRequest,
+                )
+            }
             "forget" -> {
                 val uri = Uri.parse(call.argument<String>("folder")!!)
                 val held = contentResolver.persistedUriPermissions.firstOrNull { it.uri == uri }
@@ -152,6 +183,32 @@ class MainActivity : FlutterActivity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == saveRequest) {
+            val (result, path) = pendingSave ?: return
+            pendingSave = null
+            val uri = data?.data
+            if (resultCode != Activity.RESULT_OK || uri == null) {
+                result.success(null)
+                return
+            }
+            background(result) {
+                try {
+                    // A new document: nothing in it to cut short.
+                    val out = contentResolver.openOutputStream(uri, "w")
+                        ?: throw IllegalStateException("The place chosen took no file")
+                    out.use { o -> java.io.File(path).inputStream().use { it.copyTo(o) } }
+                } catch (e: Throwable) {
+                    // Not left there looking like a backup it isn't.
+                    try {
+                        DocumentsContract.deleteDocument(contentResolver, uri)
+                    } catch (_: Throwable) {
+                    }
+                    throw e
+                }
+                if (uri.authority in onThisPhone) "phone" else "elsewhere"
+            }
+            return
+        }
         if (requestCode != pickRequest) return
         val result = pendingPick ?: return
         pendingPick = null

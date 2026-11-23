@@ -8182,4 +8182,53 @@ class WordsMn extends Words {
   @override
   String get phoneCountCantGoInOwn =>
       'Энэ данс бэлэн мөнгөний данс байхаа больсон тул энэ тооллогыг оруулах боломжгүй.';
+
+  @override
+  String phoneDailyCopyWhen(String when) {
+    return '$when · энэ утсан дээр';
+  }
+
+  @override
+  String phoneDailyCopyFailingSince(String when) {
+    return 'Хийгдэхгүй байна · сүүлийн хуулбар: $when. Утсанд зай байгаа эсэхийг шалгаад утаснаас гадна нөөцлөнө үү.';
+  }
+
+  @override
+  String get phoneDailyCopyFailingNone =>
+      'Хийгдэхгүй байна. Утсанд зай байгаа эсэхийг шалгаад утаснаас гадна нөөцлөнө үү.';
+
+  @override
+  String get phoneCopiedElsewhereNever =>
+      'Хараахан үгүй · “Нөөцлөх…” утаснаас гадна хуулбар хадгална';
+
+  @override
+  String get phoneBackupsNote =>
+      'Өдөр бүрийн хуулбарууд энэ утсан дээр байдаг тул утас алга болох, эвдэрвэл тус болохгүй: үе үе Google Drive руу нөөцлөөрэй. Нөөцийг зөвхөн сэргээх түлхүүрээр тань нээнэ, тиймээс түүнийг ч бас энэ утаснаас гадна хадгалаарай. Сэргээхээс өмнө одоо байгаа өгөгдлийг тань хадгалах ба Буцаах нь түүнийг эргүүлж авчирна.';
+
+  @override
+  String get phoneBackedUp => 'Нөөцөллөө';
+
+  @override
+  String get phoneCouldntBackUp => 'Нөөцөлж чадсангүй · дахин оролдоно уу';
+
+  @override
+  String phoneRestoredFrom(String date) {
+    return '$date өдрийн хуулбарыг сэргээлээ · өмнөх өгөгдөл тань хадгалагдсан';
+  }
+
+  @override
+  String get phoneBackupsNoteIos =>
+      'Өдөр бүрийн хуулбарууд энэ утсан дээр байдаг тул утас алга болох, эвдэрвэл тус болохгүй: үе үе iCloud Drive эсвэл Google Drive руу нөөцлөөрэй. Нөөцийг зөвхөн сэргээх түлхүүрээр тань нээнэ, тиймээс түүнийг ч бас энэ утаснаас гадна хадгалаарай. Сэргээхээс өмнө одоо байгаа өгөгдлийг тань хадгалах ба Буцаах нь түүнийг эргүүлж авчирна.';
+
+  @override
+  String get phoneCopiesHere => 'Энэ утсан дээрх хуулбарууд';
+
+  @override
+  String phoneCopyBeforeRestore(String when) {
+    return '$when · сэргээхээс өмнө хадгалсан';
+  }
+
+  @override
+  String get phoneSavedOnPhone =>
+      'Энэ утсан дээр хадгаллаа · утас алга болбол тус болохгүй. Оронд нь Google Drive руу нөөцлөөрэй.';
 }
