@@ -782,13 +782,23 @@ String typedOfMinor(int minor, Currency currency) {
   return '$whole.${text.replaceFirst(RegExp(r'0+$'), '')}';
 }
 
+/// [minor] as an amount field on the phone starts out, grouped and with the
+/// currency's own point: `12,500.5`, `12.500,5` in rupiah (#621).
+String fieldTextOf(int minor, Currency currency) => groupTyped(
+  typedOfMinor(minor, currency).replaceFirst('.', currency.point),
+  const [],
+  currency,
+).text;
+
 /// The pad's text as it reads above the keys, grouped in thousands with the
-/// currency in front: `₮12,500`, `$12.5`.
+/// currency in front, as its people write it: `₮12,500`, `$12.5`,
+/// `Rp 12.500,5` (#621).
 String typedAmountShown(String typed, Currency currency) {
   final parts = typed.split('.');
   final whole = int.parse(parts[0].isEmpty ? '0' : parts[0]);
   final grouped = formatWhole(whole * currency.scale, currency);
-  return '${currency.prefix}$grouped${parts.length > 1 ? '.${parts[1]}' : ''}';
+  return '${currency.prefix}$grouped'
+      '${parts.length > 1 ? '${currency.point}${parts[1]}' : ''}';
 }
 
 /// What a phone shows of [data], the ledger as the computer last stored it:

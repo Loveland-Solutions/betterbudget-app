@@ -4255,6 +4255,47 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets('a rupiah account reads and types as Indonesians write it '
+      '(#621)', (tester) async {
+    final db = await pumpLedger(tester);
+    await tester.runAsync(() async {
+      final bca = await db.createAccount(
+        name: 'BCA Tabungan',
+        type: AccountType.asset,
+        currency: Currency.fromCode('IDR'),
+      );
+      await db.postOpeningBalance(
+        accountId: bca,
+        date: DateTime(2026, 9, 1),
+        balance: 1250000000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('BCA Tabungan').first);
+    await settle(tester);
+    // No ,00 on an amount with no cents.
+    expect(find.textContaining('12.500.000'), findsWidgets);
+    expect(find.textContaining('12.500.000,00'), findsNothing);
+
+    await openEntry(tester);
+    final amount = find.widgetWithText(TextField, 'Rp 0');
+    await tester.tap(amount);
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextField>(amount);
+    // A key at a time, the point key as an Indonesian types it.
+    for (final k in '50.000'.split('')) {
+      await tester.enterText(amount, '${field.controller!.text}$k');
+    }
+    await tester.pump();
+    expect(field.controller!.text, '50.000');
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/rupiah_entry.png'),
+    );
+    await tidy(tester, db);
+  });
+
   testWidgets('one receipt split over categories: the card, Add waits, edit', (
     tester,
   ) async {

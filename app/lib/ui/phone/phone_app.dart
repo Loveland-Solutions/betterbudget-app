@@ -2607,8 +2607,7 @@ class _OpenBudgetRowState extends State<_OpenBudgetRow> {
   PhoneCategory get _c => widget.category;
   bool get _inLedger => !_c.madeHere && int.tryParse(_c.id) != null;
 
-  String get _assignedText =>
-      groupTyped(typedOfMinor(_c.assignedMinor, _c.currency), const []).text;
+  String get _assignedText => fieldTextOf(_c.assignedMinor, _c.currency);
 
   @override
   void initState() {
@@ -4946,7 +4945,8 @@ class _AmountPad extends StatelessWidget {
                   color: Mid.ink,
                   semanticLabel: context.t.phoneDeleteDigit,
                 )
-              : Text(key, style: onest(22)),
+              // The point as the currency's people write it: `,` in rupiah.
+              : Text(key == '.' ? currency.point : key, style: onest(22)),
         ),
       ),
     );

@@ -58,7 +58,32 @@ and accounting units (XBA, XBB, XBC, XBD, XDR, XUA, XSU, XAD); funds and indexed
 6. **Add account** has a Currency dropdown of all of them with a search (by name or
    code): tugrik and dollars first, then by name. Each row is the symbol (when it
    has one), the name, and the code at the end. A category's Currency dropdown lists the currencies there are accounts in.
-7. **The Mongolian names** are CLDR's (two it lacks, SVC and VED, are drafts) and
+7. **Each currency is written as its people write it** (#621, 2026-11-23, from a
+   user in Indonesia): the rupiah `Rp 1.000.000,95`, the euro `€1.234,95`, the ruble
+   `₽1 234,95`, the Swiss franc `Fr. 1'234.95`; the tugrik and the dollar stay
+   `1,234.95`. The marks are those of the country with the most people that pays in
+   it, in its most spoken official language, from CLDR (`cldr-core` and
+   `cldr-numbers-full`), written into `app/lib/domain/number_styles.dart` by
+   `app/tool/gen_number_styles.py`: 72 currencies are written otherwise than
+   `1,234.95`. A space between thousands is a narrow no-break space.
+   - Where its people don't write cents though ISO gives some (the rupiah, the
+     forint, the Colombian peso: 15 in all), amounts show cents only when there are
+     some. What's stored is unchanged.
+   - Typing follows the same marks: in rupiah the field puts points between
+     thousands and the comma is the point. Where a point stands between thousands
+     (the rupiah, the euro), the point key typed is the point all the same, as a
+     number pad and a phone's decimal key type it: `12.50` typed in euros is
+     `12,50`; with exactly three digits after it, it's between thousands again, so
+     `50.000` typed in rupiah is fifty thousand. In tugrik and dollars typing is
+     as before: a comma typed is between thousands.
+   - Read back (a paste, a row's text), a number with both marks has its cents after
+     the last one, in any currency (`1,000,000.95` in rupiah reads as meant).
+   - The rand keeps a point before its cents with a space between thousands
+     (`R 1 234.56`), as South African statements print it; CLDR has a comma.
+   - Not done: grouping in lakhs (India, Bangladesh, Nepal) and the digits of
+     Arabic, Persian, Bengali or Burmese script; bank files are read by their own
+     format, as before.
+8. **The Mongolian names** are CLDR's (two it lacks, SVC and VED, are drafts) and
    need the native speaker's check with the rest.
 
 **Not done:** Savings still counts one currency (the one most accounts are in);

@@ -71,8 +71,9 @@ void main() {
     expect(formatMoney(120050), '₮1,200.50');
     // Two with no longer symbol fall back to their codes.
     Currency.hold([clp, Currency.fromCode('COP')]);
-    expect(formatMoney(1200, currency: clp), 'CLP 1,200');
-    expect(parseAmount('CLP 1,200', clp), 1200);
+    // Each as its people write it (#621): Chile groups with a point.
+    expect(formatMoney(1200, currency: clp), 'CLP 1.200');
+    expect(parseAmount('CLP 1.200', clp), 1200);
     Currency.hold([yen, yuan]);
     expect(formatMoney(1200, currency: yen), '¥1,200');
     expect(formatMoney(1200, currency: yuan), 'CN¥12.00');
@@ -96,14 +97,14 @@ void main() {
     expect(typedAmount(12250, dinar), '12.250');
 
     // Letters are set off from the amount; a sign isn't.
-    expect(formatMoney(120050, currency: krona), 'kr 1,200.50');
+    expect(formatMoney(120050, currency: krona), 'kr 1\u202f200,50');
     expect(
       formatMoney(120050, currency: Currency.fromCode('PEN')),
       'S/ 1,200.50',
     );
     expect(
       formatMoney(120050, currency: Currency.fromCode('CHF')),
-      'Fr. 1,200.50',
+      "Fr. 1'200.50",
     );
     expect(
       formatMoney(120050, currency: Currency.fromCode('THB')),
@@ -113,7 +114,7 @@ void main() {
       formatMoney(120050, currency: Currency.fromCode('GHS')),
       'GH₵1,200.50',
     );
-    expect(formatMoney(120050, currency: rand), 'R 1,200.50');
+    expect(formatMoney(120050, currency: rand), 'R 1\u202f200.50');
     expect(formatMoney(120050, currency: Currency.usd), r'$1,200.50');
 
     // Yen per dollar: one side has cents, the other doesn't.

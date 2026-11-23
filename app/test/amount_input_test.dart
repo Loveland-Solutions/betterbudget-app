@@ -1,5 +1,6 @@
 import 'package:betterbudget/domain/money.dart';
 import 'package:betterbudget/ui/amount_input.dart';
+import 'package:betterbudget/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -204,5 +205,104 @@ void main() {
     await pumpField(tester, Currency.values.firstWhere((x) => x.code == 'KWD'));
     await put(tester, '1.500');
     expect(shown(), '1.500|');
+  });
+
+  testWidgets('rupiah typed a key at a time: points between thousands, a '
+      'comma before the cents (#621)', (tester) async {
+    final idr = Currency.fromCode('IDR');
+    await pumpField(tester, idr);
+    for (final k in '1000000,95'.split('')) {
+      await put(tester, k);
+    }
+    expect(c.text, '1.000.000,95');
+    expect(parseAmount(c.text, idr), 100000095);
+    // Backspace over a point between thousands takes the digit before it.
+    c.value = const TextEditingValue(
+      text: '1.000.000',
+      selection: TextSelection.collapsed(offset: 6),
+    );
+    await tester.pump();
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '1.000000',
+        selection: TextSelection.collapsed(offset: 5),
+      ),
+    );
+    await tester.pump();
+    expect(c.text, '100.000');
+  });
+
+  testWidgets('rupiah pasted with points between thousands', (tester) async {
+    final idr = Currency.fromCode('IDR');
+    await pumpField(tester, idr);
+    await put(tester, '12.345');
+    expect(c.text, '12.345');
+    expect(parseAmount(c.text, idr), 1234500);
+  });
+
+  Future<void> typeKeys(WidgetTester tester, String keys) async {
+    for (final k in keys.split('')) {
+      await put(tester, k);
+    }
+  }
+
+  testWidgets('euros: the point key is the point, typed as tugrik is', (
+    tester,
+  ) async {
+    final eur = Currency.fromCode('EUR');
+    await pumpField(tester, eur);
+    await typeKeys(tester, '12.50');
+    expect(c.text, '12,50');
+    expect(parseAmount(c.text, eur), 1250);
+    c.clear();
+    await typeKeys(tester, '1234.95');
+    expect(c.text, '1.234,95');
+    expect(parseAmount(c.text, eur), 123495);
+    c.clear();
+    // Typed the German way, it reads the same.
+    await typeKeys(tester, '1.234,95');
+    expect(c.text, '1.234,95');
+  });
+
+  testWidgets('rupiah typed with its own points between thousands', (
+    tester,
+  ) async {
+    final idr = Currency.fromCode('IDR');
+    await pumpField(tester, idr);
+    await typeKeys(tester, '50.000');
+    expect(c.text, '50.000');
+    expect(parseAmount(c.text, idr), 5000000);
+    c.clear();
+    await typeKeys(tester, '1.000.000,95');
+    expect(c.text, '1.000.000,95');
+    expect(parseAmount(c.text, idr), 100000095);
+  });
+
+  testWidgets('tugrik: a comma typed is still between thousands', (
+    tester,
+  ) async {
+    await pumpField(tester);
+    await typeKeys(tester, '1,000');
+    expect(c.text, '1,000');
+    expect(parseAmount(c.text), 100000);
+    c.clear();
+    await typeKeys(tester, '12500.75');
+    expect(c.text, '12,500.75');
+  });
+
+  testWidgets('an amount on screen shows rupiah without ,00 and with cents '
+      'when there are some', (tester) async {
+    final idr = Currency.fromCode('IDR');
+    Future<String> shown(int minor) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Material(child: Money(minor, currency: idr)),
+        ),
+      );
+      return tester.widget<RichText>(find.byType(RichText)).text.toPlainText();
+    }
+
+    expect(await shown(100000000), 'Rp 1.000.000');
+    expect(await shown(100000095), 'Rp 1.000.000,95');
   });
 }

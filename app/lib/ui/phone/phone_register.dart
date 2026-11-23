@@ -1532,9 +1532,7 @@ class _RowEditState extends State<_RowEdit> {
   void initState() {
     super.initState();
     _payee = TextEditingController(text: _r.txnPayee ?? _r.payee);
-    _amount = TextEditingController(
-      text: groupTyped(typedOfMinor(_r.amount, _r.currency), const []).text,
-    );
+    _amount = TextEditingController(text: fieldTextOf(_r.amount, _r.currency));
     _memo = TextEditingController(text: _r.memo);
     // The line about money that came short follows what is typed.
     _amount.addListener(() {
