@@ -575,12 +575,14 @@ typedef PhoneActed = ({
 /// are going, and when Back up to… last worked.
 typedef PhoneBackups = ({BackupHealth health, CopiedElsewhere? elsewhere});
 
-/// A copy kept on the phone, for Restore from…: a daily copy, or what was
-/// there before a restore.
+/// A copy kept on the phone, for Restore from…: a daily copy, what was
+/// there before a restore or before Start over (#534 piece 5), or the
+/// folder's ledger before this phone's replaced it.
 typedef PhoneKeptCopy = ({
   String path,
   DateTime madeAt,
   bool beforeRestore,
+  bool beforeStartOver,
   bool fromFolder,
 });
 
@@ -980,6 +982,7 @@ class PhoneSync implements PhoneLedgerSource {
           path: f.path,
           madeAt: Backups.madeAtOf(f),
           beforeRestore: false,
+          beforeStartOver: false,
           fromFolder: false,
         ),
       for (final f in await backups.beforeRestore())
@@ -987,6 +990,15 @@ class PhoneSync implements PhoneLedgerSource {
           path: f.path,
           madeAt: Backups.madeAtOf(f),
           beforeRestore: true,
+          beforeStartOver: false,
+          fromFolder: false,
+        ),
+      for (final f in await backups.beforeNewLedger())
+        (
+          path: f.path,
+          madeAt: Backups.madeAtOf(f),
+          beforeRestore: false,
+          beforeStartOver: true,
           fromFolder: false,
         ),
       for (final f in await backups.fromFolder())
@@ -994,6 +1006,7 @@ class PhoneSync implements PhoneLedgerSource {
           path: f.path,
           madeAt: Backups.madeAtOf(f),
           beforeRestore: false,
+          beforeStartOver: false,
           fromFolder: true,
         ),
     ]..sort((a, b) => b.madeAt.compareTo(a.madeAt));

@@ -31,6 +31,18 @@ void main() {
       expect(c.scheme.id, defaultScheme.id);
     });
 
+    test('a phone started fresh keeps its look on the launches after '
+        'setup made its key', () async {
+      final file = File('${dir.path}/appearance');
+      await AppearanceController.loadForPhone(file, inUse: false);
+      final again = await AppearanceController.loadForPhone(
+        file,
+        inUse: true,
+      );
+      expect(again.value, Appearance.system);
+      expect(again.scheme.id, defaultScheme.id);
+    });
+
     test('a choice made in Settings is kept over the one a phone in use '
         'started with', () async {
       final file = File('${dir.path}/appearance');

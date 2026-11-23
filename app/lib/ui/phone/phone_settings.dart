@@ -14,19 +14,14 @@ void _openSettings(
 }) => unawaited(
   Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) =>
-          _SettingsPage(store: store, now: now, problems: problems),
+      builder: (_) => _SettingsPage(store: store, now: now, problems: problems),
     ),
   ),
 );
 
 /// A card of Settings: its title over what it holds.
 class _SettingsCard extends StatelessWidget {
-  const _SettingsCard({
-    super.key,
-    required this.title,
-    required this.children,
-  });
+  const _SettingsCard({super.key, required this.title, required this.children});
   final String title;
   final List<Widget> children;
 
@@ -218,20 +213,19 @@ class _SettingsPageState extends State<_SettingsPage> {
   @override
   void initState() {
     super.initState();
-    PackageInfo.fromPlatform().then(
-      (info) {
-        if (mounted) setState(() => _version = (info.version, info.buildNumber));
-      },
-      onError: (Object _) {},
-    );
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = (info.version, info.buildNumber));
+    }, onError: (Object _) {});
   }
 
-  Future<PhoneActed?> _act(PhoneRowAct act) async {
+  /// Runs [act]; with [quiet] (the page is closing, so nothing on it can
+  /// be shown) a failure is only logged.
+  Future<PhoneActed?> _act(PhoneRowAct act, {bool quiet = false}) async {
     try {
       return await store.actRow(act);
     } catch (e) {
       debugPrint('A setting on the phone wasn’t saved: $e');
-      if (mounted) {
+      if (!quiet && mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
@@ -431,7 +425,11 @@ class _SettingsPageState extends State<_SettingsPage> {
                 null => null,
               },
             ),
-            onSave: (v) => unawaited(_hadBefore(c, v)),
+            label: currencies.length > 1
+                ? t.settingsHadBeforeIn(c.code)
+                : t.settingsHadBefore,
+            onSave: (v, {required closing}) =>
+                unawaited(_hadBefore(c, v, closing: closing)),
           ),
         Text(
           began == null
@@ -444,23 +442,36 @@ class _SettingsPageState extends State<_SettingsPage> {
   }
 
   /// A figure typed takes the place of setup's, which followed the
-  /// accounts (#618).
-  Future<void> _hadBefore(Currency c, int? v) async {
-    final t = context.t;
+  /// accounts (#618). Saved too when the page closes with it typed, with
+  /// nothing said, since the page is gone; otherwise the toast says what it
+  /// made of Not assigned, so a figure mistyped shows at once.
+  Future<void> _hadBefore(Currency c, int? v, {bool closing = false}) async {
     final done = await _act(
       PhoneSetPrefs({
         BudgetKeys.hadBefore(c): v?.toString(),
         BudgetKeys.hadFrom(c): null,
       }),
+      quiet: closing,
     );
-    if (done == null || !mounted) return;
+    if (done == null || closing || !mounted) return;
+    final t = context.t;
+    final pool = done.snapshot.sums
+        .where((x) => x.pool.currency == c)
+        .firstOrNull
+        ?.pool;
+    final amount = formatMoney(v ?? 0, currency: c);
     _saidWithUndo(
       context,
       store,
       done,
       v == null
           ? t.settingsHadBeforeCleared
-          : t.settingsHadBeforeSet(formatMoney(v, currency: c)),
+          : pool == null
+          ? t.settingsHadBeforeSet(amount)
+          : t.settingsHadBeforeSetLeft(
+              amount,
+              formatMoney(pool.notAssigned, currency: c),
+            ),
       'had-before-done',
     );
   }
@@ -474,9 +485,14 @@ class _SettingsPageState extends State<_SettingsPage> {
       children: [
         _PhoneNameField(
           name: data.prefs[key] ?? '',
-          // Saved quietly, as the computer's names are.
-          onSave: (name) =>
-              unawaited(_act(PhoneSetPrefs({key: name.isEmpty ? null : name}))),
+          // Saved quietly, as the computer's names are, and when the page
+          // closes with it typed.
+          onSave: (name, {required closing}) => unawaited(
+            _act(
+              PhoneSetPrefs({key: name.isEmpty ? null : name}),
+              quiet: closing,
+            ),
+          ),
         ),
         const SizedBox(height: 8),
         Text(t.phoneSettingsNameNote, style: onest(14, color: Mid.ink2)),
@@ -526,10 +542,7 @@ class _SettingsPageState extends State<_SettingsPage> {
                     children: [
                       Text(a.name, style: onest(16, weight: 500)),
                       Text(
-                        formatMoney(
-                          data.balanceOf(a.id),
-                          currency: a.currency,
-                        ),
+                        formatMoney(data.balanceOf(a.id), currency: a.currency),
                         style: onest(14, color: Mid.ink2, tabular: true),
                       ),
                     ],
@@ -589,7 +602,15 @@ class _SettingsPageState extends State<_SettingsPage> {
       backgroundColor: Mid.ground,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _EraseAsk(data: data),
+      builder: (_) => _EraseAsk(
+        data: data,
+        // Moved from here to a folder: the others sharing it are erased
+        // too, said as the computer says it.
+        sharedIn: switch (store.shareActs?.folder()) {
+          null => null,
+          final at => at.name ?? at.address,
+        },
+      ),
     );
     if (keep == null || !mounted) return;
     final done = await _act(PhoneStartOver(keepCategories: keep));
@@ -686,11 +707,15 @@ class _PhoneHadBefore extends StatefulWidget {
     super.key,
     required this.currency,
     required this.amount,
+    required this.label,
     required this.onSave,
   });
   final Currency currency;
   final int? amount;
-  final ValueChanged<int?> onSave;
+  final String label;
+
+  /// [closing]: the page is going, so nothing can be said.
+  final void Function(int? amount, {required bool closing}) onSave;
 
   @override
   State<_PhoneHadBefore> createState() => _PhoneHadBeforeState();
@@ -718,20 +743,20 @@ class _PhoneHadBeforeState extends State<_PhoneHadBefore> {
     });
   }
 
-  void _save() {
+  void _save({bool closing = false}) {
     if (!_edited) return;
     final text = _controller.text.trim();
     final v = text.isEmpty ? null : parseAmount(text, widget.currency);
     // A minus is an overdrawn start, which setup can set (#617).
     if (text.isNotEmpty && v == null) {
-      if (mounted) setState(() => _wrong = true);
+      if (!closing && mounted) setState(() => _wrong = true);
       return;
     }
     final now = v == 0 ? null : v;
     _edited = false;
     if (now == _saved) return;
     _saved = now;
-    widget.onSave(now);
+    widget.onSave(now, closing: closing);
   }
 
   @override
@@ -747,7 +772,7 @@ class _PhoneHadBeforeState extends State<_PhoneHadBefore> {
 
   @override
   void dispose() {
-    _save();
+    _save(closing: true);
     _controller.dispose();
     _focus.dispose();
     super.dispose();
@@ -755,7 +780,6 @@ class _PhoneHadBeforeState extends State<_PhoneHadBefore> {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.t;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextField(
@@ -769,7 +793,7 @@ class _PhoneHadBeforeState extends State<_PhoneHadBefore> {
         inputFormatters: [GroupedAmount(widget.currency)],
         style: onest(16, color: Mid.ink, tabular: true),
         decoration: InputDecoration(
-          labelText: t.settingsHadBefore,
+          labelText: widget.label,
           labelStyle: onest(14, color: Mid.ink2),
           hintText: '0',
           suffixText: widget.currency.symbol,
@@ -789,7 +813,9 @@ class _PhoneHadBeforeState extends State<_PhoneHadBefore> {
 class _PhoneNameField extends StatefulWidget {
   const _PhoneNameField({required this.name, required this.onSave});
   final String name;
-  final ValueChanged<String> onSave;
+
+  /// [closing]: the page is going, so nothing can be said.
+  final void Function(String name, {required bool closing}) onSave;
 
   @override
   State<_PhoneNameField> createState() => _PhoneNameFieldState();
@@ -808,11 +834,11 @@ class _PhoneNameFieldState extends State<_PhoneNameField> {
     });
   }
 
-  void _save() {
+  void _save({bool closing = false}) {
     final v = _controller.text.trim();
     if (v == _saved) return;
     _saved = v;
-    widget.onSave(v);
+    widget.onSave(v, closing: closing);
   }
 
   @override
@@ -826,7 +852,7 @@ class _PhoneNameFieldState extends State<_PhoneNameField> {
 
   @override
   void dispose() {
-    _save();
+    _save(closing: true);
     _controller.dispose();
     _focus.dispose();
     super.dispose();
@@ -951,7 +977,11 @@ class _CheckKeyPageState extends State<_CheckKeyPage> {
             Text(
               opens ? t.startCheckYes : t.startCheckNo,
               key: const ValueKey('check-key-said'),
-              style: onest(16, weight: 600, color: opens ? Mid.green : Mid.coral),
+              style: onest(
+                16,
+                weight: 600,
+                color: opens ? Mid.green : Mid.coral,
+              ),
             ),
           ],
           const SizedBox(height: 20),
@@ -979,8 +1009,12 @@ class _CheckKeyPageState extends State<_CheckKeyPage> {
 /// categories kept or erased, then Cancel or Erase everything. Pops whether
 /// the categories stay, or null for Cancel.
 class _EraseAsk extends StatefulWidget {
-  const _EraseAsk({required this.data});
+  const _EraseAsk({required this.data, this.sharedIn});
   final LedgerData data;
+
+  /// The folder the ledger is shared in, or null while only this phone
+  /// has it.
+  final String? sharedIn;
 
   @override
   State<_EraseAsk> createState() => _EraseAskState();
@@ -1067,6 +1101,14 @@ class _EraseAskState extends State<_EraseAsk> {
             ),
             const SizedBox(height: 12),
             Text(t.ledgerStartWithNothing, style: onest(15)),
+            if (widget.sharedIn case final shared?) ...[
+              const SizedBox(height: 8),
+              Text(
+                t.ledgerEraseShared(shared),
+                key: const ValueKey('erase-shared'),
+                style: onest(15, weight: 600),
+              ),
+            ],
             if (categories > 0) ...[
               const SizedBox(height: 16),
               Text(

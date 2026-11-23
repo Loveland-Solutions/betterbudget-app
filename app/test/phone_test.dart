@@ -9892,7 +9892,9 @@ void main() {
       );
       expect(find.text('Stored in BetterBudget'), findsOneWidget);
       expect(
-        find.text('Nothing has opened it yet. When one does, it is named here.'),
+        find.text(
+          'Nothing has opened it yet. When one does, it is named here.',
+        ),
         findsOneWidget,
       );
       expect(find.byKey(const ValueKey('move-to-folder')), findsNothing);
@@ -9931,9 +9933,7 @@ void main() {
     });
 
     testWidgets('once another has opened it, it is named on the page and '
-        'the row; Move it back says the file stays, with Undo', (
-      tester,
-    ) async {
+        'the row; Move it back says the file stays, with Undo', (tester) async {
       final (store, fake) = await pumpShare(tester);
       fake
         ..where = 'content://drive/tree/ours'
@@ -10186,6 +10186,7 @@ void main() {
       bool alone = false,
       bool archived = false,
       ProblemLog? problems,
+      String? sharedIn,
     }) async {
       late AppDatabase db;
       late LedgerData data;
@@ -10214,6 +10215,9 @@ void main() {
       final source = _ActingSource(db, () => _now, (_) {});
       store.actRowIn = source.act;
       if (alone) store.backupActs = _FakeBackups(_now).acts(store);
+      if (sharedIn != null) {
+        store.shareActs = (_FakeShare()..where = sharedIn).acts();
+      }
       await _toBudget(tester);
       await tester.tap(find.byKey(const ValueKey('to-settings')));
       await tester.pumpAndSettle();
@@ -10245,9 +10249,7 @@ void main() {
     }
 
     testWidgets('the gear beside Accounts opens Settings: the computer\'s '
-        'cards in its order, Start over only where Backups is', (
-      tester,
-    ) async {
+        'cards in its order, Start over only where Backups is', (tester) async {
       await pumpSettings(tester, alone: true, archived: true);
       expect(find.text('Settings'), findsOneWidget);
       double top(String key) =>
@@ -10347,6 +10349,13 @@ void main() {
           await tester.runAsync<String?>(() => db.preference(key));
       expect(await pref(BudgetKeys.hadBefore(Currency.mnt)), '50000000');
       expect(find.byKey(const ValueKey('had-before-done')), findsOneWidget);
+      // What it made of Not assigned, so a figure mistyped shows at once.
+      expect(
+        find.textContaining(
+          'Had before the budget: ₮500,000.00 · Not assigned is now ',
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Undo'));
       await settle(tester);
       expect(await pref(BudgetKeys.hadBefore(Currency.mnt)), isNull);
@@ -10357,6 +10366,25 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle(tester);
       expect(await pref('$phoneNamePrefix${store.device}'), 'Pixel');
+    });
+
+    testWidgets('a figure or name typed and left with Back is saved', (
+      tester,
+    ) async {
+      final (store, db, _, _) = await pumpSettings(tester);
+      final field = find.byKey(const ValueKey('had-before-field-MNT'));
+      await tapShown(tester, field);
+      await tester.enterText(field, '700000');
+      final name = find.byKey(const ValueKey('phone-name-field'));
+      await tapShown(tester, name);
+      await tester.enterText(name, 'Pixel');
+      await tester.pageBack();
+      await settle(tester);
+      Future<String?> pref(String key) =>
+          tester.runAsync<String?>(() => db.preference(key)).then((v) => v);
+      expect(await pref(BudgetKeys.hadBefore(Currency.mnt)), '70000000');
+      expect(await pref('$phoneNamePrefix${store.device}'), 'Pixel');
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('an archived account is shown in Accounts again, with Undo', (
@@ -10412,6 +10440,7 @@ void main() {
     testWidgets('Start over says what goes, Cancel keeps it, Erase '
         'everything erases with Undo', (tester) async {
       final (_, db, _, _) = await pumpSettings(tester, alone: true);
+      expect(find.byKey(const ValueKey('erase-shared')), findsNothing);
       Future<int> rows() async =>
           (await tester.runAsync(db.loadLedger))!.txns.length;
       final before = await rows();
@@ -10434,8 +10463,21 @@ void main() {
       await settle(tester);
       expect(await rows(), before);
     });
-  });
 
+    testWidgets('Start over on a ledger moved from here to a folder says '
+        'the others sharing it are erased too', (tester) async {
+      await pumpSettings(tester, alone: true, sharedIn: 'My Drive/BB');
+      await tapShown(tester, find.byKey(const ValueKey('start-over')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'The other computers and phones that share BetterBudget are erased '
+          'too. What they changed and haven’t sent yet comes in afterwards.',
+        ),
+        findsOneWidget,
+      );
+    });
+  });
 }
 
 bool _same(Uint8List a, Uint8List b) {
@@ -10540,12 +10582,14 @@ class _FakeBackups {
         path: '/own/Backups/betterbudget-20261007-081000.betterbudget',
         madeAt: DateTime(2026, 10, 7, 8, 10),
         beforeRestore: false,
+        beforeStartOver: false,
         fromFolder: false,
       ),
       (
         path: '/own/Backups/before-restore-20261006-140500.betterbudget',
         madeAt: DateTime(2026, 10, 6, 14, 5),
         beforeRestore: true,
+        beforeStartOver: false,
         fromFolder: false,
       ),
     ],

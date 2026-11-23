@@ -4584,12 +4584,12 @@ class WordsMn extends Words {
 
   @override
   String settingsHadBeforeHintOn(String date) {
-    return 'Төсөв $date-с хойш орж ирсэн орлогыг тоолно. Тэр өдөр танд аль хэдийн байсан мөнгө энд бичих хүртэл тоологдохгүй.';
+    return 'Төсөв $date-с хойш орж ирсэн орлого болон тэр өдөр танд байсан, энд бичсэн мөнгийг ашиглана.';
   }
 
   @override
   String get settingsHadBeforeHintOff =>
-      'Төсөв анх мөнгө хуваарилсан өдрөөс хойш орж ирсэн орлогыг тоолно. Тэр өдөр танд аль хэдийн байсан мөнгө энд бичих хүртэл тоологдохгүй.';
+      'Төсөв анх мөнгө хуваарилсан өдрөөс хойш орж ирсэн орлого болон тэр өдөр танд байсан, энд бичсэн мөнгийг ашиглана.';
 
   @override
   String settingsHadBeforeSet(String amount) {
@@ -4598,7 +4598,7 @@ class WordsMn extends Words {
 
   @override
   String get settingsHadBeforeCleared =>
-      'Төсөв эхлэхэд байсан мөнгийг тоолохоо больсон';
+      'Төсөв эхлэхэд байсан мөнгийг ашиглахаа больсон';
 
   @override
   String get planSumFromPay => 'Өмнөх орлогын үеийн үлдэгдэл';
@@ -8371,5 +8371,20 @@ class WordsMn extends Words {
   @override
   String phoneBackInAccounts(String name) {
     return '$name Данс руу буцаж орлоо';
+  }
+
+  @override
+  String settingsHadBeforeSetLeft(String amount, String left) {
+    return 'Төсөв эхлэхэд байсан мөнгө: $amount · Хуваарилаагүй мөнгө одоо $left';
+  }
+
+  @override
+  String settingsHadBeforeIn(String currency) {
+    return 'Төсөв эхлэхэд байсан мөнгө, $currency-р';
+  }
+
+  @override
+  String phoneCopyBeforeStartOver(String when) {
+    return '$when · Шинээр эхлэхээс өмнө хадгалсан';
   }
 }

@@ -6998,7 +6998,7 @@
   "@settingsHadBefore": {
     "description": "Settings' Budget card: the label of a box for the money the household already had when the budget began, in cash and the bank (#461). The owner's own words."
   },
-  "settingsHadBeforeHintOn": "The budget counts the income that comes in from {date} on. Money you already had that day doesn’t count until you type it here.",
+  "settingsHadBeforeHintOn": "The budget uses the income that comes in from {date} on, and the money you had that day, typed here.",
   "@settingsHadBeforeHintOn": {
     "description": "Settings' Budget card, under Had before the budget, once the budget has begun. {date} is the day it began, like 10.01.",
     "placeholders": {
@@ -7007,7 +7007,7 @@
       }
     }
   },
-  "settingsHadBeforeHintOff": "The budget counts the income that comes in from the day you first assign money. Money you already had that day doesn’t count until you type it here.",
+  "settingsHadBeforeHintOff": "The budget uses the income that comes in from the day you first assign money, and the money you had that day, typed here.",
   "@settingsHadBeforeHintOff": {
     "description": "Settings' Budget card, under Had before the budget, before any money is assigned."
   },
@@ -7020,7 +7020,7 @@
       }
     }
   },
-  "settingsHadBeforeCleared": "Had before the budget no longer counted",
+  "settingsHadBeforeCleared": "Had before the budget no longer used",
   "@settingsHadBeforeCleared": {
     "description": "Toast after the amount had before the budget is emptied in Settings: it no longer counts."
   },
@@ -12688,6 +12688,36 @@
     "description": "Phone Settings: snack bar after an archived account is shown in Accounts again.",
     "placeholders": {
       "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsHadBeforeSetLeft": "Had before the budget: {amount} · Not assigned is now {left}",
+  "@settingsHadBeforeSetLeft": {
+    "description": "Phone Settings: toast after Had before the budget is saved; left is the budget's Not assigned after it, such as ₮2,500,000 or −₮300,000.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "left": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsHadBeforeIn": "Had before the budget, in {currency}",
+  "@settingsHadBeforeIn": {
+    "description": "Phone Settings: the label of Had before the budget when the budget has more than one currency; currency is its code, such as USD.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneCopyBeforeStartOver": "{when} · saved before Start over",
+  "@phoneCopyBeforeStartOver": {
+    "description": "Phone, Backups page: a copy kept on the phone, saved just before Settings' Start over erased the ledger. when reads Today 08:10.",
+    "placeholders": {
+      "when": {
         "type": "String"
       }
     }

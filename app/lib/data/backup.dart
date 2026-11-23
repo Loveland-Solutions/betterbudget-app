@@ -742,6 +742,12 @@ class Backups {
   Future<List<File>> beforeRestore() =>
       _files(RegExp(r'^before-restore-\d{8}-\d{6}\.(?:sqlite|betterbudget)$'));
 
+  /// The copies saved before Start over erased the ledger, newest first:
+  /// what its Undo puts back, for Restore from… once Undo is gone.
+  Future<List<File>> beforeNewLedger() => _files(
+    RegExp(r'^before-new-ledger-\d{8}-\d{6}\.(?:sqlite|betterbudget)$'),
+  );
+
   /// The ledgers saved from a folder before they were replaced there,
   /// newest first ([keepFromFolder]).
   Future<List<File>> fromFolder() => _files(

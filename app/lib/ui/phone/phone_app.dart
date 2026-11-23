@@ -378,6 +378,27 @@ class PhoneStore extends ChangeNotifier {
     if (into == null) throw UnsupportedError('No ledger to edit');
     await settle?.call();
     final done = await into(act);
+    if (act is PhoneStartOver) {
+      // As a restore: what was taken in before is in what was erased, and
+      // Undo brings it back as it was, so a Remove would act on rows the
+      // erase already settled.
+      _tookBy.clear();
+      final undo = done.undo, redo = done.redo;
+      _snapshot = done.snapshot;
+      _changes++;
+      notifyListeners();
+      return (
+        snapshot: done.snapshot,
+        undo: () {
+          _tookBy.clear();
+          return undo();
+        },
+        redo: () {
+          _tookBy.clear();
+          return redo();
+        },
+      );
+    }
     _snapshot = done.snapshot;
     _changes++;
     notifyListeners();

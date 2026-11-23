@@ -8286,6 +8286,21 @@ with A").
   it showed, dark Blue eclipse, until someone changes it there, so nothing changes under
   a person mid-use; a phone started fresh begins as the computer does, in the app's own
   colors and the phone's light or dark.
+- **From the reviews** (decided along the lines above):
+  - Start over on a ledger moved from this phone to a folder says, as the computer's
+    does, that the others sharing it are erased too. A phone that joined someone else's
+    folder has no Start over: it keeps no Backups to put it back from.
+  - The copy saved before Start over is listed on the phone's Backups page ("saved
+    before Start over"), so Restore from… reaches it once the toast's Undo is gone.
+  - Had before the budget's toast says what it made of Not assigned ("· Not assigned is
+    now ₮2,500,000"), so a mistyped figure shows at once; with two currencies each box
+    names its own. Its hint says the budget **uses** income and the money had that day
+    (both platforms), not "counts" (the owner's correction in setup's Money you have).
+  - A figure or name typed and left with Back is saved, with nothing said, since the
+    page is gone; the computer's boxes save the same way when Settings is left.
+  - The look file is written on a phone's first launch either way, so only a phone from
+    before Settings starts in dark Blue eclipse; a fresh phone keeps its own look once
+    setup has made its key.
 - **Rejected:** B (a tap more for every change, and its headings name nothing the
   computer's Settings calls them); C (things a person looks for in one place scattered over
   three pages, and the words that say "in Settings" would point nowhere).

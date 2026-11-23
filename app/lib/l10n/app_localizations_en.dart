@@ -4759,12 +4759,12 @@ class WordsEn extends Words {
 
   @override
   String settingsHadBeforeHintOn(String date) {
-    return 'The budget counts the income that comes in from $date on. Money you already had that day doesn’t count until you type it here.';
+    return 'The budget uses the income that comes in from $date on, and the money you had that day, typed here.';
   }
 
   @override
   String get settingsHadBeforeHintOff =>
-      'The budget counts the income that comes in from the day you first assign money. Money you already had that day doesn’t count until you type it here.';
+      'The budget uses the income that comes in from the day you first assign money, and the money you had that day, typed here.';
 
   @override
   String settingsHadBeforeSet(String amount) {
@@ -4772,8 +4772,7 @@ class WordsEn extends Words {
   }
 
   @override
-  String get settingsHadBeforeCleared =>
-      'Had before the budget no longer counted';
+  String get settingsHadBeforeCleared => 'Had before the budget no longer used';
 
   @override
   String get planSumFromPay => 'From the pay period before';
@@ -8661,5 +8660,20 @@ class WordsEn extends Words {
   @override
   String phoneBackInAccounts(String name) {
     return '$name back in Accounts';
+  }
+
+  @override
+  String settingsHadBeforeSetLeft(String amount, String left) {
+    return 'Had before the budget: $amount · Not assigned is now $left';
+  }
+
+  @override
+  String settingsHadBeforeIn(String currency) {
+    return 'Had before the budget, in $currency';
+  }
+
+  @override
+  String phoneCopyBeforeStartOver(String when) {
+    return '$when · saved before Start over';
   }
 }

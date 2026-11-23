@@ -436,6 +436,22 @@ void main() {
           .map((f) => f.path.split('/').last),
       contains(startsWith('before-restore-')),
     );
+
+    // Settings' Start over (#534 piece 5): a copy saved first, listed for
+    // Restore from… once the toast's Undo is gone, and Undo brings it all
+    // back.
+    final wednesday = tuesday.add(const Duration(days: 1));
+    final erased = await alone.actOnRow(
+      const PhoneStartOver(keepCategories: true),
+      wednesday,
+    );
+    expect(await names(), isEmpty);
+    expect(
+      (await alone.keptCopies()).where((c) => c.beforeStartOver),
+      hasLength(1),
+    );
+    await erased.undo();
+    expect(await names(), ['Khan Checking']);
   });
 
   test(

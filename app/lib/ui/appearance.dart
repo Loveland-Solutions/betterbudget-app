@@ -54,14 +54,19 @@ class AppearanceController extends ChangeNotifier {
     File file, {
     required bool inUse,
   }) async {
-    if (inUse && !file.existsSync()) {
-      final kept = AppearanceController(
-        initial: Appearance.dark,
-        scheme: blueEclipseScheme,
-        file: file,
-      );
-      await kept._changed();
-      return kept;
+    if (!file.existsSync()) {
+      // Written at once either way, so the file's absence only ever means
+      // a phone from before Settings: a phone started fresh keeps its look
+      // once setup has made its key.
+      final first = inUse
+          ? AppearanceController(
+              initial: Appearance.dark,
+              scheme: blueEclipseScheme,
+              file: file,
+            )
+          : AppearanceController(file: file);
+      await first._changed();
+      return first;
     }
     return load(file);
   }
