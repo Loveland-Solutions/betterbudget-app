@@ -3197,6 +3197,30 @@ abstract class Words {
   /// **'From {account}'**
   String rowsScheduledTransferFrom(String account);
 
+  /// Tooltip on the small bank before a register row's cleared mark, on a row that came from a bank file (#557)
+  ///
+  /// In en, this message translates to:
+  /// **'Brought in from the bank\'s file.'**
+  String get rowsBankTipImported;
+
+  /// Tooltip on the small bank before a register row's cleared mark, on a row a bank's file has, when the bank's day isn't the row's own; date is the bank's (#557)
+  ///
+  /// In en, this message translates to:
+  /// **'The bank\'s file has this row, dated {date}.'**
+  String rowsBankTipMatched(String date);
+
+  /// As rowsBankTipMatched, for a bank whose file gives its rows ids instead of dates
+  ///
+  /// In en, this message translates to:
+  /// **'The bank\'s file has this row.'**
+  String get rowsBankTipMatchedNoDay;
+
+  /// Tooltip on the small bank before a register row's cleared mark, when the row's amount was changed after the bank's file matched it (#557)
+  ///
+  /// In en, this message translates to:
+  /// **'The bank\'s file has this row as {amount}, dated {date}.'**
+  String rowsBankTipOtherAmount(String amount, String date);
+
   /// Tooltip on the calendar symbol of a scheduled register row
   ///
   /// In en, this message translates to:

@@ -2310,6 +2310,22 @@ class WordsEn extends Words {
   }
 
   @override
+  String get rowsBankTipImported => 'Brought in from the bank\'s file.';
+
+  @override
+  String rowsBankTipMatched(String date) {
+    return 'The bank\'s file has this row, dated $date.';
+  }
+
+  @override
+  String get rowsBankTipMatchedNoDay => 'The bank\'s file has this row.';
+
+  @override
+  String rowsBankTipOtherAmount(String amount, String date) {
+    return 'The bank\'s file has this row as $amount, dated $date.';
+  }
+
+  @override
   String get rowsScheduledTip =>
       'Scheduled — not in any balance until confirmed';
 

@@ -52,7 +52,7 @@ import 'package:betterbudget/domain/payee_rules.dart'
 import 'package:betterbudget/domain/phone.dart';
 import 'package:betterbudget/domain/readiness.dart' show ReadyKeys, isGoal;
 import 'package:betterbudget/domain/sync.dart' show MadeHow;
-import 'package:betterbudget/import/mapping.dart' show ImportRow;
+import 'package:betterbudget/import/mapping.dart' show ImportRow, importKeys;
 import 'package:betterbudget/phone_preview.dart';
 import 'package:betterbudget/ui/appearance.dart';
 import 'package:betterbudget/ui/language.dart';
@@ -983,6 +983,67 @@ void main() {
     await expectLater(
       find.byType(PhoneApp),
       matchesGoldenFile('goldens/phone_budget.png'),
+    );
+  });
+
+  testWidgets("the register's rows a bank's file has show the small bank "
+      'before the cleared mark, as on the computer (#557)', (tester) async {
+    final data = (await tester.runAsync(() async {
+      final db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      final d = await db.loadLedger();
+      final bank = d.accounts.values
+          .firstWhere((a) => a.name == 'TDB Checking')
+          .id;
+      final groceries = d.accounts.values
+          .firstWhere((a) => a.name == 'Groceries')
+          .id;
+      await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 10, 7),
+        today: _now,
+        payee: 'Zzz typed',
+        counterAccountId: groceries,
+        amount: -43210,
+      );
+      final rows = [
+        ImportRow(
+          sourceRow: 0,
+          date: DateTime(2026, 10, 7),
+          amount: -43210,
+          payee: 'ZZZ POS',
+        ),
+        ImportRow(
+          sourceRow: 1,
+          date: DateTime(2026, 10, 7),
+          amount: -1200,
+          payee: 'Zzz fee',
+        ),
+      ];
+      final plan = await db.planImport(bank, rows, importKeys(bank, rows));
+      await db.applyImport(
+        accountId: bank,
+        plan: plan.rows,
+        uncategorizedNames: ['Not categorized'],
+      );
+      final out = await db.loadLedger();
+      await db.close();
+      return out;
+    }))!;
+    await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    expect(find.byType(BankGlyph), findsNWidgets(2));
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Tooltip && w.message == "Brought in from the bank's file.",
+      ),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_register_bank.png'),
     );
   });
 

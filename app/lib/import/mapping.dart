@@ -661,6 +661,29 @@ List<String> importKeys(int accountId, List<ImportRow> rows) {
   ];
 }
 
+/// What an import key holds ([importKeys]): the account it was made for,
+/// the bank's day for its row and its amount there. Day and amount are null
+/// for a bank that names rows by its own id; all are null for a key not of
+/// this form.
+({int? account, DateTime? day, int? amount}) importKeyParts(String key) {
+  final parts = key.split('|');
+  final account = parts.first.startsWith('a')
+      ? int.tryParse(parts.first.substring(1))
+      : null;
+  if (parts.length < 3 || parts[1] == 'id') {
+    return (account: account, day: null, amount: null);
+  }
+  final d = DateTime.tryParse(parts[1]);
+  return (
+    account: account,
+    day: d == null ? null : DateTime(d.year, d.month, d.day),
+    amount: d == null ? null : int.tryParse(parts[2]),
+  );
+}
+
+/// The bank's day in an import key, as [importKeyParts] reads it.
+DateTime? importKeyDay(String key) => importKeyParts(key).day;
+
 // ---------------------------------------------------------------- shape
 
 /// What a file of this layout looks like, to know a saved mapping fits: the

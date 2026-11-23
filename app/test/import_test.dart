@@ -646,6 +646,21 @@ void main() {
         'a7|2026-09-01|-500|Кофе|#2',
       ]);
     });
+
+    test("a key's day is the bank's date; a bank's own id has none", () {
+      expect(importKeyDay('a7|2026-09-01|-500|Кофе|#2'), DateTime(2026, 9, 1));
+      expect(
+        importKeyDay('a7|2026-09-01T14:30:00.000|-500|9000'),
+        DateTime(2026, 9, 1),
+      );
+      expect(importKeyDay('a7|id|20260901-0042'), isNull);
+      expect(importKeyDay('not a key'), isNull);
+      final parts = importKeyParts('a7|2026-09-01|-500|9000');
+      expect(parts.account, 7);
+      expect(parts.amount, -500);
+      expect(importKeyParts('a7|id|x').account, 7);
+      expect(importKeyParts('a7|id|x').amount, isNull);
+    });
   });
 
   group('writing an import', () {
@@ -787,6 +802,128 @@ void main() {
       );
       data = await db.loadLedger();
       expect(data.accounts[record.madeCategory]!.deleted, isFalse);
+    });
+
+    test("a row a bank's file has says so on the register; moved, it "
+        "doesn't (#557)", () async {
+      final typed = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 2),
+        today: DateTime(2026, 9, 30),
+        payee: 'Nomin',
+        counterAccountId: groceries,
+        amount: -1250000,
+      );
+      final byHand = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 3),
+        today: DateTime(2026, 9, 30),
+        payee: 'Unitel',
+        counterAccountId: groceries,
+        amount: -30000,
+      );
+      final rows = [row(3, -1250000, 'НОМИН POS'), row(5, -25000, 'Fee')];
+      await db.applyImport(
+        accountId: bank,
+        plan: await plan(rows),
+        uncategorizedNames: ['Not categorized'],
+      );
+      RegisterRow rowOf(LedgerData d, bool Function(RegisterRow) f) =>
+          d.registerFor(bank).posted.firstWhere(f);
+
+      var data = await db.loadLedger();
+      final matched = rowOf(data, (r) => r.txnId == typed);
+      expect(matched.inBankFile, isTrue);
+      // The bank's day, not the typed one.
+      expect(matched.bankDay, DateTime(2026, 9, 3));
+      final fee = rowOf(data, (r) => r.payee == 'Fee');
+      expect(fee.inBankFile, isTrue);
+      expect(fee.madeHow, 'imported');
+      expect(rowOf(data, (r) => r.txnId == byHand).inBankFile, isFalse);
+      expect(
+        data
+            .registerAll()
+            .posted
+            .firstWhere((r) => r.txnId == typed)
+            .inBankFile,
+        isTrue,
+      );
+
+      // An amount changed after the match keeps the bank's.
+      await db.editTransaction(
+        transactionId: typed,
+        accountId: bank,
+        date: DateTime(2026, 9, 2),
+        today: DateTime(2026, 9, 30),
+        counterAccountId: groceries,
+        amount: -1300000,
+      );
+      data = await db.loadLedger();
+      expect(rowOf(data, (r) => r.txnId == typed).bankAmount, -1250000);
+
+      // Moved to an account whose bank never had it: no mark there.
+      final card = await db.createAccount(
+        name: 'Card',
+        type: AccountType.liability,
+      );
+      await db.moveToAccount(
+        transactionId: typed,
+        fromAccountId: bank,
+        toAccountId: card,
+      );
+      data = await db.loadLedger();
+      expect(data.registerFor(card).posted.single.inBankFile, isFalse);
+    });
+
+    test('All accounts keeps the bank on a transfer one side of which a '
+        "bank's file has (#557)", () async {
+      final card = await db.createAccount(
+        name: 'Card',
+        type: AccountType.liability,
+      );
+      final moved = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 2),
+        today: DateTime(2026, 9, 30),
+        payee: '',
+        counterAccountId: card,
+        amount: -500000,
+      );
+      await db.applyImport(
+        accountId: bank,
+        plan: await plan([row(2, -500000, 'CARD PAYMENT')]),
+        uncategorizedNames: ['Not categorized'],
+      );
+      final all = (await db.loadLedger()).registerAll().posted.firstWhere(
+        (r) => r.txnId == moved,
+      );
+      // Shown from the card's side, still uncleared, with the bank's mark.
+      expect(all.cleared, Cleared.uncleared);
+      expect(all.inBankFile, isTrue);
+    });
+
+    test('undo of an import takes the mark off (#557)', () async {
+      final typed = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 2),
+        today: DateTime(2026, 9, 30),
+        payee: 'Nomin',
+        counterAccountId: groceries,
+        amount: -1250000,
+      );
+      final record = await db.applyImport(
+        accountId: bank,
+        plan: await plan([row(3, -1250000, 'НОМИН POS')]),
+        uncategorizedNames: ['Not categorized'],
+      );
+      bool marked(LedgerData d) => d
+          .registerFor(bank)
+          .posted
+          .firstWhere((r) => r.txnId == typed)
+          .inBankFile;
+      expect(marked(await db.loadLedger()), isTrue);
+      await db.undoImport(record);
+      expect(marked(await db.loadLedger()), isFalse);
     });
 
     group('a bill waiting for Confirm (#597)', () {

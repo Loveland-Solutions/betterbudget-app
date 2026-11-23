@@ -212,11 +212,25 @@ class EntryData {
     this.cleared = Cleared.uncleared,
     this.reconciliationId,
     this.currency = Currency.mnt,
+    this.inBankFile = false,
+    this.bankDay,
+    this.bankAmount,
   });
 
   final int id;
   final int accountId;
   final Currency currency;
+
+  /// A bank's file has this entry: it came from one, or an import matched
+  /// it to a row the person typed (its import key is set, #557).
+  final bool inBankFile;
+
+  /// The day the bank's file gave it, when its key says (not for a bank
+  /// that names rows by its own id).
+  final DateTime? bankDay;
+
+  /// The amount the bank's file gave, when its key says.
+  final int? bankAmount;
 
   /// The reconcile that locked this entry.
   final int? reconciliationId;
@@ -326,11 +340,20 @@ class RegisterRow {
     this.madeOn,
     this.bankPayee,
     this.counted,
+    this.inBankFile = false,
+    this.bankDay,
+    this.bankAmount,
   });
 
   /// A count of a cash account: what was counted on the row's day; the
   /// row's amount is the difference (#119). Null on every other row.
   final int? counted;
+
+  /// A bank's file has this side of the row, and the day it gave (#557):
+  /// see [EntryData.inBankFile].
+  final bool inBankFile;
+  final DateTime? bankDay;
+  final int? bankAmount;
 
   /// Where the transaction came from, as [TxnData] holds it.
   final String? madeHow;
@@ -444,6 +467,9 @@ class RegisterRow {
     required int entryId,
     required Cleared cleared,
     required String clearedIn,
+    required bool inBankFile,
+    DateTime? bankDay,
+    int? bankAmount,
   }) => RegisterRow(
     txnId: txnId,
     entryId: entryId,
@@ -479,6 +505,9 @@ class RegisterRow {
     madeOn: madeOn,
     bankPayee: bankPayee,
     counted: counted,
+    inBankFile: inBankFile,
+    bankDay: bankDay,
+    bankAmount: bankAmount,
   );
 
   /// The same row on another day, or for another amount: a payday or a
@@ -520,6 +549,9 @@ class RegisterRow {
         madeOn: madeOn,
         bankPayee: bankPayee,
         counted: counted,
+        inBankFile: inBankFile,
+        bankDay: bankDay,
+        bankAmount: bankAmount,
       );
 
   RegisterRow withBalance(int b, {int clearedTotal = 0}) => RegisterRow(
@@ -556,6 +588,9 @@ class RegisterRow {
     madeOn: madeOn,
     bankPayee: bankPayee,
     counted: counted,
+    inBankFile: inBankFile,
+    bankDay: bankDay,
+    bankAmount: bankAmount,
   );
 }
 
@@ -1822,6 +1857,10 @@ class LedgerData {
             entryId: other.id,
             cleared: other.cleared,
             clearedIn: accounts[other.accountId]!.name,
+            // The bank stays if either side's file has it (#557).
+            inBankFile: other.inBankFile || row.inBankFile,
+            bankDay: other.inBankFile ? other.bankDay : row.bankDay,
+            bankAmount: other.inBankFile ? other.bankAmount : row.bankAmount,
           );
         }
       }
@@ -1990,6 +2029,9 @@ class LedgerData {
       madeOn: t.madeOn,
       bankPayee: t.bankPayee,
       counted: t.counted,
+      inBankFile: e.inBankFile,
+      bankDay: e.bankDay,
+      bankAmount: e.bankAmount,
       estimate: switch (_schedulesById[t.payScheduleId]) {
         final p? when p.varies => p.amountOn(t.date),
         _ => null,

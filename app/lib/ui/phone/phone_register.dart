@@ -880,7 +880,18 @@ class _RegisterState extends State<_RegisterScreen> {
                 constraints: const BoxConstraints(minHeight: 44),
                 child: Row(
                   children: [
-                    if (reconciling)
+                    if (reconciling) ...[
+                      // The bank stays beside the tick while reconciling,
+                      // when it says the most (#557).
+                      SizedBox(
+                        width: 14,
+                        child: r.inBankFile
+                            ? Tooltip(
+                                message: bankTip(t, r),
+                                child: const BankGlyph(),
+                              )
+                            : null,
+                      ),
                       // The symbol is the button here: a tap clears the row
                       // or takes that back; the rest of the row still opens.
                       Semantics(
@@ -918,14 +929,27 @@ class _RegisterState extends State<_RegisterScreen> {
                             ),
                           ),
                         ),
-                      )
-                    else
+                      ),
+                    ] else ...[
+                      // The bank before the cleared mark, as on the
+                      // computer (#557); its place kept so names line up.
+                      SizedBox(
+                        width: 14,
+                        child: r.inBankFile
+                            ? Tooltip(
+                                message: bankTip(t, r),
+                                child: const BankGlyph(),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 6),
                       StatusGlyph(
                         r.cleared,
                         color: r.cleared == Cleared.reconciled
                             ? Mid.gold
                             : null,
                       ),
+                    ],
                     SizedBox(width: reconciling ? 6 : 12),
                     Expanded(
                       child: Column(

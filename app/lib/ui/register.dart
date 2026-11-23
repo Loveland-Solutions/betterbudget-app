@@ -26,7 +26,9 @@ enum RegisterFilter {
 
 /// Column layout shared by the header, entry row and every register row.
 abstract final class Cols {
-  static const status = 24.0;
+  /// The bank mark's place (#557), then the cleared mark's, 24 wide.
+  static const bank = 20.0;
+  static const status = bank + 24.0;
   static const date = 114.0;
   // Kept to what they hold, so the payee has room in the smallest window.
   static const category = 190.0;
@@ -1464,7 +1466,20 @@ class _PostedRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: _onFirstLine([
                       SizedBox(
-                        width: Cols.status,
+                        width: Cols.bank,
+                        height: 28,
+                        child: r.inBankFile
+                            ? Align(
+                                alignment: Alignment.centerLeft,
+                                child: Tooltip(
+                                  message: bankTip(t, r),
+                                  child: const BankGlyph(),
+                                ),
+                              )
+                            : null,
+                      ),
+                      SizedBox(
+                        width: Cols.status - Cols.bank,
                         child: cash
                             ? null
                             : MouseRegion(
@@ -1921,8 +1936,9 @@ class _ScheduledRow extends StatelessWidget {
                     constraints: const BoxConstraints(minHeight: 46),
                     child: Row(
                       children: [
+                        const SizedBox(width: Cols.bank),
                         SizedBox(
-                          width: Cols.status,
+                          width: Cols.status - Cols.bank,
                           child: Tooltip(
                             message: t.rowsScheduledTip,
                             child: Icon(

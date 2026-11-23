@@ -8388,3 +8388,37 @@ the rest of that section stands.
 - **Rejected:** B, the parts in a block under the row with one button under them naming
   where the rest goes: the block starts at the Category column, leaving the width under
   Date and Payee empty.
+
+## A small bank before the cleared mark: the bank's file has this row (owner, 2026-11-23, #557)
+
+Owner, 2026-11-20: "We need some kind of a nice icon to show in the very left ledger
+column when we import a transaction from the bank that matches what is in the ledger."
+Three sketches were drawn; the owner picked **B**.
+
+- **Chosen (B):** a small bank in blue, the color of **Import transactions…**, stands
+  before the cleared mark on every row a bank's file has: a row typed here (or on a
+  phone) that an import matched, and a row brought in from the file. The cleared mark
+  keeps its own job and is unchanged; the bank never leaves the row, so a reconciled
+  month still shows which rows the bank had. Pointing at it says "Brought in from the
+  bank's file." or "The bank's file has this row, dated 09.15." (the bank's day, from
+  the row's import key, said only when it isn't the row's own; a bank that names rows
+  by its own id gives no day). A row brought in before v21 has no word for how it was
+  made, so it reads "The bank's file has this row." rather than "Brought in". The bank does nothing on a click. The left column grows by
+  20 points, taken from Payee. The phone's Ledger tab shows the same bank before the
+  mark.
+- Which rows: the owner asked for matched rows; rows brought in were added so the bank
+  always means "the bank has this row", and a check without it is cleared on the
+  person's word alone.
+- Nothing new is stored: the mark reads the import key a match already saves on the
+  row's side (`entries.import_key`), so Undo of the import takes the mark off with it.
+  The file's name isn't kept, so the line doesn't name it.
+- Refined after the reviews: an amount changed after the match
+  is said with the bank's ("The bank's file has this row as −₮45,200, dated 09.15.");
+  a row moved to another account loses the bank there, since that account's bank
+  never had it (the key names the account it was made for); the phone keeps the bank
+  beside the tick while reconciling; All accounts keeps the bank on a transfer whose
+  other side its file has. A matched row marked uncleared by hand keeps both
+  marks: both are true.
+- **Rejected (A):** the check itself turning into a blue disc for a row the bank
+  cleared, the diamond taking over once reconciled. **Rejected (C):** a blue dot at the
+  corner of whatever mark the row has.
