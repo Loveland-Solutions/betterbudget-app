@@ -8222,3 +8222,8 @@ Open ledger, type your recovery key, choose the same folder. The owner picked **
   intro no longer names Google Drive twice. Replace says the ledger saved on the phone
   opens only with its own key. Who has opened it is kept on the phone between launches.
   A folder on the phone itself isn't counted as a backup (Android).
+- **The recovery key isn't shown again** (owner, 2026-11-23: "It's irreversibly
+  encrypted"). Asked whether a phone should show the key again after its own unlock so a
+  spouse could type it, the owner said no: the phone keeps only the data key worked out
+  from it, one way (`deriveDataKey`), so there is nothing to show. Step 2's note stays:
+  the other person needs the key that was kept off the phone.
