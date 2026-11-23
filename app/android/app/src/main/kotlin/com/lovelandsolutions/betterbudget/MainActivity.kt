@@ -26,11 +26,45 @@ class MainActivity : FlutterActivity() {
             if (call.method == "take") result.success(IncomingFile.take()) else result.notImplemented()
         }
         IncomingFile.onArrived = { incoming.invokeMethod("arrived", null) }
+        secretChannel(flutterEngine)
         // Android's version for Report a problem… (lib/data/report_problem.dart).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "betterbudget/system")
             .setMethodCallHandler { call, result ->
                 if (call.method == "release") result.success(android.os.Build.VERSION.RELEASE)
                 else result.notImplemented()
+            }
+    }
+
+    // A secret (the recovery key) copied marked sensitive, so Android 13+ keeps
+    // it out of the copy preview and the keyboard's clipboard history.
+    private fun secretChannel(flutterEngine: FlutterEngine) {
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "betterbudget/secret")
+            .setMethodCallHandler { call, result ->
+                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                    as android.content.ClipboardManager
+                val text: String = call.argument("text") ?: ""
+                when (call.method) {
+                    "copy" -> {
+                        val clip = android.content.ClipData.newPlainText("", text)
+                        if (android.os.Build.VERSION.SDK_INT >= 33) {
+                            clip.description.extras = android.os.PersistableBundle().apply {
+                                putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
+                            }
+                        }
+                        clipboard.setPrimaryClip(clip)
+                        result.success(null)
+                    }
+                    // Only if what is there is still the key.
+                    "clear" -> {
+                        val now = clipboard.primaryClip?.getItemAt(0)?.text?.toString()
+                        if (now == text) {
+                            if (android.os.Build.VERSION.SDK_INT >= 28) clipboard.clearPrimaryClip()
+                            else clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
+                        }
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
             }
     }
 

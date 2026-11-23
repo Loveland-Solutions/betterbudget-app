@@ -3511,9 +3511,19 @@ class _EntryState extends State<_EntryScreen> {
         _store.counts.length +
         _store.snapshot.mine.length;
     final categories = _store.made.length;
-    if (categories == 0) return t.phoneWaiting(entries);
-    if (entries == 0) return t.phoneWaitingCategories(categories);
-    return t.phoneWaitingBoth(entries, categories);
+    // A phone on its own has no computer to wait for (#534).
+    final own = _store.snapshot.onItsOwn;
+    if (categories == 0) {
+      return own ? t.phoneWaitingOwn(entries) : t.phoneWaiting(entries);
+    }
+    if (entries == 0) {
+      return own
+          ? t.phoneWaitingCategoriesOwn(categories)
+          : t.phoneWaitingCategories(categories);
+    }
+    return own
+        ? t.phoneWaitingBothOwn(entries, categories)
+        : t.phoneWaitingBoth(entries, categories);
   }
 
   @override
@@ -5565,7 +5575,12 @@ class _WaitingScreen extends StatelessWidget {
           foregroundColor: Mid.ink,
           elevation: 0,
           scrolledUnderElevation: 0,
-          title: Text(t.phoneWaitingTitle, style: onest(20, weight: 600)),
+          title: Text(
+            store.snapshot.onItsOwn
+                ? t.phoneWaitingTitleOwn
+                : t.phoneWaitingTitle,
+            style: onest(20, weight: 600),
+          ),
         ),
         body: ListView.separated(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
@@ -5585,6 +5600,8 @@ class _WaitingScreen extends StatelessWidget {
                 // waits.
                 under: store.countable(c.accountId)
                     ? fullDate(c.date)
+                    : store.snapshot.onItsOwn
+                    ? t.phoneCountCantGoInOwn
                     : t.phoneCountCantGoIn,
                 amount: Text(
                   formatMoney(c.countedMinor, currency: currency),

@@ -12397,5 +12397,43 @@
         "type": "String"
       }
     }
+  },
+  "phoneWaitingOwn": "{count, plural, =1{1 entry isn’t in your ledger yet} other{{count} entries aren’t in your ledger yet}}",
+  "@phoneWaitingOwn": {
+    "description": "Phone app, on a phone with its own ledger and no computer: the line that opens the list of entries that couldn’t be taken into the ledger yet (#534).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneWaitingCategoriesOwn": "{count, plural, =1{1 new category isn’t in your ledger yet} other{{count} new categories aren’t in your ledger yet}}",
+  "@phoneWaitingCategoriesOwn": {
+    "description": "Phone app, on a phone with its own ledger: the waiting line when only categories are waiting (#534).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneWaitingBothOwn": "{entries, plural, =1{1 entry} other{{entries} entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} aren’t in your ledger yet",
+  "@phoneWaitingBothOwn": {
+    "description": "Phone app, on a phone with its own ledger: the waiting line when entries and categories are both waiting (#534).",
+    "placeholders": {
+      "entries": {
+        "type": "int"
+      },
+      "categories": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneWaitingTitleOwn": "Not in your ledger yet",
+  "@phoneWaitingTitleOwn": {
+    "description": "Phone app, on a phone with its own ledger: heading of the list of entries not yet taken into it (#534)."
+  },
+  "phoneCountCantGoInOwn": "This account isn’t a cash account any more, so this count can’t go in.",
+  "@phoneCountCantGoInOwn": {
+    "description": "Under a waiting count, on a phone with its own ledger, whose account was deleted, archived or made not cash (#534)."
   }
 }

@@ -5330,6 +5330,20 @@ void main() {
     );
   });
 
+  testWidgets('on a phone on its own, what waits says it isn\'t in the '
+      'ledger yet, not on a computer (#534)', (tester) async {
+    await _pump(
+      tester,
+      snapshot: previewSnapshot(DateTime(2026, 10, 7, 8, 10), onItsOwn: true),
+    );
+    await _spend(tester, 'Transport', '8000', 'ub', pick: 'UB Cab');
+    expect(find.text('1 entry isn’t in your ledger yet'), findsOneWidget);
+    expect(find.textContaining('computer'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('waiting-link')));
+    await tester.pumpAndSettle();
+    expect(find.text('Not in your ledger yet'), findsOneWidget);
+  });
+
   testWidgets('opening a waiting entry while one is typed asks first', (
     tester,
   ) async {
@@ -8399,10 +8413,7 @@ void main() {
       expect(find.byKey(const ValueKey('setup-no-pay-line')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('setup-continue')));
       await tester.pumpAndSettle();
-      expect(
-        find.text('The money in your accounts on 10.01'),
-        findsOneWidget,
-      );
+      expect(find.text('The money in your accounts on 10.01'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('setup-had-part-MNT')));
       await tester.pumpAndSettle();
@@ -8440,10 +8451,7 @@ void main() {
       await tester.tap(find.text('Undo'));
       await settle();
       expect(data.prefs[SetupKeys.done], isNull);
-      expect(
-        find.text('The money in your accounts on 10.01'),
-        findsOneWidget,
-      );
+      expect(find.text('The money in your accounts on 10.01'), findsOneWidget);
     });
 
     group('a way that is left part way (from the review of #534)', () {

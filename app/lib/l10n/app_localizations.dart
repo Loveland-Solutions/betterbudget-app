@@ -11641,6 +11641,36 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'{amount} overdrawn when the budget began'**
   String planKeyOverOverdrawnPart(String amount);
+
+  /// Phone app, on a phone with its own ledger and no computer: the line that opens the list of entries that couldn’t be taken into the ledger yet (#534).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 entry isn’t in your ledger yet} other{{count} entries aren’t in your ledger yet}}'**
+  String phoneWaitingOwn(int count);
+
+  /// Phone app, on a phone with its own ledger: the waiting line when only categories are waiting (#534).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new category isn’t in your ledger yet} other{{count} new categories aren’t in your ledger yet}}'**
+  String phoneWaitingCategoriesOwn(int count);
+
+  /// Phone app, on a phone with its own ledger: the waiting line when entries and categories are both waiting (#534).
+  ///
+  /// In en, this message translates to:
+  /// **'{entries, plural, =1{1 entry} other{{entries} entries}} and {categories, plural, =1{1 new category} other{{categories} new categories}} aren’t in your ledger yet'**
+  String phoneWaitingBothOwn(int entries, int categories);
+
+  /// Phone app, on a phone with its own ledger: heading of the list of entries not yet taken into it (#534).
+  ///
+  /// In en, this message translates to:
+  /// **'Not in your ledger yet'**
+  String get phoneWaitingTitleOwn;
+
+  /// Under a waiting count, on a phone with its own ledger, whose account was deleted, archived or made not cash (#534).
+  ///
+  /// In en, this message translates to:
+  /// **'This account isn’t a cash account any more, so this count can’t go in.'**
+  String get phoneCountCantGoInOwn;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

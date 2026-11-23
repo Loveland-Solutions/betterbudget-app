@@ -79,13 +79,39 @@ Future<bool> saveRecoveryKeyToFile(
   }
 }
 
+/// The phone's own way to copy something secret (MainActivity.kt,
+/// AppDelegate.swift): Android 13+ is told it is sensitive, so the
+/// keyboard's clipboard history and the copy preview don't show it; iPhone
+/// keeps it to this phone and lets it expire by itself.
+const _secret = MethodChannel('betterbudget/secret');
+
 /// Clears the clipboard a minute after the key was copied, unless something
 /// else has been copied since. Clipboard history and other devices shouldn't
 /// keep it longer than it takes to paste.
 Timer? _clipboardTimer;
 Future<void> copyRecoveryKey(String display) async {
-  await Clipboard.setData(ClipboardData(text: display));
   _clipboardTimer?.cancel();
+  if (Platform.isAndroid || Platform.isIOS) {
+    try {
+      // iPhone expires it itself; reading the clipboard there would show
+      // "Allow Paste".
+      await _secret.invokeMethod<void>('copy', {
+        'text': display,
+        'seconds': 60,
+      });
+      if (Platform.isAndroid) {
+        _clipboardTimer = Timer(const Duration(minutes: 1), () async {
+          try {
+            await _secret.invokeMethod<void>('clear', {'text': display});
+          } catch (_) {}
+        });
+      }
+      return;
+    } catch (_) {
+      // Falls back to the ordinary clipboard below.
+    }
+  }
+  await Clipboard.setData(ClipboardData(text: display));
   _clipboardTimer = Timer(const Duration(minutes: 1), () async {
     final now = await Clipboard.getData(Clipboard.kTextPlain);
     if (now?.text == display) {

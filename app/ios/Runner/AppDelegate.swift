@@ -47,6 +47,25 @@ import UIKit
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "BetterBudgetFolder") {
       folder = FolderChannel(messenger: registrar.messenger())
     }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "BetterBudgetSecret") {
+      // The recovery key copied for this phone only, expiring by itself: the
+      // clipboard is never read back, which would show "Allow Paste".
+      let channel = FlutterMethodChannel(
+        name: "betterbudget/secret", binaryMessenger: registrar.messenger())
+      channel.setMethodCallHandler { call, result in
+        guard call.method == "copy", let args = call.arguments as? [String: Any],
+          let text = args["text"] as? String
+        else { return result(FlutterMethodNotImplemented) }
+        let seconds = args["seconds"] as? Double ?? 60
+        UIPasteboard.general.setItems(
+          [["public.utf8-plain-text": text]],
+          options: [
+            .localOnly: true,
+            .expirationDate: Date().addingTimeInterval(seconds),
+          ])
+        result(nil)
+      }
+    }
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "BetterBudgetIncoming") {
       let channel = IncomingFile(messenger: registrar.messenger())
       registrar.addSceneDelegate(channel)

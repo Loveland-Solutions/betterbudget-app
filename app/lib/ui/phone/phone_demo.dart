@@ -14,90 +14,92 @@ bool isPhoneDemoKey(String typed) =>
     phoneDemoKey.replaceAll('-', '');
 
 /// The demo ledger's categories and accounts (`data/demo_seed.dart`), with
-/// made-up amounts.
-PhoneSnapshot previewSnapshot(DateTime madeAt) => PhoneSnapshot(
-  madeAt: madeAt,
-  payees: const [
-    'Nomin',
-    'E-Mart',
-    'Good Price',
-    'UB Cab',
-    'Petrovis',
-    'Modern Nomads',
-    'Rosewood',
-    'Unitel',
-    'Zaisan Residence',
-  ],
-  // A pay into TDB, offered by name for money in (#187).
-  pays: [PhonePay(id: phonePayId(1), accountId: 'tdb', name: 'Salary')],
-  accounts: const [
-    PhoneAccount(id: 'tdb', name: 'TDB Checking', balanceMinor: 243180000),
-    PhoneAccount(
-      id: 'cash',
-      name: 'Cash wallet',
-      balanceMinor: 8600000,
-      cash: true,
-    ),
-    PhoneAccount(
-      id: 'visa',
-      name: 'Golomt Visa',
-      balanceMinor: 31200000,
-      owes: true,
-    ),
-  ],
-  categories: [
-    const PhoneCategory(
-      id: 'groceries',
-      name: 'Groceries',
-      leftMinor: 14800000,
-      hadMinor: 90000000,
-      paidFromId: 'tdb',
-      recentPayees: ['Nomin', 'E-Mart', 'Good Price'],
-    ),
-    PhoneCategory(
-      id: 'transport',
-      name: 'Transport',
-      leftMinor: 6150000,
-      hadMinor: 20000000,
-      paidFromId: 'cash',
-      recentPayees: ['UB Cab', 'Petrovis'],
-    ),
-    PhoneCategory(
-      id: 'eating-out',
-      name: 'Eating out',
-      leftMinor: -1840000,
-      hadMinor: 8000000,
-      paidFromId: 'visa',
-      recentPayees: ['Modern Nomads', 'Rosewood'],
-    ),
-    PhoneCategory(
-      id: 'phone',
-      name: 'Phone & internet',
-      leftMinor: 0,
-      hadMinor: 6000000,
-      paidFromId: 'tdb',
-      recentPayees: ['Unitel'],
-    ),
-    PhoneCategory(
-      id: 'rent',
-      name: 'Rent',
-      leftMinor: 180000000,
-      paidFromId: 'tdb',
-      recentPayees: const ['Zaisan Residence'],
-      due: DateTime(madeAt.year, madeAt.month, 20),
-    ),
-    PhoneCategory(
-      id: 'utilities',
-      name: 'Utilities',
-      leftMinor: 9600000,
-      hadMinor: 12000000,
-      paidFromId: 'tdb',
-    ),
-    PhoneCategory(
-      id: 'clothing',
-      name: 'Clothing',
-      leftMinor: 8000000,
-      hadMinor: 8000000,
-    ),
-  ],
-);
+/// made-up amounts. [onItsOwn]: as a phone that keeps the only ledger.
+PhoneSnapshot previewSnapshot(DateTime madeAt, {bool onItsOwn = false}) =>
+    PhoneSnapshot(
+      madeAt: madeAt,
+      onItsOwn: onItsOwn,
+      payees: const [
+        'Nomin',
+        'E-Mart',
+        'Good Price',
+        'UB Cab',
+        'Petrovis',
+        'Modern Nomads',
+        'Rosewood',
+        'Unitel',
+        'Zaisan Residence',
+      ],
+      // A pay into TDB, offered by name for money in (#187).
+      pays: [PhonePay(id: phonePayId(1), accountId: 'tdb', name: 'Salary')],
+      accounts: const [
+        PhoneAccount(id: 'tdb', name: 'TDB Checking', balanceMinor: 243180000),
+        PhoneAccount(
+          id: 'cash',
+          name: 'Cash wallet',
+          balanceMinor: 8600000,
+          cash: true,
+        ),
+        PhoneAccount(
+          id: 'visa',
+          name: 'Golomt Visa',
+          balanceMinor: 31200000,
+          owes: true,
+        ),
+      ],
+      categories: [
+        const PhoneCategory(
+          id: 'groceries',
+          name: 'Groceries',
+          leftMinor: 14800000,
+          hadMinor: 90000000,
+          paidFromId: 'tdb',
+          recentPayees: ['Nomin', 'E-Mart', 'Good Price'],
+        ),
+        PhoneCategory(
+          id: 'transport',
+          name: 'Transport',
+          leftMinor: 6150000,
+          hadMinor: 20000000,
+          paidFromId: 'cash',
+          recentPayees: ['UB Cab', 'Petrovis'],
+        ),
+        PhoneCategory(
+          id: 'eating-out',
+          name: 'Eating out',
+          leftMinor: -1840000,
+          hadMinor: 8000000,
+          paidFromId: 'visa',
+          recentPayees: ['Modern Nomads', 'Rosewood'],
+        ),
+        PhoneCategory(
+          id: 'phone',
+          name: 'Phone & internet',
+          leftMinor: 0,
+          hadMinor: 6000000,
+          paidFromId: 'tdb',
+          recentPayees: ['Unitel'],
+        ),
+        PhoneCategory(
+          id: 'rent',
+          name: 'Rent',
+          leftMinor: 180000000,
+          paidFromId: 'tdb',
+          recentPayees: const ['Zaisan Residence'],
+          due: DateTime(madeAt.year, madeAt.month, 20),
+        ),
+        PhoneCategory(
+          id: 'utilities',
+          name: 'Utilities',
+          leftMinor: 9600000,
+          hadMinor: 12000000,
+          paidFromId: 'tdb',
+        ),
+        PhoneCategory(
+          id: 'clothing',
+          name: 'Clothing',
+          leftMinor: 8000000,
+          hadMinor: 8000000,
+        ),
+      ],
+    );

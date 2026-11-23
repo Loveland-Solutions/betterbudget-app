@@ -1906,5 +1906,10 @@
   "setupHadFollows": "Таны төсөв {start}-ны өдөр дансанд байсан мөнгийг ашиглана. {from}-аас {end} хүртэл нэмсэн гүйлгээ үүнийг өөрчилнө.",
   "planSumOverdrawn": "Төсөв эхлэхэд хэтэрсэн",
   "planKeyOverOverdrawn": "Төсөв эхлэхэд хэтэрсэн",
-  "planKeyOverOverdrawnPart": "Төсөв эхлэхэд {amount} хэтэрсэн"
+  "planKeyOverOverdrawnPart": "Төсөв эхлэхэд {amount} хэтэрсэн",
+  "phoneWaitingOwn": "{count, plural, other{{count} гүйлгээ таны дэвтэрт хараахан ороогүй байна}}",
+  "phoneWaitingCategoriesOwn": "{count, plural, other{{count} шинэ ангилал таны дэвтэрт хараахан ороогүй байна}}",
+  "phoneWaitingBothOwn": "{entries} гүйлгээ, {categories} шинэ ангилал таны дэвтэрт хараахан ороогүй байна",
+  "phoneWaitingTitleOwn": "Дэвтэрт хараахан ороогүй",
+  "phoneCountCantGoInOwn": "Энэ данс бэлэн мөнгөний данс байхаа больсон тул энэ тооллогыг оруулах боломжгүй."
 }
