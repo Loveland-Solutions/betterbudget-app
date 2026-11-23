@@ -381,11 +381,9 @@ class _EntryRowState extends State<EntryRow> {
   }
 
   /// The split card is open under the row.
-  bool _splitOpen = false;
-
-  /// What the card was opened on, for its Cancel: the lines (null when it
-  /// was opened to start a split) and what Category said.
-  ({List<(String, String, int?)>? lines, String category})? _splitBefore;
+  /// The parts show in the row whenever it is a split (#545): no card to
+  /// open or close.
+  bool get _splitOpen => _split != null;
 
   /// What Category said before "Split" was picked, which
   /// puts its own words in the field.
@@ -606,8 +604,6 @@ class _EntryRowState extends State<EntryRow> {
     };
     // A split's category double-clicked: its card opens.
     if (_split != null && _initial!.focus == EditField.category) {
-      _splitBefore = (lines: _linesNow, category: '');
-      _splitOpen = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _split!.first.categoryFocus.requestFocus();
       });
@@ -871,7 +867,10 @@ class _EntryRowState extends State<EntryRow> {
         !(_initial?.lockCategory ?? false))
       (name: 'category', focus: _categoryFocus),
     // A bare `+` (Swap before any amount) is still no amount.
-    if (_amount.text.trim().replaceFirst('+', '').isEmpty && !_lockAmount)
+    // A split's parts typed with Amount empty: Add puts their sum there.
+    if (_amount.text.trim().replaceFirst('+', '').isEmpty &&
+        !_lockAmount &&
+        !(_split != null && (_splitSum != 0 || _splitEven)))
       (name: 'amount', focus: _amountFocus),
     // A transfer to an account in another currency: what the other side
     // sent or got is wanted too.
@@ -958,7 +957,6 @@ class _EntryRowState extends State<EntryRow> {
       _remember = false;
       _dropLines(_split);
       _split = null;
-      _splitOpen = false;
       _linesInChosen = null;
     });
     // The next row starts here: a date kept from the last one isn't typing,
@@ -997,10 +995,14 @@ class _EntryRowState extends State<EntryRow> {
       if (!mounted) return;
       if (l.amountFocus.hasFocus) {
         l.held = l.amount.text;
-      } else if (l.held != null) {
-        // Left: the figure catches up with what was typed.
+      } else {
+        // Left: the figure catches up with what was typed, and a part with
+        // an amount and no category says so.
         setState(() => l.held = null);
       }
+    });
+    l.categoryFocus.addListener(() {
+      if (mounted && !l.categoryFocus.hasFocus) setState(() {});
     });
     return l;
   }
@@ -1022,10 +1024,6 @@ class _EntryRowState extends State<EntryRow> {
       // editableAmount marks money in with `+`; a line has no direction of
       // its own, so it's given the amount as money out.
       '${share < 0 ? '-' : ''}${editableAmount(-share.abs(), _hereCurrency)}';
-
-  List<(String, String, int?)>? get _linesNow => _split
-      ?.map((l) => (l.category.text, l.amount.text, l.accountId))
-      .toList();
 
   /// The lines as last seen: a controller also speaks up when only its
   /// selection moves, which mustn't take down why the row wasn't saved.
@@ -1184,7 +1182,6 @@ class _EntryRowState extends State<EntryRow> {
   void _openSplit() {
     final fresh = _split == null;
     setState(() {
-      _splitBefore = (lines: _linesNow, category: fresh ? _categoryTyped : '');
       if (fresh) {
         final named = _categoryNamed(_categoryTyped);
         _split = [
@@ -1193,7 +1190,6 @@ class _EntryRowState extends State<EntryRow> {
         ];
       }
       _category.text = '';
-      _splitOpen = true;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _split == null) return;
@@ -1206,66 +1202,6 @@ class _EntryRowState extends State<EntryRow> {
               ? next.categoryFocus
               : next.amountFocus)
           .requestFocus();
-    });
-  }
-
-  /// Cancel, or Esc in the card: the lines as they were when it opened.
-  void _cancelSplit() {
-    final before = _splitBefore;
-    setState(() {
-      _dropLines(_split);
-      _split = before?.lines == null
-          ? null
-          : [
-              for (final (c, a, id) in before!.lines!)
-                _newLine(category: c, amount: a, accountId: id),
-            ];
-      if (_split == null) _category.text = before?.category ?? '';
-      _splitOpen = false;
-    });
-    _problem(null);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _categoryFocus.requestFocus();
-    });
-  }
-
-  /// Done: the card closes on its lines. Empty lines go; with none left the
-  /// row has one category again, and one line that takes the whole amount
-  /// becomes the row's category. With Amount empty, it takes the lines' sum.
-  void _doneSplit({bool focus = true}) {
-    final lines = _split ?? const <_SplitLine>[];
-    final kept = lines
-        .where(
-          (l) =>
-              l.category.text.trim().isNotEmpty ||
-              l.amount.text.trim().isNotEmpty,
-        )
-        .toList();
-    setState(() {
-      _dropLines(lines.where((l) => !kept.contains(l)));
-      _split = kept;
-      _totalFromLines();
-      final one = kept.length == 1 ? kept.single : null;
-      if (kept.isEmpty) {
-        _split = null;
-        _category.text = _splitBefore?.category ?? '';
-      } else if (one != null &&
-          _lineTarget(one) != null &&
-          (one.amount.text.trim().isEmpty || _lineValue(one) == _splitTotal)) {
-        final target = _lineTarget(one)!;
-        _category.text = target.name;
-        // A new one, picked on purpose: no doubt left about the name.
-        if (target.id == _createId) _chosenNew = target.name;
-        _dropLines(kept);
-        _split = null;
-      }
-      _splitOpen = false;
-    });
-    if (!focus) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final locked = _lockAmount;
-      (locked ? _categoryFocus : _amountFocus).requestFocus();
     });
   }
 
@@ -1303,12 +1239,13 @@ class _EntryRowState extends State<EntryRow> {
   /// Enter in a line's amount: on to the next line still missing its
   /// category or amount; a new line while some of the total is left to
   /// place, or while no total is typed (a receipt of three, added up as
-  /// it's typed); Enter on a line left empty is Done, and the line goes.
+  /// it's typed); otherwise, or on a line left empty, it adds the row, as
+  /// Enter does in any field (#545).
   void _lineEntered(_SplitLine l) {
     final lines = _split!;
     if (l.category.text.trim().isEmpty && l.amount.text.trim().isEmpty) {
       if (lines.length > 2) _removeLine(l);
-      _doneSplit();
+      _submit();
       return;
     }
     final after = [
@@ -1329,7 +1266,7 @@ class _EntryRowState extends State<EntryRow> {
     } else if (total == null || total - _splitSum > 0) {
       _addLine();
     } else {
-      _doneSplit();
+      _submit();
     }
   }
 
@@ -1447,7 +1384,8 @@ class _EntryRowState extends State<EntryRow> {
       key: const ValueKey('split-categories'),
       focusNode: _categoryFocus,
       borderRadius: BorderRadius.circular(7),
-      onTap: _splitOpen ? null : _openSplit,
+      // The parts are under it: a click goes to the first.
+      onTap: () => _split!.first.categoryFocus.requestFocus(),
       child: Container(
         height: 34,
         alignment: Alignment.centerLeft,
@@ -1455,7 +1393,7 @@ class _EntryRowState extends State<EntryRow> {
         decoration: BoxDecoration(
           color: Mid.card,
           borderRadius: BorderRadius.circular(7),
-          border: Border.all(color: _splitOpen ? Mid.blue : Mid.rule),
+          border: Border.all(color: Mid.rule),
         ),
         child: Row(
           children: [
@@ -1474,19 +1412,15 @@ class _EntryRowState extends State<EntryRow> {
     ),
   );
 
-  /// The card under the row (owner's pick, 2026-10-17, option C): the
-  /// receipt's total at the top with what's left to place, a category and
-  /// an amount on each line, Cancel and Done.
-  Widget _splitCard(Words t, double width) {
+  /// The split's parts, in the row itself (#545, the owner's pick of
+  /// sketch A, 2026-11-23): each part's category under Category and its
+  /// amount under Amount, so the row only grows down; what's left under the
+  /// amounts; a button in an empty amount box puts what's left there
+  /// (#543). No card, no Done: the row's Add saves it all.
+  Widget _splitParts(Words t) {
     final total = _splitTotal;
     final sum = _splitShownSum;
     String money(int v) => formatMoney(v.abs(), currency: _hereCurrency);
-    final payee = _payee.text.trim();
-    final title = total == null
-        ? payee
-        : payee.isEmpty
-        ? money(total)
-        : t.rowsSplitTitle(payee, money(total));
     final left = total == null ? null : total - sum;
     final note = switch (left) {
       null when sum != 0 => t.rowsSplitInAll(money(sum)),
@@ -1501,225 +1435,242 @@ class _EntryRowState extends State<EntryRow> {
         : total != null || sum == 0 || _lockAmount
         ? null
         : (_linesIn ? t.rowsSplitIsIn : t.rowsSplitIsOut);
-    Widget label(String text, {TextAlign align = TextAlign.left}) => Padding(
-      padding: const EdgeInsets.only(left: 2, right: 2, bottom: 4),
-      child: Text(
-        text,
-        textAlign: align,
-        style: onest(12, color: Mid.ink3),
-      ),
-    );
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): _cancelSplit,
-      },
-      child: Container(
-        key: const ValueKey('split-card'),
-        width: width,
-        margin: const EdgeInsets.only(top: 8),
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-        decoration: BoxDecoration(
-          color: Mid.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Mid.rule),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: Mid.isLight ? 0.10 : 0.35),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+    final source = SourceColumn.showing(context);
+    // What a part would take to place the rest: the total less what the
+    // other parts hold as typed, not as the figure shows.
+    int? rest(_SplitLine l) {
+      if (total == null) return null;
+      final others = lines.fold(
+        0,
+        (s, o) => identical(o, l) ? s : s + (_lineValue(o) ?? 0),
+      );
+      final r = total - others;
+      return r > 0 ? r : null;
+    }
+
+    Widget part(_SplitLine l) {
+      final value = _lineValue(l);
+      // An amount with no category, once the person has left both boxes.
+      final unnamed =
+          value != null &&
+          value != 0 &&
+          l.category.text.trim().isEmpty &&
+          !l.categoryFocus.hasFocus &&
+          !l.amountFocus.hasFocus;
+      final fill = l.amount.text.trim().isEmpty && left != null && left > 0
+          ? rest(l)
+          : null;
+      return Padding(
+        key: ObjectKey(l),
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: Cols.category,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Autocomplete<AccountInfo>(
+                    controller: l.category,
+                    focusNode: l.categoryFocus,
+                    hint: t.rowsHintCategory,
+                    wanted: unnamed,
+                    choosing: true,
+                    options: (q) => _lineOptions(l, q),
+                    label: (c) => c.name,
+                    optionText: (c) => c.id == _createId
+                        ? t.rowsNewCategoryOption(c.name)
+                        : c.id == _blankId
+                        ? t.rowsNewCategoryBlank
+                        : c.name,
+                    pinned: (c) => c.id == _blankId,
+                    pinnedIcon: (_) => Icons.add_rounded,
+                    onSelected: (c) {
+                      if (c.id == _blankId) {
+                        _pickNewOnLine(l, '');
+                        return;
+                      }
+                      if (c.id == _createId &&
+                          widget.controller.newCategory != null) {
+                        _pickNewOnLine(l, c.name);
+                        return;
+                      }
+                      if (c.id == _createId) {
+                        l.accountId = null;
+                        l.newName = c.name;
+                      } else {
+                        l.accountId = c.id;
+                        l.newName = null;
+                      }
+                      setState(() {});
+                      l.amountFocus.requestFocus();
+                    },
+                    onSubmit: l.amountFocus.requestFocus,
+                  ),
+                  if (unnamed)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3, left: 2),
+                      child: Text(
+                        t.rowsSplitWhichCategory(money(value)),
+                        key: const ValueKey('split-unnamed'),
+                        style: onest(12, color: Mid.coral),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: Cols.gap),
+            if (source) const SizedBox(width: Cols.source + Cols.gap),
+            SizedBox(
+              width: Cols.amount,
+              child: Stack(
+                children: [
+                  _Field(
+                    controller: l.amount,
+                    focusNode: l.amountFocus,
+                    hint: fill == null ? zeroHint(_hereCurrency) : '',
+                    money: _hereCurrency,
+                    tabular: true,
+                    align: TextAlign.right,
+                    onSubmitted: (_) => _lineEntered(l),
+                  ),
+                  if (fill != null)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      bottom: 4,
+                      child: _FillButton(
+                        key: const ValueKey('split-fill'),
+                        label: t.rowsSplitPutHere(
+                          formatShort(fill, currency: _hereCurrency),
+                        ),
+                        onTap: () {
+                          setState(() {
+                            l.amount.text = _lineText(fill);
+                            l.held = null;
+                          });
+                          // Where they'd go next: the category, if it has
+                          // none yet.
+                          if (l.category.text.trim().isEmpty) {
+                            l.categoryFocus.requestFocus();
+                          }
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            SizedBox(
+              width: 28,
+              height: 34,
+              // Offered while there's more than one line to keep.
+              child: lines.length < 2
+                  ? null
+                  : Tooltip(
+                      message: t.rowsSplitRemove,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        canRequestFocus: false,
+                        onTap: () => _removeLine(l),
+                        child: Semantics(
+                          button: true,
+                          label: t.rowsSplitRemove,
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 14,
+                            color: Mid.ink3,
+                          ),
+                        ),
+                      ),
+                    ),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      );
+    }
+
+    return Column(
+      key: const ValueKey('split-card'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final l in lines) part(l),
+        const SizedBox(height: 4),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: onest(15, weight: 600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            SizedBox(
+              width: Cols.category,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextButton(
+                    key: const ValueKey('split-another'),
+                    onPressed: _addLine,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Mid.blue,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      minimumSize: const Size(0, 28),
+                      textStyle: onest(12.5, weight: 500),
+                    ),
+                    child: Text(t.rowsSplitAnother),
                   ),
-                ),
-                if (note != null)
-                  Text(
-                    note,
-                    key: const ValueKey('split-left'),
-                    style: onest(12.5, color: Mid.ink2, tabular: true),
-                  ),
-              ],
-            ),
-            // Amount empty: which way the lines' total goes, said before
-            // Add, with the other way one click off.
-            if (way != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  children: [
-                    Flexible(
+                  // Amount empty: which way the lines' total goes, said
+                  // before Add, with the other way one click off.
+                  if (way != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, top: 2),
                       child: Text(
                         way,
                         key: const ValueKey('split-way'),
                         style: onest(12.5, color: Mid.ink2),
                       ),
                     ),
-                    if (!even) ...[
-                      const SizedBox(width: 8),
+                    if (!even)
                       TextButton(
                         key: const ValueKey('split-switch-way'),
                         onPressed: () =>
                             setState(() => _linesInChosen = !_linesIn),
                         style: TextButton.styleFrom(
                           foregroundColor: Mid.blue,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
                           minimumSize: const Size(0, 26),
-                          visualDensity: VisualDensity.standard,
                           textStyle: onest(12.5, weight: 500),
                         ),
                         child: Text(
                           _linesIn ? t.rowsSplitMakeOut : t.rowsSplitMakeIn,
                         ),
                       ),
-                    ],
                   ],
-                ),
+                ],
               ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(child: label(t.rowsColumnCategory)),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 150,
-                  child: label(t.rowsColumnAmount, align: TextAlign.right),
-                ),
-                const SizedBox(width: 34),
-              ],
             ),
-            for (final l in lines)
-              Padding(
-                key: ObjectKey(l),
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _Autocomplete<AccountInfo>(
-                        controller: l.category,
-                        focusNode: l.categoryFocus,
-                        hint: t.rowsHintCategory,
-                        choosing: true,
-                        options: (q) => _lineOptions(l, q),
-                        label: (c) => c.name,
-                        optionText: (c) => c.id == _createId
-                            ? t.rowsNewCategoryOption(c.name)
-                            : c.id == _blankId
-                            ? t.rowsNewCategoryBlank
-                            : c.name,
-                        pinned: (c) => c.id == _blankId,
-                        pinnedIcon: (_) => Icons.add_rounded,
-                        onSelected: (c) {
-                          if (c.id == _blankId) {
-                            _pickNewOnLine(l, '');
-                            return;
-                          }
-                          if (c.id == _createId &&
-                              widget.controller.newCategory != null) {
-                            _pickNewOnLine(l, c.name);
-                            return;
-                          }
-                          if (c.id == _createId) {
-                            l.accountId = null;
-                            l.newName = c.name;
-                          } else {
-                            l.accountId = c.id;
-                            l.newName = null;
-                          }
-                          setState(() {});
-                          l.amountFocus.requestFocus();
-                        },
-                        onSubmit: l.amountFocus.requestFocus,
+            const SizedBox(width: Cols.gap),
+            if (source) const SizedBox(width: Cols.source + Cols.gap),
+            SizedBox(
+              width: Cols.amount,
+              child: note == null
+                  ? null
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 6, right: 2),
+                      child: Text(
+                        note,
+                        key: const ValueKey('split-left'),
+                        textAlign: TextAlign.right,
+                        style: onest(
+                          12.5,
+                          color: left != null && left < 0
+                              ? Mid.coral
+                              : Mid.ink2,
+                          tabular: true,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 150,
-                      child: _Field(
-                        controller: l.amount,
-                        focusNode: l.amountFocus,
-                        hint: zeroHint(_hereCurrency),
-                        money: _hereCurrency,
-                        tabular: true,
-                        align: TextAlign.right,
-                        onSubmitted: (_) => _lineEntered(l),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    SizedBox(
-                      width: 28,
-                      height: 28,
-                      // Offered while there's more than one line to keep.
-                      child: lines.length < 2
-                          ? null
-                          : Tooltip(
-                              message: t.rowsSplitRemove,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(6),
-                                canRequestFocus: false,
-                                onTap: () => _removeLine(l),
-                                child: Semantics(
-                                  button: true,
-                                  label: t.rowsSplitRemove,
-                                  child: Icon(
-                                    Icons.close_rounded,
-                                    size: 14,
-                                    color: Mid.ink3,
-                                  ),
-                                ),
-                              ),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                TextButton(
-                  key: const ValueKey('split-another'),
-                  onPressed: _addLine,
-                  style: TextButton.styleFrom(
-                    foregroundColor: Mid.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    minimumSize: const Size(0, 30),
-                    textStyle: onest(12.5, weight: 500),
-                  ),
-                  child: Text(t.rowsSplitAnother),
-                ),
-                const Spacer(),
-                _AddButton(
-                  key: const ValueKey('split-cancel'),
-                  label: t.rowsCancelEdit,
-                  keyName: 'Esc',
-                  quiet: true,
-                  ready: false,
-                  onTap: _cancelSplit,
-                ),
-                const SizedBox(width: 6),
-                _AddButton(
-                  key: const ValueKey('split-done'),
-                  label: t.rowsSplitDone,
-                  ready: true,
-                  onTap: _doneSplit,
-                ),
-              ],
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 
@@ -1826,7 +1777,6 @@ class _EntryRowState extends State<EntryRow> {
         return;
       }
       final parts = checked.parts!;
-      setState(() => _splitOpen = false);
       if (parts.length == 1 && !wasSplit) {
         final only = parts.single.category;
         // A new category on the one line: made with the row, as Category's
@@ -2317,22 +2267,11 @@ class _EntryRowState extends State<EntryRow> {
                                 child: _submitLine(preview, showsMath),
                               ),
                             ),
-                          if (_splitOpen && _split != null)
+                          if (_split != null)
                             FocusTraversalOrder(
                               // Under Category, before Amount.
                               order: const NumericFocusOrder(3.5),
-                              child: FocusTraversalGroup(
-                                child: _splitCard(
-                                  t,
-                                  Cols.category +
-                                      Cols.amount +
-                                      Cols.balance +
-                                      2 * Cols.gap +
-                                      (SourceColumn.showing(context)
-                                          ? Cols.source + Cols.gap
-                                          : 0),
-                                ),
-                              ),
+                              child: FocusTraversalGroup(child: _splitParts(t)),
                             ),
                           if (takesBack != null)
                             _ChangeLockedLine(
@@ -2403,10 +2342,7 @@ class _EntryRowState extends State<EntryRow> {
                           // A new row with something in it can be thrown away
                           // with the mouse too; an empty one closes with a
                           // click away.
-                          if (!_editing &&
-                              !_picking &&
-                              _hasContent &&
-                              !_splitOpen)
+                          if (!_editing && !_picking && _hasContent)
                             _cancelLine(),
                         ],
                       ),
@@ -3651,6 +3587,7 @@ class _AutocompleteState<T extends Object> extends State<_Autocomplete<T>> {
                 if (list.isNotEmpty)
                   Flexible(
                     child: ListView.builder(
+                      key: const ValueKey('choice-list'),
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       shrinkWrap: true,
                       itemCount: list.length,
@@ -3700,6 +3637,34 @@ class _WhenAction<I extends Intent> extends Action<I> {
     run(intent);
     return null;
   }
+}
+
+/// Inside an empty part's amount box: puts what's left there (#543).
+class _FillButton extends StatelessWidget {
+  const _FillButton({super.key, required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Mid.blueWash,
+    borderRadius: BorderRadius.circular(6),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(6),
+      canRequestFocus: false,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 9),
+        child: Center(
+          child: Text(
+            label,
+            style: onest(12, weight: 500, color: Mid.blue),
+            maxLines: 1,
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _AddButton extends StatefulWidget {

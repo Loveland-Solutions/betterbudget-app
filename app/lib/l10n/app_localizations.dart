@@ -3341,17 +3341,29 @@ abstract class Words {
   /// **'Split'**
   String get rowsSplitOption;
 
-  /// Heading of the split card under an entry row: the payee and the receipt’s total, e.g. 'Nomin, ₮135,500.00'.
-  ///
-  /// In en, this message translates to:
-  /// **'{payee}, {amount}'**
-  String rowsSplitTitle(String payee, String amount);
-
   /// Split card, top right: how much of the total has no category yet, e.g. '₮37,500.00 left'.
   ///
   /// In en, this message translates to:
   /// **'{amount} left'**
   String rowsSplitLeft(String amount);
+
+  /// Phone's split page, under what's left to place: a button that puts what is left on the line the pad is typing into, e.g. 'Put ₮37,500 on Clothing'.
+  ///
+  /// In en, this message translates to:
+  /// **'Put {amount} on {category}'**
+  String phoneSplitPutOn(String amount, String category);
+
+  /// Split, inside an empty part's amount box: a button that puts what is left of the total in that part, e.g. 'Put ₮37,500 here'.
+  ///
+  /// In en, this message translates to:
+  /// **'Put {amount} here'**
+  String rowsSplitPutHere(String amount);
+
+  /// Split, under a part with an amount and no category, once the person has left it: e.g. 'Which category is ₮37,500.00 for?'.
+  ///
+  /// In en, this message translates to:
+  /// **'Which category is {amount} for?'**
+  String rowsSplitWhichCategory(String amount);
 
   /// Split card, top right: the lines add up to more than the total, e.g. '₮2,000.00 too much'.
   ///

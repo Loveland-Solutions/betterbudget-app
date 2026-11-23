@@ -3723,9 +3723,12 @@ void main() {
     expect(find.byKey(const ValueKey('split-option')), findsNothing);
     await tester.tap(_inMenu('Clothing'));
     await tester.pumpAndSettle();
-    await _type(tester, '37500');
+    // The empty line is offered what's left: one tap, not typed (#543).
+    expect(find.text('Put ₮37,500 on Clothing'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('split-fill')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('split-left')), findsNothing);
+    expect(find.byKey(const ValueKey('split-fill')), findsNothing);
     await tester.tap(find.byKey(const ValueKey('split-done')));
     await tester.pumpAndSettle();
     expect(find.text('2 categories'), findsOneWidget);

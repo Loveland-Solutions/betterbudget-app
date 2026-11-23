@@ -2341,13 +2341,23 @@ class WordsMn extends Words {
   String get rowsSplitOption => 'Хуваах';
 
   @override
-  String rowsSplitTitle(String payee, String amount) {
-    return '$payee, $amount';
+  String rowsSplitLeft(String amount) {
+    return '$amount үлдсэн';
   }
 
   @override
-  String rowsSplitLeft(String amount) {
-    return '$amount үлдсэн';
+  String phoneSplitPutOn(String amount, String category) {
+    return '$amount-г $category-д оруулах';
+  }
+
+  @override
+  String rowsSplitPutHere(String amount) {
+    return '$amount-г энд оруулах';
+  }
+
+  @override
+  String rowsSplitWhichCategory(String amount) {
+    return '$amount аль ангилалд орох вэ?';
   }
 
   @override
