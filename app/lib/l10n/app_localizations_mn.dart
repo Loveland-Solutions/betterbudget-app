@@ -8112,11 +8112,6 @@ class WordsMn extends Words {
   String get phoneOtherWays => 'Эхлэх өөр арга';
 
   @override
-  String phoneSetupHadUses(String amount) {
-    return 'Таны төсөв энэ $amount-г бас ашиглана.';
-  }
-
-  @override
   String get phoneSetupHadType => 'Төсөв үүнээс хэдийг ашиглахыг бичнэ үү.';
 
   @override
@@ -8349,4 +8344,32 @@ class WordsMn extends Words {
   @override
   String get phoneShareBackAskOthers =>
       'Үүнийг нээсэн бусад утас, компьютер энэ утасны өөрчлөлтийг авахаа больж, тэдгээр дээр оруулсан зүйл энэ утсанд ирэхгүй. Түүнээс хойш тус бүр өөрийн дэвтэртэй болно. Хавтас доторх файл тэндээ үлдэнэ.';
+
+  @override
+  String get languageSameAsPhone => 'Энэ утастай адил';
+
+  @override
+  String get thePhone => 'утас';
+
+  @override
+  String get phoneSettingsThisPhone => 'Энэ утас';
+
+  @override
+  String get phoneSettingsName => 'Энэ утасны нэр';
+
+  @override
+  String get phoneSettingsNameNote =>
+      'Таны дэвтрийг хаана ч нээсэн, энэ утаснаас оруулсан зүйлсийн хажууд харагдана.';
+
+  @override
+  String get phoneSecurityNote =>
+      'Таны дэвтэр болон нөөц хуулбаруудыг шифрлэсэн. Сэргээх түлхүүр тань тэдгээрийг өөр утас эсвэл компьютер дээр нээнэ. BetterBudget түлхүүрийн хуулбарыг хадгалдаггүй.';
+
+  @override
+  String get phoneShowInAccounts => 'Дансанд харуулах';
+
+  @override
+  String phoneBackInAccounts(String name) {
+    return '$name Данс руу буцаж орлоо';
+  }
 }

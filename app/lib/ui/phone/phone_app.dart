@@ -13,8 +13,10 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
+import 'package:package_info_plus/package_info_plus.dart' show PackageInfo;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/services.dart'
+    show Clipboard, ClipboardData, SystemUiOverlayStyle;
 
 import '../../data/database.dart'
     show
@@ -70,13 +72,16 @@ import '../../data/phone_sync.dart'
         PhoneSavePay,
         PhoneBudgetBy,
         PhoneFinishSetup,
+        PhoneSetPrefs,
         PhoneSetSpan,
         PhoneSetupDate,
+        PhoneStartOver,
         PhoneSavingsAnswer,
         PhoneStopPay,
         PhoneUndoReconcile;
 import '../../data/account_edit.dart' show AccountEdit;
 import '../../data/import_figures.dart';
+import '../../data/keys.dart' show RecoveryKey;
 import '../../data/incoming_file.dart';
 import '../../data/picked_copy.dart';
 import '../../import/mapping.dart';
@@ -108,6 +113,7 @@ import '../../domain/setup.dart'
         setupHeld,
         setupSaveIn,
         walkOf;
+import '../appearance.dart';
 import '../language.dart';
 import '../plan_form.dart';
 import '../schemes.dart';
@@ -140,6 +146,7 @@ part 'phone_new_category.dart';
 part 'phone_pay.dart';
 part 'phone_reconcile.dart';
 part 'phone_savings.dart';
+part 'phone_settings.dart';
 part 'phone_setup.dart';
 part 'phone_share.dart';
 part 'phone_register.dart';
@@ -285,6 +292,10 @@ class PhoneStore extends ChangeNotifier {
   /// Backups, set by whoever keeps the ledger on a phone on its own (#534
   /// piece 3); null on a phone on a folder, whose computers keep copies.
   PhoneBackupActs? backupActs;
+
+  /// Settings' Check my recovery key… (#534 piece 5): whether a typed key
+  /// opens this ledger; null where nothing can tell (the demo, the preview).
+  Future<bool> Function(RecoveryKey key)? checkKey;
 
   /// Another phone or computer (#534 piece 4), set by whoever keeps the
   /// ledger when it was made on this phone: null on a phone that joined a
@@ -645,8 +656,22 @@ class PhoneFrame extends StatelessWidget {
     supportedLocales: supportedLocales,
     localizationsDelegates: Words.localizationsDelegates,
     localeListResolutionCallback: (preferred, _) => resolveLocale(preferred),
-    // A line picked in a dropdown can hold off the taps that follow it.
-    builder: (context, screens) => _TapHold(child: screens!),
+    // A line picked in a dropdown can hold off the taps that follow it. The
+    // phone's own bars take the page's light or dark (#534 piece 5).
+    builder: (context, screens) => AnnotatedRegion<SystemUiOverlayStyle>(
+      value: Mid.isLight
+          ? SystemUiOverlayStyle.dark.copyWith(
+              statusBarColor: Colors.transparent,
+              systemNavigationBarColor: Mid.ground,
+              systemNavigationBarIconBrightness: Brightness.dark,
+            )
+          : SystemUiOverlayStyle.light.copyWith(
+              statusBarColor: Colors.transparent,
+              systemNavigationBarColor: Mid.ground,
+              systemNavigationBarIconBrightness: Brightness.light,
+            ),
+      child: _TapHold(child: screens!),
+    ),
     home: child,
   );
 }
@@ -1597,6 +1622,20 @@ class _BudgetScreenState extends State<_BudgetScreen> {
                   icon: const Icon(Icons.chat_bubble_outline_rounded, size: 22),
                   color: Mid.ink2,
                 ),
+                // Settings (#534 piece 5, sketch A): beside Accounts, where
+                // the phone's other pages open from.
+                IconButton(
+                  key: const ValueKey('to-settings'),
+                  onPressed: () => _openSettings(
+                    context,
+                    store: store,
+                    now: now,
+                    problems: problems,
+                  ),
+                  tooltip: t.ledgerSettings,
+                  icon: const Icon(Icons.settings_outlined, size: 22),
+                  color: Mid.ink2,
+                ),
                 TextButton(
                   key: const ValueKey('to-accounts'),
                   onPressed: () => Navigator.of(context).push(
@@ -1623,25 +1662,13 @@ class _BudgetScreenState extends State<_BudgetScreen> {
                 child: ListView.separated(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 12),
-                  // The last line is Recent problems, after the bills, while
-                  // the phone's record holds any.
+                  // The last line is Show archived, after the bills; Recent
+                  // problems is in Settings (#534 piece 5).
                   itemCount: listed.length + 2,
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     if (i == listed.length + 1) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _ArchivedLine(store: store),
-                          switch (problems) {
-                            final log? => _RecentProblemsLine(
-                              log: log,
-                              now: now,
-                            ),
-                            null => const SizedBox.shrink(),
-                          },
-                        ],
-                      );
+                      return _ArchivedLine(store: store);
                     }
                     if (i == newAt) {
                       return Align(

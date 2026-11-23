@@ -8077,8 +8077,9 @@ time.
 - **From the reviews** (decided along the lines above):
   - While Balances as of isn't today, Add account says the day over its balance ("What
     was in it on 10.01?"), so what the bank app shows today isn't typed as that day's.
-  - The phone has no Settings page yet, so Money you have's line stops at "Your budget
-    will use this ₮1,000,000 as well." "No regular income" is one sentence on the phone
+  - Money you have's line stopped at "Your budget will use this ₮1,000,000 as well." while
+    the phone had no Settings; since piece 5 it says the computer's whole line, naming
+    Had before the budget in Settings. "No regular income" is one sentence on the phone
     and names where it changes ("Tap Income on Budget"); the computer's dotted toast
     doesn't fit the phone, whose Budget has no Income tab.
   - A total under the accounts, and on Money you have, only over two or more accounts in a
@@ -8259,3 +8260,32 @@ as a hundred times the amount. The owner: "Fix it."
   in a euro or rupiah amount read as thousands. Lakhs and non-Latin digits aren't
   done.
 
+
+## Settings on the phone (owner, 2026-11-23, #534)
+
+The last piece of a phone on its own (ADR 0005, "How #534 is cut", piece 5). Three
+sketches at 390 points, of different kinds: **A** the computer's Settings in the phone's
+form, one scroll of the computer's cards in the computer's order, opened by a gear beside
+Send feedback… and Accounts on Budget; **B** a list of headings, each with what it's set
+to, each opening a page of its own; **C** each thing where it's about: Archived accounts,
+Check my recovery key… and Start over at the foot of Accounts, By month or By paycheck
+and Had before the budget on the Income page, and a Settings page holding only the
+phone's own look, language, name and Recent problems. The owner picked **A** ("Let's go
+with A").
+
+- **Why A:** the app's words already send people to Settings (setup's Money you have
+  points to Had before the budget there), and the phone has been built as the computer's
+  pages in the phone's form; one page in one order keeps both true.
+- **Its cards, in order:** Appearance with Colors, Language, Budget (By month or By
+  paycheck, Had before the budget), This phone (its name, shown on a computer beside what
+  it entered), Security (Check my recovery key…), Archived accounts, Recent problems,
+  Start over, and the version at the foot. Backups and Another phone or computer stay on
+  Accounts, where they already are.
+- **The phone's turn at the colors** (put off on 2026-10-09, "Let's start with just the
+  computer"): Appearance and Colors are the computer's. A phone already in use keeps what
+  it showed, dark Blue eclipse, until someone changes it there, so nothing changes under
+  a person mid-use; a phone started fresh begins as the computer does, in the app's own
+  colors and the phone's light or dark.
+- **Rejected:** B (a tap more for every change, and its headings name nothing the
+  computer's Settings calls them); C (things a person looks for in one place scattered over
+  three pages, and the words that say "in Settings" would point nowhere).

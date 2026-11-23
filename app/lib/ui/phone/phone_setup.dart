@@ -949,8 +949,8 @@ class _PhoneSetupState extends State<_PhoneSetup> with _FormRows<_PhoneSetup> {
                       final int v when v > amount => t.setupHadMore(
                         formatShort(v - amount, currency: c),
                       ),
-                      // The phone has no Settings page yet to point to.
-                      final int v => t.phoneSetupHadUses(
+                      // Settings has it (#534 piece 5), as on the computer.
+                      final int v => t.setupHadUses(
                         formatShort(v, currency: c),
                       ),
                     },

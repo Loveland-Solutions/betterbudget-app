@@ -29,9 +29,30 @@ Future<void> main() async {
   // A phone records and checks (ADR 0005); it never holds the ledger itself.
   if (Platform.isAndroid || Platform.isIOS) {
     usePhoneColors();
+    final keys = KeyStore();
+    // A phone with a key was in use before it had Settings (#534 piece 5).
+    var inUse = false;
+    try {
+      inUse = await keys.readDataKey() != null;
+    } catch (_) {
+      // No store to read: as a phone started fresh.
+    }
+    final appearance = await AppearanceController.loadForPhone(
+      File('${dir.path}/appearance'),
+      inUse: inUse,
+    );
+    final language = await LanguageController.load(
+      File('${dir.path}/language'),
+    );
     runApp(
-      PhoneFrame(
-        child: PhoneStart(keys: KeyStore(), dir: dir),
+      AppearanceScope(
+        controller: appearance,
+        child: LanguageScope(
+          controller: language,
+          child: PhoneFrame(
+            child: PhoneStart(keys: keys, dir: dir),
+          ),
+        ),
       ),
     );
     return;

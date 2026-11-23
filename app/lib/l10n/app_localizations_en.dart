@@ -8388,11 +8388,6 @@ class WordsEn extends Words {
   String get phoneOtherWays => 'Other ways to start';
 
   @override
-  String phoneSetupHadUses(String amount) {
-    return 'Your budget will use this $amount as well.';
-  }
-
-  @override
   String get phoneSetupHadType => 'Type how much of it your budget uses.';
 
   @override
@@ -8639,4 +8634,32 @@ class WordsEn extends Words {
   @override
   String get phoneShareBackAskOthers =>
       'The other phones and computers that opened it will stop getting this phone’s changes, and what is entered on them won’t reach this phone. Each will have its own ledger from then on. The file in the folder stays there.';
+
+  @override
+  String get languageSameAsPhone => 'Same as this phone';
+
+  @override
+  String get thePhone => 'the phone';
+
+  @override
+  String get phoneSettingsThisPhone => 'This phone';
+
+  @override
+  String get phoneSettingsName => 'Name for this phone';
+
+  @override
+  String get phoneSettingsNameNote =>
+      'Shown beside what you enter on this phone, wherever your ledger is opened.';
+
+  @override
+  String get phoneSecurityNote =>
+      'Your ledger and backups are encrypted. Your recovery key opens them on another phone or computer. BetterBudget doesn’t keep a copy of the key.';
+
+  @override
+  String get phoneShowInAccounts => 'Show in Accounts';
+
+  @override
+  String phoneBackInAccounts(String name) {
+    return '$name back in Accounts';
+  }
 }

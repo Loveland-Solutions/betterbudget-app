@@ -371,6 +371,22 @@ class PhoneFinishSetup extends PhoneRowAct {
   final Currency? saveIn;
 }
 
+/// Settings on the phone (#534 piece 5): ledger preferences written as the
+/// computer's Settings writes them (Had before the budget, a phone's name),
+/// in one Undo that puts back what each was.
+class PhoneSetPrefs extends PhoneRowAct {
+  const PhoneSetPrefs(this.prefs);
+  final Map<String, String?> prefs;
+}
+
+/// Settings' Start over (#534 piece 5): a copy saved in Backups first, then
+/// every account and row erased as the computer's Start over erases them,
+/// the categories kept with no rows when [keepCategories].
+class PhoneStartOver extends PhoneRowAct {
+  const PhoneStartOver({required this.keepCategories});
+  final bool keepCategories;
+}
+
 /// How far every forecast looks, picked on the Ledger tab's header (#529):
 /// one choice for every account, kept in the ledger's preferences quietly
 /// as on the computer; [customEnd] is the day Custom… runs to.
@@ -1978,6 +1994,16 @@ class PhoneSync implements PhoneLedgerSource {
         return actOnPay(db, act, now, again);
       case PhoneSetSpan():
         return actOnSpan(db, act, again);
+      case PhoneSetPrefs():
+        return actOnPrefs(db, act, again);
+      case PhoneStartOver():
+        return actOnStartOver(
+          db,
+          _ownBackups.saveBeforeNewLedger,
+          act,
+          now,
+          again,
+        );
       case PhoneSetupDate() || PhoneBudgetBy() || PhoneFinishSetup():
         return actOnSetup(db, act, now, again);
       case PhoneSavingsAnswer():
@@ -2407,6 +2433,65 @@ Future<PhoneActed> actOnSetup(
     default:
       throw ArgumentError('Not a setup act: $act');
   }
+}
+
+/// Settings' preferences (#534 piece 5), written in one transaction, with
+/// what each was put back by Undo.
+Future<PhoneActed> actOnPrefs(
+  AppDatabase db,
+  PhoneSetPrefs act,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  final prefs = act.prefs;
+  final was = <String, String?>{
+    for (final k in prefs.keys) k: await db.preference(k),
+  };
+  Future<void> write(Map<String, String?> values) => db.transaction(() async {
+    for (final e in values.entries) {
+      await db.setPreference(e.key, e.value);
+    }
+  });
+  await write(prefs);
+  return (
+    snapshot: await again(),
+    undo: () async {
+      await write(was);
+      return again();
+    },
+    redo: () async {
+      await write(prefs);
+      return again();
+    },
+  );
+}
+
+/// Settings' Start over (#534 piece 5), as the computer's: a copy saved by
+/// [saveFirst] (in Backups) first, then the erase, made as this phone's own changes, so
+/// Undo takes back those only and what another computer changed since
+/// stays (ADR 0005, step 5); Redo takes back the Undo's.
+Future<PhoneActed> actOnStartOver(
+  AppDatabase db,
+  Future<void> Function(DateTime now) saveFirst,
+  PhoneStartOver act,
+  DateTime now,
+  Future<PhoneSnapshot> Function() again,
+) async {
+  await saveFirst(now);
+  var erased = await db.startNewLedger(
+    now,
+    keepCategories: act.keepCategories,
+  );
+  return (
+    snapshot: await again(),
+    undo: () async {
+      erased = await db.revertChanges(erased);
+      return again();
+    },
+    redo: () async {
+      erased = await db.revertChanges(erased);
+      return again();
+    },
+  );
 }
 
 /// A forecast range picked (#529): the choice, and with Custom… its day,
