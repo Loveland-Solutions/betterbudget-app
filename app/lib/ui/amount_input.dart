@@ -11,8 +11,9 @@ import '../import/mapping.dart';
 /// Groups the whole part of each number in an amount field ([groupTyped]),
 /// keeping the caret after the digit it was after.
 ///
-/// Backspace over a comma takes the digit before it, Delete the one after:
-/// a comma alone would only come back. A pasted amount is read as an
+/// Backspace over the mark between thousands (`,`, or `.` in rupiah, #621)
+/// takes the digit before it, Delete the one after: the mark alone would
+/// only come back. A pasted amount is read as an
 /// import reads a bank's cell ([readAmount]), so `1.250.000`, `1 250,50`,
 /// `+125,000.00 ₮` or `(1,250.00)` come in as the amount they say.
 class GroupedAmount extends TextInputFormatter {
@@ -31,11 +32,21 @@ class GroupedAmount extends TextInputFormatter {
     }
     var value = _overComma(oldValue, newValue) ?? newValue;
     value = _pasted(oldValue, value) ?? value;
+    final typedAt = identical(value, newValue)
+        ? _typedAt(oldValue, value)
+        : null;
     final sel = value.selection;
     if (!sel.isValid) {
-      return value.copyWith(text: groupTyped(value.text, const []).text);
+      return value.copyWith(
+        text: groupTyped(value.text, const [], currency, typedAt).text,
+      );
     }
-    final g = groupTyped(value.text, [sel.baseOffset, sel.extentOffset]);
+    final g = groupTyped(
+      value.text,
+      [sel.baseOffset, sel.extentOffset],
+      currency,
+      typedAt,
+    );
     return TextEditingValue(
       text: g.text,
       selection: TextSelection(
@@ -46,8 +57,23 @@ class GroupedAmount extends TextInputFormatter {
     );
   }
 
-  /// A comma deleted alone: the digit beside it goes too, before it for
-  /// Backspace, after it for Delete.
+  /// Where one character was just typed, at the caret or over a selection.
+  int? _typedAt(TextEditingValue old, TextEditingValue now) {
+    final was = old.selection;
+    if (!was.isValid) return null;
+    final at = was.start;
+    if (now.text.length != old.text.length - (was.end - was.start) + 1) {
+      return null;
+    }
+    if (!now.text.startsWith(old.text.substring(0, at)) ||
+        !now.text.endsWith(old.text.substring(was.end))) {
+      return null;
+    }
+    return at;
+  }
+
+  /// The mark between thousands deleted alone: the digit beside it goes
+  /// too, before it for Backspace, after it for Delete.
   TextEditingValue? _overComma(TextEditingValue old, TextEditingValue now) {
     final o = old.text;
     final n = now.text;
@@ -56,7 +82,7 @@ class GroupedAmount extends TextInputFormatter {
       return null;
     }
     final i = now.selection.baseOffset;
-    if (i < 0 || i >= o.length || o[i] != ',') return null;
+    if (i < 0 || i >= o.length || o[i] != currency.style.group) return null;
     if (o.substring(0, i) + o.substring(i + 1) != n) return null;
     if (was.baseOffset == i + 1 && i > 0) {
       return TextEditingValue(
@@ -88,14 +114,18 @@ class GroupedAmount extends TextInputFormatter {
     }
     // Put against a number or a sign already there, it's part of that.
     bool numeric(int i) =>
-        i >= 0 && i < n.length && RegExp(r'[\d.,+\-−]').hasMatch(n[i]);
+        i >= 0 &&
+        i < n.length &&
+        (RegExp(r'[\d.,+\-−]').hasMatch(n[i]) || n[i] == currency.style.group);
     if (numeric(start - 1) || numeric(n.length - after)) return null;
     final put = n.substring(start, n.length - after);
     // Sums are for parseAmount; only a plain amount is read here.
     if (RegExp(r'[*/×]|\d\s*[+\-]\s*\d').hasMatch(put)) return null;
     // One point and no comma is a point, as it would be typed: `12.345` in
     // dollars isn't twelve thousand, and stays for the field to call wrong.
-    if (!put.contains(',') &&
+    // In rupiah a point is between thousands, and is read as that.
+    if (currency.point == '.' &&
+        !put.contains(',') &&
         '.'.allMatches(put).length == 1 &&
         RegExp(r'\.\d{3}(?!\d)').hasMatch(put)) {
       return null;

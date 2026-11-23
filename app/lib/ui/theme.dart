@@ -896,7 +896,7 @@ class Money extends StatelessWidget {
               ),
             ),
             TextSpan(
-              text: formatCents(minor, currency),
+              text: shownCents(minor, currency),
               style: onest(
                 size * centsScale,
                 weight: 400,

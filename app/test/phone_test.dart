@@ -809,6 +809,17 @@ void main() {
       expect(typedAmountShown(typed, Currency.mnt), '₮12,500.75');
     });
 
+    test('rupiah reads as Indonesians write it, its point a comma (#621)', () {
+      final idr = Currency.fromCode('IDR');
+      var typed = '';
+      for (final k in '1000000.95'.split('')) {
+        typed = pressAmountKey(typed, k, idr);
+      }
+      expect(typedAmountMinor(typed, idr), 100000095);
+      expect(typedAmountShown(typed, idr), 'Rp 1.000.000,95');
+      expect(typedAmountShown('50000', idr), 'Rp 50.000');
+    });
+
     test('delete takes the last key back, and a second point is ignored', () {
       expect(pressAmountKey('12.', '.', Currency.mnt), '12.');
       expect(pressAmountKey('12.5', '<', Currency.mnt), '12.');

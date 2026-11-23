@@ -411,7 +411,7 @@ class RegisterPanel extends StatelessWidget {
     if (q.isEmpty) return true;
     // The sign a row shows is typed as often as not: "-30000" finds it.
     final digits = q
-        .replaceAll(RegExp(r'[,\s₮$]'), '')
+        .replaceAll(RegExp(r"[,.\s'’₮$]"), '')
         .replaceFirst(RegExp(r'^[-−+]'), '');
     return rowPayee(t, r).toLowerCase().contains(q) ||
         r.memo.toLowerCase().contains(q) ||
@@ -426,7 +426,7 @@ class RegisterPanel extends StatelessWidget {
             formatWhole(
               r.amount,
               r.currency,
-            ).replaceAll(',', '').contains(digits));
+            ).replaceAll(RegExp(r'\D'), '').contains(digits));
   }
 
   String? _accountOf(RegisterRow r) => allAccounts?[r.accountId]?.name;

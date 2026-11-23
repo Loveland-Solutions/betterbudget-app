@@ -8227,3 +8227,35 @@ Open ledger, type your recovery key, choose the same folder. The owner picked **
   spouse could type it, the owner said no: the phone keeps only the data key worked out
   from it, one way (`deriveDataKey`), so there is nothing to show. Step 2's note stays:
   the other person needs the key that was kept off the phone.
+
+## Each currency written as its people write it (2026-11-23, #621)
+
+A user in Indonesia wrote through the contact form: "Indonesia uses decimal instead of
+comma and a comma for cents. Example: 1.000.000,95". The app wrote and read every
+currency as `1,234.95`: `50.000` typed in rupiah was refused, and `1000000,95` was saved
+as a hundred times the amount. The owner: "Fix it."
+
+- **The marks follow the currency**: each is written as in the country with the most
+  people that pays in it (CLDR). The rupiah `Rp 1.000.000,95`, the euro `€1.234,95`
+  (Germany), the ruble `₽1 234,95`, the Swiss franc `Fr. 1'234.95`. The tugrik and the
+  dollar are unchanged. Amounts, typing, the phone's pad (its point key reads `,` in
+  rupiah) and a paste all follow it.
+- **Cents only when there are some** for the 15 currencies whose people don't write
+  them (the rupiah, the forint): `Rp 1.000.000`, not `Rp 1.000.000,00`. Nothing stored
+  changes.
+- **The point key is the point** in the currencies that put a point between thousands:
+  `12.50` typed in euros is `12,50`, as a number pad or a phone's decimal key types it;
+  with three digits after it, it's between thousands (`50.000` in rupiah). Tugrik and
+  dollars type as before. Read back, a number with both marks has its cents after the
+  last.
+- **Rejected:** the computer's region setting (the user's app was in English; his
+  Windows region may be the United States, and the same ledger would read differently
+  on two computers and the phone); a choice in Settings (a question before the person
+  has seen a wrong amount, where a default does).
+- **From the reviews:** the rand keeps a point before its cents (`R 1 234.56`), as
+  statements there print it; a bank file's figures in the import table stay as the
+  file has them.
+- **Known:** a euro reads `1.234,95` in Ireland too; three digits typed after the point
+  in a euro or rupiah amount read as thousands. Lakhs and non-Latin digits aren't
+  done.
+
