@@ -211,19 +211,19 @@ class _LedgerScreenState extends State<LedgerScreen>
   late final _litFade =
       AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 1200),
+        duration: const Duration(milliseconds: 900),
       )..addStatusListener((s) {
         if (s == AnimationStatus.completed && mounted) {
           setState(() => _lit = null);
         }
       });
 
-  /// Bright for the first quarter, while the ledger reloads with the row,
-  /// then fading out.
+  /// Gold for a moment, then fading quickly: under a second in all (owner,
+  /// 2026-11-24: "one second or less").
   late final Animation<double> _litGlow = ReverseAnimation(
     CurvedAnimation(
       parent: _litFade,
-      curve: const Interval(0.25, 1, curve: Curves.easeInCubic),
+      curve: const Interval(0.15, 1, curve: Curves.easeOutCubic),
     ),
   );
   var _filter = RegisterFilter.all;

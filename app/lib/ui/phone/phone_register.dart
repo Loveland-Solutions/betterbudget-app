@@ -73,7 +73,7 @@ class _RegisterState extends State<_RegisterScreen>
   late final _litFade =
       AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 1200),
+        duration: const Duration(milliseconds: 900),
       )..addStatusListener((s) {
         if (s == AnimationStatus.completed && mounted) {
           setState(() => _lit = {});
@@ -82,7 +82,7 @@ class _RegisterState extends State<_RegisterScreen>
   late final Animation<double> _litGlow = ReverseAnimation(
     CurvedAnimation(
       parent: _litFade,
-      curve: const Interval(0.25, 1, curve: Curves.easeInCubic),
+      curve: const Interval(0.15, 1, curve: Curves.easeOutCubic),
     ),
   );
 

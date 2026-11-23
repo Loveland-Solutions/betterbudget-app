@@ -8431,8 +8431,10 @@ that the entry was entered." On the phone: "Yes if the real estate reasonably al
 for it."
 
 - A row the person adds, saves from Edit or confirms lands with the toast's coin gold
-  behind it, holds a moment while the ledger reloads, and fades to its ordinary look
-  in 1.2 seconds. Gold's job is what was saved, so this is that job, not a new one.
+  behind it, holds a moment, and fades quickly to its ordinary look, 0.9 seconds in
+  all. (First built at 1.2 seconds with the gold held through most of it: "that
+  lights up for too long. I was thinking for one second or less, then it fades back
+  to it's regular color", owner, 2026-11-24.) Gold's job is what was saved, so this is that job, not a new one.
   The gold is behind the row: its stripe, hover, chip and words stay on top and
   readable, light and dark.
 - The register scrolls just far enough to show the row where it went, if it's not in
