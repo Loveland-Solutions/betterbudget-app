@@ -2013,8 +2013,10 @@ class _EntryRowState extends State<EntryRow> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Under the cleared mark, past the bank's place.
+                      const SizedBox(width: Cols.bank),
                       SizedBox(
-                        width: Cols.status,
+                        width: Cols.status - Cols.bank,
                         height: 34,
                         child: Icon(
                           _editing ? Icons.edit_rounded : Icons.add_rounded,

@@ -14031,6 +14031,64 @@ void main() {
     await tidy(tester, db);
   });
 
+  testWidgets("a row a bank's file has shows the small bank before its "
+      'cleared mark, saying so when pointed at (#557)', (tester) async {
+    // A test before this one leaves the palette light.
+    Mid.palette = Palette.of(defaultScheme, Brightness.dark);
+    final db = await pumpLedger(tester);
+    final data = await tester.runAsync(db.loadLedger);
+    final account = data!.accounts.values
+        .firstWhere((a) => a.name == 'TDB Checking')
+        .id;
+    final category = data.accounts.values
+        .firstWhere((a) => a.type == AccountType.expense)
+        .id;
+    await tester.runAsync(() async {
+      await db.postSimple(
+        accountId: account,
+        date: DateTime(2026, 9, 14),
+        today: DateTime(2026, 9, 16),
+        payee: 'Zzz typed',
+        counterAccountId: category,
+        amount: -43210,
+      );
+      final rows = [
+        ImportRow(
+          sourceRow: 0,
+          date: DateTime(2026, 9, 15),
+          amount: -43210,
+          payee: 'ZZZ POS',
+        ),
+      ];
+      final plan = await db.planImport(
+        account,
+        rows,
+        importKeys(account, rows),
+      );
+      await db.applyImport(
+        accountId: account,
+        plan: plan.rows,
+        uncategorizedNames: ['Not categorized'],
+      );
+    });
+    await settle(tester);
+    final tip = find.byWidgetPredicate(
+      (w) =>
+          w is Tooltip &&
+          w.message == "The bank's file has this row, dated 09.15.",
+    );
+    expect(tip, findsOneWidget);
+    expect(
+      find.descendant(of: tip, matching: find.byType(BankGlyph)),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(LedgerScreen),
+      matchesGoldenFile('goldens/ledger_bank_mark.png'),
+    );
+    await tidy(tester, db);
+  });
+
   testWidgets('Source: on until Settings turns it off; each row says '
       'where it came from, and a computer or phone renamed shows on every '
       'row', (tester) async {

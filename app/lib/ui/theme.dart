@@ -940,6 +940,55 @@ class StatusGlyph extends StatelessWidget {
   );
 }
 
+/// A row a bank's file has (#557, the owner's pick of sketch B): a small
+/// bank in blue, the color of Import transactions…, before the cleared mark.
+class BankGlyph extends StatelessWidget {
+  const BankGlyph({super.key, this.size = 14});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: size,
+    height: size,
+    child: CustomPaint(painter: _BankPainter(Mid.blue)),
+  );
+}
+
+class _BankPainter extends CustomPainter {
+  _BankPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = size.width / 14;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3 * k
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(
+      Path()
+        ..moveTo(1.5 * k, 5.2 * k)
+        ..lineTo(7 * k, 1.8 * k)
+        ..lineTo(12.5 * k, 5.2 * k)
+        ..close(),
+      paint,
+    );
+    for (final x in [3.5, 7.0, 10.5]) {
+      canvas.drawLine(Offset(x * k, 6.8 * k), Offset(x * k, 10.4 * k), paint);
+    }
+    canvas.drawLine(
+      Offset(1.8 * k, 12.2 * k),
+      Offset(12.2 * k, 12.2 * k),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BankPainter old) => old.color != color;
+}
+
 class _ClockPainter extends CustomPainter {
   _ClockPainter(this.color);
   final Color color;

@@ -67,6 +67,57 @@ Map<String, Object?> _arb(String locale) =>
         as Map<String, Object?>;
 
 void main() {
+  test("the small bank's words: the bank's day only when it isn't the "
+      "row's, and an amount changed since said with the bank's (#557)", () {
+    final t = lookupWords(const Locale('en'));
+    RegisterRow row({String? how, DateTime? day, int? bank}) => RegisterRow(
+      txnId: 1,
+      entryId: 1,
+      date: DateTime(2026, 9, 14),
+      payee: 'Nomin',
+      memo: '',
+      amount: -50000,
+      cleared: Cleared.cleared,
+      scheduled: false,
+      kind: RowKind.simple,
+      categoryLabel: 'Groceries',
+      categoryId: 2,
+      splitLines: const [],
+      madeHow: how,
+      inBankFile: true,
+      bankDay: day,
+      bankAmount: bank,
+    );
+    expect(
+      bankTip(
+        t,
+        row(how: 'imported', day: DateTime(2026, 9, 14), bank: -50000),
+      ),
+      "Brought in from the bank's file.",
+    );
+    expect(
+      bankTip(t, row(day: DateTime(2026, 9, 14), bank: -50000)),
+      "The bank's file has this row.",
+    );
+    expect(
+      bankTip(t, row(day: DateTime(2026, 9, 15), bank: -50000)),
+      "The bank's file has this row, dated 09.15.",
+    );
+    expect(bankTip(t, row()), "The bank's file has this row.");
+    // Brought in on another day: a transfer joined from the other bank's row.
+    expect(
+      bankTip(
+        t,
+        row(how: 'imported', day: DateTime(2026, 9, 16), bank: -50000),
+      ),
+      "The bank's file has this row, dated 09.16.",
+    );
+    expect(
+      bankTip(t, row(day: DateTime(2026, 9, 15), bank: -4500000)),
+      "The bank's file has this row as −₮45,000.00, dated 09.15.",
+    );
+  });
+
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   setUpAll(() async {
     await _loadFont('Onest', 'assets/fonts/Onest-Variable.ttf');

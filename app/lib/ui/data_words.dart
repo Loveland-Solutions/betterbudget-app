@@ -6,7 +6,9 @@ import '../data/database.dart';
 import '../data/encryption.dart';
 import '../data/keys.dart';
 import '../domain/ledger.dart';
+import '../domain/money.dart';
 import '../domain/pay.dart';
+import '../domain/sync.dart' show MadeHow;
 import 'language.dart';
 import 'plan_form.dart' show PlanUnit, planEveryLabel;
 
@@ -241,3 +243,28 @@ String dbProblem(Words t, DbException e) => switch (e.problem) {
     _ => e.message,
   },
 };
+
+/// What the small bank before a row's cleared mark says (#557): brought in
+/// from a bank's file, or a row made here that a bank's file matched. The
+/// bank's day is said only when it isn't the row's own; an amount changed
+/// since is said with the bank's.
+String bankTip(Words t, RegisterRow r) {
+  final day = r.bankDay;
+  final bank = r.bankAmount;
+  if (day != null && bank != null && bank.abs() != r.amount.abs()) {
+    return t.rowsBankTipOtherAmount(
+      formatMoney(
+        r.amount < 0 ? -bank.abs() : bank.abs(),
+        currency: r.currency,
+      ),
+      sayDate(t, day),
+    );
+  }
+  final own = DateTime(r.date.year, r.date.month, r.date.day);
+  if (day != null && day != own) return t.rowsBankTipMatched(sayDate(t, day));
+  // A row brought in before v21 has no word for how it was made, so it
+  // isn't said to have come from the file.
+  return r.madeHow == MadeHow.imported
+      ? t.rowsBankTipImported
+      : t.rowsBankTipMatchedNoDay;
+}

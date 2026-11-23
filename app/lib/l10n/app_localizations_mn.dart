@@ -2228,6 +2228,22 @@ class WordsMn extends Words {
   }
 
   @override
+  String get rowsBankTipImported => 'Банкны файлаас оруулсан.';
+
+  @override
+  String rowsBankTipMatched(String date) {
+    return 'Банкны файлд энэ гүйлгээ $date-нд байна.';
+  }
+
+  @override
+  String get rowsBankTipMatchedNoDay => 'Банкны файлд энэ гүйлгээ байна.';
+
+  @override
+  String rowsBankTipOtherAmount(String amount, String date) {
+    return 'Банкны файлд энэ гүйлгээ $date-нд $amount гэж байна.';
+  }
+
+  @override
   String get rowsScheduledTip => 'Товлосон — бүртгэх хүртэл үлдэгдэлд орохгүй';
 
   @override

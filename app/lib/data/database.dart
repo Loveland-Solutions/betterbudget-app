@@ -2668,6 +2668,11 @@ class AppDatabase extends _$AppDatabase {
 
     final byTxn = <int, List<EntryData>>{};
     for (final e in entryRows) {
+      // A key made for another account went with a row moved there: that
+      // account's bank never had it (#557).
+      final key = e.importKey == null ? null : importKeyParts(e.importKey!);
+      final inBank =
+          key != null && (key.account == null || key.account == e.accountId);
       byTxn
           .putIfAbsent(e.transactionId, () => [])
           .add(
@@ -2678,6 +2683,9 @@ class AppDatabase extends _$AppDatabase {
               cleared: e.cleared,
               reconciliationId: e.reconciliationId,
               currency: Currency.fromCode(e.currency),
+              inBankFile: inBank,
+              bankDay: inBank ? key.day : null,
+              bankAmount: inBank ? key.amount : null,
             ),
           );
     }
