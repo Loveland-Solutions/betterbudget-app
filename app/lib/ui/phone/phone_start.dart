@@ -286,6 +286,9 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         }
         final PhoneSnapshot own;
         try {
+          // The next paydays and bills, as a computer schedules at launch
+          // (#624): no computer does it for this ledger.
+          await source.keepScheduled(widget.now());
           own = await source.asItStands(widget.now());
         } catch (e) {
           debugPrint('Opening the ledger on the phone failed: $e');

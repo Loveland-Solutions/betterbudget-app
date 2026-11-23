@@ -594,6 +594,9 @@ class _FakeSource implements PhoneLedgerSource {
   List<String?> get members => opened;
 
   @override
+  Future<void> keepScheduled(DateTime now) async {}
+
+  @override
   Future<PhoneBackups?> backups(DateTime now) async => null;
 
   @override

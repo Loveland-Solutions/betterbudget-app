@@ -334,6 +334,43 @@ void main() {
     await Backups(alone.db!, dataKey: key).discard(candidate);
   });
 
+  test('a phone on its own schedules the next payday when it opens past '
+      'one, as a computer does at launch (#624)', () async {
+    final alone = PhoneSync(
+      dir: await Directory('${root.path}/alone').create(),
+      dataKey: key,
+      device: 'dddd',
+      io: const DirectoryFolderIo(),
+    )..onItsOwn = true;
+    addTearDown(alone.close);
+    await alone.startNew();
+    final db = alone.db!;
+    final khan = await db.addAccount(
+      name: 'Khan Checking',
+      type: AccountType.asset,
+    );
+    await db.savePaySchedule(
+      accountId: khan,
+      amount: 210000000,
+      rule: PayRule.monthly,
+      day1: 25,
+      today: DateTime(2026, 10, 6),
+    );
+    Future<List<String>> waiting() async => [
+      for (final t in (await db.loadLedger()).txns)
+        if (t.scheduled) dateKey(t.date),
+    ]..sort();
+    expect(await waiting(), ['2026-10-23']);
+
+    // Opened again in December, the October payday not confirmed: the
+    // next one after it is scheduled, once within the hour.
+    final december = DateTime(2026, 12, 3, 9);
+    await alone.keepScheduled(december);
+    expect(await waiting(), ['2026-10-23', '2026-12-25']);
+    await alone.keepScheduled(december.add(const Duration(minutes: 5)));
+    expect(await waiting(), ['2026-10-23', '2026-12-25']);
+  });
+
   test('a phone on its own: Back up to…\'s copy is a backup, is recorded '
       'once saved, and Restore from… puts it back with Undo and Redo '
       '(#534 piece 3)', () async {
