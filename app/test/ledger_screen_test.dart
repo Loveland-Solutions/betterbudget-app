@@ -19,6 +19,7 @@ import 'package:betterbudget/domain/sync.dart' show MadeHow;
 import 'package:betterbudget/import/mapping.dart' show ImportRow, importKeys;
 import 'package:betterbudget/ui/appearance.dart';
 import 'package:betterbudget/ui/brand.dart';
+import 'package:betterbudget/ui/entry_row.dart' show startsFirst;
 import 'package:betterbudget/ui/fit_window.dart';
 import 'package:betterbudget/ui/headed_section.dart';
 import 'package:betterbudget/ui/schemes.dart';
@@ -4253,6 +4254,160 @@ void main() {
     expect(find.byKey(const ValueKey('split-card')), findsNothing);
     expect(find.widgetWithText(TextField, 'Groceries'), findsOneWidget);
     await tidy(tester, db);
+  });
+
+  testWidgets('the Category list opens whole on every click, narrows as '
+      'typed, and closes on a click off it or Esc (#548, #555)', (
+    tester,
+  ) async {
+    final db = await pumpLedger(tester);
+    await openEntry(tester);
+    final box = find.byWidgetPredicate(
+      (w) => w is TextField && w.focusNode?.debugLabel == 'entry-category',
+    );
+    TextEditingController text() => tester.widget<TextField>(box).controller!;
+    // The list builds only the rows that fit: Bank fees and Childcare
+    // lead it, Split is pinned above it.
+    bool listed(String name) => find
+        .descendant(of: find.byType(ListView), matching: find.text(name))
+        .evaluate()
+        .isNotEmpty;
+    bool open() => listed('Bank fees') && listed('Childcare');
+
+    // A box built empty: the first click opens the whole list.
+    await tester.tap(box);
+    await tester.pumpAndSettle();
+    expect(open(), isTrue);
+
+    // A click off the list, on the row's own empty space, closes it.
+    await tester.tapAt(
+      tester.getTopLeft(find.byKey(const ValueKey('add-transaction'))) -
+          const Offset(0, 40),
+    );
+    await tester.pumpAndSettle();
+    expect(open(), isFalse);
+
+    // A click on the box that still has focus opens it again.
+    await tester.tap(box);
+    await tester.pumpAndSettle();
+    expect(open(), isTrue);
+
+    // Esc closes the list and leaves the row open.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(open(), isFalse);
+    expect(box, findsOneWidget);
+
+    // Pick one: a click on the box after it opens the whole list, not
+    // only the name it holds, and the name is selected so the first key
+    // typed replaces it.
+    // Nothing is lit until a key: Down lights the first, Down again the
+    // second, and Enter takes it.
+    await tester.tap(box);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await tester.pumpAndSettle();
+    expect(text().text, 'Childcare');
+    expect(open(), isFalse);
+    await tester.tap(box);
+    await tester.pumpAndSettle();
+    expect(open(), isTrue);
+    expect(
+      text().selection,
+      const TextSelection(baseOffset: 0, extentOffset: 'Childcare'.length),
+    );
+
+    // Typing narrows it; Tab takes the match lit and moves on.
+    await tester.enterText(box, 'din');
+    await tester.pumpAndSettle();
+    expect(open(), isFalse);
+    expect(listed('Dining out'), isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    expect(text().text, 'Dining out');
+    expect(
+      FocusManager.instance.primaryFocus?.debugLabel,
+      isNot('entry-category'),
+    );
+    await tidy(tester, db);
+  });
+
+  testWidgets("a split part's Category box opens whole on a click, even "
+      'holding a name (#548)', (tester) async {
+    final db = await pumpLedger(tester);
+    await openEntry(tester);
+    await tester.tap(find.widgetWithText(TextField, 'Category'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Split'));
+    await tester.pumpAndSettle();
+    final part = find
+        .byWidgetPredicate(
+          (w) => w is TextField && w.focusNode?.debugLabel == 'split-category',
+        )
+        .first;
+    bool listed(String name) => find
+        .descendant(of: find.byType(ListView), matching: find.text(name))
+        .evaluate()
+        .isNotEmpty;
+
+    await tester.tap(part);
+    await tester.pumpAndSettle();
+    expect(listed('Bank fees'), isTrue);
+    await tester.enterText(part, 'Childcare');
+    await tester.pumpAndSettle();
+    expect(listed('Bank fees'), isFalse);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await tester.tap(part);
+    await tester.pumpAndSettle();
+    expect(listed('Bank fees'), isTrue);
+    expect(listed('Childcare'), isTrue);
+    await tidy(tester, db);
+  });
+
+  testWidgets('a click in the payee box after typing keeps its '
+      'suggestions, and Enter takes one (#548)', (tester) async {
+    final db = await pumpLedger(tester);
+    await openEntry(tester);
+    final payee = find.byWidgetPredicate(
+      (w) => w is TextField && w.focusNode?.debugLabel == 'entry-payee',
+    );
+    await tester.enterText(payee, 'Saku');
+    await tester.pumpAndSettle();
+    bool listed(String name) => find
+        .descendant(of: find.byType(ListView), matching: find.text(name))
+        .evaluate()
+        .isNotEmpty;
+    expect(listed('Sakura Coffee'), isTrue);
+    await tester.tap(payee);
+    await tester.pumpAndSettle();
+    expect(listed('Sakura Coffee'), isTrue);
+    await tester.runAsync(() async {
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(payee).controller!.text, 'Sakura Coffee');
+    await tidy(tester, db);
+  });
+
+  test('a list lights first what starts with what is typed (#548)', () {
+    expect(startsFirst(['Vegas trip', 'Gas', 'Big gas bill'], 'ga', (s) => s), [
+      'Gas',
+      'Vegas trip',
+      'Big gas bill',
+    ]);
+    expect(startsFirst(['B', 'A'], '', (s) => s), ['B', 'A']);
+    expect(startsFirst(['Car insurance', 'Car'], 'car', (s) => s), [
+      'Car',
+      'Car insurance',
+    ]);
   });
 
   testWidgets('a rupiah account reads and types as Indonesians write it '
@@ -13342,6 +13497,10 @@ void main() {
     expect(find.text('+ New category “insur”'), findsOneWidget);
     // Only the "Mixed up" row's chip: not a choice in the list.
     expect(find.text('Car insurance'), findsOneWidget);
+    // Esc closes the list first, then the row (#548).
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('+ New category “insur”'), findsNothing);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 

@@ -8304,3 +8304,25 @@ with A").
 - **Rejected:** B (a tap more for every change, and its headings name nothing the
   computer's Settings calls them); C (things a person looks for in one place scattered over
   three pages, and the words that say "in Settings" would point nowhere).
+
+## The Category box's list (owner, 2026-11-19 and 2026-11-20, #548, #555)
+
+The owner: "Sometimes I click it and nothing happens. Sometimes I click it, and nothing
+is in it … When I type a category, it should try to autocomplete. When I click off the
+dropdown, it should collapse." And: "I want to be able to click the drop down, begin
+typing and have the list filtered by what I typed."
+
+- A click on Category opens the whole list every time: on a box built empty, on a box
+  that already has focus, and on one holding a chosen name (not only that name).
+- The name a Category box holds is selected by the click, so the first key typed
+  replaces it; typing narrows the list, the categories that start with what's typed
+  first and the first one lit. Enter or Tab takes it. Nothing is lit or filled before
+  a key is typed.
+- A click anywhere off the box and its list closes the list, even on the row's own
+  empty space. Esc closes the list first; a second Esc cancels the row.
+- The same on a split part's Category box. A payee box keeps the caret where it is
+  clicked and Tab never takes a payee, since what's typed may be a new one.
+- The phone's Category list is a menu opened by a tap, built whole each time; it had
+  none of this.
+- The cause: Flutter's autocomplete works its list out only when the text changes, so
+  the box now owns its list (`_Autocomplete` in `ui/entry_row.dart`).

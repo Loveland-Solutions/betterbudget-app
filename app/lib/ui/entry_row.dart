@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../domain/budget.dart' show categoryTakes, isUncategorized;
@@ -1083,7 +1086,7 @@ class _EntryRowState extends State<EntryRow> {
         ) &&
         !others.any((o) => _lineNew(o)?.toLowerCase() == lower);
     return [
-      ...found,
+      ...startsFirst(found, q, (c) => c.name),
       if (fresh)
         AccountInfo(
           id: _createId,
@@ -1587,6 +1590,7 @@ class _EntryRowState extends State<EntryRow> {
                         controller: l.category,
                         focusNode: l.categoryFocus,
                         hint: t.rowsHintCategory,
+                        choosing: true,
                         options: (q) => _lineOptions(l, q),
                         label: (c) => c.name,
                         optionText: (c) => c.id == _createId
@@ -2154,13 +2158,18 @@ class _EntryRowState extends State<EntryRow> {
                                               focusNode: _categoryFocus,
                                               hint: t.rowsHintCategory,
                                               wanted: _wants('category'),
+                                              choosing: true,
                                               options: (q) => [
-                                                ..._listOptions.where(
-                                                  (o) => o.label
-                                                      .toLowerCase()
-                                                      .contains(
-                                                        q.toLowerCase(),
-                                                      ),
+                                                ...startsFirst(
+                                                  _listOptions.where(
+                                                    (o) => o.label
+                                                        .toLowerCase()
+                                                        .contains(
+                                                          q.toLowerCase(),
+                                                        ),
+                                                  ),
+                                                  q,
+                                                  (o) => o.label,
                                                 ),
                                                 if (_newCategory case final n?)
                                                   _createOption(n)
@@ -3154,7 +3163,37 @@ class _CalendarState extends State<Calendar> {
   }
 }
 
-class _Autocomplete<T extends Object> extends StatelessWidget {
+/// [found] with the one named exactly [q] first, then those whose name
+/// starts with it, each part in its own order: "Gas" lit before "Gas bill",
+/// both before "Vegas trip" (#548).
+@visibleForTesting
+List<T> startsFirst<T>(Iterable<T> found, String q, String Function(T) name) {
+  final lower = q.trim().toLowerCase();
+  if (lower.isEmpty) return found.toList();
+  final exact = <T>[];
+  final starts = <T>[];
+  final rest = <T>[];
+  for (final o in found) {
+    final n = name(o).toLowerCase();
+    (n == lower
+            ? exact
+            : n.startsWith(lower)
+            ? starts
+            : rest)
+        .add(o);
+  }
+  return [...exact, ...starts, ...rest];
+}
+
+/// A text box with a list under it (#548, #555). A click opens the whole
+/// list every time, even on a box already in use or holding a chosen name;
+/// typing narrows it, the first match lit so Enter (and Tab, with [choosing])
+/// takes it; a click anywhere off the box and its list closes it, and so does
+/// Esc. The list is the box's own rather than Flutter's RawAutocomplete,
+/// which works out its options only when the text changes: a box built
+/// empty opened nothing, one holding a name listed only that name, and a
+/// click into a box with focus did nothing.
+class _Autocomplete<T extends Object> extends StatefulWidget {
   const _Autocomplete({
     required this.controller,
     required this.focusNode,
@@ -3167,6 +3206,7 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
     this.optionText,
     this.pinned,
     this.pinnedIcon,
+    this.choosing = false,
   });
 
   /// How an option reads in the list, when not as it fills the field.
@@ -3183,127 +3223,462 @@ class _Autocomplete<T extends Object> extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final String hint;
+
+  /// What the list holds for what's typed; '' when nothing is (the box
+  /// opened, or holds a name it was given rather than typed).
   final Iterable<T> Function(String query) options;
   final String Function(T) label;
   final ValueChanged<T> onSelected;
   final VoidCallback onSubmit;
   final bool wanted;
 
+  /// A box for picking one of the list (a category's): Tab with something
+  /// typed and a match lit takes it, as Enter does, and a click selects the
+  /// name it holds so the first key typed replaces it (#555). Not a payee's,
+  /// where what's typed may be a new payee and a click places the caret.
+  final bool choosing;
+
   @override
-  Widget build(BuildContext context) => RawAutocomplete<T>(
-    textEditingController: controller,
-    focusNode: focusNode,
-    displayStringForOption: label,
-    optionsBuilder: (v) => options(v.text),
-    onSelected: onSelected,
-    fieldViewBuilder: (context, c, f, onFieldSubmitted) => TextField(
-      controller: c,
-      focusNode: f,
+  State<_Autocomplete<T>> createState() => _AutocompleteState<T>();
+}
+
+class _AutocompleteState<T extends Object> extends State<_Autocomplete<T>> {
+  final _list = OverlayPortalController();
+
+  /// The row lit; -1 for none, as when the list opens and nothing is typed.
+  final _lit = ValueNotifier<int>(-1);
+  final _region = Object();
+
+  /// Typed into since the list opened: only then does the text narrow it.
+  bool _typed = false;
+
+  /// Text changes the box makes itself (a pick), not the person's typing.
+  bool _selfSet = false;
+  late String _lastText = widget.controller.text;
+
+  /// A category box lists everything until a key is typed; a payee box
+  /// always lists by its text (none while it is empty).
+  String get _query => _typed || !widget.choosing ? widget.controller.text : '';
+  List<T> get _options => widget.options(_query).toList();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_textChanged);
+    widget.focusNode.addListener(_focusChanged);
+  }
+
+  @override
+  void didUpdateWidget(_Autocomplete<T> old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.controller, widget.controller)) {
+      old.controller.removeListener(_textChanged);
+      widget.controller.addListener(_textChanged);
+      _lastText = widget.controller.text;
+    }
+    if (!identical(old.focusNode, widget.focusNode)) {
+      old.focusNode.removeListener(_focusChanged);
+      widget.focusNode.addListener(_focusChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_textChanged);
+    widget.focusNode.removeListener(_focusChanged);
+    _lit.dispose();
+    super.dispose();
+  }
+
+  /// Any change to the text: the person's typing comes after it through
+  /// [_onTyped]. One made by the row (a payee's category filled in, perhaps
+  /// after this box has focus) is not typing: the whole list stays, and the
+  /// name is selected so the first key typed replaces it.
+  void _textChanged() {
+    final text = widget.controller.text;
+    if (text == _lastText) return; // the caret moved, nothing more
+    _lastText = text;
+    if (_selfSet) return;
+    final at = text;
+    _typed = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _typed || widget.controller.text != at) return;
+      if (widget.focusNode.hasFocus) {
+        _lit.value = -1;
+        _selectHeld();
+        _show();
+      }
+    });
+  }
+
+  void _onTyped(String _) {
+    _typed = true;
+    _lit.value = 0;
+    _show();
+  }
+
+  void _selectHeld() {
+    final c = widget.controller;
+    if (!widget.choosing || c.text.isEmpty) return;
+    c.selection = TextSelection(baseOffset: 0, extentOffset: c.text.length);
+  }
+
+  void _focusChanged() {
+    if (widget.focusNode.hasFocus) {
+      _open();
+    } else {
+      _hide();
+    }
+  }
+
+  /// The whole list, from a click or the box taking focus.
+  void _open() {
+    if (widget.choosing) {
+      _typed = false;
+      _lit.value = -1;
+      _show();
+    } else if (_typed) {
+      // A payee box lists only while typed into, and keeps that list
+      // across a click; a name it was given (a saved row's) lists nothing.
+      _lit.value = 0;
+      _show();
+    }
+  }
+
+  void _show() {
+    if (!mounted) return;
+    // A name set from the row while it builds: wait for the frame's end.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => _show());
+      return;
+    }
+    if (widget.focusNode.hasFocus &&
+        (widget.choosing || _typed) &&
+        _options.isNotEmpty) {
+      _list.show();
+    } else {
+      _list.hide();
+    }
+    setState(() {});
+  }
+
+  void _hide() {
+    if (_list.isShowing) {
+      _list.hide();
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _tapped() {
+    final c = widget.controller;
+    // A name the box holds is replaced by the first key typed (#555).
+    final held = widget.choosing && c.text.isNotEmpty;
+    _open();
+    if (held) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !widget.focusNode.hasFocus || _typed) return;
+        _selectHeld();
+      });
+    }
+  }
+
+  void _pick(T o) {
+    final text = widget.label(o);
+    _selfSet = true;
+    widget.controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    _lastText = text;
+    _selfSet = false;
+    _typed = false;
+    _hide();
+    widget.onSelected(o);
+  }
+
+  T? get _litOption {
+    final opts = _options;
+    final i = _lit.value;
+    return i < 0 || i >= opts.length ? null : opts[i];
+  }
+
+  void _pickLit() {
+    if (_litOption case final o?) _pick(o);
+  }
+
+  /// Something to take: a key typed, or a row lit with the arrows.
+  bool get _chosen => _showing && _litOption != null;
+
+  /// Tab takes a category, never a "+ New" line or a pinned one (Split):
+  /// those open a window, which Tab shouldn't.
+  bool get _tabTakes {
+    final o = _litOption;
+    if (o == null || !_chosen) return false;
+    if (widget.pinned?.call(o) ?? false) return false;
+    final shown = widget.optionText?.call(o);
+    return shown == null || shown == widget.label(o);
+  }
+
+  void _move(int by) {
+    final n = _options.length;
+    if (n == 0) return;
+    if (!_list.isShowing) {
+      _show();
+      return;
+    }
+    _lit.value = _lit.value < 0 && by < 0
+        ? n - 1
+        : (_lit.value + by).clamp(0, n - 1);
+  }
+
+  bool get _showing => _list.isShowing && widget.focusNode.hasFocus;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = widget;
+    final field = TextField(
+      controller: w.controller,
+      focusNode: w.focusNode,
       style: onest(13.5),
-      decoration: _decoration(hint, wanted: wanted),
+      decoration: _decoration(w.hint, wanted: w.wanted),
+      onTap: _tapped,
+      onChanged: _onTyped,
       onEditingComplete: () {},
       onSubmitted: (text) {
         // A half-typed name with suggestions showing: Enter picks one.
         // Otherwise Enter means "add the transaction".
         final q = text.trim().toLowerCase();
-        final opts = options(text);
+        final opts = w.options(text);
         // The "+ New" line isn't a match: "Gro" + Enter picks Groceries.
         final exact = opts.any(
           (o) =>
-              label(o).toLowerCase() == q &&
-              (optionText == null || optionText!(o) == label(o)),
+              w.label(o).toLowerCase() == q &&
+              (w.optionText == null || w.optionText!(o) == w.label(o)),
         );
-        if (q.isNotEmpty && opts.isNotEmpty && !exact) {
-          onFieldSubmitted();
+        // An arrow's pick is taken as it is, exact or not.
+        final lit = _litOption;
+        final arrowed = !_typed && w.choosing && lit != null;
+        if (_chosen && (arrowed || (q.isNotEmpty && !exact))) {
+          _pickLit();
         } else {
-          onSubmit();
+          w.onSubmit();
         }
+        // Enter leaves the box in use; the list stays shut until a click.
+        _hide();
       },
-    ),
-    optionsViewBuilder: (context, onPick, opts) {
-      final highlighted = AutocompleteHighlightedOption.of(context);
-      final all = opts.toList();
-      final list = [
-        for (final o in all)
-          if (!(pinned?.call(o) ?? false)) o,
-      ];
-      final above = [
-        for (final o in all)
-          if (pinned?.call(o) ?? false) o,
-      ];
-      Widget item(T o, int i, {IconData? icon}) => InkWell(
-        onTap: () => onPick(o),
-        child: Container(
-          color: i == highlighted ? Mid.blueWash : Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 16, color: Mid.blue),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(
-                  (optionText ?? label)(o),
-                  style: onest(
-                    13,
-                    color: i == highlighted ? Mid.ink : Mid.ink2,
-                  ),
-                ),
+    );
+    return TapRegion(
+      groupId: _region,
+      onTapOutside: (_) => _hide(),
+      child: OverlayPortal.overlayChildLayoutBuilder(
+        controller: _list,
+        overlayChildBuilder: _layout,
+        child: Shortcuts(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.arrowDown): _Next(),
+            SingleActivator(LogicalKeyboardKey.arrowUp): _Previous(),
+            SingleActivator(LogicalKeyboardKey.escape): _Shut(),
+            SingleActivator(LogicalKeyboardKey.tab): _Take(),
+          },
+          child: Actions(
+            actions: {
+              _Next: _WhenAction<_Next>(
+                () => w.focusNode.hasFocus && _options.isNotEmpty,
+                (_) => _move(1),
               ),
-            ],
+              _Previous: _WhenAction<_Previous>(
+                () => _showing,
+                (_) => _move(-1),
+              ),
+              // Esc with the list open shuts the list; with it shut, Esc
+              // goes on to the row (Cancel).
+              _Shut: _WhenAction<_Shut>(() => _showing, (_) => _hide()),
+              _Take: _WhenAction<_Take>(
+                () => w.choosing && _tabTakes,
+                (_) => _pickLit(),
+              ),
+            },
+            child: field,
           ),
         ),
-      );
-      return Align(
+      ),
+    );
+  }
+
+  Widget _layout(BuildContext context, OverlayChildLayoutInfo info) {
+    if (info.childPaintTransform.determinant() == 0.0) {
+      return const SizedBox.shrink();
+    }
+    final field = info.childSize;
+    final invert = info.childPaintTransform.clone()..invert();
+    final screen = MediaQuery.paddingOf(context)
+        .deflateRect(Offset.zero & info.overlaySize);
+    final inField = MatrixUtils.transformRect(invert, screen);
+    final below = inField.bottom - field.height;
+    final above = -inField.top;
+    final up = above > below && below < 200;
+    final room = math.max(up ? above : below, 48.0);
+    final transform = info.childPaintTransform.clone()
+      ..translateByDouble(0, up ? -room : field.height, 0, 1);
+    return Transform(
+      transform: transform,
+      child: Align(
         alignment: Alignment.topLeft,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Material(
-            color: Mid.raised,
-            elevation: 12,
-            shadowColor: Colors.black,
-            borderRadius: BorderRadius.circular(10),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxHeight: 280,
-                maxWidth: 320,
-                minWidth: 220,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (above.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          for (final (j, o) in above.indexed)
-                            item(o, list.length + j, icon: pinnedIcon?.call(o)),
-                        ],
-                      ),
-                    ),
-                    if (list.isNotEmpty) Divider(height: 1, color: Mid.rule),
-                  ],
-                  if (list.isNotEmpty)
-                    Flexible(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        shrinkWrap: true,
-                        itemCount: list.length,
-                        itemBuilder: (context, i) => item(list[i], i),
-                      ),
-                    ),
-                ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints.tight(Size(field.width, room)),
+          child: Align(
+            alignment: up
+                ? AlignmentDirectional.bottomStart
+                : AlignmentDirectional.topStart,
+            // Clicks on the list are the box's: they neither close it
+            // (TapRegion) nor take focus from the field (TextFieldTapRegion).
+            child: TapRegion(
+              groupId: _region,
+              child: TextFieldTapRegion(
+                child: ExcludeFocus(
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: _lit,
+                    builder: (context, highlighted, _) =>
+                        _view(context, _options, highlighted, up: up),
+                  ),
+                ),
               ),
             ),
           ),
         ),
-      );
-    },
-  );
+      ),
+    );
+  }
+
+  Widget _view(
+    BuildContext context,
+    List<T> opts,
+    int highlighted, {
+    required bool up,
+  }) {
+    final optionText = widget.optionText;
+    final label = widget.label;
+    final pinned = widget.pinned;
+    final pinnedIcon = widget.pinnedIcon;
+    final onPick = _pick;
+    final all = opts.toList();
+    final list = [
+      for (final o in all)
+        if (!(pinned?.call(o) ?? false)) o,
+    ];
+    final above = [
+      for (final o in all)
+        if (pinned?.call(o) ?? false) o,
+    ];
+    Widget item(T o, int i, {IconData? icon}) => InkWell(
+      onTap: () => onPick(o),
+      child: Container(
+        color: i == highlighted ? Mid.blueWash : Colors.transparent,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: Mid.blue),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text(
+                (optionText ?? label)(o),
+                style: onest(13, color: i == highlighted ? Mid.ink : Mid.ink2),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    // Against the box: under it, or over it when it opens up.
+    return Align(
+      alignment: up ? Alignment.bottomLeft : Alignment.topLeft,
+      child: Padding(
+        padding: up
+            ? const EdgeInsets.only(bottom: 6)
+            : const EdgeInsets.only(top: 6),
+        child: Material(
+          color: Mid.raised,
+          elevation: 12,
+          shadowColor: Colors.black,
+          borderRadius: BorderRadius.circular(10),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxHeight: 280,
+              maxWidth: 320,
+              minWidth: 220,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (above.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final (j, o) in above.indexed)
+                          item(o, list.length + j, icon: pinnedIcon?.call(o)),
+                      ],
+                    ),
+                  ),
+                  if (list.isNotEmpty) Divider(height: 1, color: Mid.rule),
+                ],
+                if (list.isNotEmpty)
+                  Flexible(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      shrinkWrap: true,
+                      itemCount: list.length,
+                      itemBuilder: (context, i) => item(list[i], i),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Next extends Intent {
+  const _Next();
+}
+
+class _Previous extends Intent {
+  const _Previous();
+}
+
+class _Shut extends Intent {
+  const _Shut();
+}
+
+class _Take extends Intent {
+  const _Take();
+}
+
+/// An action that takes its key only while [when] holds; otherwise the key
+/// goes on (to the text field, or the row's own Esc and Tab).
+class _WhenAction<I extends Intent> extends Action<I> {
+  _WhenAction(this.when, this.run);
+  final bool Function() when;
+  final void Function(I) run;
+
+  @override
+  bool isEnabled(I intent) => when();
+
+  @override
+  bool consumesKey(I intent) => when();
+
+  @override
+  Object? invoke(I intent) {
+    run(intent);
+    return null;
+  }
 }
 
 class _AddButton extends StatefulWidget {
