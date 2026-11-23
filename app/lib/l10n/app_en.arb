@@ -12503,5 +12503,165 @@
   "phoneSavedOnPhone": "Saved on this phone · it won’t help if the phone is lost. Back up to Google Drive instead.",
   "@phoneSavedOnPhone": {
     "description": "Phone, the snack bar when Back up to… saved the copy on the phone itself (Downloads, its storage): it is saved, but isn’t counted as a backup."
+  },
+  "phoneShareRow": "Use it on another phone or computer",
+  "@phoneShareRow": {
+    "description": "Phone, Accounts, the row at its foot under Backups that opens the page for a second phone or a computer (#534 piece 4)."
+  },
+  "phoneShareRowAlone": "Only this phone has your ledger",
+  "@phoneShareRowAlone": {
+    "description": "Phone, under the row Use it on another phone or computer, while the ledger is only on this phone."
+  },
+  "phoneShareRowStored": "Stored in {folder} · nothing else has opened it yet",
+  "@phoneShareRowStored": {
+    "description": "Phone, under the row Use it on another phone or computer, once the ledger is in a folder that no other phone or computer has opened. {folder} reads “BetterBudget”.",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneShareRowStoredNoName": "Stored in the folder you chose · nothing else has opened it yet",
+  "@phoneShareRowStoredNoName": {
+    "description": "Phone, as phoneShareRowStored when the phone doesn't say what the folder is called."
+  },
+  "phoneShareRowAlso": "Also on {name}",
+  "@phoneShareRowAlso": {
+    "description": "Phone, under the row Use it on another phone or computer, once one other phone or computer has opened the ledger. {name} reads “Tom’s MacBook”.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneShareTitle": "Another phone or computer",
+  "@phoneShareTitle": {
+    "description": "Phone, the page's title: using the ledger on a second phone or a computer too."
+  },
+  "phoneShareIntro": "Your ledger is only on this phone. To use it on a second phone or a computer too, it moves to a folder, and each of them opens it from there.",
+  "@phoneShareIntro": {
+    "description": "Phone (Android), the line at the top of Another phone or computer while the ledger is only on this phone."
+  },
+  "phoneShareIntroIos": "Your ledger is only on this phone. To use it on a second phone or a computer too, it moves to a folder, and each of them opens it from there.",
+  "@phoneShareIntroIos": {
+    "description": "Phone (iPhone), as phoneShareIntro."
+  },
+  "phoneShareStepHere": "On this phone",
+  "@phoneShareStepHere": {
+    "description": "Phone, Another phone or computer, step 1's heading."
+  },
+  "phoneShareStepHereBody": "Choose a folder in Google Drive that the other phone or computer can open too: in the same Google account, or one shared with theirs. Your ledger is stored there, encrypted, and kept up after each change. It keeps working without a signal.",
+  "@phoneShareStepHereBody": {
+    "description": "Phone (Android), Another phone or computer, under step 1 before the move."
+  },
+  "phoneShareStepHereBodyIos": "Choose a folder in iCloud Drive or Google Drive that the other phone or computer can open too: in the same account, or one shared with theirs. For an Android phone or a Windows computer, choose Google Drive. Your ledger is stored there, encrypted, and kept up after each change. It keeps working without a signal.",
+  "@phoneShareStepHereBodyIos": {
+    "description": "Phone (iPhone), as phoneShareStepHereBody."
+  },
+  "phoneShareStoredIn": "Stored in {folder}",
+  "@phoneShareStoredIn": {
+    "description": "Phone, Another phone or computer, step 1 once the ledger is in the folder. {folder} reads “BetterBudget”.",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneShareStoredInNoName": "Stored in the folder you chose",
+  "@phoneShareStoredInNoName": {
+    "description": "Phone, as phoneShareStoredIn when the phone doesn't say what the folder is called."
+  },
+  "phoneShareMoveBack": "Move it back to this phone",
+  "@phoneShareMoveBack": {
+    "description": "Phone, Another phone or computer, the button under step 1 once the ledger is in a folder."
+  },
+  "phoneShareStepThere": "On the other phone or computer",
+  "@phoneShareStepThere": {
+    "description": "Phone, Another phone or computer, step 2's heading."
+  },
+  "phoneShareStepThereBody": "Install BetterBudget, tap Open ledger, type your recovery key, and choose the same folder. On a computer, the folder shows once Google Drive or iCloud Drive is installed there.",
+  "@phoneShareStepThereBody": {
+    "description": "Phone, Another phone or computer, under step 2. “Open ledger” is the name of the way on the first screen (startOpen)."
+  },
+  "phoneShareKeyNote": "Your recovery key is the one shown when you started, which you kept off this phone. Without it the other can’t open your ledger.",
+  "@phoneShareKeyNote": {
+    "description": "Phone, Another phone or computer, the note under step 2."
+  },
+  "phoneShareNoneYet": "Nothing has opened it yet. When one does, it is named here.",
+  "@phoneShareNoneYet": {
+    "description": "Phone, Another phone or computer, under step 2 once the ledger is in a folder that nothing else has opened."
+  },
+  "phoneShareOpenedOn": "Opened on {name}",
+  "@phoneShareOpenedOn": {
+    "description": "Phone, Another phone or computer, under step 2: a phone or computer that has opened the ledger. {name} reads “Tom’s MacBook”.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneShareOpenedUnnamed": "Opened on another phone or computer",
+  "@phoneShareOpenedUnnamed": {
+    "description": "Phone, as phoneShareOpenedOn for one that hasn't said what it is called."
+  },
+  "phoneShareMoved": "Your ledger was moved to {folder}",
+  "@phoneShareMoved": {
+    "description": "Phone, the snack bar after the move, with Undo. {folder} reads “BetterBudget”.",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneShareMovedNoName": "Your ledger was moved to the folder you chose",
+  "@phoneShareMovedNoName": {
+    "description": "Phone, as phoneShareMoved when the phone doesn't say what the folder is called."
+  },
+  "phoneShareBack": "Your ledger is back on this phone · the file in {folder} stays there",
+  "@phoneShareBack": {
+    "description": "Phone, the snack bar after Move it back to this phone, with Undo.",
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneShareBackNoName": "Your ledger is back on this phone · the file in the folder stays there",
+  "@phoneShareBackNoName": {
+    "description": "Phone, as phoneShareBack when the phone doesn't say what the folder is called."
+  },
+  "phoneShareHasLedgerTitle": "This folder already holds a ledger",
+  "@phoneShareHasLedgerTitle": {
+    "description": "Phone, the question when the folder picked for the move already has a ledger in it."
+  },
+  "phoneShareHasLedgerBody": "If you replace it, that ledger is saved on this phone first, in Backups, and it opens only with its own recovery key. Anyone who opens it from this folder will have yours instead. To keep it, tap Cancel and choose another folder.",
+  "@phoneShareHasLedgerBody": {
+    "description": "Phone, under phoneShareHasLedgerTitle, above Cancel and Replace it."
+  },
+  "phoneCopyFromFolder": "{when} · the ledger that was in the folder",
+  "@phoneCopyFromFolder": {
+    "description": "Phone, Backups page, a copy under Copies on this phone: the ledger that was in a folder before this phone's replaced it. {when} reads “Today 14:05”.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneShareBackAskTitle": "Move your ledger back to this phone?",
+  "@phoneShareBackAskTitle": {
+    "description": "Phone, the question before Move it back to this phone while another phone or computer uses the ledger from its folder."
+  },
+  "phoneShareBackAskOne": "{name} will stop getting this phone’s changes, and what is entered on it won’t reach this phone. Each will have its own ledger from then on. The file in the folder stays there.",
+  "@phoneShareBackAskOne": {
+    "description": "Phone, under phoneShareBackAskTitle when one other phone or computer has opened the ledger. {name} reads “Tom’s MacBook”.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneShareBackAskOthers": "The other phones and computers that opened it will stop getting this phone’s changes, and what is entered on them won’t reach this phone. Each will have its own ledger from then on. The file in the folder stays there.",
+  "@phoneShareBackAskOthers": {
+    "description": "Phone, under phoneShareBackAskTitle when more than one, or one with no name, has opened the ledger."
   }
 }

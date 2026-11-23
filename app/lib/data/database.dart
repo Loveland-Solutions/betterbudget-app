@@ -1972,6 +1972,35 @@ class AppDatabase extends _$AppDatabase {
       p.key: p.value,
   };
 
+  /// Makes this ledger one of its own before a phone on its own moves it to
+  /// a folder (#534 piece 4): a ledger restored from a backup still carries
+  /// the id of the ledger it was taken from, and its computers' counts and
+  /// what was applied of them, and in a folder would be taken for that
+  /// ledger. Until [me] has written it to a folder it gets a new id and
+  /// those settings go; once [me] has (a move, then moved back), it is left
+  /// as it is, so a move undone and done again finds its own file in the
+  /// folder, whoever has opened it there since. Returns whether it changed
+  /// anything.
+  Future<bool> becomeItsOwnLedger(String me) => transaction(() async {
+    final prefs = await _syncPrefs();
+    final written = SyncComputers.parse(prefs[SyncKeys.computers]).counters;
+    if (written.containsKey(me)) return false;
+    await _withoutChangeLog(() async {
+      await customStatement(
+        'DELETE FROM main.preferences WHERE key IN (?, ?, ?, ?, ?)',
+        [
+          SyncKeys.computers,
+          SyncKeys.applied,
+          SyncKeys.seal,
+          SyncKeys.saved,
+          SyncKeys.whole,
+        ],
+      );
+    });
+    await setPreference(SyncKeys.ledger, newLedgerId());
+    return true;
+  });
+
   /// Seals the ledger as [computer] is about to write it over a folder's
   /// file that carries the counts [over]: its own count goes up by one and
   /// [over] is folded in, so the file written is ahead of the one it

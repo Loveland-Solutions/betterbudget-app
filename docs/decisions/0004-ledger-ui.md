@@ -8186,3 +8186,39 @@ picked once, which each day's copy also goes to. The owner picked **A** ("a").
 - **Left for later:** a backup made under another ledger's recovery key is refused with
   the computer's words ("can't be opened with this ledger's key"); the computer asks for
   that backup's key there, and the phone doesn't yet.
+
+## Another phone or computer: the phone's ledger to a folder (owner, 2026-11-23, #534)
+
+A phone on its own keeps the only copy of its ledger (ADR 0005, "How #534 is cut",
+piece 4). For a second phone or a computer to use it, it moves to a folder the OS
+syncs, and each of the others opens it from there with Open ledger. Two sketches at
+390 points, of different kinds: **A** the computer's Settings card, "Stored in · This
+phone" with **Move my ledger to a folder…**, at the foot of the phone's Backups page;
+**B** a row at the foot of Accounts, **Use it on another phone or computer** ("Only this
+phone has your ledger"), opening a page of two steps: **1 On this phone**, Move my
+ledger to a folder…, and **2 On the other phone or computer**, install BetterBudget, tap
+Open ledger, type your recovery key, choose the same folder. The owner picked **B**
+("Let's go with B").
+
+- **Why B:** someone with only a phone wants it on a second phone or a computer, and
+  doesn't think of moving a ledger to a folder; the page starts from that, and step 2
+  says the other half of the job, which nothing on screen said.
+- **The computer's words** for the move: **Move my ledger to a folder…**, "Your ledger
+  was moved to My Drive/BetterBudget" with Undo, and **Move it back to this phone**, whose
+  toast says the file in the folder stays there.
+- **After the move** step 1 is ticked with "Stored in My Drive/BetterBudget"; step 2
+  says nothing has opened it yet, and names each phone or computer that has.
+- **Rejected:** A (a setting where it's stored, which a person with only a phone has no
+  reason to look for).
+- **From the reviews** (decided along the lines above): **Move it back to this phone**
+  while another phone or computer has opened it asks first, saying who stops getting
+  this phone's changes and that each will have its own ledger from then on (warn, don't
+  block), and takes a last look before it stops; a move back and then again, the
+  toast's Undo too, finds its own file in the folder and goes on, and says so when it
+  can't. Step 1 says the folder must be one the other can open (the same account, or
+  shared with theirs; on an iPhone, Google Drive for an Android phone or a Windows
+  computer); step 2 says a computer needs Google Drive or iCloud Drive installed, and
+  keeps the recovery key's note after the move, when the other person reads it. The
+  intro no longer names Google Drive twice. Replace says the ledger saved on the phone
+  opens only with its own key. Who has opened it is kept on the phone between launches.
+  A folder on the phone itself isn't counted as a backup (Android).

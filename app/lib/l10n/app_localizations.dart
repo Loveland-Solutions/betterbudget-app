@@ -11743,6 +11743,186 @@ abstract class Words {
   /// In en, this message translates to:
   /// **'Saved on this phone · it won’t help if the phone is lost. Back up to Google Drive instead.'**
   String get phoneSavedOnPhone;
+
+  /// Phone, Accounts, the row at its foot under Backups that opens the page for a second phone or a computer (#534 piece 4).
+  ///
+  /// In en, this message translates to:
+  /// **'Use it on another phone or computer'**
+  String get phoneShareRow;
+
+  /// Phone, under the row Use it on another phone or computer, while the ledger is only on this phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this phone has your ledger'**
+  String get phoneShareRowAlone;
+
+  /// Phone, under the row Use it on another phone or computer, once the ledger is in a folder that no other phone or computer has opened. {folder} reads “BetterBudget”.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored in {folder} · nothing else has opened it yet'**
+  String phoneShareRowStored(String folder);
+
+  /// Phone, as phoneShareRowStored when the phone doesn't say what the folder is called.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored in the folder you chose · nothing else has opened it yet'**
+  String get phoneShareRowStoredNoName;
+
+  /// Phone, under the row Use it on another phone or computer, once one other phone or computer has opened the ledger. {name} reads “Tom’s MacBook”.
+  ///
+  /// In en, this message translates to:
+  /// **'Also on {name}'**
+  String phoneShareRowAlso(String name);
+
+  /// Phone, the page's title: using the ledger on a second phone or a computer too.
+  ///
+  /// In en, this message translates to:
+  /// **'Another phone or computer'**
+  String get phoneShareTitle;
+
+  /// Phone (Android), the line at the top of Another phone or computer while the ledger is only on this phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger is only on this phone. To use it on a second phone or a computer too, it moves to a folder, and each of them opens it from there.'**
+  String get phoneShareIntro;
+
+  /// Phone (iPhone), as phoneShareIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger is only on this phone. To use it on a second phone or a computer too, it moves to a folder, and each of them opens it from there.'**
+  String get phoneShareIntroIos;
+
+  /// Phone, Another phone or computer, step 1's heading.
+  ///
+  /// In en, this message translates to:
+  /// **'On this phone'**
+  String get phoneShareStepHere;
+
+  /// Phone (Android), Another phone or computer, under step 1 before the move.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a folder in Google Drive that the other phone or computer can open too: in the same Google account, or one shared with theirs. Your ledger is stored there, encrypted, and kept up after each change. It keeps working without a signal.'**
+  String get phoneShareStepHereBody;
+
+  /// Phone (iPhone), as phoneShareStepHereBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a folder in iCloud Drive or Google Drive that the other phone or computer can open too: in the same account, or one shared with theirs. For an Android phone or a Windows computer, choose Google Drive. Your ledger is stored there, encrypted, and kept up after each change. It keeps working without a signal.'**
+  String get phoneShareStepHereBodyIos;
+
+  /// Phone, Another phone or computer, step 1 once the ledger is in the folder. {folder} reads “BetterBudget”.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored in {folder}'**
+  String phoneShareStoredIn(String folder);
+
+  /// Phone, as phoneShareStoredIn when the phone doesn't say what the folder is called.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored in the folder you chose'**
+  String get phoneShareStoredInNoName;
+
+  /// Phone, Another phone or computer, the button under step 1 once the ledger is in a folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Move it back to this phone'**
+  String get phoneShareMoveBack;
+
+  /// Phone, Another phone or computer, step 2's heading.
+  ///
+  /// In en, this message translates to:
+  /// **'On the other phone or computer'**
+  String get phoneShareStepThere;
+
+  /// Phone, Another phone or computer, under step 2. “Open ledger” is the name of the way on the first screen (startOpen).
+  ///
+  /// In en, this message translates to:
+  /// **'Install BetterBudget, tap Open ledger, type your recovery key, and choose the same folder. On a computer, the folder shows once Google Drive or iCloud Drive is installed there.'**
+  String get phoneShareStepThereBody;
+
+  /// Phone, Another phone or computer, the note under step 2.
+  ///
+  /// In en, this message translates to:
+  /// **'Your recovery key is the one shown when you started, which you kept off this phone. Without it the other can’t open your ledger.'**
+  String get phoneShareKeyNote;
+
+  /// Phone, Another phone or computer, under step 2 once the ledger is in a folder that nothing else has opened.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has opened it yet. When one does, it is named here.'**
+  String get phoneShareNoneYet;
+
+  /// Phone, Another phone or computer, under step 2: a phone or computer that has opened the ledger. {name} reads “Tom’s MacBook”.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened on {name}'**
+  String phoneShareOpenedOn(String name);
+
+  /// Phone, as phoneShareOpenedOn for one that hasn't said what it is called.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened on another phone or computer'**
+  String get phoneShareOpenedUnnamed;
+
+  /// Phone, the snack bar after the move, with Undo. {folder} reads “BetterBudget”.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger was moved to {folder}'**
+  String phoneShareMoved(String folder);
+
+  /// Phone, as phoneShareMoved when the phone doesn't say what the folder is called.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger was moved to the folder you chose'**
+  String get phoneShareMovedNoName;
+
+  /// Phone, the snack bar after Move it back to this phone, with Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger is back on this phone · the file in {folder} stays there'**
+  String phoneShareBack(String folder);
+
+  /// Phone, as phoneShareBack when the phone doesn't say what the folder is called.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ledger is back on this phone · the file in the folder stays there'**
+  String get phoneShareBackNoName;
+
+  /// Phone, the question when the folder picked for the move already has a ledger in it.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder already holds a ledger'**
+  String get phoneShareHasLedgerTitle;
+
+  /// Phone, under phoneShareHasLedgerTitle, above Cancel and Replace it.
+  ///
+  /// In en, this message translates to:
+  /// **'If you replace it, that ledger is saved on this phone first, in Backups, and it opens only with its own recovery key. Anyone who opens it from this folder will have yours instead. To keep it, tap Cancel and choose another folder.'**
+  String get phoneShareHasLedgerBody;
+
+  /// Phone, Backups page, a copy under Copies on this phone: the ledger that was in a folder before this phone's replaced it. {when} reads “Today 14:05”.
+  ///
+  /// In en, this message translates to:
+  /// **'{when} · the ledger that was in the folder'**
+  String phoneCopyFromFolder(String when);
+
+  /// Phone, the question before Move it back to this phone while another phone or computer uses the ledger from its folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Move your ledger back to this phone?'**
+  String get phoneShareBackAskTitle;
+
+  /// Phone, under phoneShareBackAskTitle when one other phone or computer has opened the ledger. {name} reads “Tom’s MacBook”.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will stop getting this phone’s changes, and what is entered on it won’t reach this phone. Each will have its own ledger from then on. The file in the folder stays there.'**
+  String phoneShareBackAskOne(String name);
+
+  /// Phone, under phoneShareBackAskTitle when more than one, or one with no name, has opened the ledger.
+  ///
+  /// In en, this message translates to:
+  /// **'The other phones and computers that opened it will stop getting this phone’s changes, and what is entered on them won’t reach this phone. Each will have its own ledger from then on. The file in the folder stays there.'**
+  String get phoneShareBackAskOthers;
 }
 
 class _WordsDelegate extends LocalizationsDelegate<Words> {

@@ -512,6 +512,10 @@ class _BackupsPageState extends State<_BackupsPage> {
                                         ? t.phoneCopyBeforeRestore(
                                             _phoneWhen(t, c.madeAt, now),
                                           )
+                                        : c.fromFolder
+                                        ? t.phoneCopyFromFolder(
+                                            _phoneWhen(t, c.madeAt, now),
+                                          )
                                         : _phoneWhen(t, c.madeAt, now),
                                     style: onest(16),
                                   ),

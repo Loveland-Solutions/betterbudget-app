@@ -1,6 +1,7 @@
 // The phone's side of the cloud folder (ADR 0005): finding the folder the
-// ledger was moved to, and reaching the files in it. The phone never writes the
-// folder's whole ledger; it keeps a ledger of its own (`phone_own_ledger.dart`,
+// ledger was moved to, and reaching the files in it. The phone writes the
+// folder's whole ledger only once, when it moves a ledger made on it there
+// (#534 piece 4); it keeps a ledger of its own (`phone_own_ledger.dart`,
 // `phone_sync.dart`). What it writes there is its change file and its entries
 // file (`phone_inbox.dart`).
 import 'package:flutter/services.dart';
@@ -30,6 +31,11 @@ class PhoneFolder {
         null => null,
         _ => SavedTo.elsewhere,
       };
+
+  /// What [folder] is called, for the screen ("BetterBudget"); null when
+  /// the phone doesn't say.
+  Future<String?> name(String folder) =>
+      _channel.invokeMethod<String>('name', {'folder': folder});
 
   /// The folder picked on an earlier launch, if the phone still allows it.
   Future<String?> kept() => _channel.invokeMethod<String>('kept');

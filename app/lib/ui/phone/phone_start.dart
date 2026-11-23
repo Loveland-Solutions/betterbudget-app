@@ -140,6 +140,17 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   /// No folder: the phone holds the only ledger.
   var _onItsOwn = false;
 
+  /// Written when the ledger made here is moved to a folder from this phone
+  /// (#534 piece 4), holding the folder's address: the phone keeps its copy
+  /// a day and its Backups, and the page "Another phone or computer" says
+  /// where the ledger went and who has opened it.
+  File get _movedHere => File('${widget.dir.path}/moved-here');
+
+  /// What [_movedHere] holds, read once a launch: the folder's address, and
+  /// on a second line what the phone called it at the move.
+  String? _movedTo;
+  String? _movedName;
+
   /// No key is kept on this phone yet: its problem screens offer the way
   /// back to "How do you want to start?".
   var _noKeyKept = true;
@@ -252,6 +263,14 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         folder: widget.folder,
       );
       source.onItsOwn = onItsOwn;
+      final mark = !onItsOwn && _movedHere.existsSync()
+          ? _movedHere.readAsLinesSync()
+          : const <String>[];
+      _movedTo = mark.isEmpty ? null : mark.first;
+      _movedName = mark.length > 1 && mark[1].isNotEmpty ? mark[1] : null;
+      // By the mark alone: a phone may name the same folder differently
+      // from one launch to the next (an iPhone's bookmark resolved again).
+      source.movedHere = _movedTo != null;
       if (onItsOwn) {
         if (!source.joined) {
           // Start fresh's ledger: made the first time it is opened, so a
@@ -320,10 +339,17 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
         _typedKey = null;
         _noKeyKept = false;
         // On a folder now: a mark a Start fresh cut short left isn't this
-        // phone's, or losing the folder later would put it on its own.
+        // phone's, or losing the folder later would put it on its own; nor
+        // is one of a ledger moved from here before.
         _dropStartedHere();
+        _dropMovedHere();
+        _movedTo = _movedName = null;
+        source.movedHere = false;
       }
       _show(snapshot, key, inFolder);
+      // Moved to the folder from here: its copy a day goes on (#534 piece
+      // 4), until a computer's are there too.
+      if (source.movedHere) unawaited(source.dailyCopy(widget.now()));
     } on WrongKeyException catch (e) {
       if (_typedKey == null) {
         // The key kept here has opened this ledger before, so it is the
@@ -498,15 +524,108 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
     }
     // Backups on a phone on its own (#534 piece 3): no computer keeps a
     // copy of this ledger.
-    final backupsHere = _onItsOwn && !_demo;
+    final movedHere = _source?.movedHere ?? false;
+    final backupsHere = (_onItsOwn || movedHere) && !_demo;
     if (backupsHere != (_store?.backupActs != null)) {
       _store?.backupActs = backupsHere ? _backupActs() : null;
+    }
+    // Another phone or computer (#534 piece 4): the ledger made here, on
+    // its own or moved to a folder from here.
+    if (backupsHere != (_store?.shareActs != null)) {
+      _store?.shareActs = backupsHere ? _shareActs() : null;
     }
     final news = _source?.takeNews() ?? const <PhoneNews>[];
     if (news.isNotEmpty) _store?.news.value = news;
     _store?.asking.value = _source?.asking;
     _keep();
     setState(() => _step = _Step.ready);
+  }
+
+  /// What the page "Another phone or computer" asks: the folder picked with
+  /// the phone's own picker, the move there and back, and who has opened it.
+  PhoneShareActs _shareActs() {
+    PhoneLedgerSource open() =>
+        _source ?? (throw StateError('The phone has no ledger open'));
+    return PhoneShareActs(
+      pick: () async {
+        final before = await widget.folder.kept();
+        final picked = await widget.folder.pick();
+        // On its own, a folder kept before is no part of this ledger.
+        if (picked != null && before != null && before != picked) {
+          await widget.folder.forget(before);
+        }
+        return picked;
+      },
+      move: (folder, {replace = false}) => _holdingLooks(() async {
+        final done = await open().moveToFolder(
+          folder,
+          widget.now(),
+          replace: replace,
+        );
+        if (done == LedgerMove.moved) {
+          String? name;
+          try {
+            name = await widget.folder.name(folder);
+          } catch (e) {
+            debugPrint('Asking what the folder is called failed: $e');
+          }
+          // The new mark before the old goes: a launch cut short between
+          // finds the ledger on its own, and moving again finds its own
+          // file in the folder.
+          await _movedHere.writeAsString(
+            '$folder\n${name ?? ''}',
+            flush: true,
+          );
+          _dropStartedHere();
+          _movedTo = folder;
+          _movedName = name;
+          _onItsOwn = false;
+        }
+        return done;
+      }),
+      back: () async {
+        // A last look first, so what the others made up to now comes in
+        // and what this phone made goes out.
+        await _load();
+        await _holdingLooks(() async {
+          await _startedHere.writeAsString('1', flush: true);
+          _dropMovedHere();
+          // The folder stays kept, unread while the phone is on its own, so
+          // Undo and a move again reach it without the picker.
+          await open().moveBack(widget.now());
+          _movedTo = null;
+          _movedName = null;
+          _onItsOwn = true;
+        });
+      },
+      folder: () => _onItsOwn || _movedTo == null
+          ? null
+          : (address: _movedTo!, name: _movedName),
+      members: () => _source?.members ?? const [],
+    );
+  }
+
+  /// Runs [act] with no look starting meanwhile (the half-minute timer, the
+  /// app back at the front after the picker), as an answer is held: a look
+  /// would read the marks halfway. One look after.
+  Future<T> _holdingLooks<T>(Future<T> Function() act) async {
+    _answering = true;
+    _looks++;
+    try {
+      await _reading;
+      return await act();
+    } finally {
+      _answering = false;
+      unawaited(_load());
+    }
+  }
+
+  void _dropMovedHere() {
+    try {
+      if (_movedHere.existsSync()) _movedHere.deleteSync();
+    } catch (e) {
+      debugPrint('The mark of a ledger moved from here stayed: $e');
+    }
   }
 
   /// What the Backups page and Net worth's line ask of the phone's own
@@ -689,6 +808,8 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
   /// open it: moved aside, never deleted, before a new one is made here, as
   /// a computer sets aside the ledger it can't open.
   Future<void> _setAsideOwn() async {
+    // Whatever this phone did with the ledger before isn't the new one's.
+    _dropMovedHere();
     final own = phoneOwnDir(widget.dir);
     if (!own.existsSync()) return;
     final stamp = widget.now().toIso8601String().replaceAll(':', '-');
@@ -807,6 +928,7 @@ class _PhoneStartState extends State<PhoneStart> with WidgetsBindingObserver {
       );
       await source.restoreFrom(picked.path, widget.now());
       await widget.dir.create(recursive: true);
+      _dropMovedHere();
       await _startedHere.writeAsString('1', flush: true);
       marked = true;
       await widget.keys.writeDataKey(key);

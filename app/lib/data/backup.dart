@@ -742,6 +742,12 @@ class Backups {
   Future<List<File>> beforeRestore() =>
       _files(RegExp(r'^before-restore-\d{8}-\d{6}\.(?:sqlite|betterbudget)$'));
 
+  /// The ledgers saved from a folder before they were replaced there,
+  /// newest first ([keepFromFolder]).
+  Future<List<File>> fromFolder() => _files(
+    RegExp('^$fromFolderPrefix\\d{8}-\\d{6}\\.(?:sqlite|betterbudget)\$'),
+  );
+
   /// From the time in the file's name when it has one (every copy the app
   /// makes does), otherwise when the file was last changed.
   static DateTime _madeAt(File f) {

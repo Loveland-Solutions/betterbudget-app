@@ -303,7 +303,9 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// Whether this member writes the folder's whole ledger (`Ledger.betterbudget`).
   /// A phone doesn't (#526 piece 3): over mobile data a whole ledger is too
   /// much to send, and the computers keep it. It still writes its change file
-  /// and takes in the others'.
+  /// and takes in the others'. The one write a phone on its own makes when
+  /// it moves its ledger to a folder (#534 piece 4) is [keepIn]'s
+  /// `writeWhole`.
   final bool writesLedger;
 
   /// How long after the last change the ledger is written: a run of edits
@@ -379,6 +381,12 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
   /// What the other computers call themselves, by id, from their change
   /// files' headers. Kept in `cloud-folder`.
   final _names = <String, String>{};
+
+  /// The other members of this ledger whose change files the last look
+  /// read, by id, with what each calls itself (#534 piece 4: the phone
+  /// says which have opened the ledger it moved to the folder).
+  Map<String, String?> get members => Map.unmodifiable(_members);
+  final _members = <String, String?>{};
 
   /// The last of this computer's own changes that every other computer has
   /// applied, as of the last look; null while none has written a file.
@@ -605,6 +613,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     String path,
     DateTime now, {
     bool replaceUnreadable = false,
+    bool writeWhole = false,
   }) async {
     final live = await backups.db.filePath();
     if (live != null && _same(File(live).parent.path, path)) {
@@ -622,7 +631,9 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       _seen = null;
       _askAbout = null;
       try {
-        final found = await _sync(now, replaceUnreadable: replaceUnreadable);
+        final found = writeWhole
+            ? await _writeWhole(path, now)
+            : await _sync(now, replaceUnreadable: replaceUnreadable);
         if (found.standing == FolderStanding.arriving) {
           throw FolderLedgerUnreadable();
         }
@@ -644,6 +655,18 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         rethrow;
       }
     });
+  }
+
+  /// Writes this ledger whole over whatever the folder holds, in one write
+  /// in place (a phone moving its ledger there, #534 piece 4; what was there
+  /// was saved first by the caller), or as the first file there.
+  Future<({FolderStanding standing, File? replaced})> _writeWhole(
+    String path,
+    DateTime now,
+  ) async {
+    final stat = await io.stat(path, fileName);
+    await _put(path, now, over: const {}, expected: stat, whole: true);
+    return (standing: FolderStanding.ok, replaced: null);
   }
 
   /// The folder [file] is in, when [file] is a ledger as one is stored in a
@@ -1323,6 +1346,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       // Another ledger's file: nothing of it is this ledger's to take. The
       // question is the other computer's, whose folder ledger differs.
       if (h.ledger != null && ledger != null && h.ledger != ledger) continue;
+      _members[h.computer] = h.name;
       if (f.changes.isEmpty) {
         // Nothing to take, but its numbers may have moved on (a log cleared
         // when it took the folder's ledger whole): this ledger holds all of

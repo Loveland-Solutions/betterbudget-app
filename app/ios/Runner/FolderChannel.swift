@@ -48,8 +48,12 @@ class FolderChannel: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationC
         DispatchQueue.main.async { self.held = url }
         return url?.absoluteString
       }
-    case "read", "changed", "stat", "list", "delete", "write":
+    case "read", "changed", "stat", "list", "delete", "write", "name":
       guard let address = args["folder"] as? String else { return result(badArguments(call)) }
+      // What the folder is called, for the screen ("BetterBudget").
+      if call.method == "name" {
+        return inFolder(address, result) { $0.lastPathComponent }
+      }
       // The names of the files in the folder, not its sub-folders.
       if call.method == "list" {
         return inFolder(address, result) { try self.list($0) }

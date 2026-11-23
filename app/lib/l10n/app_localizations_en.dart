@@ -8521,4 +8521,122 @@ class WordsEn extends Words {
   @override
   String get phoneSavedOnPhone =>
       'Saved on this phone · it won’t help if the phone is lost. Back up to Google Drive instead.';
+
+  @override
+  String get phoneShareRow => 'Use it on another phone or computer';
+
+  @override
+  String get phoneShareRowAlone => 'Only this phone has your ledger';
+
+  @override
+  String phoneShareRowStored(String folder) {
+    return 'Stored in $folder · nothing else has opened it yet';
+  }
+
+  @override
+  String get phoneShareRowStoredNoName =>
+      'Stored in the folder you chose · nothing else has opened it yet';
+
+  @override
+  String phoneShareRowAlso(String name) {
+    return 'Also on $name';
+  }
+
+  @override
+  String get phoneShareTitle => 'Another phone or computer';
+
+  @override
+  String get phoneShareIntro =>
+      'Your ledger is only on this phone. To use it on a second phone or a computer too, it moves to a folder, and each of them opens it from there.';
+
+  @override
+  String get phoneShareIntroIos =>
+      'Your ledger is only on this phone. To use it on a second phone or a computer too, it moves to a folder, and each of them opens it from there.';
+
+  @override
+  String get phoneShareStepHere => 'On this phone';
+
+  @override
+  String get phoneShareStepHereBody =>
+      'Choose a folder in Google Drive that the other phone or computer can open too: in the same Google account, or one shared with theirs. Your ledger is stored there, encrypted, and kept up after each change. It keeps working without a signal.';
+
+  @override
+  String get phoneShareStepHereBodyIos =>
+      'Choose a folder in iCloud Drive or Google Drive that the other phone or computer can open too: in the same account, or one shared with theirs. For an Android phone or a Windows computer, choose Google Drive. Your ledger is stored there, encrypted, and kept up after each change. It keeps working without a signal.';
+
+  @override
+  String phoneShareStoredIn(String folder) {
+    return 'Stored in $folder';
+  }
+
+  @override
+  String get phoneShareStoredInNoName => 'Stored in the folder you chose';
+
+  @override
+  String get phoneShareMoveBack => 'Move it back to this phone';
+
+  @override
+  String get phoneShareStepThere => 'On the other phone or computer';
+
+  @override
+  String get phoneShareStepThereBody =>
+      'Install BetterBudget, tap Open ledger, type your recovery key, and choose the same folder. On a computer, the folder shows once Google Drive or iCloud Drive is installed there.';
+
+  @override
+  String get phoneShareKeyNote =>
+      'Your recovery key is the one shown when you started, which you kept off this phone. Without it the other can’t open your ledger.';
+
+  @override
+  String get phoneShareNoneYet =>
+      'Nothing has opened it yet. When one does, it is named here.';
+
+  @override
+  String phoneShareOpenedOn(String name) {
+    return 'Opened on $name';
+  }
+
+  @override
+  String get phoneShareOpenedUnnamed => 'Opened on another phone or computer';
+
+  @override
+  String phoneShareMoved(String folder) {
+    return 'Your ledger was moved to $folder';
+  }
+
+  @override
+  String get phoneShareMovedNoName =>
+      'Your ledger was moved to the folder you chose';
+
+  @override
+  String phoneShareBack(String folder) {
+    return 'Your ledger is back on this phone · the file in $folder stays there';
+  }
+
+  @override
+  String get phoneShareBackNoName =>
+      'Your ledger is back on this phone · the file in the folder stays there';
+
+  @override
+  String get phoneShareHasLedgerTitle => 'This folder already holds a ledger';
+
+  @override
+  String get phoneShareHasLedgerBody =>
+      'If you replace it, that ledger is saved on this phone first, in Backups, and it opens only with its own recovery key. Anyone who opens it from this folder will have yours instead. To keep it, tap Cancel and choose another folder.';
+
+  @override
+  String phoneCopyFromFolder(String when) {
+    return '$when · the ledger that was in the folder';
+  }
+
+  @override
+  String get phoneShareBackAskTitle => 'Move your ledger back to this phone?';
+
+  @override
+  String phoneShareBackAskOne(String name) {
+    return '$name will stop getting this phone’s changes, and what is entered on it won’t reach this phone. Each will have its own ledger from then on. The file in the folder stays there.';
+  }
+
+  @override
+  String get phoneShareBackAskOthers =>
+      'The other phones and computers that opened it will stop getting this phone’s changes, and what is entered on them won’t reach this phone. Each will have its own ledger from then on. The file in the folder stays there.';
 }

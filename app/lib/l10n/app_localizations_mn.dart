@@ -8231,4 +8231,122 @@ class WordsMn extends Words {
   @override
   String get phoneSavedOnPhone =>
       'Энэ утсан дээр хадгаллаа · утас алга болбол тус болохгүй. Оронд нь Google Drive руу нөөцлөөрэй.';
+
+  @override
+  String get phoneShareRow => 'Өөр утас эсвэл компьютер дээр ашиглах';
+
+  @override
+  String get phoneShareRowAlone => 'Дэвтэр тань зөвхөн энэ утсан дээр байна';
+
+  @override
+  String phoneShareRowStored(String folder) {
+    return '$folder хавтсанд хадгалагдсан · өөр юу ч хараахан нээгээгүй';
+  }
+
+  @override
+  String get phoneShareRowStoredNoName =>
+      'Таны сонгосон хавтсанд хадгалагдсан · өөр юу ч хараахан нээгээгүй';
+
+  @override
+  String phoneShareRowAlso(String name) {
+    return 'Мөн $name дээр';
+  }
+
+  @override
+  String get phoneShareTitle => 'Өөр утас эсвэл компьютер';
+
+  @override
+  String get phoneShareIntro =>
+      'Дэвтэр тань зөвхөн энэ утсан дээр байна. Хоёр дахь утас эсвэл компьютер дээр бас ашиглахын тулд түүнийг хавтас руу зөөнө, тэгээд тус бүр тэндээс нээнэ.';
+
+  @override
+  String get phoneShareIntroIos =>
+      'Дэвтэр тань зөвхөн энэ утсан дээр байна. Хоёр дахь утас эсвэл компьютер дээр бас ашиглахын тулд түүнийг хавтас руу зөөнө, тэгээд тус бүр тэндээс нээнэ.';
+
+  @override
+  String get phoneShareStepHere => 'Энэ утсан дээр';
+
+  @override
+  String get phoneShareStepHereBody =>
+      'Нөгөө утас эсвэл компьютер бас нээж чадах Google Drive доторх хавтас сонгоно уу: ижил Google бүртгэлд, эсвэл тэдний бүртгэлтэй хуваалцсан хавтас. Дэвтэр тань тэнд шифрлэгдэж хадгалагдаж, өөрчлөлт бүрийн дараа шинэчлэгдэнэ. Сүлжээгүй үед ч ажилласаар байна.';
+
+  @override
+  String get phoneShareStepHereBodyIos =>
+      'Нөгөө утас эсвэл компьютер бас нээж чадах iCloud Drive эсвэл Google Drive доторх хавтас сонгоно уу: ижил бүртгэлд, эсвэл тэдний бүртгэлтэй хуваалцсан хавтас. Android утас эсвэл Windows компьютерт Google Drive-ийг сонгоно уу. Дэвтэр тань тэнд шифрлэгдэж хадгалагдаж, өөрчлөлт бүрийн дараа шинэчлэгдэнэ. Сүлжээгүй үед ч ажилласаар байна.';
+
+  @override
+  String phoneShareStoredIn(String folder) {
+    return '$folder хавтсанд хадгалагдсан';
+  }
+
+  @override
+  String get phoneShareStoredInNoName => 'Таны сонгосон хавтсанд хадгалагдсан';
+
+  @override
+  String get phoneShareMoveBack => 'Энэ утас руу буцааж зөөх';
+
+  @override
+  String get phoneShareStepThere => 'Нөгөө утас эсвэл компьютер дээр';
+
+  @override
+  String get phoneShareStepThereBody =>
+      'BetterBudget-ийг суулгаад «Дэвтэр нээх»-ийг дарж, сэргээх түлхүүрээ бичээд, ижил хавтсыг сонгоно уу. Компьютер дээр Google Drive эсвэл iCloud Drive суулгасны дараа хавтас харагдана.';
+
+  @override
+  String get phoneShareKeyNote =>
+      'Сэргээх түлхүүр тань эхлэхэд харуулсан, энэ утаснаас гадна хадгалсан түлхүүр юм. Түүнгүйгээр нөгөө нь дэвтрийг тань нээж чадахгүй.';
+
+  @override
+  String get phoneShareNoneYet =>
+      'Хараахан юу ч нээгээгүй байна. Нээвэл энд нэрээр нь харагдана.';
+
+  @override
+  String phoneShareOpenedOn(String name) {
+    return '$name дээр нээсэн';
+  }
+
+  @override
+  String get phoneShareOpenedUnnamed => 'Өөр утас эсвэл компьютер дээр нээсэн';
+
+  @override
+  String phoneShareMoved(String folder) {
+    return 'Дэвтэр тань $folder хавтас руу зөөгдлөө';
+  }
+
+  @override
+  String get phoneShareMovedNoName =>
+      'Дэвтэр тань таны сонгосон хавтас руу зөөгдлөө';
+
+  @override
+  String phoneShareBack(String folder) {
+    return 'Дэвтэр тань энэ утас руу буцаж ирлээ · $folder доторх файл тэндээ үлдэнэ';
+  }
+
+  @override
+  String get phoneShareBackNoName =>
+      'Дэвтэр тань энэ утас руу буцаж ирлээ · хавтас доторх файл тэндээ үлдэнэ';
+
+  @override
+  String get phoneShareHasLedgerTitle => 'Энэ хавтсанд аль хэдийн дэвтэр байна';
+
+  @override
+  String get phoneShareHasLedgerBody =>
+      'Хэрэв солих бол тэр дэвтрийг эхлээд энэ утсан дээр, Нөөц хуулбар хэсэгт хадгалах ба түүнийг зөвхөн өөрийнх нь сэргээх түлхүүрээр нээнэ. Энэ хавтаснаас нээсэн хүн бүр таны дэвтрийг авна. Үлдээхийн тулд «Болих»-ыг дараад өөр хавтас сонгоно уу.';
+
+  @override
+  String phoneCopyFromFolder(String when) {
+    return '$when · хавтсанд байсан дэвтэр';
+  }
+
+  @override
+  String get phoneShareBackAskTitle => 'Дэвтрээ энэ утас руу буцааж зөөх үү?';
+
+  @override
+  String phoneShareBackAskOne(String name) {
+    return '$name энэ утасны өөрчлөлтийг авахаа больж, түүн дээр оруулсан зүйл энэ утсанд ирэхгүй. Түүнээс хойш тус бүр өөрийн дэвтэртэй болно. Хавтас доторх файл тэндээ үлдэнэ.';
+  }
+
+  @override
+  String get phoneShareBackAskOthers =>
+      'Үүнийг нээсэн бусад утас, компьютер энэ утасны өөрчлөлтийг авахаа больж, тэдгээр дээр оруулсан зүйл энэ утсанд ирэхгүй. Түүнээс хойш тус бүр өөрийн дэвтэртэй болно. Хавтас доторх файл тэндээ үлдэнэ.';
 }
