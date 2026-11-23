@@ -34,6 +34,7 @@ import '../../data/backup.dart' show RestoreCandidate, RestoreException;
 import '../../data/phone_ledger.dart' show SavedTo;
 import '../../data/phone_sync.dart'
     show
+        LedgerMove,
         PhoneActed,
         PhoneBackups,
         PhoneKeptCopy,
@@ -140,6 +141,7 @@ part 'phone_pay.dart';
 part 'phone_reconcile.dart';
 part 'phone_savings.dart';
 part 'phone_setup.dart';
+part 'phone_share.dart';
 part 'phone_register.dart';
 part 'phone_walk.dart';
 
@@ -283,6 +285,11 @@ class PhoneStore extends ChangeNotifier {
   /// Backups, set by whoever keeps the ledger on a phone on its own (#534
   /// piece 3); null on a phone on a folder, whose computers keep copies.
   PhoneBackupActs? backupActs;
+
+  /// Another phone or computer (#534 piece 4), set by whoever keeps the
+  /// ledger when it was made on this phone: null on a phone that joined a
+  /// folder.
+  PhoneShareActs? shareActs;
 
   /// Back up to… is open: its buttons wait, so a second tap can't open a
   /// second Save to.
@@ -5442,6 +5449,12 @@ class _AccountsScreenState extends State<_AccountsScreen> {
             if (store.backupActs != null) ...[
               const SizedBox(height: 24),
               _BackupsRow(store: store, now: widget.now),
+            ],
+            // And from here goes to a second phone or a computer (#534
+            // piece 4).
+            if (store.shareActs != null) ...[
+              const SizedBox(height: 8),
+              _ShareRow(store: store),
             ],
           ],
         ],

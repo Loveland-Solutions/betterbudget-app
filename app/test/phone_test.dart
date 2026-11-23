@@ -535,10 +535,63 @@ class _ActingSource {
   }
 }
 
+/// Stand-in acts for the page "Another phone or computer".
+class _FakeShare {
+  String? picked;
+  bool hasLedger = false;
+  String? where;
+  List<String?> members = const [];
+  final moves = <(String, bool)>[];
+  var backs = 0;
+
+  PhoneShareActs acts() => PhoneShareActs(
+    pick: () async => picked,
+    move: (folder, {replace = false}) async {
+      if (hasLedger && !replace) return LedgerMove.folderHasLedger;
+      moves.add((folder, replace));
+      where = folder;
+      return LedgerMove.moved;
+    },
+    back: () async {
+      backs++;
+      where = null;
+    },
+    folder: () =>
+        where == null ? null : (address: where!, name: 'BetterBudget'),
+    members: () => members,
+  );
+}
+
 class _FakeSource implements PhoneLedgerSource {
   /// No ledger file here to copy.
   @override
   Future<BackupHealth?> dailyCopy(DateTime now) async => null;
+
+  /// Where [moveToFolder] moved the ledger, and whether the folder already
+  /// held one.
+  String? movedTo;
+  bool folderHasLedger = false;
+
+  @override
+  bool movedHere = false;
+  final List<String?> opened = [];
+
+  @override
+  Future<LedgerMove> moveToFolder(
+    String folder,
+    DateTime now, {
+    bool replace = false,
+  }) async {
+    if (folderHasLedger && !replace) return LedgerMove.folderHasLedger;
+    movedTo = folder;
+    return LedgerMove.moved;
+  }
+
+  @override
+  Future<void> moveBack(DateTime now) async => movedTo = null;
+
+  @override
+  List<String?> get members => opened;
 
   @override
   Future<void> keepScheduled(DateTime now) async {}
@@ -9747,6 +9800,166 @@ void main() {
     });
   });
 
+  group('another phone or computer (#534 piece 4)', () {
+    Future<(PhoneStore, _FakeShare)> pumpShare(WidgetTester tester) async {
+      final data = (await tester.runAsync(() async {
+        final db = AppDatabase(NativeDatabase.memory());
+        await seedDemoIfEmpty(db, _now);
+        final data = await db.loadLedger();
+        await db.close();
+        return data;
+      }))!;
+      final store = await _pump(
+        tester,
+        snapshot: snapshotOf(data, today: _now, madeAt: _now, onItsOwn: true),
+      );
+      final fake = _FakeShare();
+      store.shareActs = fake.acts();
+      await _toBudget(tester);
+      await tester.tap(find.byKey(const ValueKey('to-accounts')));
+      await tester.pumpAndSettle();
+      return (store, fake);
+    }
+
+    Future<void> open(WidgetTester tester) async {
+      await tester.ensureVisible(find.byKey(const ValueKey('to-share')));
+      await tester.tap(find.byKey(const ValueKey('to-share')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the row says only this phone has it; the page\'s two steps '
+        'move it to a folder with Undo, then wait for the other', (
+      tester,
+    ) async {
+      final (_, fake) = await pumpShare(tester);
+      expect(find.text('Use it on another phone or computer'), findsOneWidget);
+      expect(find.text('Only this phone has your ledger'), findsOneWidget);
+      await open(tester);
+      expect(find.text('On this phone'), findsOneWidget);
+      expect(find.text('On the other phone or computer'), findsOneWidget);
+      expect(
+        find.text(
+          'Install BetterBudget, tap Open ledger, type your recovery key, '
+          'and choose the same folder. On a computer, the folder shows once '
+          'Google Drive or iCloud Drive is installed there.',
+        ),
+        findsOneWidget,
+      );
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_share.png'),
+      );
+
+      // Nothing picked: nothing moved.
+      await tester.tap(find.byKey(const ValueKey('move-to-folder')));
+      await tester.pumpAndSettle();
+      expect(fake.moves, isEmpty);
+
+      fake.picked = 'content://drive/tree/ours';
+      await tester.tap(find.byKey(const ValueKey('move-to-folder')));
+      await tester.pumpAndSettle();
+      expect(fake.moves, [('content://drive/tree/ours', false)]);
+      expect(
+        find.text('Your ledger was moved to BetterBudget'),
+        findsOneWidget,
+      );
+      expect(find.text('Stored in BetterBudget'), findsOneWidget);
+      expect(
+        find.text('Nothing has opened it yet. When one does, it is named here.'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('move-to-folder')), findsNothing);
+      await expectLater(
+        find.byType(PhoneApp),
+        matchesGoldenFile('goldens/phone_share_moved.png'),
+      );
+
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(fake.backs, 1);
+      expect(find.byKey(const ValueKey('move-to-folder')), findsOneWidget);
+    });
+
+    testWidgets('a folder that holds a ledger is asked about: Cancel moves '
+        'nothing, Replace it moves over it', (tester) async {
+      final (_, fake) = await pumpShare(tester);
+      await open(tester);
+      fake
+        ..picked = 'content://drive/tree/old'
+        ..hasLedger = true;
+      await tester.tap(find.byKey(const ValueKey('move-to-folder')));
+      await tester.pumpAndSettle();
+      expect(find.text('This folder already holds a ledger'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('has-ledger-cancel')));
+      await tester.pumpAndSettle();
+      expect(fake.where, isNull);
+      expect(find.byKey(const ValueKey('move-to-folder')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('move-to-folder')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('has-ledger-replace')));
+      await tester.pumpAndSettle();
+      expect(fake.moves.last, ('content://drive/tree/old', true));
+      expect(find.text('Stored in BetterBudget'), findsOneWidget);
+    });
+
+    testWidgets('once another has opened it, it is named on the page and '
+        'the row; Move it back says the file stays, with Undo', (
+      tester,
+    ) async {
+      final (store, fake) = await pumpShare(tester);
+      fake
+        ..where = 'content://drive/tree/ours'
+        ..members = ['Tom’s MacBook'];
+      store.notifyListeners();
+      await tester.pumpAndSettle();
+      expect(find.text('Also on Tom’s MacBook'), findsOneWidget);
+      await open(tester);
+      expect(find.text('Opened on Tom’s MacBook'), findsOneWidget);
+
+      // Another uses it: what it loses is said first, Cancel keeps it.
+      await tester.tap(find.byKey(const ValueKey('move-back')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('move-back-ask')), findsOneWidget);
+      expect(
+        find.textContaining('Tom’s MacBook will stop getting this phone’s'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('move-back-cancel')));
+      await tester.pumpAndSettle();
+      expect(fake.backs, 0);
+      await tester.tap(find.byKey(const ValueKey('move-back')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('move-back-go')));
+      await tester.pumpAndSettle();
+      expect(fake.backs, 1);
+      expect(
+        find.text(
+          'Your ledger is back on this phone · the file in BetterBudget '
+          'stays there',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(fake.moves.last, ('content://drive/tree/ours', false));
+      expect(find.text('Stored in BetterBudget'), findsOneWidget);
+    });
+
+    testWidgets('an Undo that can\'t move it again says so', (tester) async {
+      final (_, fake) = await pumpShare(tester);
+      fake.where = 'content://drive/tree/ours';
+      await open(tester);
+      await tester.tap(find.byKey(const ValueKey('move-back')));
+      await tester.pumpAndSettle();
+      fake.hasLedger = true;
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Couldn’t move it to that folder'), findsOneWidget);
+      expect(find.byKey(const ValueKey('move-to-folder')), findsOneWidget);
+    });
+  });
+
   group('backups on a phone on its own (#534 piece 3)', () {
     /// The demo ledger as a phone on its own shows it, and stand-in acts
     /// for its backups.
@@ -10040,11 +10253,13 @@ class _FakeBackups {
         path: '/own/Backups/betterbudget-20261007-081000.betterbudget',
         madeAt: DateTime(2026, 10, 7, 8, 10),
         beforeRestore: false,
+        fromFolder: false,
       ),
       (
         path: '/own/Backups/before-restore-20261006-140500.betterbudget',
         madeAt: DateTime(2026, 10, 6, 14, 5),
         beforeRestore: true,
+        fromFolder: false,
       ),
     ],
     inspect: (path) async {

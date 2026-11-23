@@ -1728,3 +1728,24 @@ restore's changes, or put the saved file back. The screens reach them through
 `PhoneBackupActs`, which `PhoneStart` sets on the store only on a phone on its own. The
 privacy policy already covers both: the copies are on the device, encrypted, and a
 backup goes only where the person saves it.
+
+**Built, 2026-11-23 (0.151.0): #534 piece 4, the phone's ledger to a folder** (ADR 0004
+"Another phone or computer", the owner's pick of sketch B). `PhoneSync.moveToFolder` is
+the computer's Move my ledger to a folder…: the phone's `CloudFolder` writes the
+folder's whole ledger once (`writesLedger` set for that write only), and from then on
+the phone is a member like any other, writing its change file. A folder whose ledger is
+this one (a move undone and done again) is moved onto with nothing asked; one holding
+another is asked about, and Replace saves it on the phone first (`keepFromFolder`,
+listed under Copies on this phone). A ledger restored from another household's backup
+still carried that ledger's id and its computers' counts, and in a folder would have
+been taken for that household's: `becomeItsOwnLedger` gives it an id of its own before
+the move, while a ledger only this phone has written keeps its id. `PhoneStart` marks a
+ledger moved from here by `moved-here`, which keeps its copy a day and Backups (the
+folder counted as a copy off the phone, once a day after a look that went through), and
+until another member has written a change file the phone speaks as one on its own:
+no "From your computer" line, nothing waiting for a computer. Move it back to this phone
+(`moveBack`) stops the cycle and leaves the file in the folder. Others then join with
+Open ledger as before. While only phones are on the folder, nothing writes its whole
+ledger again, so the phone's change file holds everything since the move until a
+computer joins and writes it; a computer joining is how it is compacted. The privacy
+policy already covers it: a folder the person picks.

@@ -26,6 +26,7 @@ import 'package:betterbudget/domain/ledger.dart'
     show AccountType, LedgerData, dateKey;
 import 'package:betterbudget/domain/pay.dart' show PayRule;
 import 'package:betterbudget/domain/money.dart' show Currency;
+import 'package:betterbudget/domain/sync.dart' show SyncKeys;
 import 'package:betterbudget/domain/setup.dart'
     show SetupKeys, WalkKeys, inSetup;
 import 'package:betterbudget/domain/phone.dart';
@@ -103,6 +104,188 @@ void main() {
   Future<List<String?>> payees() async => [
     for (final t in (await phone.db!.loadLedger()).txns) t.payee,
   ];
+
+  group('a phone on its own moves its ledger to a folder (#534 piece 4)', () {
+    late Directory shared;
+    late PhoneSync alone;
+
+    setUp(() async {
+      shared = await Directory(
+        '${root.path}/My Drive/Ours',
+      ).create(recursive: true);
+      alone = PhoneSync(
+        dir: await Directory('${root.path}/alone').create(),
+        dataKey: key,
+        device: 'dddd',
+        io: const DirectoryFolderIo(),
+        wait: Duration.zero,
+      )..onItsOwn = true;
+      await alone.startNew();
+    });
+
+    tearDown(() async {
+      try {
+        await alone.close();
+      } catch (_) {}
+    });
+
+    Future<(int, int)> accounts(AppDatabase db) async {
+      final khan = await db.addAccount(
+        name: 'Khan Checking',
+        type: AccountType.asset,
+      );
+      final food = await db.addAccount(
+        name: 'Groceries',
+        type: AccountType.expense,
+      );
+      return (khan, food);
+    }
+
+    Future<List<String?>> payeesOf(PhoneSync p) async => [
+      for (final t in (await p.db!.loadLedger()).txns) t.payee,
+    ];
+
+    test('a second phone opens it there, and what the first makes after '
+        'reaches it', () async {
+      final (khan, food) = await accounts(alone.db!);
+      await alone.db!.postSimple(
+        accountId: khan,
+        date: monday,
+        today: monday,
+        payee: 'Nomin',
+        counterAccountId: food,
+        amount: -1250000,
+      );
+      expect(await alone.moveToFolder(shared.path, monday), LedgerMove.moved);
+      expect(alone.onItsOwn, isFalse);
+      expect(File('${shared.path}/$ledgerFileName').existsSync(), isTrue);
+      // Nothing else has opened it: the phone still speaks as on its own.
+      expect((await alone.look(shared.path, monday)).onItsOwn, isTrue);
+      // And the folder's copy counts as a backup off the phone.
+      expect((await alone.backups(monday))!.elsewhere?.copied, isNotNull);
+
+      final second = PhoneSync(
+        dir: await Directory('${root.path}/second').create(),
+        dataKey: key,
+        device: 'eeee',
+        io: const DirectoryFolderIo(),
+        wait: Duration.zero,
+      );
+      addTearDown(second.close);
+      await second.join(
+        await File('${shared.path}/$ledgerFileName').readAsBytes(),
+      );
+      await second.look(shared.path, monday);
+      expect(await payeesOf(second), ['Nomin']);
+
+      // Made on the first after the move: it travels in its change file.
+      await alone.db!.postSimple(
+        accountId: khan,
+        date: tuesday,
+        today: tuesday,
+        payee: 'Emart',
+        counterAccountId: food,
+        amount: -800000,
+      );
+      await alone.look(shared.path, tuesday);
+      await second.look(shared.path, tuesday);
+      expect(await payeesOf(second), containsAll(['Nomin', 'Emart']));
+      // And the first knows the second has opened it.
+      final shown = await alone.look(shared.path, tuesday);
+      expect(alone.members, hasLength(1));
+      expect(shown.onItsOwn, isFalse);
+
+      // Moved back and to the folder again (the toast's Undo): the same
+      // ledger, nothing asked, and the second phone still gets what the
+      // first makes.
+      final id = (await alone.db!.loadLedger()).prefs[SyncKeys.ledger];
+      await alone.moveBack(tuesday);
+      expect(await alone.moveToFolder(shared.path, tuesday), LedgerMove.moved);
+      expect((await alone.db!.loadLedger()).prefs[SyncKeys.ledger], id);
+      await alone.db!.postSimple(
+        accountId: khan,
+        date: tuesday,
+        today: tuesday,
+        payee: 'Sansar',
+        counterAccountId: food,
+        amount: -300000,
+      );
+      await alone.look(shared.path, tuesday);
+      await second.look(shared.path, tuesday);
+      expect(await payeesOf(second), contains('Sansar'));
+      expect(second.asking, isNull);
+
+      // A second launch with no signal still knows the second phone.
+      await alone.close();
+      final again = PhoneSync(
+        dir: Directory('${root.path}/alone'),
+        dataKey: key,
+        device: 'dddd',
+        io: const DirectoryFolderIo(),
+        wait: Duration.zero,
+      )..movedHere = true;
+      addTearDown(again.close);
+      expect(again.members, hasLength(1));
+      expect((await again.asItStands(tuesday)).onItsOwn, isFalse);
+    });
+
+    test('a folder that already holds a ledger is asked about, and Replace '
+        'saves that one on the phone first', () async {
+      await accounts(alone.db!);
+      final before = await folderLedger().readAsBytes();
+      expect(
+        await alone.moveToFolder(drive.path, monday),
+        LedgerMove.folderHasLedger,
+      );
+      expect(await folderLedger().readAsBytes(), before);
+      expect(alone.onItsOwn, isTrue);
+
+      expect(
+        await alone.moveToFolder(drive.path, monday, replace: true),
+        LedgerMove.moved,
+      );
+      expect(await folderLedger().readAsBytes(), isNot(before));
+      final kept = await alone.keptCopies();
+      expect(kept.where((c) => c.fromFolder), hasLength(1));
+    });
+
+    test('a ledger restored from another household’s backup gets an id of '
+        'its own; a move undone and done again keeps it', () async {
+      final household = (await macDb.loadLedger()).prefs[SyncKeys.ledger];
+      expect(household, isNotNull);
+      final restored = PhoneSync(
+        dir: await Directory('${root.path}/restored').create(),
+        dataKey: key,
+        device: 'ffff',
+        io: const DirectoryFolderIo(),
+        wait: Duration.zero,
+      )..onItsOwn = true;
+      addTearDown(restored.close);
+      final macBackups = Backups(macDb, dataKey: key);
+      await macBackups.runDaily(monday);
+      final copies = await macBackups.automatic();
+      await restored.restoreFrom(copies.first.path, monday);
+      expect(
+        (await restored.db!.loadLedger()).prefs[SyncKeys.ledger],
+        household,
+      );
+
+      await restored.moveToFolder(shared.path, monday);
+      final own = (await restored.db!.loadLedger()).prefs[SyncKeys.ledger];
+      expect(own, isNot(household));
+      await restored.moveBack(monday);
+      expect(restored.onItsOwn, isTrue);
+      expect(File('${shared.path}/$ledgerFileName').existsSync(), isTrue);
+      // Again, onto its own file in the folder: the same ledger, with
+      // nothing to ask.
+      expect(
+        await restored.moveToFolder(shared.path, tuesday),
+        LedgerMove.moved,
+      );
+      expect((await restored.keptCopies()).where((c) => c.fromFolder), isEmpty);
+      expect((await restored.db!.loadLedger()).prefs[SyncKeys.ledger], own);
+    });
+  });
 
   test('a phone on its own makes its copy a day beside its ledger, '
       'once a day, readable as a backup (#534 piece 3)', () async {

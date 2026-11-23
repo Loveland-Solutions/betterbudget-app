@@ -8,7 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// Runs before every test file. On GitHub (`.github/workflows/check.yml`) a golden
 /// may differ by up to `GOLDEN_TOLERANCE` (a fraction of its pixels): that Mac's
 /// macOS draws the edges of letters a little differently from the one the goldens
-/// were drawn on (0.30% of a picture at most when this was written). That still
+/// were drawn on (0.30% of a picture at most when this was written; 0.52% on a page
+/// that is nearly all text, `phone_share.png`, 2026-11-23). That still
 /// catches a page that moved or lost a panel, not one word changed; here, with no
 /// `GOLDEN_TOLERANCE`, a golden must match exactly.
 ///

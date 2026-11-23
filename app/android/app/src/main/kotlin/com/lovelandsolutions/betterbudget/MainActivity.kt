@@ -123,6 +123,20 @@ class MainActivity : FlutterActivity() {
                 refresh(folder)
                 list(folder)
             }
+            // What the folder is called, for the screen ("BetterBudget").
+            "name" -> background(result) {
+                val folder = Uri.parse(call.argument<String>("folder")!!)
+                contentResolver.query(
+                    DocumentsContract.buildDocumentUriUsingTree(
+                        folder,
+                        DocumentsContract.getTreeDocumentId(folder),
+                    ),
+                    arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                    null,
+                    null,
+                    null,
+                )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            }
             "delete" -> background(result) {
                 delete(Uri.parse(call.argument("folder")!!), call.argument("name")!!)
                 null

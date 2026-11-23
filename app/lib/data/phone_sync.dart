@@ -86,6 +86,8 @@ import 'database.dart'
         fileStamp;
 import '../import/mapping.dart' show ImportRow;
 import 'folder_io.dart';
+import 'ledger_file.dart' show ledgerFileName;
+import 'ledger_seal.dart' show lookAtLedger;
 import 'payee_acts.dart';
 import 'phone_ledger.dart';
 import 'phone_own_ledger.dart';
@@ -559,7 +561,30 @@ typedef PhoneBackups = ({BackupHealth health, CopiedElsewhere? elsewhere});
 
 /// A copy kept on the phone, for Restore from…: a daily copy, or what was
 /// there before a restore.
-typedef PhoneKeptCopy = ({String path, DateTime madeAt, bool beforeRestore});
+typedef PhoneKeptCopy = ({
+  String path,
+  DateTime madeAt,
+  bool beforeRestore,
+  bool fromFolder,
+});
+
+/// Whether the folder at [address] is on the phone itself, as Android tells
+/// by its provider (its own storage, Downloads), as Back up to… tells: the
+/// ledger kept there is no copy off the phone. The iPhone's addresses don't
+/// tell apart yet.
+bool folderOnThisPhone(String address) =>
+    address.startsWith('content://com.android.externalstorage.documents/') ||
+    address.startsWith('content://com.android.providers.downloads.documents/');
+
+/// What [PhoneLedgerSource.moveToFolder] did (#534 piece 4).
+enum LedgerMove {
+  /// The ledger is in the folder, and the phone is a member of it.
+  moved,
+
+  /// The folder already holds a ledger: nothing was written. Asked about,
+  /// and moved again with `replace`.
+  folderHasLedger,
+}
 
 /// Where in the phone's folder [dir] its own ledger is kept.
 Directory phoneOwnDir(Directory dir) => Directory('${dir.path}/own');
@@ -580,6 +605,12 @@ abstract class PhoneLedgerSource {
   /// The phone keeps its ledger in no folder (#534): nothing it holds is
   /// waiting for a computer, and no look at a folder is made.
   bool onItsOwn = false;
+
+  /// The ledger was made on this phone and moved to its folder from here
+  /// (#534 piece 4): until another phone or computer has opened it there,
+  /// the phone speaks as one on its own, with nothing waiting for a
+  /// computer.
+  bool movedHere = false;
 
   /// Makes the phone's own ledger from the backup file at [path] (#534).
   /// Throws a `RestoreException` for a file it refuses; nothing is kept.
@@ -613,6 +644,28 @@ abstract class PhoneLedgerSource {
   /// The copies kept beside the phone's own ledger, newest first: the
   /// person can't reach them with the phone's file picker.
   Future<List<PhoneKeptCopy>> keptCopies() async => const [];
+
+  /// Moves the phone's own ledger to [folder] (#534 piece 4, ADR 0004
+  /// "Another phone or computer"), as a computer's Move my ledger to a
+  /// folder… does: written there whole, once, and from then on the phone is
+  /// a member of the folder like any other, writing its change file. A
+  /// folder that already holds a ledger is left as it is
+  /// ([LedgerMove.folderHasLedger]) unless [replace], when that one is saved
+  /// on this phone first, listed under Copies on this phone.
+  Future<LedgerMove> moveToFolder(
+    String folder,
+    DateTime now, {
+    bool replace = false,
+  }) => throw UnsupportedError('This source keeps no ledger to move');
+
+  /// Undoes [moveToFolder]: the phone is on its own again, and the file in
+  /// the folder stays there.
+  Future<void> moveBack(DateTime now) async {}
+
+  /// The other phones and computers that have opened this ledger from its
+  /// folder, by what each calls itself (null for one that hasn't said), as
+  /// of the last look.
+  List<String?> get members => const [];
 
   /// Back up to… saved the copy somewhere off the phone at [now].
   Future<void> backedUp(DateTime now) async {}
@@ -810,6 +863,16 @@ class PhoneSync implements PhoneLedgerSource {
   bool onItsOwn = false;
 
   @override
+  bool movedHere = false;
+
+  /// The day the folder was last recorded as a copy off this phone.
+  DateTime? _backedUpOn;
+
+  /// Nothing else has opened this ledger: on its own, or moved from here
+  /// with no other member heard from.
+  bool get _alone => onItsOwn || (movedHere && _knownMembers.isEmpty);
+
+  @override
   Future<void> startNew() async {
     _db ??= await _own.create(device);
   }
@@ -897,12 +960,172 @@ class PhoneSync implements PhoneLedgerSource {
     final backups = _ownBackups;
     final copies = <PhoneKeptCopy>[
       for (final f in await backups.automatic())
-        (path: f.path, madeAt: Backups.madeAtOf(f), beforeRestore: false),
+        (
+          path: f.path,
+          madeAt: Backups.madeAtOf(f),
+          beforeRestore: false,
+          fromFolder: false,
+        ),
       for (final f in await backups.beforeRestore())
-        (path: f.path, madeAt: Backups.madeAtOf(f), beforeRestore: true),
+        (
+          path: f.path,
+          madeAt: Backups.madeAtOf(f),
+          beforeRestore: true,
+          fromFolder: false,
+        ),
+      for (final f in await backups.fromFolder())
+        (
+          path: f.path,
+          madeAt: Backups.madeAtOf(f),
+          beforeRestore: false,
+          fromFolder: true,
+        ),
     ]..sort((a, b) => b.madeAt.compareTo(a.madeAt));
     return copies;
   }
+
+  @override
+  Future<LedgerMove> moveToFolder(
+    String folder,
+    DateTime now, {
+    bool replace = false,
+  }) async {
+    if (_closed) throw StateError('The phone’s ledger was closed');
+    _db ??= await _own.open(device);
+    final db = _db;
+    if (db == null) throw StateError('The phone has no ledger of its own yet');
+    // A ledger this phone has never written to a folder (made here, or
+    // restored from a backup, maybe another household's) gets an id of its
+    // own first, or a folder would take it for that household's. One it has
+    // written keeps its id, so a move undone and done again, after others
+    // have opened it too, is the same ledger.
+    await db.becomeItsOwnLedger(device);
+    final there = await io.read(folder, ledgerFileName);
+    final ours = there != null && await _isThisLedger(db, there);
+    if (there != null && !ours) {
+      if (!replace) return LedgerMove.folderHasLedger;
+      // Saved here before it is written over, as the computer saves one it
+      // replaces: Restore from… opens it with its own recovery key.
+      final scratch = await _moving();
+      final out = File('${scratch.path}/replacing');
+      try {
+        await out.writeAsBytes(there, flush: true);
+        await _ownBackups.keepFromFolder(out, now);
+      } finally {
+        if (scratch.existsSync()) await scratch.delete(recursive: true);
+      }
+    }
+    var cloud = _cloud;
+    if (cloud == null) {
+      cloud = CloudFolder(
+        Backups(db, dataKey: _key),
+        access: PhoneFolderAccess(device, _name),
+        io: io,
+        wait: wait,
+        writesLedger: false,
+      );
+      await cloud.load(now);
+      _cloud = cloud;
+    }
+    // The one whole write a phone makes, in place over what was there: the
+    // folder has no ledger for the others to open until this phone puts it
+    // there. Onto this ledger's own file it is an ordinary look, so the
+    // members who have opened it go on from where they were.
+    await cloud.keepIn(folder, now, writeWhole: !ours);
+    // A ledger put there afresh has been opened by nobody yet.
+    if (!ours) {
+      _known = {};
+      try {
+        if (_membersFile.existsSync()) _membersFile.deleteSync();
+      } catch (e) {
+        debugPrint('Forgetting who had opened the ledger failed: $e');
+      }
+    }
+    onItsOwn = false;
+    movedHere = true;
+    return LedgerMove.moved;
+  }
+
+  /// A folder beside the phone's own ledger for the files a move reads and
+  /// writes on the way, made empty; never the Backups folder, whose daily
+  /// copy sweeps what it doesn't know.
+  Future<Directory> _moving() async {
+    final dir = Directory('${_own.dir.path}/moving');
+    if (dir.existsSync()) await dir.delete(recursive: true);
+    return dir.create(recursive: true);
+  }
+
+  /// Whether [bytes], a whole ledger, is this one by its id: false for one
+  /// this key doesn't open, or one still arriving.
+  Future<bool> _isThisLedger(AppDatabase db, Uint8List bytes) async {
+    final here = (await db.syncState()).ledger;
+    if (here == null) return false;
+    final scratch = await _moving();
+    final file = File('${scratch.path}/looking');
+    try {
+      await file.writeAsBytes(bytes, flush: true);
+      return (await lookAtLedger(file, _key)).ledger == here;
+    } catch (_) {
+      return false;
+    } finally {
+      if (scratch.existsSync()) await scratch.delete(recursive: true);
+    }
+  }
+
+  @override
+  Future<void> moveBack(DateTime now) async {
+    await _cloud?.stop();
+    onItsOwn = true;
+    movedHere = false;
+  }
+
+  /// The other members heard from, by id, kept beside the ledger so a
+  /// launch with no signal still knows them (`own/members`).
+  Map<String, String?>? _known;
+
+  File get _membersFile => File('${_own.dir.path}/members');
+
+  Map<String, String?> get _knownMembers {
+    var known = _known;
+    if (known != null) return known;
+    known = <String, String?>{};
+    try {
+      if (_membersFile.existsSync()) {
+        final json = jsonDecode(_membersFile.readAsStringSync());
+        if (json is Map) {
+          for (final e in json.entries) {
+            known[e.key as String] = e.value as String?;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Reading who has opened the ledger failed: $e');
+    }
+    return _known = known;
+  }
+
+  /// Adds what the last look heard to [_knownMembers], written when it grew
+  /// or a name changed.
+  void _noteMembers() {
+    final heard = _cloud?.members ?? const <String, String?>{};
+    final known = _knownMembers;
+    var changed = false;
+    for (final e in heard.entries) {
+      if (!known.containsKey(e.key) || known[e.key] != e.value) {
+        known[e.key] = e.value;
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    try {
+      _membersFile.writeAsStringSync(jsonEncode(known), flush: true);
+    } catch (e) {
+      debugPrint('Keeping who has opened the ledger failed: $e');
+    }
+  }
+
+  @override
+  List<String?> get members => [..._knownMembers.values];
 
   @override
   Future<PhoneBackups?> backups(DateTime now) async {
@@ -1076,6 +1299,21 @@ class PhoneSync implements PhoneLedgerSource {
       debugPrint('The phone’s look at the folder failed: $e');
     }
     if (whole && !_closed) await _keepLooked(now);
+    if (!_closed) _noteMembers();
+    // Moved to the folder from here (#534 piece 4): the ledger there is a
+    // copy off this phone, as Back up to…'s is, unless the folder is on the
+    // phone itself. Once a day is enough.
+    if (whole && movedHere && !_closed && !folderOnThisPhone(folder)) {
+      final day = dateOnly(now);
+      if (_backedUpOn != day) {
+        _backedUpOn = day;
+        try {
+          await backedUp(now);
+        } catch (e) {
+          debugPrint('Recording the folder as a backup failed: $e');
+        }
+      }
+    }
     return asItStands(now);
   }
 
@@ -1190,14 +1428,15 @@ class PhoneSync implements PhoneLedgerSource {
     // changes since the last one all of them have seen. With no other
     // computer heard from, all of them.
     final seen = _cloud?.seenOfMine ?? 0;
-    final ids = onItsOwn ? const <int>{} : (await _unapplied(db, seen)).entries;
+    final alone = _alone;
+    final ids = alone ? const <int>{} : (await _unapplied(db, seen)).entries;
     return snapshotOf(
       await db.loadLedger(),
       today: now,
       madeAt: await _looked() ?? now,
       mineIds: ids,
       device: device,
-      onItsOwn: onItsOwn,
+      onItsOwn: alone,
     );
   }
 
