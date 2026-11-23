@@ -727,6 +727,11 @@ Set<int> billNotIt(Map<String, String> prefs, int txnId) => {
 /// bill. Under a week, so a weekly bill doesn't find last week's.
 const alreadyInDays = 6;
 
+/// How far a bank's row may be dated from a row typed or a bill and still
+/// be it: up to [bankDaysBefore] days before, [bankDaysAfter] after (a
+/// card's row posts days late).
+const bankDaysBefore = 3, bankDaysAfter = 10;
+
 /// A split is the same kind of row as one with a single category, for
 /// telling that a bill is already in: a receipt typed over two categories
 /// is still the bill paid.

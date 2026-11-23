@@ -3298,6 +3298,40 @@ void main() {
         expect(line(await db.loadLedger(), nextMonth).plan!.planned, 50000000);
       });
 
+      test('a row in Not categorized that paid it is filed under it, and '
+          'undo puts it back (#558)', () async {
+        final none = await db.createCategory('Not categorized');
+        await db.changeCategoryPlan(fee, plan(), today);
+        final bill = (await bills()).first;
+        final row = await db.postSimple(
+          date: due.add(const Duration(days: 4)),
+          today: today,
+          payee: 'POS Purchase',
+          accountId: bank,
+          counterAccountId: none,
+          amount: -4000000,
+        );
+        Future<int> categoryOf() async => (await db.loadLedger()).txns
+            .singleWhere((x) => x.id == row)
+            .entries
+            .singleWhere((e) => e.accountId != bank)
+            .accountId;
+        final paid = await db.payBill(
+          billId: bill.id,
+          billAccountId: bank,
+          foundId: row,
+          today: today,
+          planCategoryId: fee,
+          file: (accountId: bank, from: none),
+        );
+        expect(paid.filed, {row: none});
+        expect(await categoryOf(), fee);
+        // The bill is gone; the row is tied to the plan in its place.
+        expect(await dates(), [due.add(const Duration(days: 4)), next]);
+        await db.restoreCategories(paid.filed, bank);
+        expect(await categoryOf(), none);
+      });
+
       test('replaces the bill the old date had scheduled', () async {
         await db.changeCategoryPlan(fee, plan(first: next), today);
         expect(await dates(), [next]);

@@ -1502,6 +1502,17 @@ What's known so far:
       rent. **Not in #88:** a repeat on a scheduled transfer. The owner:
       "Anything scheduled as a payment should have a category. If it
       doesn't have a category, we're not budgeting it."
+      **A bank row still in Not categorized** (#558, 2026-11-23; the owner:
+      "These aren't matching", a Tithing bill waiting for Confirm over the
+      bank's row of its exact amount four days later). An import pays such a
+      bill as it comes in (#597), but a row in already, or one the import
+      didn't take for it, has no category to tie it. So a row in Not
+      categorized, of exactly a category's bill, in the bill's account, from
+      3 days before the bill to 10 after (the import's window), is that
+      bill when no row in its category is. Only the amount says so, so it
+      is asked on the bill's line, never paid without asking (not on a
+      save, a phone's rows or a bank file); Yes files the row under the
+      bill's category in the same write, and Undo puts it back.
     - **A note under the category's name** says the plan (owner's pick,
       option A of three, 2026-10-01): "₮900,000 a month", "₮100,000 a
       month · up to ₮1,500,000", "₮1,500,000 set aside", "₮270,000 due

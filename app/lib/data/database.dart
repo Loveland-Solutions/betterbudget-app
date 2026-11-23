@@ -4369,14 +4369,19 @@ class AppDatabase extends _$AppDatabase {
   /// two or three bills' worth), that many after it are skipped
   /// ([billSkippedKey]) as paid with it. The plan's next bill is then
   /// scheduled as a confirm would. What was done is kept on the row
-  /// ([billPaidKey]) for "Not this bill". Returns the bills scheduled, the
-  /// ones skipped and the settings written, for undo, and the date of the
-  /// plan's next bill, for the popup.
+  /// ([billPaidKey]) for "Not this bill". With [file] (a row found by its
+  /// amount, still in Not categorized, #558), the row is filed under
+  /// [planCategoryId] from the account and category given, in the same
+  /// write. Returns the bills scheduled, the ones skipped, the settings
+  /// written and the row's category before ([filed], empty when it
+  /// wasn't), for undo, and the date of the plan's next bill, for the
+  /// popup.
   Future<
     ({
       List<int> made,
       List<int> skipped,
       Map<String, String> wrote,
+      Map<int, int> filed,
       DateTime? next,
     })
   >
@@ -4390,7 +4395,16 @@ class AppDatabase extends _$AppDatabase {
     int? rest,
     String? notIt,
     int bills = 1,
+    ({int accountId, int from})? file,
   }) => transaction(() async {
+    final filed = file == null || planCategoryId == null
+        ? const <int, int>{}
+        : await setCategoryMany(
+            transactionIds: [foundId],
+            accountId: file.accountId,
+            categoryId: planCategoryId,
+            onlyFrom: file.from,
+          );
     final bill = await (select(
       transactions,
     )..where((t) => t.id.equals(billId))).getSingle();
@@ -4452,7 +4466,13 @@ class AppDatabase extends _$AppDatabase {
     final next = planCategoryId == null
         ? null
         : await _nextPlanBill(planCategoryId, null);
-    return (made: made, skipped: skipped, wrote: wrote, next: next?.date);
+    return (
+      made: made,
+      skipped: skipped,
+      wrote: wrote,
+      filed: filed,
+      next: next?.date,
+    );
   });
 
   /// [categoryId]'s plan's soonest scheduled bill, or the soonest dated
@@ -8238,7 +8258,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// How far a typed row's date may be from the bank's and still match.
-  static const matchDaysBefore = 3, matchDaysAfter = 10;
+  static const matchDaysBefore = bankDaysBefore, matchDaysAfter = bankDaysAfter;
 
   /// Writes [plan] to [accountId] in one go: new rows come in cleared, with
   /// the category (income or spending, never another account) last used for
