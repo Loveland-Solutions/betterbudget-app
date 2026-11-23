@@ -324,6 +324,12 @@ abstract final class Mid {
   static const toast = Palette._coin;
   static const onToast = Palette._tile;
 
+  /// A register row the person just added or saved, at its brightest: the
+  /// toast's coin gold, since gold's job is what was saved (#546). It fades
+  /// to nothing within about a second.
+  static Color get savedGlow =>
+      Palette._coin.withValues(alpha: isLight ? 0.42 : 0.40);
+
   static Color get blueWash => blue.withValues(alpha: isLight ? 0.10 : 0.12);
   static Color get blueEdge => blue.withValues(alpha: 0.35);
   static Color get chip => _p.wash.withValues(alpha: isLight ? 0.06 : 0.08);
@@ -1049,4 +1055,65 @@ class Diamond extends StatelessWidget {
     angle: 0.785398,
     child: Container(width: size, height: size, color: color ?? Mid.gold),
   );
+}
+
+/// A register row, with [Mid.savedGlow] behind it while it is the one the
+/// person just added or saved, as bright as [glow] says (#546), inside
+/// [padding] and rounded as the row is. Behind, so the row's own stripe,
+/// hover and words stay on top. Every row is wrapped, lit or not, so the
+/// row isn't rebuilt when the gold comes and goes; [mark] goes on the gold's
+/// own layer, so the screen can find the lit row and scroll it into view.
+class SavedGlow extends StatelessWidget {
+  const SavedGlow({
+    super.key,
+    this.glow,
+    this.mark,
+    this.padding = EdgeInsets.zero,
+    this.radius = 10,
+    this.base,
+    required this.child,
+  });
+
+  /// Null: not lit.
+  final Animation<double>? glow;
+  final Key? mark;
+  final EdgeInsets padding;
+  final double radius;
+
+  /// The row's own background, when it is opaque (a phone's card): drawn
+  /// here, under the gold, and the row itself is drawn clear.
+  final Color? base;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final glow = this.glow;
+    Decoration paint(double g) => BoxDecoration(
+      color: Color.alphaBlend(
+        Mid.savedGlow.withValues(alpha: Mid.savedGlow.a * g.clamp(0, 1)),
+        base ?? Colors.transparent,
+      ),
+      borderRadius: BorderRadius.circular(radius),
+    );
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Padding(
+              padding: padding,
+              child: glow == null
+                  ? DecoratedBox(key: mark, decoration: paint(0))
+                  : AnimatedBuilder(
+                      key: mark,
+                      animation: glow,
+                      builder: (context, _) =>
+                          DecoratedBox(decoration: paint(glow.value)),
+                    ),
+            ),
+          ),
+        ),
+        child,
+      ],
+    );
+  }
 }
