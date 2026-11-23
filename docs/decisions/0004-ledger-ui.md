@@ -8168,6 +8168,11 @@ picked once, which each day's copy also goes to. The owner picked **A** ("a").
   the copy from … · what you had is saved" with Undo.
 - **Only on a phone on its own**: a phone on a folder shows neither, since its
   computers keep the copies. The demo key shows neither.
+- **The reminder stays** (owner, 2026-11-23). Asked whether the line was needed when
+  the phone copies by itself ("Why would we remind them to backup if it's doing it
+  automatically?"), and told that the daily copies stay on the phone and are lost with
+  it, the owner kept it as built: "No backup yet" until one copy is off the phone,
+  then quiet for 30 days, as on the computer.
 - **Rejected:** B (a second kind of folder on the phone beside piece 4's, where the
   phone's ledger itself moves into a folder and so is copied off the phone anyway).
 - **From the reviews** (decided along the lines above): the copies kept on the phone,
