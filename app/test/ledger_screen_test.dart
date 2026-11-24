@@ -2838,6 +2838,132 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('a row just added lands lit in gold, then fades (#546)', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await openEntry(tester);
+      await tester.enterText(field('Category'), 'Dining out');
+      await tester.enterText(field('New transaction — payee'), 'Modern Nomads');
+      await tester.enterText(field('₮0.00'), '42000');
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.tap(find.widgetWithText(GestureDetector, 'Add').last);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final lit = find.ancestor(
+        of: find.text('Modern Nomads'),
+        matching: _litGlow,
+      );
+      expect(lit, findsOneWidget);
+      // Only that row: the others stay as they were.
+      expect(_litGlow, findsOneWidget);
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/row_just_added.png'),
+      );
+      // Within about a second it is an ordinary row again.
+      // (The fade starts once the row is drawn, from the write's real time.)
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+      await tester.pump();
+      expect(_litGlow, findsNothing);
+      expect(find.text('Modern Nomads'), findsOneWidget);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a row saved from Edit lights up too (#546)', (tester) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit'));
+      await tester.pump();
+      await tester.pump();
+      tester.testTextInput.enterText('Unitel LLC');
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        find.ancestor(of: find.text('Unitel LLC'), matching: _litGlow),
+        findsOneWidget,
+      );
+      await settle(tester);
+      expect(_litGlow, findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('Undo right after a save puts the gold out (#546)', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit'));
+      await tester.pump();
+      await tester.pump();
+      tester.testTextInput.enterText('Unitel LLC');
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(_litGlow, findsOneWidget);
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Undo'));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      expect(find.text('Unitel'), findsOneWidget);
+      expect(_litGlow, findsNothing);
+      await tidy(tester, db);
+    });
+
+    testWidgets('a row added far down the list is scrolled to, lit (#546)', (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester, size: const Size(1440, 760));
+      await openEntry(tester);
+      await tester.enterText(field('2026.09.16'), '2026.09.11');
+      await tester.enterText(field('Category'), 'Dining out');
+      await tester.enterText(field('New transaction — payee'), 'Modern Nomads');
+      await tester.enterText(field('₮0.00'), '42000');
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.tap(find.widgetWithText(GestureDetector, 'Add').last);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      // The scroll waits on frames from the write's own (real) time.
+      for (var i = 0; i < 30; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)),
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      final lit = find.ancestor(
+        of: find.text('Modern Nomads'),
+        matching: _litGlow,
+      );
+      expect(lit, findsOneWidget);
+      // In the window, not under its foot.
+      final box = tester.getRect(lit);
+      expect(box.top, greaterThan(0));
+      expect(box.bottom, lessThanOrEqualTo(760));
+      await settle(tester);
+      expect(_litGlow, findsNothing);
+      await tidy(tester, db);
+    });
+
     testWidgets('a row added under a filter tab that won\'t list it says so', (
       tester,
     ) async {
@@ -5643,6 +5769,17 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await settle(tester);
+    // Confirmed, the list followed the bill down to its date (#546).
+    await tester.drag(
+      find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .last,
+      const Offset(0, 4000),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('due 7 days ago · not in Working yet'), findsOneWidget);
     await tidy(tester, db);
   });
@@ -15713,3 +15850,8 @@ Future<void> shown(WidgetTester tester, Finder f) async {
   await reveal(tester, f);
   await tester.pumpAndSettle();
 }
+
+/// A row lit in gold just now (#546); every row has a [SavedGlow], unlit.
+final _litGlow = find.byWidgetPredicate(
+  (w) => w is SavedGlow && w.glow != null,
+);

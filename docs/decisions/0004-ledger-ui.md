@@ -8422,3 +8422,38 @@ Three sketches were drawn; the owner picked **B**.
 - **Rejected (A):** the check itself turning into a blue disc for a row the bank
   cleared, the diamond taking over once reconciled. **Rejected (C):** a blue dot at the
   corner of whatever mark the row has.
+
+## A row just added lights up gold, then fades (owner, 2026-11-19, #546)
+
+Owner, 2026-11-19: "I need visual validation when I add a transaction. When I enter a
+value, I'd like it to go in as Amber and quickly fade to the regular color to highlight
+that the entry was entered." On the phone: "Yes if the real estate reasonably allows
+for it."
+
+- A row the person adds, saves from Edit or confirms lands with the toast's coin gold
+  behind it, holds a moment, and fades quickly to its ordinary look, 0.9 seconds in
+  all. (First built at 1.2 seconds with the gold held through most of it: "that
+  lights up for too long. I was thinking for one second or less, then it fades back
+  to it's regular color", owner, 2026-11-24.) Gold's job is what was saved, so this is that job, not a new one.
+  The gold is behind the row: its stripe, hover, chip and words stay on top and
+  readable, light and dark.
+- The register scrolls just far enough to show the row where it went, if it's not in
+  sight; a row the tab or search in force won't list is still said by the toast
+  ("Not in this view").
+- Only what the person at this computer did: rows another computer or a phone sent
+  in, an import, Undo and Redo never light.
+- The phone's Ledger tab does the same, the card itself turning gold: a row saved or
+  confirmed where it opened, and, back from the amount pad, every row this phone made
+  there (not rows another phone or a computer sent in meanwhile). The pad covers the
+  register while it is open, so the gold plays when the person comes back to it.
+  It costs no room, so the phone has it whole.
+- Refined after the reviews: the fade starts when the row is first drawn, not at the
+  save, so a slow reload or the pad's page sliding away never eats its bright moment;
+  a row far down the list is scrolled to (the register steps down until it is
+  built); a row already in sight never moves, on the phone too; Undo or Redo within
+  the second puts the gold out; the difference row Count the cash saves lights too
+  (the reconcile's adjustment doesn't: the reconcile closes onto a different view);
+  the phone waits for its pad's entries to be taken into its ledger before it looks
+  for them. The fade plays under reduced motion as well: it is the confirmation,
+  and a color fading doesn't move anything. Dark mode's gold is a little stronger
+  (40%) so it reads as amber, not brown.

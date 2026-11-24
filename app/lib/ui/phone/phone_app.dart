@@ -97,6 +97,7 @@ import '../../domain/money.dart';
 import '../../domain/pay.dart';
 import '../../data/payee_acts.dart' show payeeOverlaps;
 import '../../domain/payee_offers.dart';
+import '../../domain/sync.dart' show MadeHow;
 import '../../domain/payee_rules.dart';
 import '../../domain/phone.dart';
 import '../../domain/readiness.dart';
@@ -1156,8 +1157,9 @@ class _PhoneHomeState extends State<PhoneHome> {
   }
 
   /// The amount pad, over the register, with Back to it.
-  void _openPad() {
-    Navigator.of(context).push(
+  /// Done when the pad is closed again.
+  Future<void> _openPad() {
+    return Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => Scaffold(
           backgroundColor: Mid.ground,

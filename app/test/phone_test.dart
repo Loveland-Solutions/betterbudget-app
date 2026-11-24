@@ -1095,6 +1095,69 @@ void main() {
     expect(find.byKey(const ValueKey('register-list')), findsOneWidget);
   });
 
+  testWidgets('back from the pad, a row this phone added there lights up; '
+      'one another phone sent in meanwhile does not (#546)', (tester) async {
+    late AppDatabase db;
+    late LedgerData data;
+    await tester.runAsync(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      await seedDemoIfEmpty(db, _now);
+      data = await db.loadLedger();
+    });
+    addTearDown(() => tester.runAsync(db.close));
+    final store = await _pump(
+      tester,
+      snapshot: snapshotOf(data, today: _now, madeAt: _now),
+    );
+    await tester.tap(find.byKey(const ValueKey('add-transaction')));
+    await tester.pumpAndSettle();
+    // While the pad is open: one row from this phone, one from a computer.
+    late int mine, theirs;
+    await tester.runAsync(() async {
+      final account = data.accounts.values.firstWhere(
+        (a) => a.name == 'TDB Checking',
+      );
+      final category = data.categories.firstWhere(
+        (c) => c.name == 'Dining out',
+      );
+      mine = await db.postSimple(
+        accountId: account.id,
+        date: _now,
+        today: _now,
+        payee: 'Modern Nomads',
+        counterAccountId: category.id,
+        amount: -42000,
+        how: MadeHow.phone,
+        on: store.device,
+      );
+      theirs = await db.postSimple(
+        accountId: account.id,
+        date: _now,
+        today: _now,
+        payee: 'E-Mart',
+        counterAccountId: category.id,
+        amount: -18000,
+        how: MadeHow.phone,
+        on: 'another phone',
+      );
+      data = await db.loadLedger();
+    });
+    store.snapshot = snapshotOf(data, today: _now, madeAt: _now);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('pad-back')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    Finder rowOf(int txn) => find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key! as ValueKey<String>).value.startsWith('register-row-$txn-'),
+    );
+    expect(find.ancestor(of: rowOf(mine), matching: _litGlow), findsOneWidget);
+    expect(find.ancestor(of: rowOf(theirs), matching: _litGlow), findsNothing);
+    await tester.pumpAndSettle();
+    expect(_litGlow, findsNothing);
+  });
+
   testWidgets('a row opened in the register is saved into the ledger and '
       'taken back by Undo (#527)', (tester) async {
     late AppDatabase db;
@@ -1151,7 +1214,26 @@ void main() {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 300)),
     );
+    // Saved, the row lands lit in gold, brought into sight, then fades
+    // (#546). The scroll waits on frames from the save's own (real) time.
+    for (var i = 0; i < 20; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    // An edit gives the row's lines new ids: found by its transaction.
+    final saved = find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key! as ValueKey<String>).value.startsWith(
+            'register-row-${row.txnId}-',
+          ),
+    );
+    expect(find.ancestor(of: saved, matching: _litGlow), findsOneWidget);
+    expect(_litGlow, findsOneWidget);
     await tester.pumpAndSettle();
+    expect(_litGlow, findsNothing);
     expect(find.byKey(const ValueKey('row-save')), findsNothing);
     expect(find.byKey(const ValueKey('row-saved')), findsOneWidget);
     RegisterRow now() => data.registerAll().posted.firstWhere(
@@ -10689,3 +10771,8 @@ class _FakeBackups {
     },
   );
 }
+
+/// A row lit in gold just now (#546); every row has a [SavedGlow], unlit.
+final _litGlow = find.byWidgetPredicate(
+  (w) => w is SavedGlow && w.glow != null,
+);

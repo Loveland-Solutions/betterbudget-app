@@ -280,6 +280,11 @@ class RegisterPanel extends StatelessWidget {
     required this.unclearedCheck,
     this.pointed,
     this.pointedKey,
+    this.lit,
+    this.litKey,
+    this.litGlow,
+    this.litPlace,
+    this.listController,
     required this.entryController,
     required this.today,
     required this.actions,
@@ -403,6 +408,19 @@ class RegisterPanel extends StatelessWidget {
   /// [pointedKey] on it so the screen can scroll it into view.
   final int? pointed;
   final Key? pointedKey;
+
+  /// The row the person just added or saved, lit in gold by [litGlow] as it
+  /// fades (#546), with [litKey] on it so the screen can scroll it into view.
+  /// [litPlace], when given, is filled with where it is among the list's
+  /// children and how many there are: a row far down isn't built until
+  /// scrolled near.
+  final int? lit;
+  final Key? litKey;
+  final Animation<double>? litGlow;
+  final List<int>? litPlace;
+
+  /// The list of rows' scroll position, for the screen to move.
+  final ScrollController? listController;
   final EntryRowController entryController;
   final DateTime today;
   final RegisterActions actions;
@@ -571,18 +589,34 @@ class RegisterPanel extends StatelessWidget {
     final grow = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 180);
-    Widget sized(RegisterRow r, Widget row) => SmoothHeight(
-      key: ValueKey('row-${r.txnId}'),
-      duration: grow,
-      child: r.txnId == selected && selectedKey != null
+    Widget sized(RegisterRow r, Widget row) {
+      Widget child = r.txnId == selected && selectedKey != null
           ? KeyedSubtree(key: selectedKey, child: row)
           : r.txnId == pointed && pointedKey != null
           ? KeyedSubtree(key: pointedKey, child: row)
-          : row,
-    );
+          : row;
+      final isLit = r.txnId == lit;
+      child = SavedGlow(
+        mark: isLit ? litKey : null,
+        glow: isLit ? litGlow : null,
+        padding: Cols.outer,
+        child: child,
+      );
+      return SmoothHeight(
+        key: ValueKey('row-${r.txnId}'),
+        duration: grow,
+        child: child,
+      );
+    }
+
+    final children = <Widget>[];
     shown?.clear();
+    litPlace?.clear();
     Widget keyed(RegisterRow r, Widget row) {
       shown?.add(r.txnId);
+      if (r.txnId == lit && litPlace != null && litPlace!.isEmpty) {
+        litPlace!.add(children.length);
+      }
       return sized(r, row);
     }
 
@@ -614,7 +648,6 @@ class RegisterPanel extends StatelessWidget {
       hoveredStatus: hoveredStatus,
     );
 
-    final children = <Widget>[];
     if (showScheduled) {
       if (visibleScheduled.isEmpty) {
         children.add(_empty(t.rowsNothingScheduled));
@@ -717,6 +750,7 @@ class RegisterPanel extends StatelessWidget {
       }
     }
 
+    if (litPlace case final p? when p.length == 1) p.add(children.length);
     return Container(
       decoration: BoxDecoration(
         color: Mid.panel,
@@ -798,6 +832,7 @@ class RegisterPanel extends StatelessWidget {
           ),
           Expanded(
             child: ListView(
+              controller: listController,
               padding: const EdgeInsets.only(bottom: 12),
               children: children,
             ),

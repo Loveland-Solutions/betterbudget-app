@@ -163,7 +163,8 @@ class LedgerScreen extends StatefulWidget {
   State<LedgerScreen> createState() => _LedgerScreenState();
 }
 
-class _LedgerScreenState extends State<LedgerScreen> {
+class _LedgerScreenState extends State<LedgerScreen>
+    with TickerProviderStateMixin {
   late final Stream<LedgerData> _ledger;
   var _section = AppSection.ledger;
 
@@ -195,6 +196,36 @@ class _LedgerScreenState extends State<LedgerScreen> {
   /// still open.
   int? _pointed;
   final _pointedKey = GlobalKey();
+
+  /// The row the person just added, edited or confirmed: it lands lit in
+  /// gold and fades within about a second, so they see where it went and
+  /// that it's in (owner, 2026-11-19, #546). Only what this person did:
+  /// rows another computer or the phone sent in never light.
+  int? _lit;
+  final _litKey = GlobalKey();
+
+  /// Where the lit row is among the register's children, and how many
+  /// there are, as last built; and the register's list, to move to it.
+  final _litPlace = <int>[];
+  final _registerScroll = ScrollController();
+  late final _litFade =
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      )..addStatusListener((s) {
+        if (s == AnimationStatus.completed && mounted) {
+          setState(() => _lit = null);
+        }
+      });
+
+  /// Gold for a moment, then fading quickly: under a second in all (owner,
+  /// 2026-11-24: "one second or less").
+  late final Animation<double> _litGlow = ReverseAnimation(
+    CurvedAnimation(
+      parent: _litFade,
+      curve: const Interval(0.15, 1, curve: Curves.easeOutCubic),
+    ),
+  );
   var _filter = RegisterFilter.all;
   final _hoveredStatus = ValueNotifier<Cleared?>(null);
   final _search = TextEditingController();
@@ -1238,6 +1269,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     _savingsKeep.dispose();
     _payeeKeep.draft?.dispose();
     _hoveredStatus.dispose();
+    _litFade.dispose();
+    _registerScroll.dispose();
     _entry.payeeFocus.dispose();
     _toastTimer?.cancel();
     _toastGrace?.cancel();
@@ -1578,6 +1611,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       if (!madeAny && !hidden && kept == null && d.date.isAfter(today)) {
         _showToast(t.ledgerScheduledToast(sayFullDate(t, d.date)));
       }
+      _light(id);
       // In a bill's category: it pays the bill (owner, 2026-10-21).
       if (!d.date.isAfter(today)) _settleTyped({id}, over);
       return null;
@@ -1860,6 +1894,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     _history.removeLast();
+    _unlight();
     try {
       await a.undo();
     } catch (e) {
@@ -1885,6 +1920,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return;
     }
     _redo.removeLast();
+    _unlight();
     try {
       await a.redo();
     } catch (e) {
@@ -2884,6 +2920,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
           if (under != null) t.ledgerUnderEstimate(money(under)),
         ].join(' · '),
       );
+      _light(row.txnId);
       return null;
     }
     final nowScheduled = !row.scheduled && d.date.isAfter(today);
@@ -2933,10 +2970,94 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ...back.said,
       ].join(' · '),
     );
+    _light(row.txnId);
     // Now in a bill's category, or for its amount: it may pay the bill.
     if (!row.scheduled && !nowScheduled) _settleTyped({row.txnId}, over);
     return null;
   }
+
+  /// Lights row [txnId] in gold ([_lit]) and brings it into sight, if the
+  /// register lists it at all. The fade starts when the row is first drawn,
+  /// so a slow reload never eats its bright moment.
+  void _light(int txnId) {
+    if (!mounted) return;
+    _litFade.stop();
+    _litFade.value = 0;
+    _litLooks = 0;
+    _litJumps = 0;
+    setState(() => _lit = txnId);
+  }
+
+  /// Puts the gold out: Undo and Redo never light (#546).
+  void _unlight() {
+    if (!mounted || _lit == null) return;
+    _litFade.stop();
+    setState(() => _lit = null);
+  }
+
+  /// How often the lit row has been looked for and jumped toward: a row
+  /// not drawn within 60 frames (a tab, chip or search hides it) is let go,
+  /// and the list is jumped at most 8 times.
+  var _litLooks = 0;
+  var _litJumps = 0;
+  var _litLooking = false;
+
+  /// After a frame with a row lit and not yet fading: once the row is drawn,
+  /// the fade starts and the row is brought into sight; a row listed but not
+  /// built yet (far down) is jumped near, and looked for again after the
+  /// next frame. Done with frames, not timers.
+  void _lookForLit() {
+    if (_lit == null || _litLooking || _litFade.value > 0) return;
+    _litLooking = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _litLooking = false;
+      final txnId = _lit;
+      if (!mounted || txnId == null || _litFade.value > 0) return;
+      final row = _litKey.currentContext;
+      if (row != null && row.mounted) {
+        _litFade.forward(from: 0);
+        unawaited(_bringLitIntoSight(txnId));
+        return;
+      }
+      if (++_litLooks > 60) {
+        _unlight();
+        return;
+      }
+      // Listed but not built: jump near where it is among the rows, which
+      // draws another frame.
+      if (_litPlace case [final at, final of] when of > 0 && _litJumps < 8) {
+        if (_registerList() case final list?) {
+          _litJumps++;
+          list.jumpTo(list.maxScrollExtent * at / of);
+        }
+      }
+    });
+  }
+
+  /// Below the window, the row's foot comes up to the bottom; above it, its
+  /// top down to the top. Already in sight, nothing moves.
+  Future<void> _bringLitIntoSight(int txnId) async {
+    final glide = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 250);
+    for (final policy in const [
+      ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+    ]) {
+      final at = _litKey.currentContext;
+      if (!mounted || _lit != txnId || at == null || !at.mounted) return;
+      await Scrollable.ensureVisible(
+        at,
+        alignmentPolicy: policy,
+        duration: glide,
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  /// The register's list of rows, while one is on screen.
+  ScrollPosition? _registerList() =>
+      _registerScroll.hasClients ? _registerScroll.position : null;
 
   // ---------- reconcile ----------
 
@@ -3104,6 +3225,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             categoryName,
           );
     _endCount();
+    _light(saved.id);
     final rows = [saved.id, ?saved.openingId];
     _did(
       label,
@@ -4439,6 +4561,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
               unclearedCheck: data.unclearedCheck,
               pointed: _pointed,
               pointedKey: _pointedKey,
+              lit: _lit,
+              litKey: _litKey,
+              litGlow: _litGlow,
+              litPlace: _litPlace,
+              listController: _registerScroll,
               entryController: _entry,
               today: today,
               adding: _adding,
@@ -7292,6 +7419,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _lookForLit();
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyN, meta: true): _newEntry,
@@ -7960,6 +8088,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 unclearedCheck: data.unclearedCheck,
                 pointed: _pointed,
                 pointedKey: _pointedKey,
+                lit: _lit,
+                litKey: _litKey,
+                litGlow: _litGlow,
+                litPlace: _litPlace,
+                listController: _registerScroll,
                 entryController: _entry,
                 today: today,
                 adding: _adding,

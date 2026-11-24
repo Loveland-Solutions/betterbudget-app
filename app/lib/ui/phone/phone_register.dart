@@ -18,14 +18,15 @@ class _RegisterScreen extends StatefulWidget {
   final PhoneStore store;
   final DateTime Function() now;
 
-  /// Opens the amount pad.
-  final VoidCallback onAdd;
+  /// Opens the amount pad; done when it is closed again.
+  final Future<void> Function() onAdd;
 
   @override
   State<_RegisterScreen> createState() => _RegisterState();
 }
 
-class _RegisterState extends State<_RegisterScreen> {
+class _RegisterState extends State<_RegisterScreen>
+    with SingleTickerProviderStateMixin {
   /// The account shown, or null for all of them.
   int? _account;
   var _show = _Show.all;
@@ -50,6 +51,11 @@ class _RegisterState extends State<_RegisterScreen> {
   /// are, as last built: a row far down isn't built until scrolled near.
   ({int at, int of})? _openPlace;
 
+  /// The same for the first lit row, and its key once built.
+  ({int at, int of})? _litPlace;
+  final _litKey = GlobalKey();
+  ({int txn, int entry})? _litFirst;
+
   /// A reconcile in progress (#530), if any.
   _Reconciling? _rec;
 
@@ -59,6 +65,125 @@ class _RegisterState extends State<_RegisterScreen> {
   /// The rows whose symbol was tapped and whose write isn't drawn yet: a
   /// second tap waits for the first, and so does Lock.
   final _ticking = <int>{};
+
+  /// The rows the person just saved here or added on the pad: lit in gold,
+  /// fading within about a second, as on the computer (#546). Never rows a
+  /// computer sent in.
+  var _lit = <int>{};
+  late final _litFade =
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      )..addStatusListener((s) {
+        if (s == AnimationStatus.completed && mounted) {
+          setState(() => _lit = {});
+        }
+      });
+  late final Animation<double> _litGlow = ReverseAnimation(
+    CurvedAnimation(
+      parent: _litFade,
+      curve: const Interval(0.15, 1, curve: Curves.easeOutCubic),
+    ),
+  );
+
+  /// The fade starts when the first lit row is drawn, so a page still
+  /// sliding away or a slow reload never eats its bright moment.
+  void _light(Set<int> txns) {
+    if (!mounted || txns.isEmpty) return;
+    _litFade.stop();
+    _litFade.value = 0;
+    _litLooks = 0;
+    _litJumps = 0;
+    setState(() => _lit = txns);
+  }
+
+  /// Puts the gold out: an Undo never lights (#546).
+  void _unlight() {
+    if (!mounted || _lit.isEmpty) return;
+    _litFade.stop();
+    setState(() => _lit = {});
+  }
+
+  /// How often the lit row has been looked for and jumped toward: a row
+  /// not drawn within 60 frames (a tab, chip or search hides it) is let go,
+  /// and the list is jumped at most 8 times.
+  var _litLooks = 0;
+  var _litJumps = 0;
+  var _litLooking = false;
+
+  /// After a frame with rows lit and not yet fading: once the first is
+  /// drawn, the fade starts and it is brought into sight; one listed but not
+  /// built yet is jumped near, and looked for again after the next frame.
+  void _lookForLit() {
+    if (_lit.isEmpty || _litLooking || _litFade.value > 0) return;
+    _litLooking = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _litLooking = false;
+      final txns = _lit;
+      if (!mounted || txns.isEmpty || _litFade.value > 0) return;
+      final built = _litKey.currentContext;
+      if (built != null && built.mounted) {
+        _litFade.forward(from: 0);
+        unawaited(_bringLitIntoSight(txns));
+        return;
+      }
+      if (++_litLooks > 60) {
+        _unlight();
+        return;
+      }
+      final place = _litPlace;
+      if (place != null && _scroll.hasClients && _litJumps < 8) {
+        _litJumps++;
+        final at = _scroll.position;
+        at.jumpTo(at.maxScrollExtent * place.at / place.of);
+      }
+    });
+  }
+
+  /// Out of sight, it comes just into view; in sight, nothing moves under
+  /// the thumb.
+  Future<void> _bringLitIntoSight(Set<int> txns) async {
+    for (final policy in const [
+      ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+    ]) {
+      final at = _litKey.currentContext;
+      if (!mounted || _lit != txns || at == null || !at.mounted) return;
+      await Scrollable.ensureVisible(
+        at,
+        alignmentPolicy: policy,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+
+  /// Opens the pad; once it closes, lights what this phone added there.
+  Future<void> _add() async {
+    final before = {for (final r in _everyRow) r.txnId};
+    await widget.onAdd();
+    // What the pad saved is taken into the phone's ledger a moment later.
+    await widget.store.settle?.call();
+    if (!mounted) return;
+    final device = widget.store.device;
+    _light({
+      for (final r in _everyRow)
+        if (!before.contains(r.txnId) &&
+            r.madeHow == MadeHow.phone &&
+            r.madeOn == device)
+          r.txnId,
+    });
+  }
+
+  List<RegisterRow> get _everyRow {
+    final data = widget.store.snapshot.data;
+    if (data == null) return const [];
+    final all = data.registerAll();
+    return [...all.posted, ...all.scheduled];
+  }
 
   @override
   void initState() {
@@ -125,6 +250,7 @@ class _RegisterState extends State<_RegisterScreen> {
   @override
   void dispose() {
     widget.store.registerRequest.removeListener(_requested);
+    _litFade.dispose();
     _scroll.dispose();
     _search.dispose();
     _rec?.dispose();
@@ -163,6 +289,7 @@ class _RegisterState extends State<_RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _lookForLit();
     final t = context.t;
     return ListenableBuilder(
       listenable: widget.store,
@@ -252,7 +379,7 @@ class _RegisterState extends State<_RegisterScreen> {
     key: const ValueKey('add-transaction'),
     backgroundColor: Mid.fill,
     foregroundColor: Mid.onFill,
-    onPressed: widget.onAdd,
+    onPressed: _add,
     icon: const Icon(Icons.add_rounded),
     label: Text(t.ledgerAdd, style: onest(16, weight: 600)),
   );
@@ -577,7 +704,10 @@ class _RegisterState extends State<_RegisterScreen> {
           action: SnackBarAction(
             label: t.ledgerUndo,
             textColor: Mid.blue,
-            onPressed: () => unawaited(store.replay(done.undo)),
+            onPressed: () {
+              _unlight();
+              unawaited(store.replay(done.undo));
+            },
           ),
         ),
       );
@@ -814,6 +944,8 @@ class _RegisterState extends State<_RegisterScreen> {
     _paymentOf = payments;
     DateTime? day;
     int? openAt;
+    int? litAt;
+    _litFirst = null;
     for (final r in rows) {
       final d = DateTime(r.date.year, r.date.month, r.date.day);
       if (day != d) {
@@ -831,9 +963,14 @@ class _RegisterState extends State<_RegisterScreen> {
         );
       }
       if (_open == (txn: r.txnId, entry: r.entryId)) openAt = children.length;
+      if (litAt == null && _lit.contains(r.txnId)) {
+        litAt = children.length;
+        _litFirst = (txn: r.txnId, entry: r.entryId);
+      }
       children.add(_row(t, r, reconciling: reconciling));
     }
     _openPlace = openAt == null ? null : (at: openAt, of: children.length);
+    _litPlace = litAt == null ? null : (at: litAt, of: children.length);
     return ListView(
       key: const ValueKey('register-list'),
       controller: _scroll,
@@ -858,11 +995,13 @@ class _RegisterState extends State<_RegisterScreen> {
     final line2 = all && account != null
         ? '$category · ${account.name}'
         : category;
+    final lit = _lit.contains(r.txnId);
     final box = Container(
       key: ValueKey('register-row-${r.txnId}-${r.entryId}'),
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
       decoration: BoxDecoration(
-        color: Mid.card,
+        // The card is drawn under it by [SavedGlow], with the gold when lit.
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: open ? Border.all(color: Mid.blue, width: 2) : null,
       ),
@@ -1037,10 +1176,20 @@ class _RegisterState extends State<_RegisterScreen> {
         ],
       ),
     );
+    // Every card is wrapped, lit or not, so none is rebuilt when the gold
+    // comes and goes.
+    final shown = SavedGlow(
+      mark: lit && _litFirst == key ? _litKey : null,
+      glow: lit ? _litGlow : null,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      radius: 12,
+      base: Mid.card,
+      child: box,
+    );
     // The row the import's Show asked for, found to be scrolled to.
     return open && _revealed == key
-        ? KeyedSubtree(key: _revealKey, child: box)
-        : box;
+        ? KeyedSubtree(key: _revealKey, child: shown)
+        : shown;
   }
 
   /// Under a scheduled bill a row already in may have paid, or under that
@@ -1282,7 +1431,10 @@ class _RegisterState extends State<_RegisterScreen> {
           action: SnackBarAction(
             label: t.ledgerUndo,
             textColor: Mid.blue,
-            onPressed: () => unawaited(store.replay(done.undo)),
+            onPressed: () {
+              _unlight();
+              unawaited(store.replay(done.undo));
+            },
           ),
         ),
       );
@@ -1328,6 +1480,7 @@ class _RegisterState extends State<_RegisterScreen> {
     }
     if (!mounted) return null;
     setState(() => _open = null);
+    _light({r.txnId});
     final name = (edit.payee ?? '').isEmpty ? rowPayee(t, r) : edit.payee!;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -1355,7 +1508,10 @@ class _RegisterState extends State<_RegisterScreen> {
           action: SnackBarAction(
             label: t.ledgerUndo,
             textColor: Mid.blue,
-            onPressed: () => unawaited(store.replay(done.undo)),
+            onPressed: () {
+              _unlight();
+              unawaited(store.replay(done.undo));
+            },
           ),
         ),
       );
@@ -1462,6 +1618,7 @@ class _RegisterState extends State<_RegisterScreen> {
     }
     if (!mounted) return null;
     setState(() => _open = null);
+    _light({r.txnId});
     final name = (edit.payee ?? '').isEmpty ? rowPayee(t, r) : edit.payee!;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -1476,9 +1633,12 @@ class _RegisterState extends State<_RegisterScreen> {
           action: SnackBarAction(
             label: t.ledgerUndo,
             textColor: Mid.blue,
-            onPressed: () => unawaited(
-              store.restoreRow(done.before, remembered: done.remembered),
-            ),
+            onPressed: () {
+              _unlight();
+              unawaited(
+                store.restoreRow(done.before, remembered: done.remembered),
+              );
+            },
           ),
         ),
       );
