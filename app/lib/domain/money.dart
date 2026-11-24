@@ -349,7 +349,8 @@ String formatRounded(int minor, {Currency currency = Currency.mnt}) {
 /// Parses what a person types into an amount field, including arithmetic:
 /// `12000+8500`, `3 * 4500`, `1,250.50`, `1.250,50` in rupiah ([_plainNumbers]).
 /// Returns minor units, or null when the
-/// input is not a valid expression. `*` and `/` bind tighter than `+` and `-`.
+/// input is not a valid expression. `*` and `/` bind tighter than `+` and `-`;
+/// `×`, `x` between numbers, `÷` and `−` are read as those too (#547).
 /// [currency] decides how many decimals count: `1200.5` isn't yen.
 /// More than [mostWholeDigits] whole digits, typed or worked out, isn't an
 /// amount: it would wrap round to a minus or throw (#163).
@@ -363,7 +364,8 @@ int? parseAmount(String input, [Currency currency = Currency.mnt]) {
         .replaceAll(currency.long, '')
         .replaceAll(currency.symbol, '')
         // Spaces and apostrophes are only ever between thousands.
-        .replaceAll(RegExp(r"[\s'’₮$]"), ''),
+        .replaceAll(RegExp(r"[\s'’₮$]"), '')
+        .replaceAllMapped(_otherSigns, (m) => _signFor[m.group(0)] ?? '*'),
     currency,
   );
   if (src.isEmpty) return null;
@@ -420,6 +422,36 @@ int? parseAmount(String input, [Currency currency = Currency.mnt]) {
     if (total == null) return null;
   }
   return pos == tokens.length ? total : null;
+}
+
+/// The signs people type or paste for a sum, other than `+ - * / ×`: `÷`,
+/// the app's own minus `−`, and `x` or `X` between two numbers (#547), or
+/// the Cyrillic `х` a Mongolian keyboard types in its place.
+final _otherSigns = RegExp(r'[÷−]|(?<=[\d.,])[xXхХ](?=[\d.,])');
+const _signFor = {'÷': '/', '−': '-'};
+
+/// A sign that makes [text] a sum rather than one amount: one after a number.
+final _sumSign = RegExp(r'[\d.,]\s*[+\-*/×÷−xXхХ]\s*[\d.,]');
+
+/// [text] is a sum, not one amount: a sign after a number (`22+2`, `+22+2`).
+bool isSum(String text) => _sumSign.hasMatch(text);
+
+/// What an amount box shows once it's left (#547): a sum that works out, as
+/// its answer, written the way the box would have it typed: `22+2` is `24`,
+/// `12,000+8,500` is `20,500`, `10/3` is `3.33`. A `+` in front, which makes
+/// a row money in, stays in front. Null when [text] is no sum, or a sum that
+/// doesn't work out (`5/0`, `12+`): the box keeps what was typed, and shows
+/// its usual problem.
+String? sumAnswer(String text, [Currency currency = Currency.mnt]) {
+  final t = text.trim();
+  final plus = t.startsWith('+');
+  final body = plus ? t.substring(1) : t;
+  if (!isSum(body)) return null;
+  final v = parseAmount(body, currency);
+  // `+20-30` is money in of a minus: left as typed for the box to call wrong.
+  if (v == null || (plus && v < 0)) return null;
+  final answer = '${v < 0 ? '-' : ''}${typedAmount(v.abs(), currency)}';
+  return plus ? '+$answer' : answer;
 }
 
 /// The most whole digits an amount typed may have: ₮999 trillion.

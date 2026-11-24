@@ -633,7 +633,8 @@ class _EntryRowState extends State<EntryRow> {
   }
 
   void _edited() {
-    if (!mounted) return;
+    // A sum turned into its answer is the same amount, not an edit (#547).
+    if (!mounted || SumAnswers.answering) return;
     _problem(null);
   }
 
@@ -1030,7 +1031,7 @@ class _EntryRowState extends State<EntryRow> {
     if (now == _splitSeen) return;
     _splitSeen = now;
     setState(() {});
-    _problem(null);
+    if (!SumAnswers.answering) _problem(null);
   }
 
   void _rememberTyped() {
@@ -1734,7 +1735,11 @@ class _EntryRowState extends State<EntryRow> {
         _newCategoryDoubt != null) {
       (error, fix) = (_newCategoryDoubt!, _categoryFocus);
     } else if (!lockAmount &&
-        (parsed == null || (parsed == 0 && !(_split != null && _splitEven)))) {
+        (parsed == null ||
+            (parsed == 0 && !(_split != null && _splitEven)) ||
+            // Money in that comes to below zero (`+5000-8000`): saved as
+            // money in it would be another amount than the box says (#547).
+            (parsed < 0 && raw.startsWith('+')))) {
       // 0 only for an even exchange on one receipt: lines both ways.
       (error, fix) = (t.rowsErrorAmount(raw), _amountFocus);
     } else if (_exchangeWith case final other?

@@ -78,6 +78,47 @@ void main() {
       expect(parseAmount('-500'), -50000);
     });
 
+    test('the signs people type or paste for a sum (#547)', () {
+      expect(parseAmount('12000÷4'), 300000);
+      expect(parseAmount('3x4500'), 1350000);
+      expect(parseAmount('3 X 4,500'), 1350000);
+      expect(parseAmount('3×4500'), 1350000);
+      expect(parseAmount('10000−2500'), 750000);
+      // The х a Mongolian keyboard types, which looks the same.
+      expect(parseAmount('3х4500'), 1350000);
+      expect(sumAnswer('3Х4500'), '13,500');
+      expect(isSum('+22+2'), isTrue);
+      expect(isSum('-500'), isFalse);
+      expect(parseAmount('−500'), -50000);
+      // An x that isn't between two numbers is no sign.
+      expect(parseAmount('x3'), isNull);
+      expect(parseAmount('3x'), isNull);
+      expect(parseAmount('5÷0'), isNull);
+    });
+
+    test('a sum shows its answer once the box is left (#547)', () {
+      expect(sumAnswer('22+2'), '24');
+      expect(sumAnswer('12,000+8,500'), '20,500');
+      expect(sumAnswer('3 × 4,500'), '13,500');
+      expect(sumAnswer('12000÷4'), '3,000');
+      expect(sumAnswer('10/3'), '3.33');
+      expect(sumAnswer('3x4500'), '13,500');
+      expect(sumAnswer('100−250'), '-150');
+      // A + in front makes a row money in, and stays in front.
+      expect(sumAnswer('+22+2'), '+24');
+      expect(sumAnswer('+20-30'), isNull);
+      // One amount, or a sum that doesn't work out, stays as typed.
+      expect(sumAnswer('2,500'), isNull);
+      expect(sumAnswer('-500'), isNull);
+      expect(sumAnswer('+500'), isNull);
+      expect(sumAnswer('5/0'), isNull);
+      expect(sumAnswer('12+'), isNull);
+      expect(sumAnswer(''), isNull);
+      final idr = Currency.fromCode('IDR');
+      expect(sumAnswer('12.000+8.500', idr), '20.500');
+      expect(sumAnswer('10/3', Currency.fromCode('JPY')), '3');
+    });
+
     test('rejects garbage rather than guessing', () {
       expect(parseAmount(''), isNull);
       expect(parseAmount('abc'), isNull);

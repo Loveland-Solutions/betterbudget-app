@@ -11,6 +11,7 @@ import 'data/keys.dart';
 import 'data/ledger_file.dart';
 import 'data/problem_log.dart';
 import 'data/store_folder.dart';
+import 'ui/amount_input.dart';
 import 'ui/appearance.dart';
 import 'ui/language.dart';
 import 'ui/phone/phone_app.dart';
@@ -19,6 +20,8 @@ import 'ui/startup.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // A sum in an amount box shows its answer once the box is left (#547).
+  SumAnswers.watch();
   // Restore opens the backup it's about to put back as a second database,
   // briefly, to check it.
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;

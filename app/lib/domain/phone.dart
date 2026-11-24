@@ -742,27 +742,108 @@ PhoneCategory? categoryNamed(Iterable<PhoneCategory> categories, String name) {
   return null;
 }
 
-/// The amount pad's text after [key] is pressed: a digit, `.` or `<` for
-/// delete. A second point, digits past the currency's cents, and a leading
-/// zero before another digit are left out.
+/// The signs the amount pad types between numbers (#547), as they're kept
+/// in its text: add, take away, times and divide.
+const padSigns = ['+', '-', '*', '/'];
+
+/// The amount pad's text after [key] is pressed: a digit, `.`, `<` for
+/// delete, or a sign of [padSigns] (#547). Each number in a sum keeps the
+/// rules one amount has: a second point, digits past the currency's cents,
+/// and a leading zero before another digit are left out. A sign needs a
+/// number before it, and one pressed after another takes its place.
 String pressAmountKey(String typed, String key, Currency currency) {
   if (key == '<') {
     return typed.isEmpty ? typed : typed.substring(0, typed.length - 1);
   }
-  final point = typed.indexOf('.');
+  if (padSigns.contains(key)) {
+    if (typed.isEmpty) return typed;
+    var before = typed;
+    if (before.endsWith('.')) before = before.substring(0, before.length - 1);
+    if (padSigns.contains(before[before.length - 1])) {
+      before = before.substring(0, before.length - 1);
+    }
+    return before.isEmpty ? before : '$before$key';
+  }
+  // The number being typed: after the last sign.
+  final start = typed.lastIndexOf(RegExp(r'[+\-*/]')) + 1;
+  final head = typed.substring(0, start);
+  final number = typed.substring(start);
+  final point = number.indexOf('.');
   if (key == '.') {
     if (currency.decimals == 0 || point >= 0) return typed;
-    return typed.isEmpty ? '0.' : '$typed.';
+    return number.isEmpty ? '${head}0.' : '$typed.';
   }
-  if (point >= 0 && typed.length - point - 1 >= currency.decimals) return typed;
-  if (typed == '0') return key;
+  if (point >= 0 && number.length - point - 1 >= currency.decimals) {
+    return typed;
+  }
+  if (number == '0') return '$head$key';
   // Twelve whole digits is past any household amount and well inside an int.
-  if (point < 0 && typed.length >= 12) return typed;
+  if (point < 0 && number.length >= 12) return typed;
   return '$typed$key';
 }
 
-/// The pad's text as minor units: `12500` is 1250000 in tugrik, `12.5` is 1250.
-int typedAmountMinor(String typed, Currency currency) {
+/// The pad's text is a sum: a sign of [padSigns] in it.
+bool isPadSum(String typed) => typed.contains(RegExp(r'[+\-*/]'));
+
+/// Why the pad's sum doesn't work out (#547).
+enum PadProblem { byZero, belowZero, tooBig }
+
+/// What the pad's sum comes to, in minor units, with a sign last pressed
+/// and nothing after it left out: `22+2` and `22+2+` are 24 whole units.
+/// Null when it doesn't work out ([padProblem]); the pad has its own key
+/// for money in or out, so below zero is one of those. Not a sum: the
+/// amount itself.
+int? padAnswer(String typed, Currency currency) =>
+    _padWorked(typed, currency).$1;
+
+/// Why the pad's sum doesn't work out, or null when it does.
+PadProblem? padProblem(String typed, Currency currency) =>
+    _padWorked(typed, currency).$2;
+
+(int?, PadProblem?) _padWorked(String typed, Currency currency) {
+  var t = typed;
+  while (t.isNotEmpty &&
+      (padSigns.contains(t[t.length - 1]) || t.endsWith('.'))) {
+    t = t.substring(0, t.length - 1);
+  }
+  if (t.isEmpty) return (0, null);
+  if (!isPadSum(t)) return (_plainMinor(t, currency), null);
+  // As the computer's boxes: ₮999 trillion at most, at every step.
+  final most = 999999999999999.0 * currency.scale;
+  // Times and divide before add and take away, as the computer's boxes.
+  (int?, PadProblem?) term(String s) {
+    final parts = s.split(RegExp(r'(?=[*/])|(?<=[*/])'));
+    var acc = _plainMinor(parts[0], currency).toDouble();
+    for (var i = 1; i + 1 < parts.length; i += 2) {
+      final rhs = _plainMinor(parts[i + 1], currency);
+      if (parts[i] == '/') {
+        if (rhs == 0) return (null, PadProblem.byZero);
+        acc = acc * currency.scale / rhs;
+      } else {
+        acc = acc * rhs / currency.scale;
+      }
+      if (acc.abs() > most) return (null, PadProblem.tooBig);
+      acc = acc.roundToDouble();
+    }
+    return (acc.round(), null);
+  }
+
+  var total = 0;
+  for (final m in RegExp(r'([+\-]?)([^+\-]+)').allMatches(t)) {
+    final (v, problem) = term(m.group(2)!);
+    if (v == null) return (null, problem);
+    total += m.group(1) == '-' ? -v : v;
+    if (total.abs() > most) return (null, PadProblem.tooBig);
+  }
+  return total < 0 ? (null, PadProblem.belowZero) : (total, null);
+}
+
+/// The pad's text as minor units: `12500` is 1250000 in tugrik, `12.5` is
+/// 1250, and a sum is its answer ([padAnswer]), 0 when it doesn't work out.
+int typedAmountMinor(String typed, Currency currency) =>
+    padAnswer(typed, currency) ?? 0;
+
+int _plainMinor(String typed, Currency currency) {
   if (typed.isEmpty) return 0;
   final parts = typed.split('.');
   final whole = int.parse(parts[0].isEmpty ? '0' : parts[0]);
@@ -770,6 +851,27 @@ int typedAmountMinor(String typed, Currency currency) {
       ? parts[1].padRight(currency.decimals, '0')
       : '0' * currency.decimals;
   return whole * currency.scale + (cents.isEmpty ? 0 : int.parse(cents));
+}
+
+/// The pad's sum as it was pressed, each number grouped and the signs as
+/// people write them: `22,000 + 2,000`, `3 × 4,500`. Null when it's no sum.
+String? padSumShown(String typed, Currency currency) {
+  if (!isPadSum(typed)) return null;
+  const said = {'+': '+', '-': '−', '*': '×', '/': '÷'};
+  return [
+    for (final m in RegExp(r'[+\-*/]|[^+\-*/]+').allMatches(typed))
+      switch (said[m.group(0)]) {
+        final sign? => ' $sign ',
+        null => _groupedNumber(m.group(0)!, currency),
+      },
+  ].join().trim();
+}
+
+String _groupedNumber(String n, Currency currency) {
+  final parts = n.split('.');
+  final whole = int.parse(parts[0].isEmpty ? '0' : parts[0]);
+  return '${formatWhole(whole * currency.scale, currency)}'
+      '${parts.length > 1 ? '${currency.point}${parts[1]}' : ''}';
 }
 
 /// [minor] as the pad would have it typed: `135500`, `12.5`. Unsigned.
@@ -793,7 +895,13 @@ String fieldTextOf(int minor, Currency currency) => groupTyped(
 /// The pad's text as it reads above the keys, grouped in thousands with the
 /// currency in front, as its people write it: `₮12,500`, `$12.5`,
 /// `Rp 12.500,5` (#621).
+///
+/// A sum shows what it comes to, which is what's saved; the sum itself is
+/// [padSumShown].
 String typedAmountShown(String typed, Currency currency) {
+  if (isPadSum(typed)) {
+    typed = typedOfMinor(padAnswer(typed, currency) ?? 0, currency);
+  }
   final parts = typed.split('.');
   final whole = int.parse(parts[0].isEmpty ? '0' : parts[0]);
   final grouped = formatWhole(whole * currency.scale, currency);

@@ -305,4 +305,69 @@ void main() {
     expect(await shown(100000000), 'Rp 1.000.000');
     expect(await shown(100000095), 'Rp 1.000.000,95');
   });
+
+  group('a sum turns into its answer when the box is left (#547)', () {
+    late FocusNode other;
+
+    Future<void> pumpTwo(WidgetTester tester) async {
+      SumAnswers.watch();
+      c = TextEditingController();
+      other = FocusNode();
+      addTearDown(other.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: Column(
+              children: [
+                TextField(
+                  controller: c,
+                  autofocus: true,
+                  inputFormatters: [GroupedAmount(Currency.mnt)],
+                  onEditingComplete: () {},
+                ),
+                TextField(focusNode: other),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets('Tab or a click away', (tester) async {
+      await pumpTwo(tester);
+      await typeEach(tester, '22000+2000');
+      expect(c.text, '22,000+2,000');
+      other.requestFocus();
+      await tester.pump();
+      expect(c.text, '24,000');
+    });
+
+    testWidgets('Enter, before the field reads what is in it', (tester) async {
+      await pumpTwo(tester);
+      await typeEach(tester, '3x4500');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(c.text, '13,500');
+    });
+
+    testWidgets('one that does not work out stays as typed', (tester) async {
+      await pumpTwo(tester);
+      await typeEach(tester, '5/0');
+      other.requestFocus();
+      await tester.pump();
+      expect(c.text, '5/0');
+    });
+
+    testWidgets('a box that is not an amount is left alone', (tester) async {
+      await pumpTwo(tester);
+      other.requestFocus();
+      await tester.pump();
+      tester.testTextInput.enterText('22+2');
+      await tester.pump();
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      expect(find.text('22+2'), findsOneWidget);
+    });
+  });
 }

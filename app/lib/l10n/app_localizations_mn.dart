@@ -5495,6 +5495,27 @@ class WordsMn extends Words {
   String get phoneDeleteDigit => 'Сүүлийн цифрийг устгах';
 
   @override
+  String get phonePadPlus => 'Нэмэх';
+
+  @override
+  String get phonePadMinus => 'Хасах';
+
+  @override
+  String get phonePadTimes => 'Үржих';
+
+  @override
+  String get phonePadDivide => 'Хуваах';
+
+  @override
+  String get phonePadByZero => 'Тоог 0-д хуваах боломжгүй.';
+
+  @override
+  String get phonePadTooBig => 'Энэ нийлбэр дүн байхад хэт их байна.';
+
+  @override
+  String get phonePadBelowZero => 'Энэ нийлбэр тэгээс бага гарч байна.';
+
+  @override
   String get ledgerFolderLabel => 'Хадгалагдаж буй газар';
 
   @override

@@ -8457,3 +8457,40 @@ for it."
   for them. The fade plays under reduced motion as well: it is the confirmation,
   and a color fading doesn't move anything. Dark mode's gold is a little stronger
   (40%) so it reads as amber, not brown.
+
+## Sums in an amount box show their answer (owner, 2026-11-19, #547)
+
+Owner, 2026-11-19, on typing `22+2` in Amount and clicking Add: "That's a no-no."
+Asked whether sums should stay: "it's not very intuitive unless you love Microsoft
+Excel. What do you think?" Then: "Okay, then let's make it work for add, subtract,
+multiply and divide."
+
+- Sums stay. When the person leaves an amount box (Tab, a click elsewhere, Enter), a
+  sum that works out turns into its answer, so what's in the box is what's saved:
+  `22+2` becomes `24`, `12,000+8,500` becomes `20,500`. A `+` in front, which makes a
+  row money in, stays in front. One that doesn't work out (`5/0`, `12+`) stays as
+  typed, with the box's usual problem. Every box that groups an amount in thousands
+  does this, on the computer and the phone, without each one asking
+  (`SumAnswers` in `ui/amount_input.dart`).
+- The boxes take `+ - * / ×`, and also the signs people type or paste: `÷`, `x` or `X`
+  between two numbers, and the app's own minus `−`. Times and divide come before add
+  and take away; a division rounds to the currency's smallest unit.
+- The phone's pad has a fourth column, `÷ × − +`, the keys as tall as before (they fit
+  on the smallest phone the tests check, 360 × 780, about 74 points wide each). The big
+  figure is always what's saved: a sum shows what it comes to there, and the sum as
+  pressed ("10,000 + 2,500") sits on the line above it, where Clear is. A sum that
+  divides by 0 or comes to less than zero says so under it, and is no amount to save
+  (the pad's ± is how money goes in or out, not the sum). The Count the cash page and
+  a split's page show the sum the same way.
+- Refined after the reviews: the answer written into the box is the same amount, so
+  it never clears a problem Add has just shown (a sum in Amount and the payee
+  missing still says "Enter a payee"). `+5000-8000`, money in that comes to less
+  than zero, isn't saved as money in of the difference: Add says it isn't an amount.
+  The Cyrillic `х` a Mongolian keyboard types between numbers is times too. On the
+  phone, a sum that doesn't work out says why: divided by 0, less than zero, or too
+  big, on the line under it and in Save's message instead of "Enter an amount"; a
+  split's Done goes to a line whose sum doesn't work out rather than drop it with
+  its category; a long sum keeps its newest numbers in sight, its start going off
+  the left edge; while a waiting entry is being fixed, the line that says so stays,
+  one line, with the sum under it. Switching to another app counts as leaving the
+  box, as it already does for the boxes that save when left.

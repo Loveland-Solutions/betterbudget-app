@@ -9,6 +9,7 @@ import 'package:betterbudget/domain/budget.dart'
     show Budget, BudgetKeys, ShortBy;
 import 'package:betterbudget/domain/ledger.dart';
 import 'package:betterbudget/domain/money.dart';
+import 'package:betterbudget/ui/amount_input.dart';
 import 'package:betterbudget/domain/pay.dart';
 import 'package:betterbudget/domain/payee_rules.dart'
     show PayeeMatch, PayeeSpelling;
@@ -4583,6 +4584,52 @@ void main() {
       find.byType(LedgerScreen),
       matchesGoldenFile('goldens/rupiah_entry.png'),
     );
+    await tidy(tester, db);
+  });
+
+  testWidgets('a sum in Amount: Add with a payee missing keeps saying so, '
+      'and the box shows the answer (#547)', (tester) async {
+    SumAnswers.watch();
+    final db = await pumpLedger(tester);
+    await openEntry(tester);
+    final amount = find.widgetWithText(TextField, '₮0.00');
+    await tester.enterText(amount, '22+2');
+    await tester.pump();
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('entry-submit')));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    // Focus went to Payee: the sum is its answer, and the problem stays.
+    expect(find.text('Enter a payee'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(_amountAt(tester)))
+          .controller!
+          .text,
+      '24',
+    );
+    await tidy(tester, db);
+  });
+
+  testWidgets('money in that comes to below zero is not saved as money in '
+      '(#547)', (tester) async {
+    final db = await pumpLedger(tester);
+    await openEntry(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'New transaction — payee'),
+      'Nomin',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category'),
+      'groceries',
+    );
+    await tester.enterText(find.widgetWithText(TextField, '₮0.00'), '+20-30');
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('entry-submit')));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await settle(tester);
+    expect(find.text('“+20-30” isn’t an amount'), findsOneWidget);
     await tidy(tester, db);
   });
 
@@ -15855,3 +15902,12 @@ Future<void> shown(WidgetTester tester, Finder f) async {
 final _litGlow = find.byWidgetPredicate(
   (w) => w is SavedGlow && w.glow != null,
 );
+
+/// Which of the screen's text fields is the entry row's Amount: the one
+/// whose box groups an amount.
+int _amountAt(WidgetTester tester) => tester
+    .widgetList<TextField>(find.byType(TextField))
+    .toList()
+    .indexWhere(
+      (f) => f.inputFormatters?.any((x) => x is GroupedAmount) ?? false,
+    );

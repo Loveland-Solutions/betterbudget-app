@@ -844,6 +844,56 @@ void main() {
       expect(typedAmountMinor('', Currency.mnt), 0);
     });
 
+    test('the pad adds, takes away, times and divides (#547)', () {
+      String press(String keys, [Currency c = Currency.mnt]) {
+        var typed = '';
+        for (final k in keys.split('')) {
+          typed = pressAmountKey(typed, k, c);
+        }
+        return typed;
+      }
+
+      final sum = press('22000+2000');
+      expect(sum, '22000+2000');
+      expect(typedAmountMinor(sum, Currency.mnt), 2400000);
+      // The big figure is what's saved; the line under the pad's top is the
+      // sum as pressed.
+      expect(typedAmountShown(sum, Currency.mnt), '₮24,000');
+      expect(padSumShown(sum, Currency.mnt), '22,000 + 2,000');
+      expect(padSumShown('22000', Currency.mnt), isNull);
+      // Times and divide before add and take away.
+      expect(padAnswer(press('100000-2500*2'), Currency.mnt), 9500000);
+      expect(padSumShown('3*4500/2', Currency.mnt), '3 × 4,500 ÷ 2');
+      expect(padAnswer('10000/3', Currency.mnt), 333333);
+      expect(padSumShown('12.5-2', Currency.mnt), '12.5 − 2');
+      // A sign last pressed waits for its number.
+      expect(padAnswer('22+', Currency.mnt), 2200);
+      // Each number keeps one amount's rules.
+      expect(press('12.5+0.759'), '12.5+0.75');
+      expect(press('5+07'), '5+7');
+      expect(press('5+.'), '5+0.');
+      // A sign needs a number before it; a second takes the first's place.
+      expect(press('+5'), '5');
+      expect(press('5+*3'), '5*3');
+      expect(press('5.+'), '5+');
+      expect(press('5+<'), '5');
+      // What doesn't work out is nothing to save.
+      expect(padAnswer('5/0', Currency.mnt), isNull);
+      expect(padAnswer('5/0.0', Currency.mnt), isNull);
+      expect(padAnswer('5-8', Currency.mnt), isNull);
+      expect(typedAmountMinor('5/0', Currency.mnt), 0);
+      expect(padProblem('5/0', Currency.mnt), PadProblem.byZero);
+      expect(padProblem('5-8', Currency.mnt), PadProblem.belowZero);
+      expect(
+        padProblem('999999999999*999999999999', Currency.mnt),
+        PadProblem.tooBig,
+      );
+      expect(padProblem('5+8', Currency.mnt), isNull);
+      final idr = Currency.fromCode('IDR');
+      expect(padSumShown(press('12000+8500', idr), idr), '12.000 + 8.500');
+      expect(typedAmountShown('12000+8500', idr), 'Rp 20.500');
+    });
+
     test('a currency with no cents takes no point', () {
       final yen = Currency.fromCode('JPY');
       expect(pressAmountKey('12', '.', yen), '12');
@@ -3730,6 +3780,36 @@ void main() {
     await _toBudget(tester);
     expect(find.text('₮1,234,567,890'), findsOneWidget);
     expect(find.text('From your computer 2026.10.06 21:40'), findsOneWidget);
+  });
+
+  testWidgets('a sum on the pad shows what it comes to, and saves that '
+      '(#547)', (tester) async {
+    final store = await _pump(tester);
+    await _category(tester, 'Groceries');
+    await _account(tester, 'TDB Checking');
+    await _type(tester, '10000+2500');
+    // The big figure is what's saved; the sum as pressed is above it.
+    expect(find.text('−₮12,500'), findsOneWidget);
+    expect(find.text('10,000 + 2,500'), findsOneWidget);
+    expect(
+      find.text('₮148,000.00 left now · ₮135,500.00 after this'),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(PhoneApp),
+      matchesGoldenFile('goldens/phone_pad_sum.png'),
+    );
+    // One that doesn't work out says why, and isn't an amount to save.
+    await _type(tester, '/0');
+    expect(find.text('A number can’t be divided by 0.'), findsOneWidget);
+    await _type(tester, '<<+3*');
+    expect(find.text('10,000 + 2,500 + 3 ×'), findsOneWidget);
+    await _type(tester, '<<<');
+    expect(find.text('10,000 + 2,500'), findsOneWidget);
+    await _payee(tester, 'Nomin');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(store.waiting.single.amountMinor, -1250000);
   });
 
   testWidgets('a category is picked from the list, and Save takes it from '

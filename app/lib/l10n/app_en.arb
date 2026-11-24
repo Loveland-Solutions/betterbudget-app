@@ -8211,6 +8211,34 @@
   "@phoneDeleteDigit": {
     "description": "Phone app: what a screen reader says for the amount pad’s delete key."
   },
+  "phonePadPlus": "Plus",
+  "@phonePadPlus": {
+    "description": "Phone app: what a screen reader says for the amount pad’s + key, which adds the next number to a sum (#547)."
+  },
+  "phonePadMinus": "Minus",
+  "@phonePadMinus": {
+    "description": "Phone app: what a screen reader says for the amount pad’s − key, which takes the next number away in a sum (#547)."
+  },
+  "phonePadTimes": "Times",
+  "@phonePadTimes": {
+    "description": "Phone app: what a screen reader says for the amount pad’s × key (#547)."
+  },
+  "phonePadDivide": "Divided by",
+  "@phonePadDivide": {
+    "description": "Phone app: what a screen reader says for the amount pad’s ÷ key (#547)."
+  },
+  "phonePadByZero": "A number can’t be divided by 0.",
+  "@phonePadByZero": {
+    "description": "Phone app: under the sum typed on the amount pad, when it divides by 0 (#547)."
+  },
+  "phonePadTooBig": "This sum is too big to be an amount.",
+  "@phonePadTooBig": {
+    "description": "Phone app: under the sum typed on the amount pad, when its answer is past the biggest amount the app takes (#547)."
+  },
+  "phonePadBelowZero": "This sum comes to less than zero.",
+  "@phonePadBelowZero": {
+    "description": "Phone app: under the sum typed on the amount pad, when its answer is below zero. Money in or out is the sign button beside the amount, not the sum (#547)."
+  },
   "ledgerFolderLabel": "Stored in",
   "@ledgerFolderLabel": {
     "description": "Settings, Backups: label of the line that says where the ledger is stored now: on this computer, or in the folder it was moved to (a Google Drive, OneDrive, Box or Dropbox folder)."

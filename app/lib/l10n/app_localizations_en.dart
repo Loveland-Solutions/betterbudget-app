@@ -5674,6 +5674,27 @@ class WordsEn extends Words {
   String get phoneDeleteDigit => 'Delete the last digit';
 
   @override
+  String get phonePadPlus => 'Plus';
+
+  @override
+  String get phonePadMinus => 'Minus';
+
+  @override
+  String get phonePadTimes => 'Times';
+
+  @override
+  String get phonePadDivide => 'Divided by';
+
+  @override
+  String get phonePadByZero => 'A number can’t be divided by 0.';
+
+  @override
+  String get phonePadTooBig => 'This sum is too big to be an amount.';
+
+  @override
+  String get phonePadBelowZero => 'This sum comes to less than zero.';
+
+  @override
   String get ledgerFolderLabel => 'Stored in';
 
   @override
