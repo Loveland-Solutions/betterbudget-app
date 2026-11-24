@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 import '../domain/money.dart';
 import '../import/mapping.dart';
@@ -120,7 +121,7 @@ class GroupedAmount extends TextInputFormatter {
     if (numeric(start - 1) || numeric(n.length - after)) return null;
     final put = n.substring(start, n.length - after);
     // Sums are for parseAmount; only a plain amount is read here.
-    if (RegExp(r'[*/×]|\d\s*[+\-]\s*\d').hasMatch(put)) return null;
+    if (RegExp(r'[*/×÷]|\d\s*[+\-−xX]\s*\d').hasMatch(put)) return null;
     // One point and no comma is a point, as it would be typed: `12.345` in
     // dollars isn't twelve thousand, and stays for the field to call wrong.
     // In rupiah a point is between thousands, and is read as that.
@@ -139,5 +140,76 @@ class GroupedAmount extends TextInputFormatter {
       text: n.substring(0, start) + typed + n.substring(n.length - after),
       selection: TextSelection.collapsed(offset: start + typed.length),
     );
+  }
+}
+
+/// A sum in an amount box turns into its answer when the box is left (#547):
+/// `22+2` shows as `24` once the person tabs or clicks away or presses
+/// Enter, so what's in the box is what's saved. One that doesn't work out
+/// stays as typed ([sumAnswer]). Every field that takes [GroupedAmount] does
+/// this, on the computer and the phone, without each one asking: [watch]
+/// is called once, by the app, before it runs.
+abstract final class SumAnswers {
+  static FocusManager? _watched;
+
+  /// True while a box's sum is being written as its answer: the same amount,
+  /// so a field's listener doesn't take it for the person typing (it would
+  /// clear a problem Add has just shown, for one).
+  static bool get answering => _answering;
+  static bool _answering = false;
+  static FocusNode? _had;
+
+  /// Once per focus manager: a test starts each with a new one.
+  static void watch() {
+    final m = FocusManager.instance;
+    if (identical(m, _watched)) return;
+    _watched?.removeListener(_moved);
+    _watched = m;
+    _had = m.primaryFocus;
+    m.addListener(_moved);
+    // Before the field sees Enter, so what it saves or checks is the answer.
+    HardwareKeyboard.instance
+      ..removeHandler(_key)
+      ..addHandler(_key);
+  }
+
+  static void _moved() {
+    final had = _had;
+    _had = FocusManager.instance.primaryFocus;
+    if (had != null && had != _had) answer(had);
+  }
+
+  static bool _key(KeyEvent e) {
+    if (e is KeyDownEvent &&
+        (e.logicalKey == LogicalKeyboardKey.enter ||
+            e.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+      final f = FocusManager.instance.primaryFocus;
+      if (f != null) answer(f);
+    }
+    return false;
+  }
+
+  /// The box [node] is the focus of, if it's an amount: its sum answered.
+  static void answer(FocusNode node) {
+    final context = node.context;
+    if (context == null || !context.mounted) return;
+    final field = context.findAncestorStateOfType<EditableTextState>();
+    if (field == null || !field.mounted || field.widget.readOnly) return;
+    final grouped = field.widget.inputFormatters
+        ?.whereType<GroupedAmount>()
+        .firstOrNull;
+    if (grouped == null) return;
+    final c = field.widget.controller;
+    final shown = sumAnswer(c.text, grouped.currency);
+    if (shown == null || shown == c.text) return;
+    _answering = true;
+    try {
+      c.value = TextEditingValue(
+        text: shown,
+        selection: TextSelection.collapsed(offset: shown.length),
+      );
+    } finally {
+      _answering = false;
+    }
   }
 }

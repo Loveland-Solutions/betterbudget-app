@@ -3034,7 +3034,8 @@ class _EntryState extends State<_EntryScreen> {
     final to = _to;
     if (_draft.isSplit) return _saveSplit(amount);
     final missing = amount == 0
-        ? t.phoneEnterAmount
+        // A sum that doesn't work out says why, not that none was typed.
+        ? padProblemSays(context, _draft.typed, _currency) ?? t.phoneEnterAmount
         // Money moved between their own accounts has no one it was paid to.
         : payee == null && to == null
         ? t.phoneEnterPayee
@@ -3694,24 +3695,58 @@ class _EntryState extends State<_EntryScreen> {
                                   : Row(
                                       children: [
                                         Expanded(
-                                          child: editing == null
+                                          // A sum being typed, as pressed
+                                          // (#547), else what's being fixed.
+                                          child:
+                                              isPadSum(_draft.typed) &&
+                                                  editing == null
+                                              ? _PadSum(
+                                                  typed: _draft.typed,
+                                                  currency: _currency,
+                                                )
+                                              : editing == null
                                               ? const SizedBox.shrink()
-                                              : Text(
-                                                  _store.wasTaken(editing) &&
-                                                          !_store.waiting.any(
-                                                            (e) =>
-                                                                e.id == editing,
-                                                          )
-                                                      ? t.phoneFixingTaken
-                                                      : t.phoneFixing,
-                                                  key: const ValueKey('fixing'),
-                                                  maxLines: 2,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: onest(
-                                                    13,
-                                                    color: Mid.ink2,
-                                                  ),
+                                              : Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      _store.wasTaken(
+                                                                editing,
+                                                              ) &&
+                                                              !_store.waiting
+                                                                  .any(
+                                                                    (e) =>
+                                                                        e.id ==
+                                                                        editing,
+                                                                  )
+                                                          ? t.phoneFixingTaken
+                                                          : t.phoneFixing,
+                                                      key: const ValueKey(
+                                                        'fixing',
+                                                      ),
+                                                      // A sum being typed
+                                                      // shares the place.
+                                                      maxLines:
+                                                          isPadSum(_draft.typed)
+                                                          ? 1
+                                                          : 2,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: onest(
+                                                        13,
+                                                        color: Mid.ink2,
+                                                      ),
+                                                    ),
+                                                    if (isPadSum(_draft.typed))
+                                                      _PadSum(
+                                                        typed: _draft.typed,
+                                                        currency: _currency,
+                                                        problem: false,
+                                                      ),
+                                                  ],
                                                 ),
                                         ),
                                         TextButton(
@@ -4745,14 +4780,33 @@ class _SplitPageState extends State<_SplitPage> {
                   ],
                 ),
               ),
+              if (_chosen < _lines.length && isPadSum(_lines[_chosen].typed))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _PadSum(
+                    typed: _lines[_chosen].typed,
+                    currency: currency,
+                  ),
+                ),
               _AmountPad(currency: currency, onKey: _press),
               const SizedBox(height: 12),
               FilledButton(
                 key: const ValueKey('split-done'),
-                onPressed: () => Navigator.of(context).pop([
-                  for (final l in _lines)
-                    if (typedAmountMinor(l.typed, currency) != 0) l,
-                ]),
+                onPressed: () {
+                  // A line whose sum doesn't work out isn't dropped with its
+                  // category: the pad goes to it, saying why (#547).
+                  final wrong = _lines.indexWhere(
+                    (l) => padProblem(l.typed, currency) != null,
+                  );
+                  if (wrong >= 0) {
+                    setState(() => _chosen = wrong);
+                    return;
+                  }
+                  Navigator.of(context).pop([
+                    for (final l in _lines)
+                      if (typedAmountMinor(l.typed, currency) != 0) l,
+                  ]);
+                },
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
                   backgroundColor: Mid.fill,
@@ -4973,7 +5027,72 @@ class _EntryLayout extends MultiChildLayoutDelegate {
   bool shouldRelayout(_EntryLayout oldDelegate) => oldDelegate.low != low;
 }
 
-/// Digits, a point for a currency with cents, and delete.
+/// The sum typed on the pad as it was pressed, `22,000 + 2,000`, and why it
+/// doesn't work out when it doesn't (#547). Nothing while one amount is
+/// typed: the big figure above it shows what the sum comes to.
+class _PadSum extends StatelessWidget {
+  const _PadSum({
+    required this.typed,
+    required this.currency,
+    this.problem = true,
+  });
+  final String typed;
+  final Currency currency;
+
+  /// Why it doesn't work out goes under it; false where there's no room,
+  /// and Save says it.
+  final bool problem;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = padSumShown(typed, currency);
+    if (shown == null) return const SizedBox.shrink();
+    final problem = this.problem
+        ? padProblemSays(context, typed, currency)
+        : null;
+    return Column(
+      key: const ValueKey('pad-sum'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // A long receipt keeps its newest numbers in sight: the start goes
+        // off the left edge, not the end.
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          reverse: true,
+          physics: const NeverScrollableScrollPhysics(),
+          child: Text(
+            shown,
+            maxLines: 1,
+            softWrap: false,
+            style: onest(15, tabular: true, color: Mid.ink2),
+          ),
+        ),
+        if (problem != null)
+          Text(
+            problem,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: onest(13, color: Mid.gold),
+          ),
+      ],
+    );
+  }
+}
+
+/// Why the pad's sum doesn't work out, in words; null when it does.
+String? padProblemSays(BuildContext context, String typed, Currency currency) {
+  final t = context.t;
+  return switch (padProblem(typed, currency)) {
+    null => null,
+    PadProblem.byZero => t.phonePadByZero,
+    PadProblem.belowZero => t.phonePadBelowZero,
+    PadProblem.tooBig => t.phonePadTooBig,
+  };
+}
+
+/// Digits, a point for a currency with cents, delete, and the signs for a
+/// sum down the right (#547).
 class _AmountPad extends StatelessWidget {
   const _AmountPad({required this.currency, required this.onKey});
   final Currency currency;
@@ -4989,8 +5108,8 @@ class _AmountPad extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final keys = [
-      '1', '2', '3', '4', '5', '6', '7', '8', '9', //
-      currency.decimals == 0 ? '' : '.', '0', '<',
+      '1', '2', '3', '/', '4', '5', '6', '*', '7', '8', '9', '-', //
+      currency.decimals == 0 ? '' : '.', '0', '<', '+',
     ];
     // Full height unless the entry's layout gives it less.
     return SizedBox(
@@ -5003,9 +5122,9 @@ class _AmountPad extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (var col = 0; col < 3; col++) ...[
+                  for (var col = 0; col < 4; col++) ...[
                     if (col > 0) const SizedBox(width: 8),
-                    Expanded(child: _key(context, keys[row * 3 + col])),
+                    Expanded(child: _key(context, keys[row * 4 + col])),
                   ],
                 ],
               ),
@@ -5026,15 +5145,27 @@ class _AmountPad extends StatelessWidget {
         key: ValueKey('pad-$key'),
         onTap: () => onKey(key),
         child: Center(
-          child: key == '<'
-              ? Icon(
-                  Icons.backspace_outlined,
-                  size: 24,
-                  color: Mid.ink,
-                  semanticLabel: context.t.phoneDeleteDigit,
-                )
-              // The point as the currency's people write it: `,` in rupiah.
-              : Text(key == '.' ? currency.point : key, style: onest(22)),
+          child: switch (key) {
+            '<' => Icon(
+              Icons.backspace_outlined,
+              size: 24,
+              color: Mid.ink,
+              semanticLabel: context.t.phoneDeleteDigit,
+            ),
+            '+' || '-' || '*' || '/' => Text(
+              const {'+': '+', '-': '−', '*': '×', '/': '÷'}[key]!,
+              semanticsLabel: switch (key) {
+                '+' => context.t.phonePadPlus,
+                '-' => context.t.phonePadMinus,
+                '*' => context.t.phonePadTimes,
+                _ => context.t.phonePadDivide,
+              },
+              // Set apart from the digits, as signs between them.
+              style: onest(28, color: Mid.ink2),
+            ),
+            // The point as the currency's people write it: `,` in rupiah.
+            _ => Text(key == '.' ? currency.point : key, style: onest(22)),
+          },
         ),
       ),
     );

@@ -79,7 +79,8 @@ class _CountPageState extends State<_CountPage> {
   String _signed(int v) => v > 0 ? '+${_money(v)}' : _money(v);
 
   void _save(int held) {
-    if (_typed.isEmpty) {
+    // A sum that doesn't work out is no count yet (#547).
+    if (_typed.isEmpty || padAnswer(_typed, _currency) == null) {
       setState(() => _missing = true);
       return;
     }
@@ -124,7 +125,7 @@ class _CountPageState extends State<_CountPage> {
     // What the rows hold through today, with what waits here (an earlier
     // count too); rows dated ahead aren't in the wallet yet.
     final held = widget.store.heldToday(_account);
-    final counted = _typed.isEmpty ? null : typedAmountMinor(_typed, _currency);
+    final counted = _typed.isEmpty ? null : padAnswer(_typed, _currency);
     final diff = counted == null ? null : counted - held;
     final opens = !_opened && diff != null && diff > 0;
     final categoryName = _category?.name ?? t.importUncategorized;
@@ -177,6 +178,7 @@ class _CountPageState extends State<_CountPage> {
                             color: _typed.isEmpty ? Mid.ink3 : Mid.ink,
                           ),
                         ),
+                        _PadSum(typed: _typed, currency: _currency),
                         const SizedBox(height: 8),
                         Text(
                           counted == null
@@ -279,7 +281,8 @@ class _CountPageState extends State<_CountPage> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
-                            t.countNeedsAmount,
+                            padProblemSays(context, _typed, _currency) ??
+                                t.countNeedsAmount,
                             textAlign: TextAlign.center,
                             style: onest(15, color: Mid.gold),
                           ),

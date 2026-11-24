@@ -8055,6 +8055,48 @@ abstract class Words {
   /// **'Delete the last digit'**
   String get phoneDeleteDigit;
 
+  /// Phone app: what a screen reader says for the amount pad’s + key, which adds the next number to a sum (#547).
+  ///
+  /// In en, this message translates to:
+  /// **'Plus'**
+  String get phonePadPlus;
+
+  /// Phone app: what a screen reader says for the amount pad’s − key, which takes the next number away in a sum (#547).
+  ///
+  /// In en, this message translates to:
+  /// **'Minus'**
+  String get phonePadMinus;
+
+  /// Phone app: what a screen reader says for the amount pad’s × key (#547).
+  ///
+  /// In en, this message translates to:
+  /// **'Times'**
+  String get phonePadTimes;
+
+  /// Phone app: what a screen reader says for the amount pad’s ÷ key (#547).
+  ///
+  /// In en, this message translates to:
+  /// **'Divided by'**
+  String get phonePadDivide;
+
+  /// Phone app: under the sum typed on the amount pad, when it divides by 0 (#547).
+  ///
+  /// In en, this message translates to:
+  /// **'A number can’t be divided by 0.'**
+  String get phonePadByZero;
+
+  /// Phone app: under the sum typed on the amount pad, when its answer is past the biggest amount the app takes (#547).
+  ///
+  /// In en, this message translates to:
+  /// **'This sum is too big to be an amount.'**
+  String get phonePadTooBig;
+
+  /// Phone app: under the sum typed on the amount pad, when its answer is below zero. Money in or out is the sign button beside the amount, not the sum (#547).
+  ///
+  /// In en, this message translates to:
+  /// **'This sum comes to less than zero.'**
+  String get phonePadBelowZero;
+
   /// Settings, Backups: label of the line that says where the ledger is stored now: on this computer, or in the folder it was moved to (a Google Drive, OneDrive, Box or Dropbox folder).
   ///
   /// In en, this message translates to:
