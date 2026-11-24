@@ -1134,15 +1134,28 @@ computer"). No schema change; the change file's form is the same.
   finds the note at the cut among the changes it hasn't taken: what it missed is
   only in the folder's ledger, which it takes whole (`newer`, the same path as
   any newer folder ledger, with a copy in Backups) when that ledger holds every
-  change of its own. When it made changes the folder's ledger lacks, it publishes
-  them and waits ("arriving") until another computer brings them in, then takes
-  the ledger whole. Nothing of either is lost.
+  change of its own. When it made changes the folder's ledger lacks, it takes that
+  ledger with its own changes made on it (`_catchUpPlan` in `cloud_folder.dart`,
+  0.157.1, #451): `combine` compares this ledger with those changes taken back
+  (the ground both stood on), this ledger, and the folder's; a row only the
+  folder's changed is taken, one only this computer changed stays, a purchase
+  both changed is asked in the window, and anything else both changed is the
+  whole-ledger question, as everywhere. It is brought in as any other
+  computer's changes are, with the popup and a copy in Backups, and marks the
+  folder's whole vector applied. It waits ("arriving") only while the folder's
+  ledger lacks something this one has of another computer's, or of its own from
+  before its cut. Nothing of either is lost. From the code review, fixed: the
+  cut is looked for before any file is held or settled, since with three
+  members or more (the phone among them) the others' files rest on each
+  other's changes this computer missed and were held for ever; what both
+  changed that can't be asked row by row waits, as before, while another member
+  wrote its file in the last 45 days, and is the whole-ledger question only
+  when none has; a catch-up the ledger refused isn't tried again on every look.
   A folder's ledger that doesn't hold the other's changes up to the cut hasn't
   finished arriving (the small change file came first): it is waited for, never
-  taken (from the budget review). A known limit, on #451: a computer that comes
-  back with changes of its own waits for another computer to bring them in; if
-  none ever comes back, it waits for good (nothing is lost, and its own changes are
-  in its file and in Backups).
+  taken (from the budget review). Until 0.157.1 a computer back with changes of
+  its own waited for another computer to bring them in, for good if none came
+  back.
 - **Weighed and left:** waiting for every computer the folder's vector names (an
   id met there may be a computer long gone, which would hold every file back
   for ever); a computer away longer than 45 days costs one download of the

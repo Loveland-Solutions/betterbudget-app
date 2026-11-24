@@ -2157,6 +2157,7 @@ class AppDatabase extends _$AppDatabase {
     required String onlyIfDigest,
     List<Resolution> resolutions = const [],
     ({String computer, int seq})? applied,
+    Map<String, int> vector = const {},
     bool rowsCame = true,
   }) async {
     try {
@@ -2167,21 +2168,22 @@ class AppDatabase extends _$AppDatabase {
         // Another computer's changes, not this one's: kept out of the log.
         await _withoutChangeLog(() => _applyOps(ops));
         // What is applied, written down before the answers: they were
-        // made knowing it.
-        if (applied != null) {
-          final now = parseApplied((await _syncPrefs())[SyncKeys.applied]);
-          if ((now[applied.computer] ?? 0) < applied.seq) {
-            await setPreference(
-              SyncKeys.applied,
-              encodeApplied({...now, applied.computer: applied.seq}),
-            );
-            // Only when rows came: a batch of nothing but these notes
-            // tells nothing more, and the two would note each other's
-            // notes for ever.
-            if (rowsCame) {
-              await _noteApplied({...now, applied.computer: applied.seq});
-            }
-          }
+        // made knowing it. [vector]: the folder's whole ledger came in (the
+        // catch-up, step 5), holding each computer's changes up to there.
+        final now = parseApplied((await _syncPrefs())[SyncKeys.applied]);
+        final next = {...now};
+        for (final e in {
+          ...vector,
+          if (applied != null) applied.computer: applied.seq,
+        }.entries) {
+          if ((next[e.key] ?? 0) < e.value) next[e.key] = e.value;
+        }
+        if (next.entries.any((e) => (now[e.key] ?? 0) < e.value)) {
+          await setPreference(SyncKeys.applied, encodeApplied(next));
+          // Only when rows came: a batch of nothing but these notes
+          // tells nothing more, and the two would note each other's
+          // notes for ever.
+          if (rowsCame) await _noteApplied(next);
         }
         for (final r in resolutions) {
           await into(changes).insert(
