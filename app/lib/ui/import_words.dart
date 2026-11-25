@@ -12,7 +12,8 @@ import 'language.dart';
 /// rows the file matched. A bank row joined to the other account's row is
 /// a row brought in.
 String importDoneLabel(Words t, ImportRecord record) {
-  final brought = record.added.length + record.joined.length;
+  final brought =
+      record.added.length + record.joined.length + record.revived.length;
   final typed = record.matched.where((m) => !m.confirmed).length;
   return brought > 0
       ? t.importDone(brought)
@@ -58,7 +59,8 @@ String importSays(
     return owed ? t.ledgerOwed(said) : said;
   }
 
-  final brought = record.added.length + record.joined.length;
+  final brought =
+      record.added.length + record.joined.length + record.revived.length;
   final newlyCleared = record.matched
       .where((m) => m.before == Cleared.uncleared && !m.confirmed)
       .length;

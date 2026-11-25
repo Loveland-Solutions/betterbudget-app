@@ -1007,7 +1007,22 @@ class ImportRecord {
     this.joined = const [],
     this.doubts = const [],
     this.nextBills = const [],
+    this.freed = const {},
+    this.revived = const [],
+    this.revivedCleared = const [],
   });
+
+  /// Bank keys taken off deleted rows for the typed rows they matched
+  /// (#664), by entry: undo gives them back.
+  final Map<int, String> freed;
+
+  /// Deleted rows a bank row in the file brought back, as they were (#664):
+  /// undo deletes them again.
+  final List<int> revived;
+
+  /// Of [revived], the bank's entries that were uncleared and were cleared
+  /// when they came back: undo makes them uncleared again.
+  final List<int> revivedCleared;
 
   /// The next bill of each category whose bill a bank row paid, scheduled
   /// as Confirm schedules it: by category, the bills made.
@@ -2249,6 +2264,19 @@ class AppDatabase extends _$AppDatabase {
           op.key.values.toList(),
         );
       }
+    }
+    // A bank row's key moving from one entry to another (#664) would clash
+    // halfway through the changes below: cleared first in the entries that
+    // change it, then set, as a whole ledger is put in.
+    for (final op in ops) {
+      final row = op.row;
+      if (op.table != 'entries' || row == null || op.insert) continue;
+      if (!row.containsKey('import_key')) continue;
+      await customStatement(
+        'UPDATE "entries" SET import_key = NULL WHERE ${where(op.key)} '
+        'AND import_key IS NOT ?',
+        [...op.key.values, row['import_key']],
+      );
     }
     for (final table in combineOrder) {
       for (final op in ops) {
@@ -7814,16 +7842,77 @@ class AppDatabase extends _$AppDatabase {
     List<ImportRow> rows,
     List<String> keys,
   ) async {
+    // Already in: a bank row a live row holds. One only a deleted row holds
+    // comes in again (owner, 2026-11-25, #664: "I can't think of a
+    // scenario where I wouldn't want a row from the import to come in"),
+    // when that row was this account's and no reconcile or starting balance
+    // covers its day ("if it's reconciled, don't import over those"):
+    // matched to a typed row, or else the deleted row itself back, when it
+    // is a plain one (one category, still there, the bank's amount). Any
+    // other stays out, as before (code review).
     final known = <String>{};
+    final gone = <String, ({DateTime date, bool plain})>{};
+    final through = await _reconciledThrough(accountId);
+    final start = await _openingOf(accountId);
+    final amountOf = {
+      for (var i = 0; i < keys.length; i++) keys[i]: rows[i].amount,
+    };
     for (var i = 0; i < keys.length; i += 500) {
       final chunk = keys.sublist(i, (i + 500).clamp(0, keys.length));
-      final found =
-          await (selectOnly(entries)
-                ..addColumns([entries.importKey])
-                ..where(entries.importKey.isIn(chunk)))
-              .get();
-      known.addAll(found.map((r) => r.read(entries.importKey)!));
+      final found = await customSelect(
+        'SELECT e.import_key AS k, e.account_id AS acc, e.amount_minor AS amt, '
+        't.date AS d, t.deleted_at AS del, '
+        '(SELECT COUNT(*) FROM entries x WHERE x.transaction_id = t.id) AS n, '
+        '(SELECT a.type FROM entries x JOIN accounts a ON a.id = x.account_id '
+        'WHERE x.transaction_id = t.id AND x.id != e.id LIMIT 1) AS otype, '
+        '(SELECT a.deleted_at FROM entries x JOIN accounts a '
+        'ON a.id = x.account_id WHERE x.transaction_id = t.id AND x.id != e.id '
+        'LIMIT 1) AS odel '
+        'FROM entries e JOIN transactions t ON t.id = e.transaction_id '
+        'WHERE e.import_key IN (${chunk.map((_) => '?').join(',')})',
+        variables: [for (final k in chunk) Variable.withString(k)],
+        readsFrom: {entries, transactions, accounts},
+      ).get();
+      for (final r in found) {
+        final k = r.read<String>('k');
+        final date = parseDateKey(r.read<String>('d'));
+        final covered =
+            (through != null && !date.isAfter(through)) ||
+            (start != null && !date.isAfter(start.asOf));
+        if (r.read<int?>('del') == null ||
+            r.read<int>('acc') != accountId ||
+            covered) {
+          known.add(k);
+          continue;
+        }
+        final type = r.read<String?>('otype');
+        gone[k] = (
+          date: date,
+          plain:
+              r.read<int>('n') == 2 &&
+              (type == AccountType.expense.name ||
+                  type == AccountType.income.name) &&
+              r.read<int?>('odel') == null &&
+              r.read<int>('amt') == amountOf[k],
+        );
+      }
     }
+    for (var i = 0; i < keys.length; i++) {
+      final g = gone[keys[i]];
+      if (g == null || known.contains(keys[i])) continue;
+      if (through != null && !dateOnly(rows[i].date).isAfter(through)) {
+        known.add(keys[i]);
+      }
+    }
+    gone.removeWhere((k, _) => known.contains(k));
+    // Planned to come in without a typed row to match, a deleted row that
+    // can't simply come back stays out.
+    List<ImportPlanRow> settled(List<ImportPlanRow> rows) => [
+      for (final p in rows)
+        p.fate == ImportFate.add && gone[p.key]?.plain == false
+            ? p.withFate(ImportFate.already)
+            : p,
+    ];
     // Rows typed on this account near the file's dates, never a starting
     // balance or an adjustment (the other side is an equity account).
     // Reconciled ones match too, or they'd come in twice.
@@ -7911,7 +8000,8 @@ class AppDatabase extends _$AppDatabase {
     // Rows imported before that no key in this file claims, counted by day
     // and amount: the bank's table and its OFX file key the same row two
     // ways, so one brought in from each would be in twice. Deleted ones
-    // count, as they do by key. A table key holds the bank's own day, which
+    // count only where a reconcile covers their day, as by key (#664). A
+    // table key holds the bank's own day, which
     // a typed row it matched may not have taken.
     // The files give a day and no time, so two rows of one day and amount
     // are told apart by count (one imported row answers for one bank row)
@@ -7921,7 +8011,7 @@ class AppDatabase extends _$AppDatabase {
     final imported = await customSelect(
       // A row that shows a payee's name is compared by what the bank wrote.
       'SELECT e.import_key AS key, e.amount_minor AS amount, t.date AS date, '
-      'COALESCE(t.bank_payee, p.name) AS payee '
+      't.deleted_at AS gone, COALESCE(t.bank_payee, p.name) AS payee '
       'FROM entries e JOIN transactions t ON t.id = e.transaction_id '
       'LEFT JOIN payees p ON p.id = t.payee_id '
       'WHERE e.account_id = ? AND e.import_key IS NOT NULL '
@@ -7940,6 +8030,11 @@ class AppDatabase extends _$AppDatabase {
     for (final e in imported) {
       final key = e.read<String>('key');
       if (mine.contains(key)) continue;
+      if (e.read<int?>('gone') != null &&
+          (through == null ||
+              parseDateKey(e.read<String>('date')).isAfter(through))) {
+        continue;
+      }
       final day =
           RegExp(r'^a\d+\|(\d{4}-\d{2}-\d{2})').firstMatch(key)?[1] ??
           e.read<String>('date');
@@ -8093,6 +8188,11 @@ class AppDatabase extends _$AppDatabase {
         }
       }
     }
+    // Before anything is offered or counted from the rows that come in.
+    final kept = settled(plan);
+    plan
+      ..clear()
+      ..addAll(kept);
     final fresh = plan
         .where((p) => p.fate != ImportFate.already && !p.repeat && !p.held)
         .toList();
@@ -8409,6 +8509,35 @@ class AppDatabase extends _$AppDatabase {
     DateTime? today,
   }) => transaction(() async {
     await _assertLive(accountId);
+    // A bank row deleted here and coming in again (#664): with nothing typed
+    // to match, the deleted row itself comes back, as it was, key and all
+    // (one row on every computer, never a second with the same key); matched
+    // to a typed row, the key moves off the deleted row onto that one.
+    final gone = await _deletedHolders(accountId, [
+      for (final p in plan)
+        if (p.fate == ImportFate.add || p.fate == ImportFate.match) p.key,
+    ]);
+    final revived = <int>[];
+    final revivedKeys = <String>{};
+    final freed = <int, String>{};
+    for (final p in plan) {
+      final g = gone[p.key];
+      if (g == null) continue;
+      if (p.fate == ImportFate.add) {
+        revived.add(g.txnId);
+        revivedKeys.add(p.key);
+      } else if (p.fate == ImportFate.match) {
+        freed[g.entryId] = p.key;
+      }
+    }
+    await restoreMany(revived);
+    // The bank has it: cleared, as a bank row coming in is.
+    final cleared = await _clearHolders(gone, revivedKeys);
+    if (freed.isNotEmpty) {
+      await (update(entries)..where((e) => e.id.isIn(freed.keys))).write(
+        const EntriesCompanion(importKey: Value(null)),
+      );
+    }
     final openingId = start == null || start.amount == 0
         ? null
         : await postOpeningBalance(
@@ -8502,6 +8631,16 @@ class AppDatabase extends _$AppDatabase {
         case ImportFate.already || ImportFate.leftOut:
           continue;
         case ImportFate.add:
+          // Back already, as it was; counted as one of the file's rows for
+          // a starting balance that moves before them.
+          if (revivedKeys.contains(p.key)) {
+            final g = gone[p.key]!;
+            addedOn[g.txnId] = (
+              date: dateOnly(p.row.date),
+              amount: p.row.amount,
+            );
+            continue;
+          }
           final payee = p.row.payee;
           final memo = p.row.memo;
           final rule = PayeeRuleInfo.pick(
@@ -8689,6 +8828,9 @@ class AppDatabase extends _$AppDatabase {
       await setPreference(takenKey, openingKept.takenAfter);
     }
     final record = ImportRecord(
+      freed: freed,
+      revived: revived,
+      revivedCleared: cleared,
       added: added,
       matched: matched,
       madeCategory: made,
@@ -8733,6 +8875,72 @@ class AppDatabase extends _$AppDatabase {
     }
     return record;
   });
+
+  /// The last day a reconcile of [accountId] covers; null when none has.
+  Future<DateTime?> _reconciledThrough(int accountId) async {
+    final row = await customSelect(
+      'SELECT MAX(statement_date) AS d FROM reconciliations WHERE account_id = ?',
+      variables: [Variable.withInt(accountId)],
+      readsFrom: {reconciliations},
+    ).getSingle();
+    final d = row.read<String?>('d');
+    return d == null ? null : parseDateKey(d);
+  }
+
+  /// Clears the entries holding [keys] among [gone] that are uncleared;
+  /// returns them.
+  Future<List<int>> _clearHolders(
+    Map<String, ({int entryId, int txnId})> gone,
+    Set<String> keys,
+  ) async {
+    final ids = [
+      for (final k in keys)
+        if (gone[k] case final g?) g.entryId,
+    ];
+    if (ids.isEmpty) return const [];
+    final was =
+        await (select(entries)..where(
+              (e) => e.id.isIn(ids) & e.cleared.equalsValue(Cleared.uncleared),
+            ))
+            .get();
+    final cleared = [for (final e in was) e.id];
+    if (cleared.isNotEmpty) {
+      await (update(entries)..where((e) => e.id.isIn(cleared))).write(
+        const EntriesCompanion(cleared: Value(Cleared.cleared)),
+      );
+    }
+    return cleared;
+  }
+
+  /// The deleted rows that hold any of the bank's [keys], by key: the
+  /// entry and its transaction.
+  Future<Map<String, ({int entryId, int txnId})>> _deletedHolders(
+    int accountId,
+    Iterable<String> keys,
+  ) async {
+    final found = <String, ({int entryId, int txnId})>{};
+    final all = keys.toList();
+    for (var i = 0; i < all.length; i += 500) {
+      final chunk = all.sublist(i, (i + 500).clamp(0, all.length));
+      final rows =
+          await (select(entries).join([
+                innerJoin(
+                  transactions,
+                  transactions.id.equalsExp(entries.transactionId),
+                ),
+              ])..where(
+                entries.importKey.isIn(chunk) &
+                    entries.accountId.equals(accountId) &
+                    transactions.deletedAt.isNotNull(),
+              ))
+              .get();
+      for (final r in rows) {
+        final e = r.readTable(entries);
+        found[e.importKey!] = (entryId: e.id, txnId: e.transactionId);
+      }
+    }
+    return found;
+  }
 
   /// [memo] with [words] after it, unless it holds them already.
   static String? _memoAdding(String? memo, String? words) {
@@ -9051,10 +9259,38 @@ class AppDatabase extends _$AppDatabase {
       await _deleteUnlocked([o]);
     }
     if (r.madeCategory case final c?) await deleteEmptyAccount(c);
+    // Brought back: deleted again, as they were.
+    if (r.revived.isNotEmpty) {
+      if (r.revivedCleared.isNotEmpty) {
+        await (update(entries)..where(
+              (e) =>
+                  e.id.isIn(r.revivedCleared) &
+                  e.cleared.equalsValue(Cleared.cleared),
+            ))
+            .write(const EntriesCompanion(cleared: Value(Cleared.uncleared)));
+      }
+      await _deleteUnlocked(r.revived);
+    }
+    // The deleted rows hold their bank's keys again, now nothing else does.
+    for (final MapEntry(key: entry, value: key) in r.freed.entries) {
+      await (update(entries)..where((e) => e.id.equals(entry))).write(
+        EntriesCompanion(importKey: Value(key)),
+      );
+    }
   });
 
   Future<void> redoImport(ImportRecord r, int accountId) =>
       transaction(() async {
+        if (r.freed.isNotEmpty) {
+          await (update(entries)..where((e) => e.id.isIn(r.freed.keys))).write(
+            const EntriesCompanion(importKey: Value(null)),
+          );
+        }
+        await restoreMany(r.revived);
+        if (r.revivedCleared.isNotEmpty) {
+          await (update(entries)..where((e) => e.id.isIn(r.revivedCleared)))
+              .write(const EntriesCompanion(cleared: Value(Cleared.cleared)));
+        }
         if (r.madeCategory case final c?) {
           await undeleteAccount(DeletedAccount(c, const []));
         }

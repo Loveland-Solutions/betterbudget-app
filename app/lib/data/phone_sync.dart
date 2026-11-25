@@ -2738,7 +2738,8 @@ Future<PhoneActed> actOnImport(
     }
   }
 
-  if (record.added.isNotEmpty) {
+  // A row brought back may pay a bill too (#664).
+  if (record.added.isNotEmpty || record.revived.isNotEmpty) {
     try {
       final data = await db.loadLedger();
       final payments = billPayments(
@@ -2747,7 +2748,8 @@ Future<PhoneActed> actOnImport(
         uncategorizedId: data.categories.where(isUncategorized).firstOrNull?.id,
       );
       for (final p in payments.values) {
-        if (!record.added.containsKey(p.row.txnId) ||
+        if (!(record.added.containsKey(p.row.txnId) ||
+                record.revived.contains(p.row.txnId)) ||
             p.bill.planCategoryId == null) {
           continue;
         }

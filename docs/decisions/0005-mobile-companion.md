@@ -1762,3 +1762,20 @@ Open ledger as before. While only phones are on the folder, nothing writes its w
 ledger again, so the phone's change file holds everything since the move until a
 computer joins and writes it; a computer joining is how it is compacted. The privacy
 policy already covers it: a folder the person picks.
+
+## A sync service's copy of a change file is the same computer's (2026-11-25, #662)
+
+Google Drive, seeing a file written from two places at once, keeps both: the second
+as "Computer abc (1).betterbudget-changes". The computer took the id from the name,
+so "abc (1)" was a member it had never applied anything of: every look read that
+file's changes from the start, found a row both had changed since, and settled it
+again, every 15 seconds, with a backup each time (the owner's ledger, 2026-11-25,
+about 220 times before the app was quit).
+
+- A change file's computer is the one its own header names; " (1)", " (2)" on the
+  name is a copy's. It is read from where that computer's changes are applied up to.
+- Two files for one computer: the one of this ledger is read, then the one further
+  along (its last change, then when it was written), then the one under its own name;
+  the other is passed over. One that can't be read holds nothing up while another of
+  that computer's can (code review).
+- A copy of this computer's own file is never read as another's.

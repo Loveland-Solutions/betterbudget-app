@@ -1347,8 +1347,8 @@ void main() {
       expect(p.rows.map((x) => x.held), [true, false]);
     });
 
-    test('a repeat is one imported row for one bank row, deleted or not, and '
-        'can be brought in', () async {
+    test('a repeat is one imported row for one bank row, and can be brought '
+        'in; one deleted here comes in again (#664)', () async {
       final first = [row(3, -1000, 'Coffee'), row(4, -2500, 'Lunch')];
       final r = await db.applyImport(
         accountId: bank,
@@ -1364,7 +1364,9 @@ void main() {
         row(4, -2500, 'LUNCH'),
       ];
       final p = await plan(second);
-      expect(p.map((x) => x.repeat), [true, false, true]);
+      // The lunch deleted here isn't a repeat: it comes in again.
+      expect(p.map((x) => x.repeat), [true, false, false]);
+      expect(p[2].fate, ImportFate.add);
       expect(p[1].fate, ImportFate.add);
       // Two things at one price on one day, one of them in already: the
       // one of the same name is the repeat, wherever it sits in the file.
@@ -1373,11 +1375,12 @@ void main() {
         row(3, -1000, 'Coffee Co'),
       ]);
       expect(named.map((x) => x.repeat), [false, true]);
-      // The same file as before is known by its keys, never as a repeat.
-      expect(
-        (await plan(first)).map((x) => x.fate),
-        everyElement(ImportFate.already),
-      );
+      // The same file as before is known by its keys, never as a repeat;
+      // the lunch deleted here comes in again (#664).
+      expect((await plan(first)).map((x) => x.fate), [
+        ImportFate.already,
+        ImportFate.add,
+      ]);
       final back = p[0].withFate(ImportFate.add);
       expect(back.repeat, isTrue);
       final again = await db.applyImport(
@@ -1385,7 +1388,7 @@ void main() {
         plan: [back, p[1], p[2]],
         uncategorizedNames: ['Not categorized'],
       );
-      expect(again.added.length, 2);
+      expect(again.added.length, 3);
     });
 
     test('a new account started from its file: the opening balance and the '
@@ -2773,7 +2776,167 @@ void main() {
       expect(p.single.fate, ImportFate.add);
     });
 
-    test('a row the user deleted stays deleted on the next import', () async {
+    test(
+      'a bank row deleted here comes in again on the next import: the '
+      'deleted row itself, as it was; undo deletes it again (#664)',
+      () async {
+        final rows = [row(3, -1000, 'X')];
+        final r = await db.applyImport(
+          accountId: bank,
+          plan: await plan(rows),
+          uncategorizedNames: ['Not categorized'],
+        );
+        final gone = r.added.keys.single;
+        // Marked uncleared, then deleted: back, it is cleared, as the bank
+        // has it; undo makes it uncleared again.
+        final entry = (await db.loadLedger())
+            .registerFor(bank)
+            .posted
+            .single
+            .entryId;
+        await db.toggleCleared(entry);
+        await db.softDelete(gone);
+        final p = await plan(rows);
+        expect(p.single.fate, ImportFate.add);
+        final again = await db.applyImport(
+          accountId: bank,
+          plan: p,
+          uncategorizedNames: ['Not categorized'],
+        );
+        // Back under its own id, key and all: one row on every computer.
+        expect(again.added, isEmpty);
+        expect(again.revived, [gone]);
+        var here = (await db.loadLedger()).registerFor(bank).posted.single;
+        expect((here.txnId, here.cleared), (gone, Cleared.cleared));
+        // In: the file a third time brings nothing.
+        expect((await plan(rows)).single.fate, ImportFate.already);
+        expect(again.revivedCleared, [entry]);
+        await db.undoImport(again);
+        expect((await db.loadLedger()).registerFor(bank).posted, isEmpty);
+        final undone = await db.snapshot(gone);
+        expect(
+          undone.entries.singleWhere((e) => e.id == entry).cleared,
+          Cleared.uncleared,
+        );
+        // Deleted again with its key: and it still comes in again.
+        expect((await plan(rows)).single.fate, ImportFate.add);
+        await db.redoImport(again, bank);
+        here = (await db.loadLedger()).registerFor(bank).posted.single;
+        expect((here.txnId, here.cleared), (gone, Cleared.cleared));
+        expect((await plan(rows)).single.fate, ImportFate.already);
+      },
+    );
+
+    test('a bank row deleted here beside a typed row of its amount matches '
+        'that row, which is cleared and takes the key (#664)', () async {
+      final rows = [row(10, -75000, 'POS 5555')];
+      final r = await db.applyImport(
+        accountId: bank,
+        plan: await plan(rows),
+        uncategorizedNames: ['Not categorized'],
+      );
+      // Typed the same money under its own name, then the bank's row deleted
+      // as the copy.
+      final typed = await db.postSimple(
+        accountId: bank,
+        date: DateTime(2026, 9, 10),
+        today: DateTime(2026, 9, 16),
+        payee: 'Tithing',
+        counterAccountId: groceries,
+        amount: -75000,
+      );
+      await db.softDelete(r.added.keys.single);
+      final p = await plan(rows);
+      expect(p.single.fate, ImportFate.match);
+      expect(p.single.match!.transactionId, typed);
+      await db.applyImport(
+        accountId: bank,
+        plan: p,
+        uncategorizedNames: ['Not categorized'],
+      );
+      final here = (await db.loadLedger()).registerFor(bank).posted.single;
+      expect((here.txnId, here.cleared), (typed, Cleared.cleared));
+      expect((await plan(rows)).single.fate, ImportFate.already);
+    });
+
+    test('a deleted bank row that can\'t simply come back stays out: made a '
+        'transfer, moved to another account, its category deleted, another '
+        'amount (code review, #664)', () async {
+      final savings = await db.createAccount(
+        name: 'Savings',
+        type: AccountType.asset,
+      );
+      final coffee = await db.createCategory('Coffee');
+      final rows = [
+        row(3, -1000, 'A'),
+        row(4, -2000, 'B'),
+        row(5, -3000, 'C'),
+        row(6, -4000, 'D'),
+      ];
+      final r = await db.applyImport(
+        accountId: bank,
+        plan: await plan(rows),
+        uncategorizedNames: ['Not categorized'],
+      );
+      final ids = {
+        for (final t in (await db.loadLedger()).registerFor(bank).posted)
+          t.amount: t.txnId,
+      };
+      expect(ids, hasLength(r.added.length));
+      Future<void> edit(int id, int day, {int? to, int? amount}) =>
+          db.editTransaction(
+            transactionId: id,
+            accountId: bank,
+            date: DateTime(2026, 9, day),
+            today: DateTime(2026, 9, 16),
+            counterAccountId: to,
+            amount: amount,
+          );
+      await edit(ids[-1000]!, 3, to: savings);
+      await db.moveToAccount(
+        transactionId: ids[-2000]!,
+        fromAccountId: bank,
+        toAccountId: savings,
+      );
+      await edit(ids[-3000]!, 5, to: coffee);
+      await edit(ids[-4000]!, 6, amount: -4500);
+      for (final id in ids.values) {
+        await db.softDelete(id);
+      }
+      await db.deleteCategory(coffee);
+      expect(
+        (await plan(rows)).map((x) => x.fate),
+        everyElement(ImportFate.already),
+      );
+    });
+
+    test('a deleted bank row stays out when a reconcile covers the bank\'s '
+        'day, though the row was dated after it (code review, #664)', () async {
+      final rows = [row(3, -1000, 'X')];
+      final r = await db.applyImport(
+        accountId: bank,
+        plan: await plan(rows),
+        uncategorizedNames: ['Not categorized'],
+      );
+      final id = r.added.keys.single;
+      await db.editTransaction(
+        transactionId: id,
+        accountId: bank,
+        date: DateTime(2026, 9, 6),
+        today: DateTime(2026, 9, 16),
+      );
+      await db.softDelete(id);
+      await db.reconcile(
+        accountId: bank,
+        statementDate: DateTime(2026, 9, 4),
+        today: DateTime(2026, 9, 16),
+        balance: 0,
+      );
+      expect((await plan(rows)).single.fate, ImportFate.already);
+    });
+
+    test('a deleted bank row the starting balance covers stays out (code '
+        'review, #664)', () async {
       final rows = [row(3, -1000, 'X')];
       final r = await db.applyImport(
         accountId: bank,
@@ -2781,8 +2944,39 @@ void main() {
         uncategorizedNames: ['Not categorized'],
       );
       await db.softDelete(r.added.keys.single);
+      await db.postOpeningBalance(
+        accountId: bank,
+        date: DateTime(2026, 9, 10),
+        balance: 0,
+      );
       expect((await plan(rows)).single.fate, ImportFate.already);
     });
+
+    test(
+      'a bank row deleted here whose day a reconcile covers stays out '
+      '(owner: "if it\'s reconciled, don\'t import over those", #664)',
+      () async {
+        final rows = [row(3, -1000, 'X'), row(12, -2000, 'Y')];
+        final r = await db.applyImport(
+          accountId: bank,
+          plan: await plan(rows),
+          uncategorizedNames: ['Not categorized'],
+        );
+        for (final id in r.added.keys) {
+          await db.softDelete(id);
+        }
+        await db.reconcile(
+          accountId: bank,
+          statementDate: DateTime(2026, 9, 5),
+          today: DateTime(2026, 9, 16),
+          balance: 0,
+        );
+        expect((await plan(rows)).map((x) => x.fate), [
+          ImportFate.already,
+          ImportFate.add,
+        ]);
+      },
+    );
   });
 }
 
