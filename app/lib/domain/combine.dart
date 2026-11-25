@@ -1356,10 +1356,40 @@ class _Combine {
     };
     final mineOnly = {for (final t in _onlyIn(mine, theirs)) t['id']: t};
     final theirsOnly = {for (final t in _onlyIn(theirs, mine)) t['id']: t};
+    final theirsById = {
+      for (final e in [...?theirs['entries']]) e['id']: e,
+    };
+    final mineById = {
+      for (final e in [...?mine['entries']]) e['id']: e,
+    };
+    final baseById = {
+      for (final e in [...?base['entries']]) e['id']: e,
+    };
     final dropped = <Object?>{};
     for (final e in [...?theirs['entries']]) {
       final same = here[e['import_key']];
       if (same == null || same['id'] == e['id']) continue;
+      // The key moved from one entry to the other on one computer (a bank
+      // row deleted there, matched to a typed row when it came in again,
+      // #664): one bank row, changed, not two. Only off an entry that held
+      // it before; and not when the other computer brought back the row it
+      // moved off, which would be the same money twice.
+      final key = e['import_key'];
+      final movedThere =
+          baseById[same['id']]?['import_key'] == key &&
+          theirsById[same['id']]?['import_key'] != key;
+      final movedHere =
+          baseById[e['id']]?['import_key'] == key &&
+          mineById[e['id']]?['import_key'] != key;
+      if (movedThere || movedHere) {
+        final back = movedThere
+            ? _broughtBack(same['transaction_id'], mine)
+            : _broughtBack(e['transaction_id'], theirs);
+        if (back) {
+          _stop('one bank row moved on one, brought back on the other: $key');
+        }
+        continue;
+      }
       // Gone with an earlier entry of the same transaction.
       if (dropped.contains(e['transaction_id'])) continue;
       final t = theirsOnly[e['transaction_id']];
@@ -1374,6 +1404,16 @@ class _Combine {
       _dropTheirs(t);
       dropped.add(t['id']);
     }
+  }
+
+  /// Whether [of] has transaction [id] live where [base] had it deleted.
+  bool _broughtBack(Object? id, LedgerRows of) {
+    final was = _index('transactions', base['transactions'])['$id'];
+    final now = _index('transactions', of['transactions'])['$id'];
+    return was != null &&
+        was['deleted_at'] != null &&
+        now != null &&
+        now['deleted_at'] == null;
   }
 
   /// A phone's entry both computers took in is one transaction. Nothing on

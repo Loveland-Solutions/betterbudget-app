@@ -203,8 +203,22 @@ the file's columns once per account, and the app remembers. The screen is in
   with the balances turned around, they're read that way.
 - **Dedup key, any bank:** `a<account>|<date, with time when the file has it>|<amount>|<balance>`.
   Without a balance column: `…|<amount>|<payee>|<memo>`. Rows alike in one file get
-  `#2`, `#3` in file order. Keys on deleted rows still count, so a row the user deleted
-  stays deleted on the next import. Undoing an import frees its keys.
+  `#2`, `#3` in file order. A key on a live row counts as already in. A bank row
+  deleted here comes in again on the next import (owner, 2026-11-25, #664: "I can't
+  think of a scenario where I wouldn't want a row from the import to come in"), unless
+  a reconcile of the account covers its day ("if it's reconciled, don't import over
+  those"); the same for a row of the bank's other kind of file. Only a row that was
+  this account's, and whose own day no reconcile or starting balance covers. Matched
+  to a typed row near it, its key moves off the deleted row onto that one, which is
+  cleared; with nothing to match, the deleted row itself comes back as it was,
+  cleared, so every computer holds one row for it (code review: a new row with the
+  key would stop the other computers combining), when it is a plain one: one
+  category, still there, at the bank's amount. A transfer, a split, one moved to
+  another account, one whose category was deleted or whose amount was changed stays
+  out, as before (second code review). A row back is offered to a waiting bill as a
+  new one is. Two computers combine a key moved off a row that held it
+  as one bank row changed, and ask when the other brought that row back. Undoing an import frees its keys, deletes the rows it brought
+  back again and gives the deleted rows their keys back.
 - **Matching typed rows:** a bank row matches a row on the same account (any state,
   so a reconciled one isn't brought in twice; it only takes the key) that has no key, isn't scheduled and has exactly the same
   amount, dated from 3 days after to 10 days before the bank's date. The closest date
