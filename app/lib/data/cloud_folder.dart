@@ -824,6 +824,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         scratch: await _scratch(),
         butComputer: me,
         afterSeq: state.applied,
+        ledger: state.ledger,
       );
       for (final f in files) {
         if (f.changes.isEmpty) continue;
@@ -1330,6 +1331,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       butComputer: me,
       afterSeq: state.applied,
       unreadable: unreadable,
+      ledger: ledger,
     );
     // How far of this computer's own changes every other computer of this
     // ledger (seen lately) has applied, for a phone to say what the others
