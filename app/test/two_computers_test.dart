@@ -1235,6 +1235,164 @@ void main() {
       );
     });
 
+    test('a computer back from away with changes of its own takes the '
+        'folder’s ledger with them made on it, without waiting for another '
+        'computer to come back (#451)', () async {
+      await agree();
+      final later = tuesday.add(const Duration(days: 50));
+      await mac.spend('Nomin', later);
+      await mac.spend('Shangri-La', later);
+      expect(await mac.cloud.check(later, fresh: true), FolderStanding.ok);
+      expect(await mac.cloud.check(later, fresh: true), FolderStanding.ok);
+      // The laptop, away all along, spends before it looks; the Mac never
+      // looks again.
+      await laptop.spend('E-Mart', later);
+      expect(
+        await laptop.cloud.check(later, fresh: true),
+        FolderStanding.combine,
+      );
+      final done = await laptop.cloud.bringIn(later);
+      expect(done, isNotNull);
+      expect(done!.transactions, 2);
+      expect(done.before.existsSync(), isTrue);
+      expect(
+        await laptop.payees(),
+        containsAll(['Nomin', 'Shangri-La', 'E-Mart']),
+      );
+      expect(await laptop.cloud.check(later, fresh: true), FolderStanding.ok);
+      // The folder's ledger now holds all three; the Mac, when it does
+      // come back, is caught up and has nothing twice.
+      await settle(mac, later);
+      expect(
+        await mac.payees(),
+        containsAll(['Nomin', 'Shangri-La', 'E-Mart']),
+      );
+      expect(
+        (await mac.db.loadLedger()).txns.where((t) => t.payee == 'E-Mart'),
+        hasLength(1),
+      );
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+      // And changes go on both ways after.
+      await mac.spend('Emart 2', later);
+      await settle(mac, later);
+      await settle(laptop, later);
+      expect(await laptop.payees(), contains('Emart 2'));
+    });
+
+    test('a purchase filed two ways while one was away is asked about at '
+        'the catch-up, and the answer is kept on both (#451)', () async {
+      await mac.spend('Nomin', monday);
+      await agree();
+      final later = tuesday.add(const Duration(days: 50));
+      final checking = await mac.account('TDB Checking');
+      final nomin = await bought(mac, 'Nomin');
+      final others = (await mac.db.loadLedger()).accounts.values
+          .where((a) => a.type == AccountType.expense && a.name != 'Groceries')
+          .toList();
+      await mac.db.setCategory(
+        transactionId: nomin.id,
+        accountId: checking,
+        categoryId: others[0].id,
+      );
+      await mac.cloud.check(later, fresh: true);
+      await mac.cloud.check(later, fresh: true);
+      await laptop.db.setCategory(
+        transactionId: nomin.id,
+        accountId: checking,
+        categoryId: others[1].id,
+      );
+      expect(await laptop.cloud.check(later, fresh: true), FolderStanding.rows);
+      final asks = laptop.cloud.asks;
+      expect(asks, isNotEmpty);
+      final done = await laptop.cloud.bringIn(
+        later,
+        picks: {for (final a in asks) a.id: Pick.theirs},
+      );
+      expect(done, isNotNull);
+      expect(
+        (await bought(laptop, 'Nomin')).entries.map((e) => e.accountId),
+        contains(others[0].id),
+      );
+      expect(await laptop.cloud.check(later, fresh: true), FolderStanding.ok);
+      await settle(mac, later);
+      expect(
+        (await bought(mac, 'Nomin')).entries.map((e) => e.accountId),
+        contains(others[0].id),
+      );
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('with a third member, a computer back from away with a change of '
+        'its own still takes the folder’s ledger with it, and all three '
+        'end the same (#451)', () async {
+      await agree();
+      final desk = _Computer(
+        await Directory('${root.path}/desk').create(),
+        'The desk',
+      );
+      await seedDemoIfEmpty(desk.db, monday);
+      await desk.backups.restore(
+        await desk.backups.inspect(folderLedger().path, monday),
+        monday,
+        fromFolder: true,
+      );
+      await desk.cloud.keepIn(drive.path, monday);
+      await settle(desk);
+      await settle(mac);
+      await settle(laptop);
+      try {
+        final later = tuesday.add(const Duration(days: 50));
+        // The Mac and the desk go on, each taking the other's; the laptop
+        // is away.
+        await mac.spend('Nomin', later);
+        await settle(mac, later);
+        await settle(desk, later);
+        await desk.spend('Shangri-La', later);
+        await settle(desk, later);
+        await settle(mac, later);
+        await settle(desk, later);
+        await settle(mac, later);
+        expect((await fileOf(mac)).changes.where((c) => !c.isApplied), isEmpty);
+        // The laptop spends before it looks; neither of the others looks
+        // again.
+        await laptop.spend('E-Mart', later);
+        expect(
+          await laptop.cloud.check(later, fresh: true),
+          FolderStanding.combine,
+        );
+        expect(await laptop.cloud.bringIn(later), isNotNull);
+        await settle(laptop, later);
+        expect(
+          await laptop.payees(),
+          containsAll(['Nomin', 'Shangri-La', 'E-Mart']),
+        );
+        await settle(mac, later);
+        await settle(desk, later);
+        await settle(laptop, later);
+        for (final c in [mac, desk]) {
+          expect(
+            await c.payees(),
+            containsAll(['Nomin', 'Shangri-La', 'E-Mart']),
+          );
+          expect(
+            (await c.db.loadLedger()).txns.where((t) => t.payee == 'E-Mart'),
+            hasLength(1),
+          );
+        }
+        final digest = (await laptop.db.sealState()).digest;
+        expect((await mac.db.sealState()).digest, digest);
+        expect((await desk.db.sealState()).digest, digest);
+      } finally {
+        await desk.close();
+      }
+    });
+
     test('a computer that is only idle writes its file weekly and isn’t '
         'counted away', () async {
       await agree();
@@ -1267,7 +1425,9 @@ void main() {
         (await mac.db.changesSince(0)).where((c) => c.op != appliedMarkerOp),
         isEmpty,
       );
-      // The laptop, away all along, renames it too, before it looks.
+      // The laptop, away all along, renames it too, before it looks: an
+      // account renamed on both can't be asked row by row, and with the
+      // Mac about, the laptop waits for it.
       await laptop.db.renameAccount(wallet, 'Laptop wallet');
       expect(
         await laptop.cloud.check(later, fresh: true),
@@ -1284,8 +1444,8 @@ void main() {
     });
 
     test('a computer whose file isn’t in the folder yet isn’t waited for: '
-        'with a change of its own it waits, then takes the folder’s ledger '
-        'whole, and nothing of either is lost', () async {
+        'with a change of its own it takes the folder’s ledger with that '
+        'change made on it, and nothing of either is lost', () async {
       await laptop.cloud.keepIn(drive.path, monday);
       await laptop.spend('E-Mart', tuesday);
       expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
@@ -1297,8 +1457,10 @@ void main() {
       await mac.spend('Nomin', tuesday);
       expect(
         await mac.cloud.check(tuesday, fresh: true),
-        FolderStanding.arriving,
+        FolderStanding.combine,
       );
+      expect(await mac.cloud.bringIn(tuesday), isNotNull);
+      expect(await mac.payees(), containsAll(['Nomin', 'E-Mart']));
       await settle(laptop, tuesday);
       expect(await laptop.payees(), contains('Nomin'));
       await settle(mac, tuesday);

@@ -1098,6 +1098,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     final cached = _plan;
     if (!again &&
         cached != null &&
+        cached.catchUp == null &&
         cached.mine == mine.digest &&
         cached.theirs == theirs.digest) {
       return cached.found.conflict == null && !cached.found.asking
@@ -1164,12 +1165,19 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         }
         if (picks != null) {
           final file = plan.file;
-          if (file == null ||
+          if ((file == null && plan.catchUp == null) ||
               plan.found.asks.any((a) => !picks.containsKey(a.id))) {
             return null;
           }
           _picks[plan.theirs] = {...picks};
-          final again = await _planFor(file, plan.mine);
+          final again = file != null
+              ? await _planFor(file, plan.mine)
+              : await _catchUpPlan(
+                  seen.theirs,
+                  await _computerId(),
+                  await backups.db.syncState(),
+                  plan.mine,
+                );
           if (again == null ||
               again.found.asking ||
               again.found.conflict != null) {
@@ -1184,7 +1192,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
             (plan.found.ops.isEmpty &&
                 plan.found.resolutions.isEmpty &&
                 plan.taken.isEmpty &&
-                plan.file == null)) {
+                plan.file == null &&
+                plan.catchUp == null)) {
           return null;
         }
         final dir = (await backups.folder())!;
@@ -1193,7 +1202,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         try {
           if (plan.found.ops.isNotEmpty ||
               plan.found.resolutions.isNotEmpty ||
-              plan.file != null) {
+              plan.file != null ||
+              plan.catchUp != null) {
             await backups.db.applyCombined(
               plan.found.ops,
               onlyIfDigest: plan.mine,
@@ -1201,6 +1211,7 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
               applied: plan.file == null
                   ? null
                   : (computer: plan.computer!, seq: plan.upTo!),
+              vector: plan.catchUp ?? const {},
               rowsCame: plan.file?.changes.any((c) => !c.isApplied) ?? true,
             );
           }
@@ -1223,7 +1234,10 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         }
         _mine = null;
         _plan = null;
-        if (plan.file == null) _broughtIn = plan.theirs;
+        if (plan.file == null && plan.catchUp == null) {
+          _broughtIn = plan.theirs;
+        }
+        if (plan.catchUp != null) _picks.remove(plan.theirs);
         final header = plan.file?.header;
         return (
           before: before,
@@ -1332,6 +1346,44 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     var held = false;
     var takeWhole = false;
     var names = false;
+    // Another member of this ledger wrote its file lately: one that may yet
+    // bring this computer's changes in.
+    var othersLately = false;
+    // The catch-up (step 5), looked for before any file is held or settled:
+    // with three members or more, the others' files rest on each other's
+    // changes this computer missed, and are held for ever if looked at
+    // first (#451). What they hold is in the folder's ledger, taken whole
+    // below; their changes since come in on the next look, on top of it.
+    for (final f in files) {
+      final h = f.header;
+      if (h.ledger != null && ledger != null && h.ledger != ledger) continue;
+      if (now.difference(h.writtenAt) <= awayAfter) othersLately = true;
+      if (f.changes.isEmpty) continue;
+      // Compacted past what is here: the writer cut its log once the
+      // folder's ledger and every computer seen lately held it, and this
+      // one was away. Known by the note at the cut, which a reader gets only
+      // when it is behind it. A folder's ledger that doesn't hold up to the
+      // cut yet hasn't finished arriving (the small file came first):
+      // waited for.
+      if (f.changes.first case final c
+          when c.isApplied && c.before?[cutKey] is int) {
+        if ((theirs.applied[h.computer] ?? 0) < (c.before![cutKey] as int)) {
+          held = true;
+        } else {
+          takeWhole = true;
+        }
+        continue;
+      }
+      // What came before the file's first change was dropped by its writer
+      // (a ledger taken whole from the folder), and the folder's ledger
+      // holds it: this computer is behind it.
+      final have = state.applied[h.computer] ?? 0;
+      if (have > 0 &&
+          have + 1 < h.firstSeq &&
+          (theirs.applied[h.computer] ?? 0) >= h.firstSeq) {
+        takeWhole = true;
+      }
+    }
     // What is applied, kept up as the look goes.
     final applied = {...state.applied};
     for (final f in files) {
@@ -1347,6 +1399,8 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
       // question is the other computer's, whose folder ledger differs.
       if (h.ledger != null && ledger != null && h.ledger != ledger) continue;
       _members[h.computer] = h.name;
+      // Taken whole below: nothing of the others' is settled first.
+      if (takeWhole) continue;
       if (f.changes.isEmpty) {
         // Nothing to take, but its numbers may have moved on (a log cleared
         // when it took the folder's ledger whole): this ledger holds all of
@@ -1368,20 +1422,11 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
         held = true;
         continue;
       }
-      // Compacted past what is here (step 5): the writer cut its log once
-      // the folder's ledger and every computer seen lately held it, and
-      // this one was away. What it missed is in the folder's ledger, taken
-      // whole below: the catch-up take. Known by the note at the cut, which
-      // a reader gets only when it is behind it.
-      // A folder's ledger that doesn't hold up to the cut yet hasn't
-      // finished arriving (the small file came first): waited for.
+      // Compacted past what is here, and the folder's ledger doesn't hold
+      // up to the cut yet (looked for above): waited for.
       if (f.changes.first case final c
           when c.isApplied && c.before?[cutKey] is int) {
-        if ((theirs.applied[h.computer] ?? 0) < (c.before![cutKey] as int)) {
-          held = true;
-        } else {
-          takeWhole = true;
-        }
+        held = true;
         continue;
       }
       // What came before the file's first change was dropped by its writer
@@ -1469,8 +1514,34 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     final vector = {...applied, me: latest.lastSeq};
     final covered = (theirs.applied[me] ?? 0) >= latest.lastSeq;
     if (takeWhole) {
+      if (covered) return (standing: FolderStanding.newer, replaced: null);
+      if (held || unreadable.isNotEmpty) {
+        return (standing: FolderStanding.arriving, replaced: null);
+      }
+      // Back with changes of its own the folder's ledger lacks: that ledger
+      // is taken with them made on it, here, rather than waiting for
+      // another computer to bring them in, which may never come back (#451).
+      final plan = await _catchUpPlan(found, me, latest, mine.digest);
+      if (plan == null) {
+        return (standing: FolderStanding.arriving, replaced: null);
+      }
+      if (plan.found.conflict != null) {
+        // Something both changed that can't be asked row by row. While
+        // another member is about, it may yet bring this computer's
+        // changes in, and the question is put there, as before (from the
+        // review): waited for. With no one seen lately, asked here.
+        return (
+          standing: othersLately
+              ? FolderStanding.arriving
+              : FolderStanding.apart,
+          replaced: null,
+        );
+      }
+      _plan = plan;
       return (
-        standing: covered ? FolderStanding.newer : FolderStanding.arriving,
+        standing: plan.found.asking
+            ? FolderStanding.rows
+            : FolderStanding.combine,
         replaced: null,
       );
     }
@@ -1693,6 +1764,91 @@ class CloudFolder extends ValueNotifier<CloudFolderState> {
     );
   }
 
+  /// The catch-up with changes of its own (step 5, #451): this computer was
+  /// away past another's cut, so what it missed is only in the folder's
+  /// whole ledger, which lacks this computer's changes since. The three
+  /// [combine] compares: this ledger with those changes taken back (the
+  /// ground both stood on), this ledger, and the folder's. A row only the
+  /// folder's changed is taken, one only this computer changed stays, and
+  /// one both changed is asked about. Null while it can't be worked out
+  /// yet: the folder's ledger lacks something this one has of another
+  /// computer's, or of this one's from before its own cut, or this ledger
+  /// changed while it was read; the next look tries again.
+  Future<_Plan?> _catchUpPlan(
+    FolderTheirs found,
+    String me,
+    SyncState state,
+    String mineDigest,
+  ) async {
+    final db = backups.db;
+    final theirs = found.look;
+    if (theirs.schemaVersion != db.schemaVersion) return null;
+    final had = theirs.applied[me] ?? 0;
+    if (state.applied.entries.any(
+      (e) => e.key != me && (theirs.applied[e.key] ?? 0) < e.value,
+    )) {
+      return null;
+    }
+    final at = _changed;
+    final all = await db.changesSince(0);
+    if (all.isNotEmpty &&
+        (cutOfNote(all.first.op, all.first.before) ?? 0) > had) {
+      return null;
+    }
+    final rows = await db.allRows();
+    final since = [
+      for (final c in await db.changesSince(had)) ChangeRecord.fromRow(c),
+    ];
+    if ('$mineDigest|${theirs.digest}' == _cantCombine ||
+        since.any((c) => c.isMarker)) {
+      // Tried and refused by the ledger, or a whole ledger put in here:
+      // the whole-ledger question, not tried again.
+      return _Plan(
+        mine: mineDigest,
+        theirs: theirs.digest,
+        found: const Combined.conflict('refused by the ledger'),
+        catchUp: const {},
+      );
+    }
+    final there = await readLedgerRows(found.copy, backups.dataKey);
+    if (at != _changed) return null;
+    final mineSince = [
+      for (final c in since)
+        if (!c.isMarker && !c.isApplied) _fold(c),
+    ];
+    final lastChanged = <String, int>{};
+    for (final c in since) {
+      if (c.isMarker || c.isApplied) continue;
+      final k =
+          '${c.tbl}|${(combineKeys[c.tbl] ?? const <String>[]).map((k) => c.pk[k]).join('|')}';
+      if (c.atMs > (lastChanged[k] ?? 0)) lastChanged[k] = c.atMs;
+    }
+    final combined = combine(
+      base: foldChanges(rows, const [], mineSince: mineSince).base,
+      mine: rows,
+      theirs: there,
+      madeHere: {
+        for (final c in since)
+          if (c.tbl == 'transactions' && c.op == 'insert') c.pk['id'],
+      },
+      picks: _picks[theirs.digest] ?? const {},
+      logged: true,
+      mineAt: lastChanged,
+    );
+    if (combined.conflict case final why?) {
+      debugPrint('The folder’s ledger can’t be caught up with: $why');
+    }
+    return _Plan(
+      mine: mineDigest,
+      theirs: theirs.digest,
+      found: combined,
+      catchUp: {
+        for (final e in theirs.applied.entries)
+          if (e.key != me) e.key: e.value,
+      },
+    );
+  }
+
   static FoldChange _fold(ChangeRecord c, {int? knew}) => FoldChange(
     tbl: c.tbl,
     pk: c.pk,
@@ -1864,8 +2020,14 @@ class _Plan {
     required this.found,
     this.file,
     this.taken = const [],
+    this.catchUp,
   });
   final String mine;
+
+  /// The folder's whole ledger taken with this computer's own changes made
+  /// on it (the catch-up, step 5): what it holds of each other computer's,
+  /// applied with it. Null otherwise.
+  final Map<String, int>? catchUp;
 
   /// The other's answers this computer took where the two had crossed,
   /// written down as its own changes with the rest.
