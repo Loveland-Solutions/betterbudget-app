@@ -117,6 +117,101 @@ void main() {
     expect(scratch.listSync(), isEmpty);
   });
 
+  test('a sync service\'s copy of a file ("Computer c3d4 (1)…") is the same '
+      'computer\'s: read once, from where its changes are applied up to, the '
+      'one further along; a copy of this computer\'s own is never read '
+      '(#662)', () async {
+    final rows = await db.changesSince(0);
+    final scratch = Directory('${root.path}/scratch');
+    Future<void> write(String name, String computer, List<ChangeRow> some) =>
+        writeChangeFile(
+          const DirectoryFolderIo(),
+          root.path,
+          name,
+          null,
+          ChangeFileHeader(
+            computer: computer,
+            name: 'The phone',
+            ledger: 'abcd',
+            schema: db.schemaVersion,
+            applied: const {},
+            lastSeq: some.last.seq,
+            writtenAt: DateTime(2026, 11, 25, 12, 13),
+          ),
+          some,
+          scratch: scratch,
+        );
+    // As Google Drive left them: the first, and its copy, further along.
+    await write(changeFileName('c3d4'), 'c3d4', rows.take(1).toList());
+    await write('Computer c3d4 (1).betterbudget-changes', 'c3d4', rows);
+    // A copy of this computer's own.
+    await write('Computer a1b2 (1).betterbudget-changes', 'a1b2', rows);
+    expect(
+      computerOfChangeFile('Computer c3d4 (1).betterbudget-changes'),
+      'c3d4',
+    );
+    final read = await readChangeFiles(
+      const DirectoryFolderIo(),
+      root.path,
+      null,
+      scratch: scratch,
+      butComputer: 'a1b2',
+      afterSeq: {'c3d4': rows[1].seq},
+    );
+    expect(read.map((f) => f.header.computer), ['c3d4']);
+    expect(read.single.header.lastSeq, rows.last.seq);
+    // Not from its start: only what follows what's applied.
+    expect(read.single.changes.first.seq, rows[2].seq);
+    // Everything applied: nothing more to take from either.
+    final again = await readChangeFiles(
+      const DirectoryFolderIo(),
+      root.path,
+      null,
+      scratch: scratch,
+      butComputer: 'a1b2',
+      afterSeq: {'c3d4': rows.last.seq},
+    );
+    expect(again.single.changes, isEmpty);
+
+    // A copy left from another ledger, further along, never wins over
+    // this ledger's file (from the review).
+    final other = ChangeFileHeader(
+      computer: 'c3d4',
+      name: 'The phone',
+      ledger: 'zzzz',
+      schema: db.schemaVersion,
+      applied: const {},
+      lastSeq: rows.last.seq + 50,
+      writtenAt: DateTime(2026, 11, 26),
+    );
+    await writeChangeFile(
+      const DirectoryFolderIo(),
+      root.path,
+      'Computer c3d4 (2).betterbudget-changes',
+      null,
+      other,
+      rows,
+      scratch: scratch,
+    );
+    // And one cut short: the computer's others still read.
+    await File('${root.path}/Computer c3d4 (3).betterbudget-changes')
+        .writeAsBytes([1, 2, 3]);
+    final unreadable = <String>[];
+    final picked = await readChangeFiles(
+      const DirectoryFolderIo(),
+      root.path,
+      null,
+      scratch: scratch,
+      butComputer: 'a1b2',
+      afterSeq: {'c3d4': rows[1].seq},
+      unreadable: unreadable,
+      ledger: 'abcd',
+    );
+    expect(picked.single.header.ledger, 'abcd');
+    expect(picked.single.header.lastSeq, rows.last.seq);
+    expect(unreadable, isEmpty);
+  });
+
   // ---------- compaction (ADR 0005 step 5) ----------
 
   test('a compacted log keeps a note at the cut: the file starts after it, '

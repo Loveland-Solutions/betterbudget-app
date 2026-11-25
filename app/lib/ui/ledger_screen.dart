@@ -6563,13 +6563,14 @@ class _LedgerScreenState extends State<LedgerScreen>
     final label = importDoneLabel(t, record);
     // The file's rows in a bill's category pay it (owner, 2026-10-21),
     // in the same undo as the import.
-    final settled = record.added.isEmpty
+    final settled = record.added.isEmpty && record.revived.isEmpty
         ? (
             ties: const <_Tie>[],
             unsure: const <BillPayment>[],
             paid: const <int>{},
           )
-        : await _settleIncoming(record.added.keys.toSet());
+        // A row brought back may pay a bill too (#664).
+        : await _settleIncoming({...record.added.keys, ...record.revived});
     if (!mounted) return;
     final doubt = record.doubts.firstOrNull;
     _did(
