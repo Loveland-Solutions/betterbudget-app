@@ -48,6 +48,10 @@ picks one, build it, run both reviews, merge.
   GitHub page" paragraph (last updated October 20, 2026; `0f501a8`), and its README
   no longer links to Releases; lls.mn's copy of the policy matches and is live. This
   repo's README says the same (PR #220).
+- **Not sold in France** (owner, 2026-11-25: "France is a pain. I don't plan on
+  selling there."). Apple asks for a declaration to France's cybersecurity agency for
+  the ledger's own encryption, and only there; it isn't filed (#374 closed as not
+  planned). Every other App Store country has the app.
 - **Owner to decide:** 0.35.1, 0.36.0 and 0.38.0 are still published on the public
   repo's releases page.
 
