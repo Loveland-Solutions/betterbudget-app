@@ -693,6 +693,41 @@ void main() {
     Future<TxnData> bought(_Computer on, String payee) async =>
         (await on.db.loadLedger()).txns.singleWhere((t) => t.payee == payee);
 
+    test('a sync service\'s copy of a computer\'s change file ("(1)") is '
+        'not read again from its start: a row changed since stays, and '
+        'nothing is settled over and over (#662)', () async {
+      await agree();
+      // The laptop (the phone, on the night) adds a row; the Mac takes it.
+      await laptop.spend('Nomin', tuesday);
+      await laptop.cloud.check(tuesday, fresh: true);
+      expect((await bringIn(mac)).transactions, 1);
+      // Google Drive leaves a copy of the laptop's file beside it.
+      final theirs = changeFileName(await laptop.cloud.computerId());
+      await File('${drive.path}/$theirs').copy(
+        '${drive.path}/${theirs.replaceFirst('.betterbudget', ' (1).betterbudget')}',
+      );
+      // The Mac changes that row (an import matching it, on the night).
+      final row = await bought(mac, 'Nomin');
+      await mac.db.editTransaction(
+        transactionId: row.id,
+        accountId: await mac.account('TDB Checking'),
+        date: tuesday,
+        today: tuesday,
+        payee: 'Nomin',
+        memo: 'POS Purchase - NOMIN',
+      );
+      // Look after look: nothing to bring in, nothing settled, the change
+      // kept.
+      for (var round = 0; round < 3; round++) {
+        expect(await mac.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      }
+      expect(await mac.db.resolves(), isEmpty);
+      expect((await bought(mac, 'Nomin')).memo, 'POS Purchase - NOMIN');
+      // And the laptop gets it.
+      await settle(laptop, tuesday);
+      expect((await bought(laptop, 'Nomin')).memo, 'POS Purchase - NOMIN');
+    });
+
     // ---------- a restore and an erase, as ordinary changes (step 5) ----------
 
     test('the one put back after the folder’s was taken in is written, and '

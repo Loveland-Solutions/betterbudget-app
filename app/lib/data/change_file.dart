@@ -27,13 +27,21 @@ String changeFileName(String computer) =>
 bool isChangeFileName(String name) =>
     name.startsWith('Computer ') && name.endsWith('.$changeFileExtension');
 
-/// The computer id a change file's name carries.
+/// The computer id a change file's name carries. A sync service's copy of
+/// a file it saw written from two places at once ("Computer abc (1)…", as
+/// Google Drive names one) carries the same computer's: the file's own
+/// header says whose it is either way (#662).
 String? computerOfChangeFile(String name) => isChangeFileName(name)
-    ? name.substring(
-        'Computer '.length,
-        name.length - changeFileExtension.length - 1,
-      )
+    ? name
+          .substring(
+            'Computer '.length,
+            name.length - changeFileExtension.length - 1,
+          )
+          .replaceFirst(_syncCopySuffix, '')
     : null;
+
+/// " (1)", " (2)": what a sync service adds to a copy's name.
+final _syncCopySuffix = RegExp(r' \(\d+\)$');
 
 /// What the writing computer says about itself and what it has applied.
 class ChangeFileHeader {
@@ -360,8 +368,15 @@ Future<List<ChangeFile>> readChangeFiles(
   required String butComputer,
   required Map<String, int> afterSeq,
   List<String>? unreadable,
+  String? ledger,
 }) async {
-  final found = <ChangeFile>[];
+  // One file a computer: a sync service's copy of one ("Computer abc (1)…")
+  // is the same computer's, never a new one read from its start (#662). Of
+  // two, the one of this [ledger], then the one further along, then the one
+  // under its own name.
+  final found = <String, ChangeFile>{};
+  final ownName = <String, bool>{};
+  final failed = <String>{};
   final names = [
     for (final n in await io.names(folder))
       if (isChangeFileName(n)) n,
@@ -375,13 +390,47 @@ Future<List<ChangeFile>> readChangeFiles(
       if (bytes == null) continue;
       await scratch.create(recursive: true);
       await copy.writeAsBytes(bytes, flush: true);
-      found.add(readChangeFile(copy, key, afterSeq: afterSeq[computer] ?? 0));
+      var f = readChangeFile(copy, key, afterSeq: afterSeq[computer] ?? 0);
+      // Whose it is, by its own header: read again from where that
+      // computer's changes are applied up to, when the name said otherwise.
+      final whose = f.header.computer;
+      if (whose == butComputer) continue;
+      if (whose != computer) {
+        f = readChangeFile(copy, key, afterSeq: afterSeq[whose] ?? 0);
+      }
+      final mine = name == changeFileName(whose);
+      final other = found[whose];
+      if (other == null || _before(f, mine, other, ownName[whose]!, ledger)) {
+        found[whose] = f;
+        ownName[whose] = mine;
+      }
     } catch (e) {
       debugPrint('A computer’s change file couldn’t be read: $e');
-      unreadable?.add(computer);
+      failed.add(computer);
     } finally {
       if (copy.existsSync()) copy.deleteSync();
     }
   }
-  return found;
+  // Unreadable only when no file of that computer's could be read: a copy
+  // that never will (cut short) doesn't hold the look up for good.
+  unreadable?.addAll(failed.where((c) => !found.containsKey(c)));
+  return [...found.values];
+}
+
+/// Whether [a] (under its computer's own name: [aOwn]) is read rather
+/// than [b]: of this [ledger] first, then further along, then written
+/// later, then the one under the computer's own name.
+bool _before(ChangeFile a, bool aOwn, ChangeFile b, bool bOwn, String? ledger) {
+  if (ledger != null) {
+    final aHere = a.header.ledger == null || a.header.ledger == ledger;
+    final bHere = b.header.ledger == null || b.header.ledger == ledger;
+    if (aHere != bHere) return aHere;
+  }
+  if (a.header.lastSeq != b.header.lastSeq) {
+    return a.header.lastSeq > b.header.lastSeq;
+  }
+  if (a.header.writtenAt != b.header.writtenAt) {
+    return a.header.writtenAt.isAfter(b.header.writtenAt);
+  }
+  return aOwn && !bOwn;
 }
