@@ -728,6 +728,122 @@ void main() {
       expect((await bought(laptop, 'Nomin')).memo, 'POS Purchase - NOMIN');
     });
 
+    // ---------- a bank row deleted and brought in again (#664) ----------
+
+    Future<ImportRecord> import(_Computer on, List<ImportRow> rows) async {
+      final account = await on.account('TDB Checking');
+      final p = await on.db.planImport(
+        account,
+        rows,
+        importKeys(account, rows),
+      );
+      return on.db.applyImport(
+        accountId: account,
+        plan: p.rows,
+        uncategorizedNames: ['Not categorized'],
+      );
+    }
+
+    Future<int> live(_Computer on, int amount) async =>
+        (await on.db.loadLedger())
+            .registerFor(await on.account('TDB Checking'))
+            .posted
+            .where((r) => r.amount == amount)
+            .length;
+
+    Future<Cleared> clearedOf(_Computer on, int txnId) async =>
+        (await on.db.loadLedger())
+            .registerFor(await on.account('TDB Checking'))
+            .posted
+            .singleWhere((r) => r.txnId == txnId)
+            .cleared;
+
+    test('a bank row deleted on both, brought back on one by an import, '
+        'reaches the other as that row; undo and redo too (#664)', () async {
+      await agree();
+      final rows = [
+        ImportRow(
+          sourceRow: 0,
+          date: DateTime(2026, 10, 5),
+          amount: -2500000,
+          payee: 'POS NOMIN',
+        ),
+      ];
+      final first = await import(mac, rows);
+      final gone = first.added.keys.single;
+      await mac.db.softDelete(gone);
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      expect(await live(laptop, -2500000), 0);
+      // The file again on the Mac: the row comes back, and so on the laptop.
+      final again = await import(mac, rows);
+      expect(again.revived, [gone]);
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await live(laptop, -2500000), 1);
+      expect(await clearedOf(laptop, gone), Cleared.cleared);
+      // Undone on the Mac: gone on both; redone: back on both.
+      await mac.db.undoImport(again);
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      expect(await live(laptop, -2500000), 0);
+      await mac.db.redoImport(again, await mac.account('TDB Checking'));
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await live(laptop, -2500000), 1);
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
+    test('a bank row deleted beside a typed row of its amount: an import on '
+        'one computer moves its key to the typed row, and the other takes '
+        'the move in; undo and redo too (#664)', () async {
+      await agree();
+      final rows = [
+        ImportRow(
+          sourceRow: 0,
+          date: DateTime(2026, 10, 5),
+          amount: -1250000,
+          payee: 'POS 5555',
+        ),
+      ];
+      final first = await import(mac, rows);
+      await mac.db.softDelete(first.added.keys.single);
+      // The same money typed under its own name (as a bill confirmed by
+      // hand): uncleared.
+      await mac.spend('Tithing', monday);
+      final typed = (await bought(mac, 'Tithing')).id;
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      expect(await clearedOf(laptop, typed), Cleared.uncleared);
+      final again = await import(mac, rows);
+      expect(again.matched.single.transactionId, typed);
+      expect(again.freed, hasLength(1));
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await clearedOf(laptop, typed), Cleared.cleared);
+      expect(await live(laptop, -1250000), 1);
+      await mac.db.undoImport(again);
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await clearedOf(laptop, typed), Cleared.uncleared);
+      await mac.db.redoImport(again, await mac.account('TDB Checking'));
+      await settle(mac, tuesday);
+      await settle(laptop, tuesday);
+      expect(await laptop.cloud.check(tuesday, fresh: true), FolderStanding.ok);
+      expect(await clearedOf(laptop, typed), Cleared.cleared);
+      expect(
+        (await mac.db.sealState()).digest,
+        (await laptop.db.sealState()).digest,
+      );
+    });
+
     // ---------- a restore and an erase, as ordinary changes (step 5) ----------
 
     test('the one put back after the folder’s was taken in is written, and '
