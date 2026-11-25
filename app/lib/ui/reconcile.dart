@@ -318,7 +318,11 @@ class ReconcilePanel extends StatelessWidget {
               const SizedBox(height: 10),
               Padding(
                 padding: const EdgeInsets.only(left: _label),
-                child: Row(
+                // Wraps under Cancel when the words are long (a big
+                // difference, or Mongolian), never runs past the panel.
+                child: Wrap(
+                  spacing: 4,
+                  runSpacing: 6,
                   children: [
                     BarButton(
                       key: const ValueKey('reconcile-cancel'),
@@ -387,13 +391,16 @@ class _LockButton extends StatelessWidget {
         child: Container(
           height: 28,
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: onest(
-              13,
-              weight: 600,
-              color: on ? Mid.onAccent : Mid.gold.withValues(alpha: 0.55),
+          // As wide as its words, beside Cancel.
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label,
+              style: onest(
+                13,
+                weight: 600,
+                color: on ? Mid.onAccent : Mid.gold.withValues(alpha: 0.55),
+              ),
             ),
           ),
         ),

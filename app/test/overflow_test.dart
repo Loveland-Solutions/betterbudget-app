@@ -227,7 +227,14 @@ void main() {
           // Cash has no Reconcile.
           if (find.text(t.planReconcile).evaluate().isNotEmpty) {
             await tap(find.text(t.planReconcile));
-            await escape();
+            // A big difference: the adjust button's words at their longest.
+            await tester.enterText(
+              find.byKey(const ValueKey('reconcile-balance')),
+              '1',
+            );
+            await tester.testTextInput.receiveAction(TextInputAction.done);
+            await tester.pumpAndSettle();
+            await tap(find.byKey(const ValueKey('reconcile-cancel')));
           }
         }
         await tap(find.text(t.ledgerSectionLedger));

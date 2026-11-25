@@ -11,6 +11,7 @@ import 'data_words.dart';
 import 'language.dart';
 import 'register.dart' show BarButton, Cols, SourceColumn;
 import 'amount_input.dart';
+import 'category_lines.dart';
 import 'theme.dart';
 
 enum EditField { date, payee, memo, category, amount }
@@ -102,6 +103,13 @@ class EntryRowController {
   Future<AccountInfo?> Function(String name, Currency currency, int? account)?
   newCategory;
   List<String> payeeNames = const [];
+
+  /// Set by the screen when an edit opens from a row's quick list (#654):
+  /// the account picked there, already in Category, and whether the box
+  /// there to remember it was ticked; or Split, already open.
+  AccountInfo? startTransfer;
+  bool startRemember = false;
+  bool startSplit = false;
   final payeeFocus = FocusNode(debugLabel: 'entry-payee');
 
   /// All accounts: where new rows go. Kept between rows, so a batch from
@@ -552,25 +560,27 @@ class _EntryRowState extends State<EntryRow> {
     return widget.pays.where((p) => p.label.toLowerCase() == q).firstOrNull?.id;
   }
 
-  /// What the list offers: not archived categories, nor ones in another
-  /// currency than the row's (a typed name still finds either). With `+`
-  /// typed before the amount it's money in, and the income choices come
-  /// first; otherwise the spending categories do (owner, 2026-10-06).
-  Iterable<({String label, AccountInfo account})> get _listOptions {
-    final all = _counterOptions.where(
-      (o) =>
-          !o.account.archived &&
-          (o.account.isBalanceSheet || categoryTakes(o.account, _hereCurrency)),
-    );
-    final income = all.where((o) => o.account.isIncome);
-    final spending = all.where(
-      (o) => !o.account.isIncome && !o.account.isBalanceSheet,
-    );
-    final transfers = all.where((o) => o.account.isBalanceSheet);
-    return _amount.text.trim().startsWith('+')
-        ? [...income, ...spending, ...transfers]
-        : [...spending, ...income, ...transfers];
-  }
+  /// What the list offers: the same lines as the row's quick list
+  /// ([categoryLines]; a typed name still finds an archived category or one
+  /// in another currency). With `+` typed before the amount it's money in.
+  /// Pays only while adding: an edit doesn't save a paycheck.
+  Iterable<({String label, AccountInfo account})> get _listOptions => [
+    for (final l in categoryLines(
+      categories: widget.categories,
+      transfers: widget.transferTargets,
+      pays: [
+        for (final p in widget.pays)
+          if (!_editing &&
+              (!_picking || p.accountId == widget.controller.account?.id))
+            (id: p.id, label: p.label),
+      ],
+      currency: _hereCurrency,
+      moneyIn: _amount.text.trim().startsWith('+'),
+      keepId: _initial?.row.categoryId,
+      fromAccountId: _picking ? widget.controller.account?.id : null,
+    ))
+      (label: l.label, account: l.account),
+  ];
 
   /// The "+ New category" line was picked for exactly this text.
   String? _chosenNew;
@@ -628,6 +638,30 @@ class _EntryRowState extends State<EntryRow> {
               : 0,
           extentOffset: ctrl.text.length,
         );
+      });
+    }
+    // Opened from the row's quick list (#654): what was picked there is
+    // chosen here, as if picked in this list.
+    final start = widget.controller;
+    if (start.startSplit || start.startTransfer != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final (split, transfer, remember) = (
+          start.startSplit,
+          start.startTransfer,
+          start.startRemember,
+        );
+        // Once only: a rebuilt row mustn't put it back over typing.
+        start
+          ..startSplit = false
+          ..startTransfer = null
+          ..startRemember = false;
+        if (split) {
+          _openSplit();
+        } else if (transfer != null) {
+          _category.text = '→ ${transfer.name}';
+          setState(() => _remember = remember);
+        }
       });
     }
   }
@@ -3129,8 +3163,8 @@ class _CalendarState extends State<Calendar> {
 
 /// [found] with the one named exactly [q] first, then those whose name
 /// starts with it, each part in its own order: "Gas" lit before "Gas bill",
-/// both before "Vegas trip" (#548).
-@visibleForTesting
+/// both before "Vegas trip" (#548). A row's quick list narrows the same
+/// way (#654).
 List<T> startsFirst<T>(Iterable<T> found, String q, String Function(T) name) {
   final lower = q.trim().toLowerCase();
   if (lower.isEmpty) return found.toList();

@@ -26,7 +26,7 @@ import 'package:betterbudget/ui/headed_section.dart';
 import 'package:betterbudget/ui/schemes.dart';
 import 'package:betterbudget/ui/balance_header.dart' show ForecastPanel;
 import 'package:betterbudget/ui/ledger_screen.dart';
-import 'package:betterbudget/ui/register.dart' show SmoothHeight;
+import 'package:betterbudget/ui/register.dart' show CategoryChip, SmoothHeight;
 import 'package:betterbudget/ui/theme.dart';
 import 'package:betterbudget/ui/window_title_area.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -3705,6 +3705,235 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets("a row's quick list is its editor's list: Split and the "
+        'accounts open the editor with them chosen (#654)', (tester) async {
+      final db = await pumpLedger(tester);
+      Finder choice(String label) => find.descendant(
+        of: find.byType(MenuItemButton),
+        matching: find.text(label),
+      );
+      List<String> quick() => [
+        for (final e
+            in find
+                .descendant(
+                  of: find.byType(MenuItemButton),
+                  matching: find.byType(Text),
+                )
+                .evaluate())
+          (e.widget as Text).data!,
+      ];
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      final shown = quick();
+      expect(shown.take(2), ['New category', 'Split']);
+      expect(shown, contains('→ Khan Savings'));
+      // Not the account the row is in.
+      expect(shown, isNot(contains('→ TDB Checking')));
+      // The same lines in the same order as the editor's list.
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      final box = find.widgetWithText(TextField, 'Phone & internet');
+      await tester.tap(box);
+      await tester.pumpAndSettle();
+      await tester.enterText(box, '');
+      await tester.pumpAndSettle();
+      // The lines the editor's list has drawn (it draws as it scrolls).
+      final editor = [
+        for (final e
+            in find
+                .descendant(
+                  of: find.byKey(const ValueKey('choice-list')),
+                  matching: find.byType(Text),
+                )
+                .evaluate())
+          (e.widget as Text).data!,
+      ];
+      expect(editor, isNotEmpty);
+      // Under New category, Split and the box to remember.
+      expect(shown.skip(3).take(editor.length).toList(), editor);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // An account: the editor opens with it in Category.
+      // Unitel's row, still selected after Cancel.
+      Future<void> quickList() async {
+        if (find.text('Categorize').evaluate().isEmpty) {
+          await tester.tap(find.text('Unitel'));
+          await tester.pumpAndSettle();
+        }
+        await tester.tap(find.text('Categorize'));
+        await tester.pumpAndSettle();
+      }
+
+      await quickList();
+      await tester.ensureVisible(choice('→ Khan Savings'));
+      await tester.pumpAndSettle();
+      await tester.tap(choice('→ Khan Savings'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, '→ Khan Savings'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Split: the editor opens with its parts.
+      await quickList();
+      await tester.tap(choice('Split'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is TextField && w.focusNode?.debugLabel == 'split-category',
+        ),
+        findsNWidgets(2),
+      );
+      await tidy(tester, db);
+    });
+
+    testWidgets("Split or an account from a row's quick list keeps another "
+        "row's unsaved typing, and saves with undo and redo (#654)", (
+      tester,
+    ) async {
+      final db = await pumpLedger(tester);
+      Finder choice(String label) => find.descendant(
+        of: find.byType(MenuItemButton),
+        matching: find.text(label),
+      );
+      String unitel() =>
+          (find
+                      .ancestor(
+                        of: find.text('Unitel').first,
+                        matching: find.byWidgetPredicate(
+                          (w) => '${w.key}'.contains("'row-"),
+                        ),
+                      )
+                      .evaluate()
+                      .first
+                      .widget
+                      .key
+                  as ValueKey<String>)
+              .value
+              .substring(4);
+      final id = unitel();
+      String unitelId() => id;
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Postpaid'),
+        'Postpaid, October',
+      );
+      await tester.pumpAndSettle();
+      // Another row's category: its quick list's Split.
+      final memoTop = tester
+          .getTopLeft(find.widgetWithText(TextField, 'Postpaid, October'))
+          .dy;
+      // A chip in sight, on another row.
+      final other = find.byType(CategoryChip).evaluate().firstWhere((e) {
+        final y = tester.getCenter(find.byWidget(e.widget)).dy;
+        return y > 300 && y < 780 && (y - memoTop).abs() > 80;
+      });
+      await tester.tap(find.byWidget(other.widget));
+      await tester.pumpAndSettle();
+      await tester.tap(choice('Split'));
+      await tester.pumpAndSettle();
+      expect(find.text('Save or cancel the open row first'), findsOneWidget);
+      expect(
+        find.widgetWithText(TextField, 'Postpaid, October'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // An account, saved: Unitel's row becomes a transfer, with undo.
+      if (find.text('Categorize').evaluate().isEmpty) {
+        await tester.tap(find.text('Unitel'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(choice('→ Khan Savings'));
+      await tester.pumpAndSettle();
+      await tester.tap(choice('→ Khan Savings'));
+      await tester.pumpAndSettle();
+      // Enter saves, as Save does.
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      // The row now says where the money went; undo puts it back.
+      bool shows(String category) => find
+          .descendant(
+            of: find.byKey(ValueKey('row-${unitelId()}')),
+            matching: find.text(category),
+          )
+          .evaluate()
+          .isNotEmpty;
+      expect(shows('Phone & internet'), isFalse);
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(shows('Phone & internet'), isTrue);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect(shows('Phone & internet'), isFalse);
+      await tidy(tester, db);
+    });
+
+    testWidgets("typing in a row's quick list narrows it, and Enter files "
+        'the row under the first line left (#654)', (tester) async {
+      final db = await pumpLedger(tester);
+      List<String> lines() => [
+        for (final e
+            in find
+                .descendant(
+                  of: find.byType(MenuItemButton),
+                  matching: find.byType(Text),
+                )
+                .evaluate())
+          (e.widget as Text).data!,
+      ];
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      final box = find.byKey(const ValueKey('menu-find'));
+      expect(box, findsOneWidget);
+      // The cursor is already in it.
+      expect(
+        tester
+            .widget<EditableText>(
+              find.descendant(of: box, matching: find.byType(EditableText)),
+            )
+            .focusNode
+            .hasFocus,
+        isTrue,
+      );
+      await tester.enterText(box, 'gro');
+      await tester.pumpAndSettle();
+      final left = lines().skip(3).toList(); // New category, Split, Remember
+      expect(left.first, 'Groceries');
+      expect(left.every((l) => l.toLowerCase().contains('gro')), isTrue);
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect(find.text('Filed under Groceries'), findsOneWidget);
+      // Opened again, the box is empty and the whole list is back.
+      if (find.text('Categorize').evaluate().isEmpty) {
+        await tester.tap(find.text('Unitel'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(box).controller!.text, isEmpty);
+      expect(lines(), contains('→ Khan Savings'));
+      await tidy(tester, db);
+    });
+
     testWidgets('categorize: undo and redo', (tester) async {
       final db = await pumpLedger(tester);
       await tester.tap(find.text('Unitel'));
@@ -3790,8 +4019,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Categorize'));
       await tester.pumpAndSettle();
-      expect(menu().take(4), [
+      expect(menu().take(5), [
         'New category',
+        'Split',
         'Remember this category for this payee',
         'Income · Loveland Solutions',
         'Income',
@@ -3833,14 +4063,16 @@ void main() {
         [DateTime(2026, 9, 25)],
       );
 
-      // Money out: the spending categories come first, Income last, and
-      // no pay is offered.
+      // Money out: the spending categories come first, Income last of
+      // them (then the accounts, as in the editor's list, #654), and no
+      // pay is offered.
       await tester.tap(find.text('Unitel'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Categorize'));
       await tester.pumpAndSettle();
-      expect(menu()[2], isNot(contains('Income')));
-      expect(menu().last, 'Income');
+      expect(menu()[3], isNot(contains('Income')));
+      expect(menu().lastWhere((l) => !l.startsWith('→')), 'Income');
+      expect(menu().last, startsWith('→'));
       expect(menu(), isNot(contains('Income · Loveland Solutions')));
       await tidy(tester, db);
     });
@@ -4603,7 +4835,8 @@ void main() {
     // Focus went to Payee: the sum is its answer, and the problem stays.
     expect(find.text('Enter a payee'), findsOneWidget);
     expect(
-      tester.widget<TextField>(find.byType(TextField).at(_amountAt(tester)))
+      tester
+          .widget<TextField>(find.byType(TextField).at(_amountAt(tester)))
           .controller!
           .text,
       '24',
