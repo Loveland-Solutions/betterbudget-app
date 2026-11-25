@@ -9386,6 +9386,11 @@
     "description": "A count of cash made on the phone, in the list of what isn’t on the computer yet.",
     "placeholders": {"account": {"type": "String"}}
   },
+  "ledgerJoinedSide": "It’s the other side of the row {account} already had",
+  "@ledgerJoinedSide": {
+    "description": "Clause of the popup after a row was made a transfer in its editor, after \" · \": the other account's own bank file had brought the same money in, still in Not categorized, and that row became this transfer's other side instead of a second copy (#655).",
+    "placeholders": {"account": {"type": "String"}}
+  },
   "importJoined": "{count, plural, =1{1 is the other side of a row {account} already had} other{{count} are the other side of rows {account} already had}}",
   "@importJoined": {
     "description": "Clause of the popup after a bank file is brought in, after \" · \": rows a payee says are money moved to another account, which became the other side of a row that account's own file had already brought in (instead of a second copy).",

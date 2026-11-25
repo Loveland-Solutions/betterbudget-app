@@ -1118,6 +1118,26 @@ class FiledTransfers {
   int get count => moved.length + joined.length;
 }
 
+/// What [AppDatabase.joinTransferSide] did (#655): the row's side on the
+/// other account took [key] and [cleared] from [bankEntryId], whose row
+/// [otherTransactionId] went.
+class TransferJoin {
+  const TransferJoin({
+    required this.transactionId,
+    required this.entryId,
+    required this.otherTransactionId,
+    required this.bankEntryId,
+    required this.key,
+    required this.cleared,
+  });
+  final int transactionId;
+  final int entryId;
+  final int otherTransactionId;
+  final int bankEntryId;
+  final String? key;
+  final Cleared cleared;
+}
+
 /// A row of this account, [transactionId], whose Not categorized side
 /// ([entryId], in [holdingId]) became the other account's side: it took
 /// that account's bank row's [key] and cleared state from [bankEntryId],
@@ -3275,6 +3295,108 @@ class AppDatabase extends _$AppDatabase {
       onlyFrom: holdingId,
     );
     return FiledTransfers(moved, joined);
+  });
+
+  /// A row just made a transfer to [toAccountId] in its editor (#655):
+  /// when that account's own bank file brought the same money in already
+  /// and exactly one such row is still in [holdingIds] (Not categorized),
+  /// that row is this transfer's other side, as [fileAsTransfers] makes it:
+  /// this row's side there takes its bank key and cleared state, its words
+  /// go into the memo, and it goes, or the account would hold the money
+  /// twice. Null when nothing was joined.
+  Future<TransferJoin?> joinTransferSide({
+    required int transactionId,
+    required int toAccountId,
+    required Set<int> holdingIds,
+  }) => transaction(() async {
+    final header =
+        await (select(transactions)..where(
+              (t) =>
+                  t.id.equals(transactionId) &
+                  t.deletedAt.isNull() &
+                  t.scheduled.equals(false),
+            ))
+            .getSingleOrNull();
+    final rows = await (select(
+      entries,
+    )..where((e) => e.transactionId.equals(transactionId))).get();
+    final side = rows.where((e) => e.accountId == toAccountId).toList();
+    if (header == null ||
+        rows.length != 2 ||
+        side.length != 1 ||
+        side.single.importKey != null ||
+        rows.any((e) => e.cleared == Cleared.reconciled)) {
+      return null;
+    }
+    final other = await _joinableSide(
+      otherAccountId: toAccountId,
+      holdingIds: holdingIds,
+      date: parseDateKey(header.date),
+      amount: side.single.amountMinor,
+      taken: {transactionId},
+    );
+    if (other == null) return null;
+    final j = TransferJoin(
+      transactionId: transactionId,
+      entryId: side.single.id,
+      otherTransactionId: other.transactionId,
+      bankEntryId: other.bankEntryId,
+      key: other.key,
+      cleared: other.cleared,
+    );
+    await (update(
+      transactions,
+    )..where((t) => t.id.equals(transactionId))).write(
+      TransactionsCompanion(
+        memo: Value(
+          _memoAdding(header.memo, memoKeeping(other.payee, other.memo)),
+        ),
+        updatedAt: Value(_now),
+      ),
+    );
+    await redoTransferJoin(j);
+    return j;
+  });
+
+  /// [joinTransferSide] again, after the edit's own redo put the row back:
+  /// the bank's key moves to this row's side, and the other row goes.
+  Future<void> redoTransferJoin(TransferJoin j) => transaction(() async {
+    // Only the row as the join left it: still the bank's, its key on it,
+    // nothing reconciled. Changed since (filed, reconciled), it stays.
+    final bank = await (select(
+      entries,
+    )..where((e) => e.id.equals(j.bankEntryId))).getSingleOrNull();
+    if ((await _reconciledAmong([j.otherTransactionId])).isNotEmpty) {
+      throw LockedException(DbProblem.reconciled);
+    }
+    if (bank == null || bank.importKey != j.key) {
+      throw LockedException(DbProblem.changedSince);
+    }
+    // The key off the other row first: one bank row, one key.
+    await (update(entries)..where((e) => e.id.equals(j.bankEntryId))).write(
+      const EntriesCompanion(importKey: Value(null)),
+    );
+    await (update(entries)..where((e) => e.id.equals(j.entryId))).write(
+      EntriesCompanion(cleared: Value(j.cleared), importKey: Value(j.key)),
+    );
+    await (update(
+      transactions,
+    )..where((t) => t.id.equals(j.otherTransactionId))).write(
+      TransactionsCompanion(deletedAt: Value(_now), updatedAt: Value(_now)),
+    );
+    await _assertBalanced(j.transactionId);
+  });
+
+  /// Undo for [joinTransferSide], before the edit's own undo: the other
+  /// row back, with its bank's key.
+  Future<void> undoTransferJoin(TransferJoin j) => transaction(() async {
+    await (update(entries)..where((e) => e.id.equals(j.entryId))).write(
+      const EntriesCompanion(importKey: Value(null)),
+    );
+    await (update(entries)..where((e) => e.id.equals(j.bankEntryId))).write(
+      EntriesCompanion(importKey: Value(j.key)),
+    );
+    await restoreMany([j.otherTransactionId]);
   });
 
   /// Undo for [fileAsTransfers]. A joined row a statement holds since stays,

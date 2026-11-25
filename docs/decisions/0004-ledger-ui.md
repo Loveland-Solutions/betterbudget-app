@@ -8527,3 +8527,21 @@ be the same! Why are they different??"
   pay ("Paycheck from …") is in the quick list on a row of money in, and not in an
   editor opened on a row already in, which can't save a paycheck yet.
 - A payee's list on the Payees page keeps its accounts at the top (#516).
+
+## A row made a transfer in its editor takes the other account's own copy (owner, 2026-11-25, #655)
+
+The budget review of #654 found that a row made a transfer in its editor (now one
+click from the quick list) could count the money twice: when the other account's
+bank file had brought the same money in already, still in Not categorized, the edit
+made a second copy there. Import and the Payees page's File already joined such a row;
+the editor didn't. Owner: "655, do it".
+
+- On Save, when the row was an ordinary row and is now a transfer to an account in
+  its own currency, and exactly one row of that amount, a few days either side, waits
+  in Not categorized on that account from its bank file, that row becomes this
+  transfer's other side: the side takes its bank's mark and cleared state, its words
+  go into the memo, and the copy goes. Two of one amount aren't guessed between: the
+  transfer is made apart, as before.
+- The popup says it: "Changes saved · It's the other side of the row Khan Savings
+  already had". One undo puts both rows back as they were, the bank's mark on its own
+  row; redo joins them again.

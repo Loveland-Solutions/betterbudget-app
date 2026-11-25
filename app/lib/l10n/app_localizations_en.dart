@@ -6466,6 +6466,11 @@ class WordsEn extends Words {
   }
 
   @override
+  String ledgerJoinedSide(String account) {
+    return 'It’s the other side of the row $account already had';
+  }
+
+  @override
   String importJoined(int count, String account) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

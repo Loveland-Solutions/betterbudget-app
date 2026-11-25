@@ -1703,6 +1703,146 @@ void main() {
       },
     );
 
+    test('a row made a transfer in its editor joins the other account\'s '
+        'own row in Not categorized, not a second copy; undo and redo '
+        '(#655)', () async {
+      final card = await db.createAccount(
+        name: 'Card',
+        type: AccountType.liability,
+      );
+      // The card's file first: the payment waits in Not categorized.
+      await bring([row(10, 200000, 'PAYMENT RECEIVED')], into: card);
+      final mine = await bring([row(11, -200000, 'CARD PAYMENT')]);
+      var data = await db.loadLedger();
+      final holding = data.accounts.values
+          .firstWhere((a) => a.name == 'Not categorized')
+          .id;
+      final id = mine.added.keys.single;
+      final before = await db.snapshot(id);
+      // As the editor saves it: the edit, then the join, in one write.
+      final join = await db.transaction(() async {
+        await db.editTransaction(
+          transactionId: id,
+          accountId: bank,
+          date: DateTime(2026, 9, 11),
+          today: DateTime(2026, 9, 16),
+          counterAccountId: card,
+        );
+        return db.joinTransferSide(
+          transactionId: id,
+          toAccountId: card,
+          holdingIds: {holding},
+        );
+      });
+      expect(join, isNotNull);
+      final after = await db.snapshot(id);
+      data = await db.loadLedger();
+      // 200,000 once on the card, cleared by its bank, the bank's words kept.
+      final there = data.registerFor(card).posted.single;
+      expect(
+        (there.txnId, there.kind, there.cleared),
+        (id, RowKind.transfer, Cleared.cleared),
+      );
+      expect(there.memo, contains('PAYMENT RECEIVED'));
+      // The card's file again: its row is in, not brought a second time.
+      expect(
+        (await plan([
+          row(10, 200000, 'PAYMENT RECEIVED'),
+        ], into: card)).single.fate,
+        ImportFate.already,
+      );
+
+      // Undo, as the screen does: the join, then the edit.
+      await db.transaction(() async {
+        await db.undoTransferJoin(join!);
+        await db.restoreSnapshot(before);
+      });
+      data = await db.loadLedger();
+      expect(
+        data.registerFor(card).posted.map((r) => (r.amount, r.categoryId)),
+        [(200000, holding)],
+      );
+      expect(data.registerFor(bank).posted.single.categoryId, holding);
+      expect(
+        (await plan([
+          row(10, 200000, 'PAYMENT RECEIVED'),
+        ], into: card)).single.fate,
+        ImportFate.already,
+      );
+      expect(
+        (await plan([row(11, -200000, 'CARD PAYMENT')])).single.fate,
+        ImportFate.already,
+      );
+
+      // Redo: the edit, then the join.
+      await db.transaction(() async {
+        await db.restoreSnapshot(after);
+        await db.redoTransferJoin(join!);
+      });
+      data = await db.loadLedger();
+      expect(data.registerFor(card).posted.map((r) => (r.txnId, r.cleared)), [
+        (id, Cleared.cleared),
+      ]);
+
+      // Undone, then the card's row changed (its key gone): redo leaves it.
+      await db.transaction(() async {
+        await db.undoTransferJoin(join!);
+        await db.restoreSnapshot(before);
+      });
+      await db.customStatement(
+        'UPDATE entries SET import_key = NULL WHERE id = ${join!.bankEntryId}',
+      );
+      await expectLater(
+        db.transaction(() async {
+          await db.restoreSnapshot(after);
+          await db.redoTransferJoin(join);
+        }),
+        throwsA(isA<LockedException>()),
+      );
+      expect(
+        (await db.loadLedger())
+            .registerFor(card)
+            .posted
+            .map((r) => r.categoryId),
+        [holding],
+      );
+    });
+
+    test('a row made a transfer in its editor with no copy waiting on the '
+        'other account stays a plain transfer (#655)', () async {
+      final card = await db.createAccount(
+        name: 'Card',
+        type: AccountType.liability,
+      );
+      // Two of one amount there: not guessed between.
+      await bring([
+        row(9, 200000, 'PAYMENT RECEIVED'),
+        row(12, 200000, 'REFUND'),
+      ], into: card);
+      final mine = await bring([row(11, -200000, 'CARD PAYMENT')]);
+      final data = await db.loadLedger();
+      final holding = data.accounts.values
+          .firstWhere((a) => a.name == 'Not categorized')
+          .id;
+      final id = mine.added.keys.single;
+      await db.editTransaction(
+        transactionId: id,
+        accountId: bank,
+        date: DateTime(2026, 9, 11),
+        today: DateTime(2026, 9, 16),
+        counterAccountId: card,
+      );
+      expect(
+        await db.joinTransferSide(
+          transactionId: id,
+          toAccountId: card,
+          holdingIds: {holding},
+        ),
+        isNull,
+      );
+      expect((await db.loadLedger()).registerFor(card).posted, hasLength(3));
+    });
+
     test('two rows of one amount in the other account are not guessed '
         'between: the transfer is made apart (#117)', () async {
       final savings = await db.createAccount(
