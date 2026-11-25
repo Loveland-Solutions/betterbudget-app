@@ -71,7 +71,7 @@ Tanan checks it (#90).
 | --- | --- | --- |
 | Google Play (`mn.lls.betterbudget`) | 0.157.0 (875) on Internal testing, alpha and production, 2026-11-24 (alpha and production in Google's review): everything 0.154.0 had, plus the pad's sums (#547), a row just added lit in gold and the bank's mark (schema v28: a phone needs 0.107.0 or later to read the folder's ledger) | Google's review of alpha and production |
 | Microsoft Store (`9NH3HJNFJN4G`) | 0.154.0, published | 0.157.0 in certification since 2026-11-24, set to publish by itself when it passes |
-| Mac App Store, "The BetterBudget" | 0.154.0 (864), live; free in every country but France, the EU since the trader details were verified 2026-11-25 (#375) | 0.157.0 (875) in Apple's review, submitted by the API key 2026-11-24. France waits on the French encryption declaration (#374) |
+| Mac App Store, "The BetterBudget" | 0.154.0 (864), live; free in every country but France, the EU since the trader details were verified 2026-11-25 (#375) | 0.157.0 (875) in Apple's review, submitted by the API key 2026-11-24. Not sold in France (owner, 2026-11-25; ROADMAP) |
 | iPhone App Store, same record | Nothing yet; TestFlight has 0.157.0 (875) | 0.157.0 (875) in Apple's review since 2026-11-24, replacing 0.154.0 (taken out of review); the Review Notes and recording from 0.154.0 kept. A check with Google Drive on a real iPhone is on #114 |
 
 Listings lead with building wealth (ADR 0004); Play's and the Microsoft Store's follow
@@ -98,8 +98,8 @@ pushed commit on main; `--check` does everything but the last step.
   upload, signing with the team's App Store Connect API key in `~/.config/betterbudget/`
   (#380; Xcode 27.2's command line can't use Xcode's sign-in). Both apps' Info.plist
   answers the encryption question as exempt (`ITSAppUsesNonExemptEncryption` false, #456),
-  so App Store Connect no longer asks it per build. France also waits on the French
-  encryption declaration.
+  so App Store Connect no longer asks it per build. It is not sold in France, which
+  asks a declaration for that encryption (owner, 2026-11-25; ROADMAP).
 
 ## Phase
 
