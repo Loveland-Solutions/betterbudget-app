@@ -8494,3 +8494,36 @@ multiply and divide."
   the left edge; while a waiting entry is being fixed, the line that says so stays,
   one line, with the sum under it. Switching to another app counts as leaving the
   box, as it already does for the boxes that save when left.
+
+## A row's quick Category list is its editor's list (owner, 2026-11-25, #654)
+
+The list on a row's category (Not categorized, or any category) and under
+**Categorize** was built apart from the Category list in the row's editor, so it had no
+**Split** and no accounts ("→ Khan Savings"). Owner, seeing it: "Those two lists should
+be the same! Why are they different??"
+
+- Both come from one piece of code (`categoryLines` in `ui/category_lines.dart`): the
+  same lines in the same order. **New category** and **Split** sit at the top, with
+  their icons; then, for money out, the spending categories, Income and the pays, and
+  for money in the pays and Income first; then the accounts, after every category
+  and never the row's own. Only categories in the row's currency, and the one the row
+  is filed under now.
+- In the quick list, **Split** or an account opens the row in its editor with that
+  already chosen (the parts open, or "→ Khan Savings" in Category), since either takes
+  more than one click. A tick in **Remember this category for this payee** goes with an
+  account into the editor's box.
+- **Typing narrows it** (owner, the same day: "when I click in the dropdown and type,
+  it should autocomplete"). The quick list opens with the cursor in a box at its top,
+  "Category"; typing keeps the lines that hold the words, the one named exactly and
+  those starting with them first, as the editor's list does, and Enter files the row
+  under the first line left (lit). Down goes from the box to the lines; the box is
+  empty each time the list opens. New category, Split and the box to remember stay
+  above while typing.
+- Opening the editor from the quick list never throws away typing in another row's
+  open editor: it says "Save or cancel the open row first", as clicking that row
+  would (code review). What was picked is put in once.
+- What still differs, on purpose: the quick list's box to remember is in the list,
+  and the editor's is under the row. A
+  pay ("Paycheck from …") is in the quick list on a row of money in, and not in an
+  editor opened on a row already in, which can't save a paycheck yet.
+- A payee's list on the Payees page keeps its accounts at the top (#516).

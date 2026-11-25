@@ -4,10 +4,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
-import '../domain/budget.dart' show BillFit, BillPayment, categoryTakes;
+import '../domain/budget.dart' show BillFit, BillPayment;
 import '../domain/ledger.dart';
 import '../domain/money.dart';
 import '../domain/sync.dart' show MadeHow;
+import 'category_lines.dart';
 import 'data_words.dart';
 import 'entry_row.dart';
 import 'language.dart';
@@ -156,7 +157,20 @@ class RegisterActions {
     this.onNoBill,
     this.onPoint,
     this.onShowRow,
+    this.onEditWith,
   });
+
+  /// Split, or an account ("→ Savings"), picked in a row's quick Category
+  /// list (#654): the row opens in its editor with it chosen there, since
+  /// either takes more than one click. [remember]: the list's box was
+  /// ticked.
+  final void Function(
+    RegisterRow row, {
+    AccountInfo? transfer,
+    bool split,
+    bool remember,
+  })?
+  onEditWith;
 
   /// The "Looks paid" line was clicked while its bill is being confirmed:
   /// bring the row it names into sight.
@@ -216,18 +230,61 @@ class RegisterActions {
   final void Function(RegisterRow row, AccountInfo account) onMove;
 }
 
-/// The dropdown's categories in the order that suits [r] (owner,
-/// 2026-10-06): for money in, Income first; for money out, the spending
-/// categories first. Only those in the row's currency (owner, 2026-10-06:
-/// dollar categories don't belong in a tugrik account's list), and the one
-/// the row is filed under now, so its tick still shows.
-List<AccountInfo> categoriesFor(RegisterRow r, List<AccountInfo> all) {
-  final offered = all.where(
-    (c) => c.id == r.categoryId || categoryTakes(c, r.currency),
+/// A row's quick Category list, on its category and under Categorize: the
+/// same lines as the list in its editor (#654, owner 2026-11-25: "Those
+/// two lists should be the same!"), New category and Split at the top.
+Widget rowCategoryMenu({
+  required RegisterRow r,
+  required List<AccountInfo> categories,
+  required List<AccountInfo> transfers,
+  required RegisterActions actions,
+  required Widget Function(bool open, VoidCallback toggle) builder,
+}) {
+  final editWith = actions.onEditWith;
+  final lines = categoryLines(
+    categories: categories,
+    transfers: editWith == null ? const [] : transfers,
+    pays: [for (final p in paysFor(r, actions)) (id: p.id, label: p.label)],
+    currency: r.currency,
+    moneyIn: r.amount > 0,
+    keepId: r.categoryId,
+    fromAccountId: r.accountId,
   );
-  final income = offered.where((c) => c.isIncome);
-  final spending = offered.where((c) => !c.isIncome);
-  return r.amount > 0 ? [...income, ...spending] : [...spending, ...income];
+  final pays = [
+    for (final l in lines)
+      if (l.payId != null) l.payId!,
+  ];
+  return CategoryMenu(
+    categories: [
+      for (final l in lines)
+        if (l.payId == null && !l.account.isBalanceSheet) l.account,
+    ],
+    transfers: [
+      for (final l in lines)
+        if (l.account.isBalanceSheet) l.account,
+    ],
+    transfersLast: true,
+    typeToFind: true,
+    onTransfer: editWith == null
+        ? null
+        : (a, remember) => editWith(r, transfer: a, remember: remember),
+    onSplit: editWith == null ? null : () => editWith(r, split: true),
+    onPicked: (c) => actions.onSetCategory(r, c),
+    onNew: () => actions.onNewCategory(r),
+    onPickedRemembering: _remembers(r, actions)
+        ? (c) => actions.onSetCategoryRemembering!(r, c)
+        : null,
+    leading: [
+      for (final l in lines)
+        if (l.payId case final id?)
+          (label: l.label, onTap: () => actions.onSetPay!(r, id)),
+    ],
+    leadingRemembering: [
+      for (final id in pays) () => actions.onSetPayRemembering?.call(r, id),
+    ],
+    current: categoryShown(r, actions),
+    builder: builder,
+  );
 }
 
 /// Whether a row's Category list has the box that remembers the payee:
@@ -635,15 +692,13 @@ class RegisterPanel extends StatelessWidget {
       bar: bar(r),
       onTap: (field) => tap(r.txnId, field),
       onToggleCleared: () => actions.onToggleCleared(r),
-      categories: categoriesFor(r, categories),
-      onSetCategory: (c) => actions.onSetCategory(r, c),
-      onNewCategory: () => actions.onNewCategory(r),
-      pays: paysFor(r, actions),
-      onSetPay: (id) => actions.onSetPay?.call(r, id),
-      onSetCategoryRemembering: _remembers(r, actions)
-          ? (c) => actions.onSetCategoryRemembering!(r, c)
-          : null,
-      onSetPayRemembering: (id) => actions.onSetPayRemembering?.call(r, id),
+      categoryMenu: (builder) => rowCategoryMenu(
+        r: r,
+        categories: categories,
+        transfers: transferTargets,
+        actions: actions,
+        builder: builder,
+      ),
       categoryShown: categoryShown(r, actions),
       hoveredStatus: hoveredStatus,
     );
@@ -1051,22 +1106,11 @@ class _RowActions extends StatelessWidget {
       onTap: () => actions.onEdit(r),
     );
     final categorize = r.kind == RowKind.simple
-        ? CategoryMenu(
-            categories: categoriesFor(r, categories),
-            onPicked: (c) => actions.onSetCategory(r, c),
-            onNew: () => actions.onNewCategory(r),
-            onPickedRemembering: _remembers(r, actions)
-                ? (c) => actions.onSetCategoryRemembering!(r, c)
-                : null,
-            leading: [
-              for (final p in paysFor(r, actions))
-                (label: p.label, onTap: () => actions.onSetPay!(r, p.id)),
-            ],
-            leadingRemembering: [
-              for (final p in paysFor(r, actions))
-                () => actions.onSetPayRemembering?.call(r, p.id),
-            ],
-            current: categoryShown(r, actions),
+        ? rowCategoryMenu(
+            r: r,
+            categories: categories,
+            transfers: accounts,
+            actions: actions,
             builder: (open, toggle) => BarButton(
               label: t.rowsCategorize,
               trailing: Icons.keyboard_arrow_down_rounded,
@@ -1356,24 +1400,14 @@ class _PostedRow extends StatelessWidget {
     required this.bar,
     required this.onTap,
     required this.onToggleCleared,
-    required this.categories,
-    required this.onSetCategory,
-    required this.onNewCategory,
-    this.pays = const [],
-    this.onSetPay,
-    this.onSetCategoryRemembering,
-    this.onSetPayRemembering,
+    required this.categoryMenu,
     this.categoryShown,
     required this.hoveredStatus,
   });
 
-  /// The pays this row could be a paycheck of, first in the dropdown.
-  final List<({int id, int accountId, String label})> pays;
-  final ValueChanged<int>? onSetPay;
-
-  /// A pick with the list's box ticked; null: no box (no payee).
-  final ValueChanged<AccountInfo>? onSetCategoryRemembering;
-  final ValueChanged<int>? onSetPayRemembering;
+  /// The row's quick Category list ([rowCategoryMenu]) around its chip.
+  final Widget Function(Widget Function(bool open, VoidCallback toggle))
+  categoryMenu;
 
   /// The chip's words when they aren't the category's own (a paycheck).
   final String? categoryShown;
@@ -1411,9 +1445,6 @@ class _PostedRow extends StatelessWidget {
   /// Which cell was clicked, so a double-click edits that field.
   final ValueChanged<EditField> onTap;
   final VoidCallback onToggleCleared;
-  final List<AccountInfo> categories;
-  final ValueChanged<AccountInfo> onSetCategory;
-  final VoidCallback onNewCategory;
   final ValueNotifier<Cleared?> hoveredStatus;
 
   @override
@@ -1671,24 +1702,8 @@ class _PostedRow extends StatelessWidget {
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: r.kind == RowKind.simple
-                              ? CategoryMenu(
-                                  categories: categories,
-                                  current: categoryShown ?? r.categoryLabel,
-                                  onPicked: onSetCategory,
-                                  onNew: onNewCategory,
-                                  onPickedRemembering: onSetCategoryRemembering,
-                                  leading: [
-                                    for (final p in pays)
-                                      (
-                                        label: p.label,
-                                        onTap: () => onSetPay?.call(p.id),
-                                      ),
-                                  ],
-                                  leadingRemembering: [
-                                    for (final p in pays)
-                                      () => onSetPayRemembering?.call(p.id),
-                                  ],
-                                  builder: (open, toggle) => CategoryChip(
+                              ? categoryMenu(
+                                  (open, toggle) => CategoryChip(
                                     label: categoryShown ?? r.categoryLabel,
                                     alert: notCategorized,
                                     open: open,
@@ -2227,7 +2242,27 @@ class CategoryMenu extends StatefulWidget {
     this.onPickedRemembering,
     this.leadingRemembering,
     this.transfers = const [],
+    this.transfersLast = false,
+    this.onTransfer,
+    this.onSplit,
+    this.typeToFind = false,
   });
+
+  /// A box at the top, the cursor in it when the list opens: typing narrows
+  /// the list as the editor's Category box does, and Enter takes the first
+  /// line left (owner, 2026-11-25, #654).
+  final bool typeToFind;
+
+  /// [transfers] after the categories, with no line between, as in a row's
+  /// list in its editor (#654); otherwise before them (a payee's list).
+  final bool transfersLast;
+
+  /// One of [transfers] picked, and whether the box was ticked; without it
+  /// they go through [onPicked] like a category.
+  final void Function(AccountInfo account, bool remember)? onTransfer;
+
+  /// Split at the top, beside New category, with its icon (#654).
+  final VoidCallback? onSplit;
 
   /// Accounts listed before the categories, "→ Khan Savings", a line
   /// under them: money moved to or from them (a payee's list, #117). At
@@ -2269,24 +2304,90 @@ class CategoryMenu extends StatefulWidget {
 
 class _CategoryMenuState extends State<CategoryMenu> {
   var _remember = false;
+  final _find = TextEditingController();
+  final _own = MenuController();
+
+  @override
+  void dispose() {
+    _find.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final w = widget;
-    final onNew = w.onNew, current = w.current;
+    final onNew = w.onNew, onSplit = w.onSplit, current = w.current;
     final remembering = w.onPickedRemembering;
     void picked(AccountInfo c) =>
         _remember && remembering != null ? remembering(c) : w.onPicked(c);
+    void transfer(AccountInfo a) {
+      final take = w.onTransfer;
+      take != null ? take(a, _remember) : picked(a);
+    }
+
     void led(int i) {
       final also = w.leadingRemembering;
       _remember && also != null ? also[i]() : w.leading[i].onTap();
     }
 
+    // Every line under the top ones, in the list's order: what typing
+    // narrows.
+    final transfers = [
+      for (final a in w.transfers)
+        if (!a.archived) a,
+    ];
+    ({String label, VoidCallback onTap}) toTransfer(AccountInfo a) =>
+        (label: '→ ${a.name}', onTap: () => transfer(a));
+    final lines = [
+      for (final (i, l) in w.leading.indexed)
+        (label: l.label, onTap: () => led(i)),
+      if (!w.transfersLast) ...transfers.map(toTransfer),
+      for (final c in w.categories)
+        if (!c.archived) (label: c.name, onTap: () => picked(c)),
+      if (w.transfersLast) ...transfers.map(toTransfer),
+    ];
+    final q = w.typeToFind ? _find.text.trim().toLowerCase() : '';
+    final shown = q.isEmpty
+        ? lines
+        : startsFirst(
+            lines.where((l) => l.label.toLowerCase().contains(q)),
+            q,
+            (l) => l.label,
+          );
+    final menu = w.controller ?? _own;
+    Widget line(({String label, VoidCallback onTap}) l, {bool first = false}) =>
+        MenuItemButton(
+          onPressed: l.onTap,
+          style: ButtonStyle(
+            minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
+            overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+            // What Enter takes while something is typed.
+            backgroundColor: WidgetStatePropertyAll(
+              first && q.isNotEmpty ? Mid.blueWash : null,
+            ),
+          ),
+          trailingIcon: l.label == current
+              ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
+              : null,
+          child: Text(
+            l.label,
+            style: onest(13, color: l.label == current ? Mid.ink : Mid.ink2),
+          ),
+        );
+    final dividerAfter = q.isEmpty && !w.transfersLast && transfers.isNotEmpty
+        ? w.leading.length + transfers.length - 1
+        : -1;
+
     return MenuAnchor(
-      controller: w.controller,
+      controller: menu,
       consumeOutsideTap: w.consumeOutsideTap,
       onOpen: () {
-        if (_remember) setState(() => _remember = false);
+        if (_remember || _find.text.isNotEmpty) {
+          setState(() {
+            _remember = false;
+            _find.clear();
+          });
+        }
       },
       style: MenuStyle(
         backgroundColor: WidgetStatePropertyAll(Mid.raised),
@@ -2303,7 +2404,47 @@ class _CategoryMenuState extends State<CategoryMenu> {
       ),
       alignmentOffset: const Offset(0, 4),
       menuChildren: [
-        if (onNew != null) ...[
+        if (w.typeToFind)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
+            child: SizedBox(
+              width: 240,
+              child: CallbackShortcuts(
+                // Down from the box to the lines, as in the menu itself.
+                bindings: {
+                  const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
+                      FocusScope.of(context).nextFocus(),
+                },
+                child: TextField(
+                  key: const ValueKey('menu-find'),
+                  controller: _find,
+                  autofocus: true,
+                  style: onest(13, color: Mid.ink),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: context.t.rowsHintCategory,
+                    hintStyle: onest(13, color: Mid.ink3),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      size: 16,
+                      color: Mid.ink3,
+                    ),
+                    prefixIconConstraints: const BoxConstraints(
+                      minWidth: 30,
+                      minHeight: 30,
+                    ),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (shown.isEmpty) return;
+                    menu.close();
+                    shown.first.onTap();
+                  },
+                ),
+              ),
+            ),
+          ),
+        if (onNew != null)
           MenuItemButton(
             onPressed: onNew,
             style: ButtonStyle(
@@ -2316,8 +2457,26 @@ class _CategoryMenuState extends State<CategoryMenu> {
               style: onest(13, color: Mid.ink2),
             ),
           ),
+        if (onSplit != null)
+          MenuItemButton(
+            key: const ValueKey('menu-split'),
+            onPressed: onSplit,
+            style: ButtonStyle(
+              minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
+              overlayColor: WidgetStatePropertyAll(Mid.blueWash),
+            ),
+            leadingIcon: Icon(
+              Icons.call_split_rounded,
+              size: 14,
+              color: Mid.ink2,
+            ),
+            child: Text(
+              context.t.rowsSplitOption,
+              style: onest(13, color: Mid.ink2),
+            ),
+          ),
+        if (onNew != null || onSplit != null)
           Divider(height: 1, color: Mid.rule),
-        ],
         if (remembering != null) ...[
           // Ticked here, then a category picked: the row is filed and the
           // payee remembered at once. At the top, under New category, in
@@ -2346,66 +2505,15 @@ class _CategoryMenuState extends State<CategoryMenu> {
           ),
           Divider(height: 1, color: Mid.rule),
         ],
-        ...focusFirstOnKeys([
-          for (final (i, l) in w.leading.indexed)
-            MenuItemButton(
-              onPressed: () => led(i),
-              style: ButtonStyle(
-                minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
-                overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-              ),
-              trailingIcon: l.label == current
-                  ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
-                  : null,
-              child: Text(
-                l.label,
-                style: onest(
-                  13,
-                  color: l.label == current ? Mid.ink : Mid.ink2,
-                ),
-              ),
-            ),
-          for (final a in w.transfers.where((a) => !a.archived))
-            MenuItemButton(
-              onPressed: () => picked(a),
-              style: ButtonStyle(
-                minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
-                overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-              ),
-              trailingIcon: '→ ${a.name}' == current
-                  ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
-                  : null,
-              child: Text(
-                '→ ${a.name}',
-                style: onest(
-                  13,
-                  color: '→ ${a.name}' == current ? Mid.ink : Mid.ink2,
-                ),
-              ),
-            ),
-          if (w.transfers.any((a) => !a.archived))
-            Divider(height: 1, color: Mid.rule),
-          for (final c in w.categories.where((c) => !c.archived))
-            MenuItemButton(
-              onPressed: () => picked(c),
-              style: ButtonStyle(
-                minimumSize: const WidgetStatePropertyAll(Size(220, 34)),
-                overlayColor: WidgetStatePropertyAll(Mid.blueWash),
-              ),
-              trailingIcon: c.name == current
-                  ? Icon(Icons.check_rounded, size: 14, color: Mid.blue)
-                  : null,
-              child: Text(
-                c.name,
-                style: onest(13, color: c.name == current ? Mid.ink : Mid.ink2),
-              ),
-            ),
+        ...(w.typeToFind ? (List<Widget> l) => l : focusFirstOnKeys)([
+          for (final (i, l) in shown.indexed) ...[
+            line(l, first: i == 0),
+            if (i == dividerAfter) Divider(height: 1, color: Mid.rule),
+          ],
         ]),
       ],
-      builder: (context, menu, _) => w.builder(
-        menu.isOpen,
-        () => menu.isOpen ? menu.close() : menu.open(),
-      ),
+      builder: (context, m, _) =>
+          w.builder(m.isOpen, () => m.isOpen ? m.close() : m.open()),
     );
   }
 }

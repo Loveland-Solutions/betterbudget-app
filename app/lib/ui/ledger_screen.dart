@@ -2658,7 +2658,39 @@ class _LedgerScreenState extends State<LedgerScreen>
 
   /// With [confirming], a scheduled row opens to be confirmed: dated today,
   /// the amount selected (bills vary), and Enter confirms.
-  void _startEdit(int id, EditField field, {bool confirming = false}) {
+  /// Split or an account picked in a row's quick Category list (#654): the
+  /// row opens in its editor with it chosen there.
+  void _editWith(
+    RegisterRow r, {
+    AccountInfo? transfer,
+    bool split = false,
+    bool remember = false,
+  }) {
+    // Another row's editor holding typing isn't thrown away (#654 review).
+    if (_editing case final e?) {
+      if (e.controller.isDirty()) {
+        _showFailure(context.t.ledgerSaveOrDiscard);
+        return;
+      }
+      _cancelEdit();
+    }
+    _startEdit(
+      r.txnId,
+      split ? EditField.category : EditField.amount,
+      transfer: transfer,
+      split: split,
+      remember: remember,
+    );
+  }
+
+  void _startEdit(
+    int id,
+    EditField field, {
+    bool confirming = false,
+    AccountInfo? transfer,
+    bool split = false,
+    bool remember = false,
+  }) {
     final row = _rows[id];
     if (row == null) return;
     // The new-transaction row gives way the same way: closed when empty,
@@ -2679,7 +2711,10 @@ class _LedgerScreenState extends State<LedgerScreen>
           ..newCategory = _newCategoryForRow
           ..remembered = ((payee, category, pay) =>
               _rememberedSo(row.accountId, payee, category, pay))
-          ..changeLockedAmount = (() => _takesBack(row));
+          ..changeLockedAmount = (() => _takesBack(row))
+          ..startTransfer = transfer
+          ..startSplit = split
+          ..startRemember = remember;
     // The popup in the corner would lie over the Cancel and Save of a row
     // near the bottom; ⌘Z still undoes what it said.
     _closeToast();
@@ -4597,6 +4632,7 @@ class _LedgerScreenState extends State<LedgerScreen>
                 onDelete: _delete,
                 onClearSelection: _clearSelection,
                 onEdit: (r) => _startEdit(r.txnId, EditField.payee),
+                onEditWith: _editWith,
                 onCancelEdit: _cancelEdit,
                 onUnreconcile: (r) => _unreconcile(accountOf(r)),
                 onMove: (r, to) => _move(r, accountOf(r), to),
@@ -8140,6 +8176,7 @@ class _LedgerScreenState extends State<LedgerScreen>
                   onDelete: _delete,
                   onClearSelection: _clearSelection,
                   onEdit: (r) => _startEdit(r.txnId, EditField.payee),
+                  onEditWith: _editWith,
                   onCancelEdit: _cancelEdit,
                   onUnreconcile: (_) => _unreconcile(account),
                   onMove: (r, to) => _move(r, account, to),
