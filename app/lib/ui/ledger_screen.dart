@@ -2817,6 +2817,24 @@ class _LedgerScreenState extends State<LedgerScreen>
     // Change the amount… on a reconciled row: the reconciles it takes back,
     // newest first, in the same write as the edit.
     var takenBack = const <ReconcileRecord>[];
+    // Made a transfer: the other account's own copy of the money, if its
+    // bank file brought it in, becomes the other side (#655).
+    TransferJoin? joined;
+    // Every Not categorized there is (an English and a Mongolian one).
+    final holding = {
+      for (final c in _data?.categories ?? const <AccountInfo>[])
+        if (isUncategorized(c)) c.id,
+    };
+    final to = d.counter;
+    final joins =
+        !confirming &&
+        row.kind == RowKind.simple &&
+        d.splits == null &&
+        d.otherAmount == null &&
+        holding.isNotEmpty &&
+        to != null &&
+        to.isBalanceSheet &&
+        to.id != row.accountId;
     try {
       owedId = await db.transaction(() async {
         made = await _makeCategory(d);
@@ -2839,6 +2857,13 @@ class _LedgerScreenState extends State<LedgerScreen>
           keepOwed: d.keepOwed,
           splits: split.parts,
         );
+        if (joins) {
+          joined = await db.joinTransferSide(
+            transactionId: row.txnId,
+            toAccountId: to.id,
+            holdingIds: holding,
+          );
+        }
         // Filed under something else, a paycheck stops being one.
         final category = made ?? d.counter?.id;
         if (row.payScheduleId case final pay?
@@ -2961,10 +2986,12 @@ class _LedgerScreenState extends State<LedgerScreen>
     final nowScheduled = !row.scheduled && d.date.isAfter(today);
     final taken = takenBack;
     final gone = left;
+    final join = joined;
     final rowPair = _alsoCategory(
       [?made, for (final m in lineMade) m.id],
       // The row as it was, then its statements locked again, oldest first.
       () => db.transaction(() async {
+        if (join != null) await db.undoTransferJoin(join);
         await db.restoreSnapshot(before);
         if (gone != null) await db.undoLeavePay(gone);
         for (final r in taken.reversed) {
@@ -2976,6 +3003,7 @@ class _LedgerScreenState extends State<LedgerScreen>
           await db.unreconcile(r);
         }
         await db.restoreSnapshot(after);
+        if (join != null) await db.redoTransferJoin(join);
         if (gone != null) await db.redoLeavePay(gone);
       }),
     );
@@ -3002,6 +3030,7 @@ class _LedgerScreenState extends State<LedgerScreen>
         for (final m in lineMade) t.ledgerNewCategory(m.name),
         if (kept != null) kept.said,
         if (taken.isNotEmpty) t.ledgerReconcilesTakenBack(taken.length),
+        if (join != null) t.ledgerJoinedSide(to!.name),
         ...back.said,
       ].join(' · '),
     );

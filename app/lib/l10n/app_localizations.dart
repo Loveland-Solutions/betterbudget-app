@@ -9117,6 +9117,12 @@ abstract class Words {
   /// **'{account} counted'**
   String phoneCountedTitle(String account);
 
+  /// Clause of the popup after a row was made a transfer in its editor, after " · ": the other account's own bank file had brought the same money in, still in Not categorized, and that row became this transfer's other side instead of a second copy (#655).
+  ///
+  /// In en, this message translates to:
+  /// **'It’s the other side of the row {account} already had'**
+  String ledgerJoinedSide(String account);
+
   /// Clause of the popup after a bank file is brought in, after " · ": rows a payee says are money moved to another account, which became the other side of a row that account's own file had already brought in (instead of a second copy).
   ///
   /// In en, this message translates to:

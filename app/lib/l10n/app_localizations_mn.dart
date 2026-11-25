@@ -6264,6 +6264,11 @@ class WordsMn extends Words {
   }
 
   @override
+  String ledgerJoinedSide(String account) {
+    return '$account дансанд аль хэдийн байсан мөрийн нөгөө тал боллоо';
+  }
+
+  @override
   String importJoined(int count, String account) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

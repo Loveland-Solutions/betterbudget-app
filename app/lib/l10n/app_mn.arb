@@ -1491,6 +1491,7 @@
   "phoneCountRechecked": "Компьютер тооллогыг авахдаа зөрүүг өөрийн мөрүүдээр дахин тооцно.",
   "phoneCountCantGoIn": "Энэ данс одоо компьютер дээр бэлэн мөнгөний данс биш тул энэ тооллогыг оруулах боломжгүй.",
   "phoneCountedTitle": "{account} тоолсон",
+  "ledgerJoinedSide": "{account} дансанд аль хэдийн байсан мөрийн нөгөө тал боллоо",
   "importJoined": "{count, plural, other{{count} нь {account} дансанд аль хэдийн байсан мөрийн нөгөө тал боллоо}}",
   "importTransferDoubt": "{account} дансанд {date}-нд {category} ангилалд {amount} аль хэдийн байна: энэ нь ижил мөнгө байж магадгүй",
   "importTransferDoubts": "{count, plural, other{{account} дансны {count} мөр шилжүүлэгтэй ижил мөнгө байж магадгүй}}",

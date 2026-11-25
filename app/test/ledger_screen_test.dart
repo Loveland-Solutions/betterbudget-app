@@ -3934,6 +3934,98 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('a row made a transfer in its editor takes the other '
+        "account's own copy as its other side, said in the popup; undo "
+        'puts both back (#655)', (tester) async {
+      final db = await pumpLedger(tester);
+      // Khan Savings' bank file brought Unitel's ₮30,000 in already.
+      await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        final savings = data.accounts.values
+            .firstWhere((a) => a.name == 'Khan Savings')
+            .id;
+        final rows = [
+          ImportRow(
+            sourceRow: 0,
+            date: DateTime(2026, 9, 16),
+            amount: 3000000,
+            payee: 'FROM TDB',
+          ),
+        ];
+        final plan = await db.planImport(
+          savings,
+          rows,
+          importKeys(savings, rows),
+        );
+        await db.applyImport(
+          accountId: savings,
+          plan: plan.rows,
+          uncategorizedNames: ['Not categorized'],
+        );
+      });
+      await settle(tester);
+      // Khan Savings' rows of ₮30,000: (a transfer?, from Unitel's row?).
+      late final int unitel;
+      Future<List<(bool, bool)>> copies() async =>
+          (await tester.runAsync(() async {
+            final data = await db.loadLedger();
+            return [
+              for (final r
+                  in data.accounts.values
+                      .where((a) => a.name == 'Khan Savings')
+                      .map((a) => data.registerFor(a.id).posted)
+                      .single)
+                if (r.amount == 3000000)
+                  (r.kind == RowKind.transfer, r.txnId == unitel),
+            ];
+          }))!;
+      unitel = (await tester.runAsync(() async {
+        final data = await db.loadLedger();
+        return data.accounts.values
+            .where((a) => a.name == 'TDB Checking')
+            .map((a) => data.registerFor(a.id).posted)
+            .single
+            .firstWhere((r) => r.payee == 'Unitel')
+            .txnId;
+      }))!;
+      expect(await copies(), [(false, false)]);
+
+      await tester.tap(find.text('Unitel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Categorize'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('menu-find')), 'khan');
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect(find.widgetWithText(TextField, '→ Khan Savings'), findsOneWidget);
+      await tester.runAsync(() async {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await settle(tester);
+      expect(
+        find.textContaining(
+          'It’s the other side of the row Khan Savings already had',
+        ),
+        findsOneWidget,
+      );
+      // Once there: the row Khan Savings' file brought is this transfer.
+      expect(await copies(), [(true, true)]);
+
+      await chord(tester, LogicalKeyboardKey.keyZ);
+      await settle(tester);
+      expect(await copies(), [(false, false)]);
+      expect(find.text('Phone & internet'), findsWidgets);
+      await chord(tester, LogicalKeyboardKey.keyZ, shift: true);
+      await settle(tester);
+      expect(await copies(), [(true, true)]);
+      await tidy(tester, db);
+    });
+
     testWidgets('categorize: undo and redo', (tester) async {
       final db = await pumpLedger(tester);
       await tester.tap(find.text('Unitel'));
