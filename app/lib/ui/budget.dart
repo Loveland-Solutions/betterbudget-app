@@ -449,12 +449,27 @@ class _BudgetPageState extends State<_BudgetPage> {
       edit(i >= 0 && i < spending.length ? spending[i].id : null);
     }
 
+    // What each category held when the period began, in a column of its
+    // own before Assigned, so a row adds up: From October + Assigned −
+    // Spent = Left (owner's pick, 2026-11-26, of a Transportation row
+    // whose Assigned and Spent were equal and Left was short: "This math
+    // doesn't make sense to any living human"). Only while some category
+    // brought something in; a row that brought nothing leaves it blank.
+    final showFrom = spending.any(
+      (c) => (budget.lines[c.id]?.fromBefore ?? 0) != 0,
+    );
+    final fromHead = period.label == payPeriodLabel
+        ? t.planSumFromPay
+        : t.planSumFromMonth(
+            monthName(t, previousBudgetPeriod(period, by).start.month),
+          );
+
     // The two tabs sit on the panel's top edge (`tabStrip`). Inside it, over
     // the categories, their column heads; the Income tab has none.
     Widget heads() => _tab == _BudgetTab.income
         ? const SizedBox.shrink()
         : CustomPaint(
-            foregroundPainter: _ColumnLines(Mid.ink3),
+            foregroundPainter: _ColumnLines(Mid.ink3, from: showFrom),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(0, 0, 12, 6),
               child: Row(
@@ -464,6 +479,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                   // draw it (owner, 2026-10-07): between two lines, and for
                   // Left between its line and where the amounts end.
                   for (final (h, from, width) in [
+                    if (showFrom) (fromHead, _ColumnLines._gap, _amountWidth),
                     (t.planAssigned, _ColumnLines._gap, _amountWidth),
                     (t.planSpent, _ColumnLines._gap, _amountWidth),
                     (t.planLeft, _ColumnLines._gap / 2, _leftWidth),
@@ -474,6 +490,9 @@ class _BudgetPageState extends State<_BudgetPage> {
                         padding: EdgeInsets.only(left: from * 2),
                         child: Text(
                           h,
+                          key: h == fromHead && showFrom
+                              ? const ValueKey('budget-head-from')
+                              : null,
                           textAlign: TextAlign.center,
                           style: onest(12.5, color: Mid.ink3),
                         ),
@@ -748,6 +767,7 @@ class _BudgetPageState extends State<_BudgetPage> {
               ),
         onShowRows: () => widget.onShowRows(c, period),
         line: line,
+        showFrom: showFrom,
         bar: bar,
         // The bar's words: "₮612,300 of ₮900,000 spent"; nothing spent
         // yet; over, by how much. None where they would contradict the
@@ -902,6 +922,7 @@ class _BudgetPageState extends State<_BudgetPage> {
               assigned: a,
               spent: s,
               currency: c,
+              showFrom: showFrom,
               onShowRows: () => widget.onShowPeriodRows(period),
             ),
       ];
@@ -1907,8 +1928,12 @@ const double _leftWidth = _amountWidth + 116;
 /// Spent and Left (owner, 2026-10-07). Each row and the headings draw their
 /// own piece, so the lines stop at an open Edit.
 class _ColumnLines extends CustomPainter {
-  const _ColumnLines(this.color);
+  const _ColumnLines(this.color, {this.from = false});
   final Color color;
+
+  /// The From October column is shown: a third line, between it and
+  /// Assigned.
+  final bool from;
 
   /// From a row's right edge to the right edge of Left: the row's padding,
   /// the ⋯ button and the gap before it.
@@ -1920,7 +1945,7 @@ class _ColumnLines extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final dot = Paint()..color = color.withValues(alpha: 0.6);
-    for (final columns in const [0, 1]) {
+    for (final columns in from ? const [0, 1, 2] : const [0, 1]) {
       final x =
           size.width - _afterLeft - _leftWidth - columns * _amountWidth + _gap;
       for (var y = 1.0; y < size.height; y += 4) {
@@ -1930,7 +1955,8 @@ class _ColumnLines extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ColumnLines old) => old.color != color;
+  bool shouldRepaint(_ColumnLines old) =>
+      old.color != color || old.from != from;
 }
 
 /// The bar after a category's name ([UsedBar], #460, #465): how long it
@@ -1954,17 +1980,22 @@ class _TotalsRow extends StatelessWidget {
     required this.spent,
     required this.currency,
     required this.onShowRows,
+    this.showFrom = false,
   });
   final int assigned;
   final int spent;
   final Currency currency;
   final VoidCallback onShowRows;
 
+  /// The From October column is shown; it has no total here, as Left
+  /// has none.
+  final bool showFrom;
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     return CustomPaint(
-      foregroundPainter: _ColumnLines(Mid.ink3),
+      foregroundPainter: _ColumnLines(Mid.ink3, from: showFrom),
       child: Container(
         constraints: const BoxConstraints(minHeight: 40),
         // Set a little apart, so it reads as the list's foot and not as
@@ -1982,6 +2013,7 @@ class _TotalsRow extends StatelessWidget {
                 style: onest(13, weight: 600, color: Mid.ink2),
               ),
             ),
+            if (showFrom) const SizedBox(width: _amountWidth),
             SizedBox(
               width: _amountWidth,
               child: Align(
@@ -2698,6 +2730,7 @@ class _CategoryRow extends StatefulWidget {
     required this.onDelete,
     required this.onEmoji,
     this.line,
+    this.showFrom = false,
     this.ahead,
     this.planNote,
     this.assignPlanned,
@@ -2776,6 +2809,10 @@ class _CategoryRow extends StatefulWidget {
 
   /// Assigned, Spent and Left for the period on screen.
   final EnvelopeLine? line;
+
+  /// The From October column is shown, before Assigned: what it held
+  /// when the period began, blank when that was nothing.
+  final bool showFrom;
 
   /// "₮100,000 past this pay period's part, which November's money still
   /// covers": said when Left, which is then not red (#468), is pointed
@@ -2907,7 +2944,7 @@ class _CategoryRowState extends State<_CategoryRow> {
           child: CustomPaint(
             foregroundPainter: widget.line == null
                 ? null
-                : _ColumnLines(Mid.ink3),
+                : _ColumnLines(Mid.ink3, from: widget.showFrom),
             child: Container(
               constraints: const BoxConstraints(minHeight: 40),
               padding: EdgeInsets.symmetric(
@@ -2948,6 +2985,33 @@ class _CategoryRowState extends State<_CategoryRow> {
                     ),
                   ),
                   if (widget.line case final line?) ...[
+                    // Always in the row, no width when not shown, so
+                    // Assigned's field keeps its place, and what is being
+                    // typed in it, when the column comes or goes.
+                    SizedBox(
+                      width: widget.showFrom ? _amountWidth : 0,
+                      child: !widget.showFrom || line.fromBefore == 0
+                          ? null
+                          : Align(
+                              alignment: Alignment.centerRight,
+                              // Short coming in is coral while the
+                              // row is still short, as Left is; made
+                              // up, or spent ahead by a paycheck
+                              // (#468), it's ordinary ink with a minus.
+                              child: Money(
+                                line.fromBefore,
+                                key: ValueKey('from-${c.id}'),
+                                size: 13.5,
+                                currency: widget.currency,
+                                color:
+                                    line.fromBefore < 0 &&
+                                        line.left < 0 &&
+                                        widget.ahead == null
+                                    ? Mid.coral
+                                    : Mid.ink2,
+                              ),
+                            ),
+                    ),
                     SizedBox(
                       width: _amountWidth,
                       child: Align(
