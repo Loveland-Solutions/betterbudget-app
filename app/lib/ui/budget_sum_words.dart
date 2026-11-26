@@ -1,5 +1,6 @@
 import '../domain/budget.dart';
 import '../domain/ledger.dart' show AccountType, LedgerData;
+import '../domain/money.dart' show formatShort;
 import 'language.dart';
 
 /// What the sum's result is called when it is below zero, and the parts
@@ -66,4 +67,27 @@ String cashBankLabel(Words t, LedgerData data) {
   if (cash && !bank) return t.planKeyCash;
   if (bank && !cash) return t.planKeyBank;
   return t.planKeyCashBank;
+}
+
+/// The line under the sum (#668): what went out in the period, and how
+/// much of it has no category yet, on the computer's Budget page and the
+/// phone's. [isCurrent] is today's period; [month] names a month's.
+String spentWords(
+  Words t,
+  BudgetSum sum, {
+  required bool byPay,
+  required bool isCurrent,
+  required String month,
+}) {
+  final c = sum.pool.currency, loose = sum.pool.loose;
+  final s = formatShort(sum.spent, currency: c);
+  final l = formatShort(loose, currency: c);
+  if (loose > 0) {
+    if (!byPay) return t.planSpentMonthLoose(month, s, l);
+    return isCurrent
+        ? t.planSpentThisPayLoose(s, l)
+        : t.planSpentPayLoose(s, l);
+  }
+  if (!byPay) return t.planSpentMonth(month, s);
+  return isCurrent ? t.planSpentThisPay(s) : t.planSpentPay(s);
 }

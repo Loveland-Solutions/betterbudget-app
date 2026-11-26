@@ -1324,26 +1324,22 @@ class _BudgetPageState extends State<_BudgetPage> {
       // names. Nothing spent, no line.
       Widget? spentLine(BudgetPool p) {
         final c = p.currency, tag = tagOf(c);
-        final spent = BudgetSum.of(
+        final sum = BudgetSum.of(
           p,
           budget: budget,
           spending: spending,
           saved: saved,
           aheadBy: aheadBy,
-        ).spent;
-        if (spent <= 0) return null;
-        final s = formatShort(spent, currency: c);
-        final l = formatShort(p.loose, currency: c);
+        );
+        if (sum.spent <= 0) return null;
         // No "so far" (owner, 2026-11-26): the month's name says which.
-        final words = p.loose > 0
-            ? (byPay
-                  ? (isCurrent
-                        ? t.planSpentThisPayLoose(s, l)
-                        : t.planSpentPayLoose(s, l))
-                  : t.planSpentMonthLoose(month, s, l))
-            : (byPay
-                  ? (isCurrent ? t.planSpentThisPay(s) : t.planSpentPay(s))
-                  : t.planSpentMonth(month, s));
+        final words = spentWords(
+          t,
+          sum,
+          byPay: byPay,
+          isCurrent: isCurrent,
+          month: month,
+        );
         return Padding(
           padding: const EdgeInsets.only(top: 10),
           child: Align(
@@ -1364,6 +1360,7 @@ class _BudgetPageState extends State<_BudgetPage> {
           ),
         );
       }
+
       return Padding(
         key: const ValueKey('budget-key'),
         padding: const EdgeInsets.only(bottom: 2),

@@ -2874,6 +2874,22 @@ void main() {
       ),
       findsOneWidget,
     );
+    // Under the result, the computer's line: what went out this period
+    // (#668).
+    final spent = find.descendant(
+      of: sum,
+      matching: find.byKey(const ValueKey('sum-spent')),
+    );
+    expect(terms.spent, greaterThan(0));
+    const month = 'October';
+    final loose = formatShort(pool.loose);
+    expect(
+      tester.widget<Text>(spent).data,
+      pool.loose > 0
+          ? 'Spent in $month: ${formatShort(terms.spent)}, $loose of it not '
+                'yet in a category'
+          : 'Spent in $month: ${formatShort(terms.spent)}',
+    );
     await expectLater(
       find.byType(PhoneApp),
       matchesGoldenFile('goldens/phone_budget_sum.png'),
