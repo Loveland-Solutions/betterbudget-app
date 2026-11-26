@@ -7064,6 +7064,75 @@
   "@planSumFromPay": {
     "description": "Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. As planSumFromMonth, when the Budget page is by pay period."
   },
+  "planSpentMonthLoose": "Spent in {month}: {spent}, {loose} of it not yet in a category",
+  "@planSpentMonthLoose": {
+    "description": "Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. {month} is the month's name, like November; {spent} and {loose} are amounts. {loose} is the part of {spent} still in Not categorized.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "spent": {
+        "type": "String"
+      },
+      "loose": {
+        "type": "String"
+      }
+    }
+  },
+  "planSpentThisPayLoose": "Spent this pay period: {spent}, {loose} of it not yet in a category",
+  "@planSpentThisPayLoose": {
+    "description": "Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. As planSpentMonthLoose, when the Budget page is by pay period and the one shown is today's.",
+    "placeholders": {
+      "spent": {
+        "type": "String"
+      },
+      "loose": {
+        "type": "String"
+      }
+    }
+  },
+  "planSpentPayLoose": "Spent in that pay period: {spent}, {loose} of it not yet in a category",
+  "@planSpentPayLoose": {
+    "description": "Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. As planSpentThisPayLoose, for a pay period that isn't today's.",
+    "placeholders": {
+      "spent": {
+        "type": "String"
+      },
+      "loose": {
+        "type": "String"
+      }
+    }
+  },
+  "planSpentMonth": "Spent in {month}: {spent}",
+  "@planSpentMonth": {
+    "description": "Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. As planSpentMonthLoose, with no money out left without a category.",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "spent": {
+        "type": "String"
+      }
+    }
+  },
+  "planSpentThisPay": "Spent this pay period: {spent}",
+  "@planSpentThisPay": {
+    "description": "Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. As planSpentThisPayLoose, with no money out left without a category.",
+    "placeholders": {
+      "spent": {
+        "type": "String"
+      }
+    }
+  },
+  "planSpentPay": "Spent in that pay period: {spent}",
+  "@planSpentPay": {
+    "description": "Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. As planSpentPayLoose, with no money out left without a category.",
+    "placeholders": {
+      "spent": {
+        "type": "String"
+      }
+    }
+  },
   "planSumShortFromMonth": "Short from {month}",
   "@planSumShortFromMonth": {
     "description": "Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. The name over what the month before was short by: more was given out or spent than came in, and it has to be made up. {month} is that month's name.",

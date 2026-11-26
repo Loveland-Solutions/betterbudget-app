@@ -578,8 +578,14 @@ class BudgetSum {
     required this.ahead,
     required this.overspent,
     required this.cause,
+    required this.spent,
   });
   final BudgetPool pool;
+
+  /// What went out in the period (owner, 2026-11-26, #668): every
+  /// category's Spent, Saved's too, and the money out with no category
+  /// yet ([BudgetPool.loose]), which the line under the sum names.
+  final int spent;
 
   /// Assigned, less what sits under Saved, with spent ahead counted in.
   final int given;
@@ -623,6 +629,10 @@ class BudgetSum {
       if (x.currency == c) ahead += aheadBy[x.id] ?? 0;
     }
     if (ahead > pool.overspent) ahead = pool.overspent;
+    var spent = pool.loose;
+    for (final x in spending) {
+      if (x.currency == c) spent += budget.lines[x.id]?.spent ?? 0;
+    }
     return BudgetSum(
       pool: pool,
       given: pool.assigned - aside + ahead,
@@ -630,6 +640,7 @@ class BudgetSum {
       ahead: ahead,
       overspent: pool.overspent - ahead,
       cause: pool.shortBy(ahead: ahead),
+      spent: spent,
     );
   }
 }

@@ -9946,6 +9946,8 @@ void main() {
       await pick('plan-weekday-1');
       await pick('plan-weekday-4');
       await pick('plan-ends-never');
+      await reveal(tester, find.byKey(const ValueKey('edit-save')));
+      await tester.pumpAndSettle();
       await tester.runAsync(() async {
         await tester.tap(find.byKey(const ValueKey('edit-save')));
         await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -11840,6 +11842,36 @@ void main() {
       expect(find.byKey(const ValueKey('period-chip')), findsOneWidget);
       expect(find.byKey(const ValueKey('filter-chip')), findsNothing);
       expect(find.text('September 2026'), findsOneWidget);
+      expect(find.text('Sakura Coffee'), findsOneWidget);
+
+      // The line under the sum says the same Spent as the Total row, in a
+      // sentence, and opens the same rows.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Budget'));
+      await tester.pumpAndSettle();
+      final line = find.byKey(const ValueKey('sum-spent'));
+      expect(line, findsOneWidget);
+      final total = tester.widget<Money>(
+        find.descendant(
+          of: find.byKey(const ValueKey('total-spent-MNT')),
+          matching: find.byType(Money),
+        ),
+      );
+      final words = tester
+          .widget<Text>(find.descendant(of: line, matching: find.byType(Text)))
+          .data!;
+      // Nothing waits in Not categorized and Saved spent nothing here, so
+      // it is the Total row's figure, alone (#668).
+      expect(find.byKey(const ValueKey('sum-loose')), findsNothing);
+      expect(
+        words,
+        'Spent in September: '
+        '${formatShort(total.minor, currency: Currency.mnt)}',
+      );
+      await tester.tap(line);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('period-chip')), findsOneWidget);
       expect(find.text('Sakura Coffee'), findsOneWidget);
       await tidy(tester, db);
     });

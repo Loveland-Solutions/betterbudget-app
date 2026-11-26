@@ -8545,3 +8545,28 @@ the editor didn't. Owner: "655, do it".
 - The popup says it: "Changes saved · It's the other side of the row Khan Savings
   already had". One undo puts both rows back as they were, the bank's mark on its own
   row; redo joins them again.
+
+## What was spent this period, under Budget's sum (owner, 2026-11-26, #668)
+
+Owner: "I'd like to easily know how much I spent this month/pay period", pointing at
+the sum at the top of Budget. The figure was only in the Total row at the list's foot.
+
+- **Picked: a line under the sum**, outside it: "Spent in November: ₮3,100,000" (by
+  paycheck, "Spent this pay period", and a pay period gone by, "Spent in that pay
+  period"). No "so far" (owner, on seeing it: "I don't think 'so far' is
+  necessary"): the month's name says which month, and a month still running is
+  plainly not over. It isn't a box: Spent isn't a term
+  of Income − Assigned − Overspent, and a fourth box would read as one. A click opens
+  the period's rows, as the Total row's Spent does. One line per currency, under its
+  own sum; nothing spent, no line. Rejected: the Total row pinned to the window's foot;
+  each section's spent on its name.
+- **What it counts** (owner's answers to the budget review, same day): everything that
+  went out in the period, every category's Spent, Saved's too (the Safety net paying a
+  hospital bill is money gone), and money with no category yet, which the sentence
+  names while there is any: "Spent in November: ₮3,300,000, ₮200,000 of it not yet in a
+  category". So it can be more than the Total row's Spent, which leaves those
+  out. Worked out in `BudgetSum.spent`, so the phone can show the same figure.
+- **Not set against Assigned.** The sketch read "… of ₮4,000,000 assigned"; dropped
+  (owner's pick of the review's options): a month spending a fund saved before, Tsagaan
+  Sar in February, would read as far past its Assigned with nothing overspent, and the
+  Assigned box above already says it. Rejected too: "of ₮4,600,000 there was to spend".
