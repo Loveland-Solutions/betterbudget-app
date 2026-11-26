@@ -1979,6 +1979,23 @@ class _PhoneSum extends StatelessWidget {
                 style: onest(13, color: Mid.ink2),
               ),
             ),
+          // Under the sum, not a term of it: what went out this period, the
+          // computer's line (#668). The phone shows today's period only.
+          if (sum.spent > 0)
+            Padding(
+              padding: const EdgeInsets.only(left: 20, top: 8),
+              child: Text(
+                spentWords(
+                  t,
+                  sum,
+                  byPay: byPay,
+                  isCurrent: true,
+                  month: monthName(t, today.month),
+                ),
+                key: ValueKey('sum-spent$tag'),
+                style: onest(14, color: Mid.ink2),
+              ),
+            ),
         ],
       ),
     );

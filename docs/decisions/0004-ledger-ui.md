@@ -8570,3 +8570,6 @@ the sum at the top of Budget. The figure was only in the Total row at the list's
   (owner's pick of the review's options): a month spending a fund saved before, Tsagaan
   Sar in February, would read as far past its Assigned with nothing overspent, and the
   Assigned box above already says it. Rejected too: "of ₮4,600,000 there was to spend".
+- **On the phone too** (owner: "then add it"): the line ends the phone's sum card, under
+  the result, in the same words from one function (`spentWords`); the phone shows
+  today's period only, and its line opens nothing (0.159.0).
