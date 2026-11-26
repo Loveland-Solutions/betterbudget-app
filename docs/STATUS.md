@@ -69,7 +69,7 @@ Tanan checks it (#90).
 
 | Store | Has | Waiting |
 | --- | --- | --- |
-| Google Play (`mn.lls.betterbudget`) | 0.157.5 (890) on Internal testing, alpha and production, 2026-11-26 (alpha and production in Google's review): the loop fix (#662) and deleted bank rows coming back on import (#664) for the phone | Google's review of alpha and production |
+| Google Play (`mn.lls.betterbudget`) | 0.159.0 (896) on Internal testing and production, 2026-11-26 (production in Google's review): what went out this period under Budget's sum, on the phone too (#668); alpha keeps 0.157.5 (890) | Google's review of production |
 | Microsoft Store (`9NH3HJNFJN4G`) | 0.157.0 or 0.154.0, whichever certification has passed | 0.157.5 in certification since 2026-11-26 (the first upload failed in that night's outages; sent again), set to publish by itself when it passes |
 | Mac App Store, "The BetterBudget" | 0.157.0 (875), live; free in every country but France, the EU since the trader details were verified 2026-11-25 (#375) | 0.157.5 (890) in Apple's review, submitted by the API key 2026-11-26. Not sold in France (owner, 2026-11-25; ROADMAP) |
 | iPhone App Store, same record | Nothing yet; TestFlight has 0.157.5 (890) | 0.157.5 (890) in Apple's review since 2026-11-26, replacing 0.157.0 (taken out of review, the same version renamed); the Review Notes and recording kept. A check with Google Drive on a real iPhone is on #114 |
