@@ -10448,6 +10448,72 @@ void main() {
       await tidy(tester, db);
     });
 
+    testWidgets('a row adds up: what it brought in from the month before '
+        'has a column before Assigned (owner, 2026-11-26)', (tester) async {
+      final db = await pumpLedger(tester, size: const Size(1440, 960));
+      final data = (await tester.runAsync(db.loadLedger))!;
+      final groceries = data.categories
+          .firstWhere((c) => c.name == 'Groceries')
+          .id;
+      // September's Groceries spent ₮276,650.50 and is given ₮276,000:
+      // October starts ₮650.50 short.
+      await tester.runAsync(
+        () => db.setBudgetAmount(
+          groceries,
+          DateTime(2026, 9, 1),
+          DateTime(2026, 9, 30),
+          27600000,
+        ),
+      );
+      await openBudget(tester);
+      await settle(tester);
+      // The month the budget began brought nothing in: no column.
+      expect(find.byKey(const ValueKey('budget-head-from')), findsNothing);
+      expect(find.byKey(ValueKey('from-$groceries')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('period-next')));
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('budget-head-from')))
+            .data,
+        'From September',
+      );
+      final from = find.byKey(ValueKey('from-$groceries'));
+      final money = tester.widget<Money>(from);
+      expect(money.minor, -65050);
+      expect(money.color, Mid.coral);
+      // It stands before Assigned, in the row's own line.
+      final cell = tester.getRect(from);
+      final assigned = tester.getRect(
+        find.byKey(ValueKey('assigned-$groceries')),
+      );
+      expect(cell.right, lessThan(assigned.left + 1));
+      expect((cell.center.dy - assigned.center.dy).abs(), lessThan(2));
+      await expectLater(
+        find.byType(LedgerScreen),
+        matchesGoldenFile('goldens/budget_from_column.png'),
+      );
+      // A category that brought nothing in leaves its cell blank.
+      final now = (await tester.runAsync(db.loadLedger))!;
+      final october = Budget.of(
+        now,
+        start: DateTime(2026, 10, 1),
+        end: DateTime(2026, 10, 31),
+        today: DateTime(2026, 9, 16),
+      );
+      final blank = [
+        for (final MapEntry(:key, :value) in october.lines.entries)
+          if (value.fromBefore == 0) key,
+      ];
+      expect(blank, isNotEmpty);
+      for (final id in blank) {
+        expect(find.byKey(ValueKey('from-$id')), findsNothing);
+      }
+      await tidy(tester, db);
+    });
+
     testWidgets('a bar: a little over is whole and coral, untouched is '
         'whole and green; the sum over its income (#460, #465)', (
       tester,

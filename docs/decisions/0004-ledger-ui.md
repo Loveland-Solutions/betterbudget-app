@@ -6913,6 +6913,10 @@ card and **1** for the bars ("Let's to C and bars 1").
 
 ## Budget rows are one height: no line under Left (owner, 2026-11-16, #471)
 
+*Its first bullet left a row that carried money in unable to add up, and was answered on
+2026-11-26 by "Budget: a From October column before Assigned" (#672); one height
+stands.*
+
 The first-time reader, on a row with "−₮50,000 from before" under Left in November:
 "Before what?" The line was first reworded to name the month, "−₮50,000 from October".
 The owner, seeing that in the app: "These subtitles are not really helping. I want each
@@ -8573,3 +8577,29 @@ the sum at the top of Budget. The figure was only in the Total row at the list's
 - **On the phone too** (owner: "then add it"): the line ends the phone's sum card, under
   the result, in the same words from one function (`spentWords`); the phone shows
   today's period only, and its line opens nothing (0.159.0).
+
+## Budget: a From October column before Assigned (owner, 2026-11-26, #672)
+
+A category whose Assigned and Spent were equal showed a short Left in coral, and a coral
+bar, because it had come into the month short from the month before. With the line under
+Left gone (#471), nothing on the row said so. The owner: "This math doesn't make sense
+to any living human."
+
+Three were offered: the shortfall in words in the spot after the name ("₮X short from
+October", recommended: no width, no height), **a column of its own**, and a tooltip on
+Left. The owner picked **the column**.
+
+- **A column before Assigned**, headed with the top card's own words for the same thing:
+  **From October** by month, **From the pay period before** by paycheck. Each row now
+  reads as a sum: From October + Assigned − Spent = Left.
+- **Only while some category brought something in.** The period the budget began in has
+  no column. A row that brought nothing in leaves its cell blank, not ₮0.00.
+- **Short coming in is coral while the row is still short**, as its Left is. Made up
+  since, or spent ahead by a paycheck (#468), it's ordinary ink with a minus. Money
+  brought in is ordinary ink.
+- No total for it on the Total row, as Left has none there; the top card's From October
+  is the budget's whole.
+- Rejected: the words after the name (the owner's pick was the arithmetic, not a
+  sentence) and the tooltip (a warning that must be hovered isn't one).
+- Not yet on the phone: an opened category there stacks Assigned, Spent and Left the
+  same way (#672).
