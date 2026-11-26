@@ -1316,6 +1316,54 @@ class _BudgetPageState extends State<_BudgetPage> {
         for (final MapEntry(:key, :value) in clearOf.entries)
           if (!shown.any((p) => p.currency == key)) value,
       ];
+      // Under a currency's sum: what went out in the period (owner's pick,
+      // 2026-11-26, #668). It is not a term of the sum, so it is a
+      // sentence and not a box, and it isn't set against Assigned: a fund
+      // spent this month would read as overspent. Every category counts,
+      // Saved's too, and money with no category yet, which the sentence
+      // names. Nothing spent, no line.
+      Widget? spentLine(BudgetPool p) {
+        final c = p.currency, tag = tagOf(c);
+        final spent = BudgetSum.of(
+          p,
+          budget: budget,
+          spending: spending,
+          saved: saved,
+          aheadBy: aheadBy,
+        ).spent;
+        if (spent <= 0) return null;
+        final s = formatShort(spent, currency: c);
+        final l = formatShort(p.loose, currency: c);
+        // No "so far" (owner, 2026-11-26): the month's name says which.
+        final words = p.loose > 0
+            ? (byPay
+                  ? (isCurrent
+                        ? t.planSpentThisPayLoose(s, l)
+                        : t.planSpentPayLoose(s, l))
+                  : t.planSpentMonthLoose(month, s, l))
+            : (byPay
+                  ? (isCurrent ? t.planSpentThisPay(s) : t.planSpentPay(s))
+                  : t.planSpentMonth(month, s));
+        return Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            // Opens the period's rows, as the Total row's Spent does.
+            child: Tooltip(
+              message: t.planShowTheseRows,
+              waitDuration: const Duration(milliseconds: 500),
+              child: Hoverable(
+                key: ValueKey('sum-spent$tag'),
+                onTap: () => widget.onShowPeriodRows(period),
+                builder: (hover) => Text(
+                  words,
+                  style: onest(14, color: hover ? Mid.blue : Mid.ink2),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
       return Padding(
         key: const ValueKey('budget-key'),
         padding: const EdgeInsets.only(bottom: 2),
@@ -1338,6 +1386,7 @@ class _BudgetPageState extends State<_BudgetPage> {
                 )
               else
                 sum(p),
+              ?spentLine(p),
             ],
             // Under the sum: Assign what's planned, with its warning inside
             // it. A Clear whose currency has no sum on the card ends it.

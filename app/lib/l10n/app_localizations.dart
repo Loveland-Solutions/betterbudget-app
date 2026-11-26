@@ -6761,6 +6761,42 @@ abstract class Words {
   /// **'From the pay period before'**
   String get planSumFromPay;
 
+  /// Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. {month} is the month's name, like November; {spent} and {loose} are amounts. {loose} is the part of {spent} still in Not categorized.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent in {month}: {spent}, {loose} of it not yet in a category'**
+  String planSpentMonthLoose(String month, String spent, String loose);
+
+  /// Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. As planSpentMonthLoose, when the Budget page is by pay period and the one shown is today's.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent this pay period: {spent}, {loose} of it not yet in a category'**
+  String planSpentThisPayLoose(String spent, String loose);
+
+  /// Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. As planSpentThisPayLoose, for a pay period that isn't today's.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent in that pay period: {spent}, {loose} of it not yet in a category'**
+  String planSpentPayLoose(String spent, String loose);
+
+  /// Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. As planSpentMonthLoose, with no money out left without a category.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent in {month}: {spent}'**
+  String planSpentMonth(String month, String spent);
+
+  /// Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. As planSpentThisPayLoose, with no money out left without a category.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent this pay period: {spent}'**
+  String planSpentThisPay(String spent);
+
+  /// Budget page, a line under the top card's sum (owner, 2026-11-26, #668): what went out in the period shown, every category's Spent (Saved's too) and money out with no category yet. Clicking it shows the period's rows. As planSpentPayLoose, with no money out left without a category.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent in that pay period: {spent}'**
+  String planSpentPay(String spent);
+
   /// Budget page, the top card's sum (#461): Income + From October − Assigned − Saved − Overspent = Not assigned. The name over what the month before was short by: more was given out or spent than came in, and it has to be made up. {month} is that month's name.
   ///
   /// In en, this message translates to:

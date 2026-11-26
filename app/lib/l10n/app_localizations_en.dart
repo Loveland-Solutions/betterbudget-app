@@ -4804,6 +4804,36 @@ class WordsEn extends Words {
   String get planSumFromPay => 'From the pay period before';
 
   @override
+  String planSpentMonthLoose(String month, String spent, String loose) {
+    return 'Spent in $month: $spent, $loose of it not yet in a category';
+  }
+
+  @override
+  String planSpentThisPayLoose(String spent, String loose) {
+    return 'Spent this pay period: $spent, $loose of it not yet in a category';
+  }
+
+  @override
+  String planSpentPayLoose(String spent, String loose) {
+    return 'Spent in that pay period: $spent, $loose of it not yet in a category';
+  }
+
+  @override
+  String planSpentMonth(String month, String spent) {
+    return 'Spent in $month: $spent';
+  }
+
+  @override
+  String planSpentThisPay(String spent) {
+    return 'Spent this pay period: $spent';
+  }
+
+  @override
+  String planSpentPay(String spent) {
+    return 'Spent in that pay period: $spent';
+  }
+
+  @override
   String planSumShortFromMonth(String month) {
     return 'Short from $month';
   }

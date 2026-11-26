@@ -4630,6 +4630,36 @@ class WordsMn extends Words {
   String get planSumFromPay => 'Өмнөх орлогын үеийн үлдэгдэл';
 
   @override
+  String planSpentMonthLoose(String month, String spent, String loose) {
+    return '$monthын зарлага: $spent, үүнээс $loose нь ангилалгүй';
+  }
+
+  @override
+  String planSpentThisPayLoose(String spent, String loose) {
+    return 'Энэ орлогын үеийн зарлага: $spent, үүнээс $loose нь ангилалгүй';
+  }
+
+  @override
+  String planSpentPayLoose(String spent, String loose) {
+    return 'Тэр орлогын үеийн зарлага: $spent, үүнээс $loose нь ангилалгүй';
+  }
+
+  @override
+  String planSpentMonth(String month, String spent) {
+    return '$monthын зарлага: $spent';
+  }
+
+  @override
+  String planSpentThisPay(String spent) {
+    return 'Энэ орлогын үеийн зарлага: $spent';
+  }
+
+  @override
+  String planSpentPay(String spent) {
+    return 'Тэр орлогын үеийн зарлага: $spent';
+  }
+
+  @override
   String planSumShortFromMonth(String month) {
     return '$monthын дутагдал';
   }
